@@ -1,0 +1,12 @@
+node_modules
+out
+dist
+release
+.npm-cache
+*.sqlite
+*.sqlite-*
+.env*
+*.log
+.DS_Store
+secrets.bin
+.claude/

@@ -1,0 +1,123 @@
+@import 'tailwindcss';
+@import '@fontsource/bebas-neue/400.css';
+@import '@fontsource/montserrat/400.css';
+@import '@fontsource/montserrat/500.css';
+@import '@fontsource/montserrat/600.css';
+@import '@fontsource/montserrat/700.css';
+
+@theme inline {
+  --font-display: 'Bebas Neue', Impact, sans-serif;
+  --font-sans: 'Montserrat', system-ui, sans-serif;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-hot: var(--hot);
+  --color-fine: var(--fine);
+  --color-ok: var(--ok);
+  --color-bad: var(--bad);
+  --color-warn: var(--warn);
+}
+
+:root,
+:root[data-theme='dark'] {
+  --bg: #2d2b28;
+  --surface: #37342f;
+  --surface2: #433f39;
+  --line: #57524a;
+  --ink: #f2e8d5;
+  --muted: #a8a090;
+  --accent: #d9734e;
+  --hot: #ff6a13;
+  --fine: #8a8580;
+  --ok: #8fbf7f;
+  --bad: #ff7a6b;
+  --warn: #e8b34a;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #f2e8d5;
+  --surface: #fbf6ea;
+  --surface2: #e9dec6;
+  --line: #cdbf9f;
+  --ink: #2d2b28;
+  --muted: #6f685b;
+  --accent: #c25f3a;
+  --hot: #e85a06;
+  --fine: #8a8580;
+  --ok: #3f7a31;
+  --bad: #b83a2b;
+  --warn: #9a6a10;
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+input,
+textarea,
+select {
+  user-select: text;
+}
+.drag {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+h1,
+h2,
+.display {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+  font-weight: 400;
+}
+
+/* FullCalendar tuned to the palette */
+.fc {
+  --fc-border-color: var(--line);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: var(--surface);
+  --fc-today-bg-color: color-mix(in srgb, var(--accent) 14%, transparent);
+  --fc-list-event-hover-bg-color: var(--surface2);
+  --fc-button-bg-color: var(--surface2);
+  --fc-button-border-color: var(--line);
+  --fc-button-text-color: var(--ink);
+  --fc-button-hover-bg-color: var(--line);
+  --fc-button-hover-border-color: var(--line);
+  --fc-button-active-bg-color: var(--accent);
+  --fc-button-active-border-color: var(--accent);
+  font-size: 13px;
+}
+.fc .fc-toolbar-title {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  letter-spacing: 0.04em;
+  font-weight: 400;
+}
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  color: #111;
+}
+.fc-event {
+  cursor: pointer;
+  border-radius: 4px;
+}
+.fc a {
+  color: inherit;
+}

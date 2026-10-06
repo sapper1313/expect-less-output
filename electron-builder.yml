@@ -1,0 +1,46 @@
+appId: com.expectlessmedia.elo
+productName: Expect Less Output
+copyright: Expect Less Media
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+  - '!node_modules/ffprobe-static/bin/win32/**'
+  - '!node_modules/ffprobe-static/bin/linux/**'
+  - '!node_modules/ffprobe-static/bin/darwin/x64/**'
+  - '!node_modules/better-sqlite3/prebuilds/win32-*'
+  - '!node_modules/better-sqlite3/prebuilds/linux*'
+  - '!node_modules/better-sqlite3/prebuilds/darwin-x64.node'
+  - '!node_modules/better-sqlite3/{src,deps}/**'
+  - '!**/*.{md,map,ts}'
+extraResources:
+  - from: resources
+    to: resources
+    filter:
+      - trayTemplate.png
+      - trayTemplate@2x.png
+      - icon.png
+asarUnpack:
+  - node_modules/ffmpeg-static/**
+  - node_modules/ffprobe-static/**
+  - node_modules/better-sqlite3/**
+npmRebuild: false
+mac:
+  target:
+    - target: dmg
+      arch: arm64
+    - target: dir
+      arch: arm64
+  category: public.app-category.productivity
+  icon: build/icon.icns
+  identity: null
+  hardenedRuntime: false
+  extendInfo:
+    CFBundleURLTypes:
+      - CFBundleURLName: com.expectlessmedia.elo
+        CFBundleURLSchemes:
+          - expectless
+dmg:
+  title: Expect Less Output
