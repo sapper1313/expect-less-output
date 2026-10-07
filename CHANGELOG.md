@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.2 Best times and recommended slots
+
+- **Best times to post** on the Stats screen: top hours, a typical views by hour chart and a day by hour heat map (Eastern time), per brand and platform. Only videos at least 7 days old are compared. With more than one brand or platform the numbers are shown as "times your typical video".
+- **Recommended** times on each brand's Posting slots card, split into weekdays and weekends, each with an Add button. Nothing changes until you click Add and then Save slots.
+- Both need at least 10 videos with numbers. Use Import existing videos to add the ones already on your channels.
+
 ## 0.7.1 Stats for existing videos
 
 - **Import existing videos** on the Stats screen finds videos that were on your channels before this app and reads their numbers. YouTube (uploads list), Instagram (videos and Reels) and Facebook Page Reels. TikTok waits for video.list approval.

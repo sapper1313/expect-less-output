@@ -219,6 +219,7 @@ function SlotEditor({ brandId }: { brandId: number }) {
   const { toast } = useApp()
   const [busy, run] = useBusy()
   const { data } = useLoad(() => api.brands.getSlots(brandId), [brandId])
+  const { data: rec } = useLoad(() => api.stats.recommendedSlots(brandId), [brandId])
   const [slots, setSlots] = useState<SlotDraft[]>([])
   const [dirty, setDirty] = useState(false)
   useEffect(() => {
@@ -232,11 +233,46 @@ function SlotEditor({ brandId }: { brandId: number }) {
     setDirty(true)
   }
 
+  const suggestions = (type: 'weekday' | 'weekend') => {
+    const picks = (type === 'weekday' ? rec?.weekday : rec?.weekend) ?? []
+    if (picks.length === 0) return null
+    return (
+      <div className="mb-3 rounded-md border border-line p-2 text-[12px]">
+        <div className="mb-1 font-semibold">Recommended</div>
+        {picks.map((p) => {
+          const have = slots.some((s) => s.dayType === type && s.timeLocal === p.timeLocal)
+          return (
+            <div key={p.timeLocal} className="flex items-center justify-between gap-2 py-0.5">
+              <span>
+                <b>{p.timeLocal}</b>{' '}
+                <span className="text-muted">
+                  {p.lift >= 1
+                    ? `${Math.round((p.lift - 1) * 100)}% above typical`
+                    : `${Math.round((1 - p.lift) * 100)}% below typical`}
+                  , {p.count} videos
+                </span>
+              </span>
+              <Button
+                disabled={have}
+                onClick={() =>
+                  update([...slots, { dayType: type, timeLocal: p.timeLocal, enabled: true }])
+                }
+              >
+                {have ? 'Added' : 'Add'}
+              </Button>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   const list = (type: 'weekday' | 'weekend', label: string) => (
     <div>
       <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted">
         {label}
       </div>
+      {suggestions(type)}
       <div className="space-y-2">
         {slots.map((s, i) =>
           s.dayType !== type ? null : (
@@ -298,6 +334,9 @@ function SlotEditor({ brandId }: { brandId: number }) {
         </Button>
       }
     >
+      <div className="mb-3 text-[12px] text-muted">
+        {rec && !rec.enough ? COPY.stats.slotNotEnough : COPY.stats.slotNote}
+      </div>
       <div className="grid gap-6 md:grid-cols-2">
         {list('weekday', 'Weekdays (Mon to Fri)')}
         {list('weekend', 'Weekends (Sat and Sun)')}

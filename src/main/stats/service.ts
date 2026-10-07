@@ -11,6 +11,13 @@ import type {
   TargetStats,
 } from '@shared/types'
 import { isTikTokVideoId, shouldRefresh } from './ids'
+import {
+  analyze,
+  recommendSlots,
+  type BestTimes,
+  type RecommendedSlots,
+  type TimedVideo,
+} from './bestTimes'
 import type { StatsProvider, StatsTarget } from './providers'
 
 const DAY = 86_400_000
@@ -355,5 +362,43 @@ export class StatsService {
     }).filter((p) => p.videos + p.unavailable > 0)
     const totals = platforms.reduce<StatsNumbers>((acc, p) => addAll(acc, p), EMPTY)
     return { brandId, range, posts: posts.size + old.length, platforms, totals }
+  }
+
+  /** Videos with numbers and a go-live time, for the best time analysis. */
+  private timedVideos(brandId: number | null, platform: Platform | null): TimedVideo[] {
+    const mine = this.d.db
+      .prepare(
+        `SELECT at, views, brand_id, platform FROM (
+           SELECT COALESCE(p.scheduled_at_utc, t.posted_at_utc) AS at, p.brand_id AS brand_id, t.platform AS platform,
+             (SELECT views FROM post_stats WHERE post_target_id = t.id ORDER BY id DESC LIMIT 1) AS views
+           FROM post_targets t JOIN posts p ON p.id = t.post_id WHERE t.status = 'posted')
+         WHERE views IS NOT NULL AND at IS NOT NULL`,
+      )
+      .all() as Array<{ at: string; views: number; brand_id: number; platform: Platform }>
+    const old = this.d.db
+      .prepare(
+        `SELECT at, views, brand_id, platform FROM (
+           SELECT v.published_at_utc AS at, v.brand_id AS brand_id, v.platform AS platform,
+             (SELECT views FROM imported_stats WHERE imported_id = v.id ORDER BY id DESC LIMIT 1) AS views
+           FROM imported_videos v)
+         WHERE views IS NOT NULL AND at IS NOT NULL`,
+      )
+      .all() as Array<{ at: string; views: number; brand_id: number; platform: Platform }>
+    return [...mine, ...old]
+      .filter((r) => (!brandId || r.brand_id === brandId) && (!platform || r.platform === platform))
+      .map((r) => ({ at: r.at, views: r.views, group: `${r.brand_id}:${r.platform}` }))
+  }
+
+  /** Which hours and days of the week got the most views. Raw views for one brand and platform, otherwise "times typical". */
+  bestTimes(brandId: number | null, platform: Platform | null, minAgeDays = 7): BestTimes {
+    return analyze(this.timedVideos(brandId, platform), {
+      nowMs: this.now(),
+      minAgeDays,
+      relative: !(brandId && platform),
+    })
+  }
+
+  recommendedSlots(brandId: number): RecommendedSlots {
+    return recommendSlots(this.timedVideos(brandId, null), { nowMs: this.now(), minAgeDays: 7 })
   }
 }

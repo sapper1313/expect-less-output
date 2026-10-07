@@ -6,6 +6,7 @@ import type { StatsRange } from '@shared/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { fmt } from '../components/StatsPanel'
+import { BestTimes } from '../components/BestTimes'
 import { Button, Card, Empty, PageHeader, Select, useBusy } from '../ui'
 
 export function Stats() {
@@ -136,6 +137,7 @@ export function Stats() {
             </table>
           </Card>
         )}
+        <BestTimes brandId={brandId} />
         {old && old.length > 0 && (
           <Card title={`Existing videos (${old.length})`}>
             <div className="mb-2 text-[12px] text-muted">{COPY.stats.importedNote}</div>

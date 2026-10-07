@@ -530,3 +530,18 @@ With MCP connected you can ask "How did last week's Trash Panda posts do?". The 
 5. TikTok is not included yet. It needs TikTok to approve `video.list` first.
 
 Your logins stay as they are. YouTube already has the permission it needs, so you do not need to reconnect.
+
+### Best times to post
+
+1. Open **Stats**. Under the totals is **Best times to post (Eastern time)**.
+2. It shows your **Top hours**, a bar chart of typical views for each hour, and a day by hour grid where darker means more views. Hover a square for the numbers.
+3. Pick a platform in the box on that card. With one brand and one platform it shows real views. With more it shows "times your typical video", so a big channel and a small one can be compared fairly.
+4. Only videos at least 7 days old are used, so a new video does not look worse than it is. It needs at least 10 such videos, and an hour needs 2 videos to be ranked. Click **Import existing videos** first to give it more to work with.
+
+### Recommended slot times
+
+1. Open **Brands**, pick a brand, and look at **Posting slots**.
+2. Under Weekdays and Weekends a **Recommended** box lists up to three times with how much better than typical they did.
+3. Click **Add** to put a time in the list, then click **Save slots**. Nothing changes until you do.
+
+These are only patterns in your own results. A few videos can mislead, and the best hour can change as your audience grows.

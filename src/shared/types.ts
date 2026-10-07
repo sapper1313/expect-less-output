@@ -502,3 +502,31 @@ export interface ImportResult {
   added: number
   problems: Array<{ brand: string; platform: Platform; message: string }>
 }
+
+export interface BestTimeHour {
+  hour: number
+  count: number
+  mean: number
+  median: number
+}
+export interface BestTimes {
+  minAgeDays: number
+  videos: number
+  used: number
+  relative: boolean
+  enough: boolean
+  hours: BestTimeHour[]
+  cells: Array<BestTimeHour & { weekday: number }>
+  top: BestTimeHour[]
+}
+export interface SlotSuggestion {
+  timeLocal: string
+  count: number
+  lift: number
+}
+export interface RecommendedSlots {
+  videos: number
+  enough: boolean
+  weekday: SlotSuggestion[]
+  weekend: SlotSuggestion[]
+}

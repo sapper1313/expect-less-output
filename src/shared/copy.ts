@@ -44,6 +44,16 @@ export const COPY = {
     chartNeedsMore: 'The chart appears after two readings.',
     refreshed: 'Stats refreshed',
     imported: 'Existing videos imported',
+    relativeNote:
+      'Numbers are shown as "times your typical video" so brands and platforms can be compared.',
+    rawNote: 'Numbers are raw views.',
+    notEnough:
+      'Not enough videos yet. It needs at least 10 videos that are a week old or more. Click Import existing videos to add the ones already on your channels.',
+    noTop: 'No hour has two or more videos yet.',
+    slotNote:
+      'Suggested from how your own videos did (Eastern time). Click Add to put a time in the list, then Save slots.',
+    slotNotEnough:
+      'Suggestions appear once the app has numbers for at least 10 videos that are a week old or more. Use Import existing videos on the Stats screen.',
     importProblems: 'Imported with problems',
     importedNote:
       'Videos that were on your channels before this app. They are read once and then every day for 90 days after they were published.',

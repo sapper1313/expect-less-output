@@ -9,7 +9,9 @@ import type {
   AppInfo,
   HealthRow,
   McpConfig,
+  BestTimes,
   ImportResult,
+  RecommendedSlots,
   ImportedVideo,
   PostStats,
   StatsRange,
@@ -176,6 +178,8 @@ export interface Api {
     /** Finds videos already on the connected channels and reads their numbers. */
     importExisting(brandId: number | null): Promise<ImportResult>
     imported(brandId: number | null, range: StatsRange): Promise<ImportedVideo[]>
+    bestTimes(brandId: number | null, platform: Platform | null): Promise<BestTimes>
+    recommendedSlots(brandId: number): Promise<RecommendedSlots>
   }
   agent: {
     status(): Promise<AgentStatus>

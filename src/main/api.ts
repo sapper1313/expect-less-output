@@ -278,6 +278,8 @@ export function buildApi(d: ApiDeps): Api {
       },
       importExisting: async (brandId) => d.imported.importExisting(brandId),
       imported: async (brandId, range) => d.imported.list(brandId, range),
+      bestTimes: async (brandId, platform) => d.stats.bestTimes(brandId, platform),
+      recommendedSlots: async (brandId) => d.stats.recommendedSlots(brandId),
       brandSummary: async (brandId, range) => d.stats.brandSummary(brandId, range),
     },
     agent: {
