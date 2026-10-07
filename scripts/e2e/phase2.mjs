@@ -84,6 +84,8 @@ const done = await invoke(page, 'posts.get', p2.id)
 log('after Mark as posted:', done.status, done.targets[0].externalUrl, done.videoPath)
 
 // 6. Token death
+await page.keyboard.press('Escape') // close the post editor so the menu is clickable
+await page.waitForSelector('[role=dialog]', { state: 'detached', timeout: 5000 }).catch(() => {})
 fake.state.accessTokens.clear()
 fake.state.refreshInvalid = true
 await invoke(page, 'youtube.checkHealth')
