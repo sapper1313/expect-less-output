@@ -30,6 +30,11 @@ import { SettingsService } from './services/settings'
 import { Scheduler } from './scheduler/scheduler'
 import { DryRunAdapter } from './adapters/dryRun'
 import { YoutubeAdapter } from './adapters/youtube'
+import { FacebookAdapter } from './adapters/facebook'
+import { InstagramAdapter } from './adapters/instagram'
+import { metaUrls } from './meta/config'
+import { GraphClient } from './meta/graph'
+import { MetaService } from './meta/metaService'
 import { googleUrls, STUDIO_URL } from './google/config'
 import { QuotaTracker } from './google/quota'
 import { TokenManager } from './google/tokens'
@@ -196,13 +201,60 @@ async function boot(): Promise<void> {
       },
     },
   })
+  // Meta (Facebook Pages and Instagram)
+  const mUrls = metaUrls()
+  const graph = new GraphClient({ urls: mUrls })
+  const meta: MetaService = new MetaService({
+    db,
+    secrets,
+    urls: mUrls,
+    graph,
+    log,
+    emit,
+    alert: (headline, detail) => notifier.failure(headline, detail),
+    openBrowser: async (url) => {
+      if (process.env['ELO_TEST_NO_BROWSER']) {
+        void fetch(url).catch(() => {})
+        return
+      }
+      await shell.openExternal(url)
+    },
+  })
+  const metaHost = {
+    notify: (title: string, body: string) => {
+      if (Notification.isSupported()) new Notification({ title, body }).show()
+      send({ type: 'toast', toast: { kind: 'info', headline: title, detail: body } })
+    },
+    authFailed: (reason: string) => meta.markReauth(reason),
+    tokenFor: (account: Account | null) => meta.tokenForAccount(account),
+    log: (level: 'info' | 'warn' | 'error', message: string, ctx: { postId: number }) =>
+      log.log(level, message, { postId: ctx.postId }),
+  }
+  const facebookAdapter = new FacebookAdapter({
+    graph,
+    urls: mUrls,
+    host: metaHost,
+    publishesLast24h: (pageId) => meta.fbPublishesLast24h(pageId),
+    recordPublish: (pageId) => meta.recordFbPublish(pageId),
+  })
+  const instagramAdapter = new InstagramAdapter({
+    graph,
+    urls: mUrls,
+    host: metaHost,
+    brandDefaults: (brandId) => brands.getDefaults(brandId),
+  })
+
   const dryRuns = Object.fromEntries(
     PLATFORMS.map((p) => [p, new DryRunAdapter(p, { getSettings: () => settings.get() })]),
   ) as unknown as Record<Platform, PlatformAdapter>
-  const adapterFor = (platform: Platform, account: Account | null): PlatformAdapter =>
-    platform === 'youtube' && account && account.mode !== 'dry_run'
-      ? youtubeAdapter
-      : dryRuns[platform]
+  const adapterFor = (platform: Platform, account: Account | null): PlatformAdapter => {
+    if (account && account.mode !== 'dry_run') {
+      if (platform === 'youtube') return youtubeAdapter
+      if (platform === 'facebook') return facebookAdapter
+      if (platform === 'instagram') return instagramAdapter
+    }
+    return dryRuns[platform]
+  }
 
   const scheduler = new Scheduler({
     db,
@@ -273,6 +325,7 @@ async function boot(): Promise<void> {
     secrets,
     library,
     youtube,
+    meta,
     host,
     emit,
   })
@@ -329,6 +382,7 @@ async function boot(): Promise<void> {
 
   scheduler.start()
   youtube.startHealthChecks()
+  meta.startHealthChecks()
   updateBlocker()
   log.log('info', 'App started.')
 
@@ -337,6 +391,7 @@ async function boot(): Promise<void> {
       quitting = true
       scheduler.stop()
       youtube.stop()
+      meta.stop()
       app.quit()
     }
   }

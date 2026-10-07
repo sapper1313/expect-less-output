@@ -17,7 +17,10 @@ import type { PlatformAdapter } from '../src/main/adapters/types'
 
 export function makeEnv(
   startMs = Date.UTC(2026, 5, 1, 12, 0, 0),
-  opts: { adapterFor?: (platform: Platform, account: Account | null) => PlatformAdapter } = {},
+  opts: {
+    adapterFor?: (platform: Platform, account: Account | null) => PlatformAdapter
+    media?: import('../src/main/services/media').MediaService | null
+  } = {},
 ) {
   const db = new Database(':memory:')
   db.pragma('foreign_keys = ON')
@@ -28,7 +31,7 @@ export function makeEnv(
   settings.set({ mediaRoot: root })
   const library = new Library(() => settings.get().mediaRoot)
   const log = new ActivityLog(db)
-  const posts = new PostService(db, library, null, log)
+  const posts = new PostService(db, library, opts.media ?? null, log)
   const clock = { ms: startMs }
   const events = {
     failures: [] as string[][],
@@ -62,10 +65,11 @@ export function makeEnv(
     whenMs: number
     platforms?: Platform[]
     title?: string
+    bytes?: number
   }) {
     const brandId = opts.brandId ?? 1
     const src = join(root, `src-${Math.random().toString(36).slice(2)}.mp4`)
-    writeFileSync(src, 'fake video bytes')
+    writeFileSync(src, opts.bytes ? Buffer.alloc(opts.bytes, 7) : 'fake video bytes')
     return posts.create({
       brandId,
       sourcePath: src,

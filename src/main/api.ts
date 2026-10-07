@@ -10,6 +10,7 @@ import type { Scheduler } from './scheduler/scheduler'
 import type { Library } from './services/library'
 import { noneProvider } from './services/textAssist'
 import type { YoutubeService } from './google/youtubeService'
+import type { MetaService } from './meta/metaService'
 
 /** The parts that need Electron. Everything else is plain services. */
 export interface Host {
@@ -31,6 +32,7 @@ export interface ApiDeps {
   secrets: SecretStore
   library: Library
   youtube: YoutubeService
+  meta: MetaService
   host: Host
   emit: () => void
 }
@@ -105,6 +107,7 @@ export function buildApi(d: ApiDeps): Api {
       remove: async (ids, alsoDeleteFile) => d.posts.remove(ids, alsoDeleteFile),
       retryTarget: async (id) => d.scheduler.retryTarget(id),
       markPosted: async (id, url) => d.scheduler.markPosted(id, url),
+      dismissChecklist: async (id) => d.posts.dismissChecklist(id),
       postNow: async (id) => d.scheduler.postNow(id),
     },
     log: { list: async (filter) => d.log.list(filter) },
@@ -138,6 +141,16 @@ export function buildApi(d: ApiDeps): Api {
       categories: async () => d.youtube.categories(),
       playlists: async (brandId) => d.youtube.playlists(brandId),
       checkHealth: async () => d.youtube.checkHealth(true),
+    },
+    meta: {
+      credentialsStatus: async () => d.meta.credentialsStatus(),
+      saveCredentials: async (id, secret) => d.meta.saveCredentials(id, secret),
+      connect: async () => d.meta.connect(),
+      cancelConnect: async () => d.meta.cancelConnect(),
+      disconnect: async () => d.meta.disconnect(),
+      status: async () => d.meta.status(),
+      assign: async (brandId, pageId, igId) => d.meta.assign(brandId, pageId, igId),
+      checkHealth: async () => d.meta.checkHealth(),
     },
     textAssist: { available: async () => noneProvider.available },
   }

@@ -51,6 +51,7 @@ export interface BrandDefaults {
   youtubeMadeForKids: boolean
   youtubePlaylistId: string | null
   youtubeAppendShorts: boolean
+  instagramShareToFeed: boolean
   aiFlag: Record<Platform, boolean>
   tiktokPrivacyDefault: string | null
   tiktokAllowComments: boolean
@@ -137,6 +138,9 @@ export interface PostTarget {
   postedAtUtc: string | null
   /** Upload progress from 0 to 1 while a video is going up. */
   progress: number | null
+  /** A to-do the owner must finish by hand, for example adding an AI label in the app. */
+  checklist: string | null
+  settings: TargetSettings
 }
 
 export interface Post {
@@ -158,10 +162,17 @@ export interface Post {
   targets: PostTarget[]
 }
 
+/** Optional per-target settings. */
+export interface TargetSettings {
+  /** Instagram cover frame, in milliseconds from the start. */
+  thumbOffsetMs?: number
+}
+
 export interface PostTargetInput {
   platform: Platform
   captionOverride?: string | null
   aiFlag: boolean
+  settings?: TargetSettings
 }
 
 export interface PostInput {
@@ -241,4 +252,44 @@ export interface AppEvent {
   type: 'changed' | 'toast'
   scope?: 'posts' | 'brands' | 'settings' | 'log'
   toast?: { kind: 'success' | 'error' | 'info'; headline: string; detail?: string }
+}
+
+export interface MetaCredentialsStatus {
+  hasAppId: boolean
+  hasAppSecret: boolean
+  appIdMasked: string
+  appSecretMasked: string
+}
+
+export interface MetaPage {
+  pageId: string
+  name: string
+  pictureUrl: string | null
+  igId: string | null
+  igUsername: string | null
+  igPictureUrl: string | null
+  /** Brand that currently uses this Page, if any. */
+  facebookBrandId: number | null
+  /** Brand that currently uses the Instagram account, if any. */
+  instagramBrandId: number | null
+}
+
+export interface MetaSuggestion {
+  brandId: number
+  pageId: string | null
+  igId: string | null
+}
+
+export interface MetaStatus {
+  connected: boolean
+  userName: string | null
+  status: 'connected' | 'needs_reauth' | null
+  /** When the earliest relevant token stops working. Null means Meta did not give a date. */
+  expiresAt: string | null
+  daysLeft: number | null
+  /** True when 7 days or fewer remain, or it already expired. */
+  expiringSoon: boolean
+  missingPermissions: string[]
+  pages: MetaPage[]
+  suggestions: MetaSuggestion[]
 }

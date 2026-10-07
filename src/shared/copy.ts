@@ -9,8 +9,11 @@ export const COPY = {
   emptyCalendar: 'Nothing scheduled. The algorithm is hungry.',
   emptyQueue: 'Nothing in the queue. Add a video from New Post or Bulk Upload.',
   emptyLog: 'No activity yet.',
+  metaReauthHeadline: 'Meta needs you to sign in again.',
+  metaExpiryHeadline: 'Meta sign-in runs out soon.',
   reauthHeadline: 'YouTube needs you to sign in again.',
   missedHeadline: 'Missed it. The Mac was asleep.',
+  aiChecklist: 'Add AI label in app',
   textAssistPlaceholder: 'AI assist (coming soon)',
   dryRunBadge: 'dry run',
   scheduleTooltip: (platforms: string[], when: string) =>

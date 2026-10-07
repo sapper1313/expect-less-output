@@ -369,6 +369,11 @@ function DefaultsEditor({ brandId }: { brandId: number }) {
             YouTube: append #Shorts to the description
           </Check>
         </div>
+        <div className="space-y-2">
+          <Check checked={d.instagramShareToFeed} onChange={(v) => set('instagramShareToFeed', v)}>
+            Instagram: also share Reels to the main feed
+          </Check>
+        </div>
         <Field label="Made with AI by default">
           <div className="flex flex-wrap gap-x-4 gap-y-2">
             {PLATFORMS.map((p) => (

@@ -123,3 +123,21 @@ export function captionCounters(title: string, caption: string): Record<Platform
     tiktok: [c('Caption', caption.length, tt.captionMax)],
   }
 }
+
+/** Facebook Reels and Instagram Reels reject videos outside their length range. Returns a plain message or null. */
+export function durationProblem(platform: Platform, seconds: number): string | null {
+  const fmt = (n: number) => (n >= 60 ? `${n / 60} minutes` : `${n} seconds`)
+  if (platform === 'facebook') {
+    const l = PLATFORM_LIMITS.facebook
+    if (seconds < l.minSeconds || seconds > l.maxSeconds) {
+      return `This video is ${seconds.toFixed(1)} seconds. Facebook Reels must be ${l.minSeconds} to ${l.maxSeconds} seconds. Trim the video or untick Facebook.`
+    }
+  }
+  if (platform === 'instagram') {
+    const l = PLATFORM_LIMITS.instagram
+    if (seconds < l.minSeconds || seconds > l.maxSeconds) {
+      return `This video is ${seconds.toFixed(1)} seconds. Instagram Reels must be ${l.minSeconds} seconds to ${fmt(l.maxSeconds)}. Trim the video or untick Instagram.`
+    }
+  }
+  return null
+}

@@ -103,6 +103,7 @@ export class BrandService {
       youtubeMadeForKids: !!r.youtube_made_for_kids,
       youtubePlaylistId: r.youtube_playlist_id,
       youtubeAppendShorts: !!r.youtube_append_shorts,
+      instagramShareToFeed: !!r.instagram_share_to_feed,
       aiFlag: {
         youtube: !!r.ai_flag_youtube,
         tiktok: !!r.ai_flag_tiktok,
@@ -120,7 +121,7 @@ export class BrandService {
     this.db
       .prepare(
         `UPDATE brand_defaults SET caption_template = ?, default_hashtag_set_id = ?, youtube_category_id = ?,
-         youtube_made_for_kids = ?, youtube_playlist_id = ?, youtube_append_shorts = ?, ai_flag_youtube = ?, ai_flag_tiktok = ?,
+         youtube_made_for_kids = ?, youtube_playlist_id = ?, youtube_append_shorts = ?, instagram_share_to_feed = ?, ai_flag_youtube = ?, ai_flag_tiktok = ?,
          ai_flag_facebook = ?, ai_flag_instagram = ?, tiktok_privacy_default = ?, tiktok_allow_comments = ?,
          tiktok_allow_duet = ?, tiktok_allow_stitch = ? WHERE brand_id = ?`,
       )
@@ -131,6 +132,7 @@ export class BrandService {
         d.youtubeMadeForKids ? 1 : 0,
         d.youtubePlaylistId,
         d.youtubeAppendShorts ? 1 : 0,
+        d.instagramShareToFeed ? 1 : 0,
         d.aiFlag.youtube ? 1 : 0,
         d.aiFlag.tiktok ? 1 : 0,
         d.aiFlag.facebook ? 1 : 0,

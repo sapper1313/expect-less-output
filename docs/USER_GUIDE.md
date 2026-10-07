@@ -2,7 +2,7 @@
 
 This guide is for you, the owner. Every step is meant to be followed exactly, one at a time.
 
-Phase note: YouTube is real now (Phase 2). Facebook, Instagram and TikTok are still "dry runs". A dry run waits a few seconds and says it worked, and never contacts the platform. Their real connections come in later phases.
+Phase note: YouTube (Phase 2), Facebook Pages and Instagram (Phase 3) are real now. TikTok is still a "dry run". A dry run waits a few seconds and says it worked, and never contacts the platform. Their real connections come in later phases.
 
 ---
 
@@ -152,3 +152,61 @@ Each connected channel has a **Mode** box on its card.
 - **Google has not approved your app yet**: the video was locked to private. Use **Manual assist** until the audit is approved.
 - **Daily limit**: the Connections screen shows how much of today's YouTube limit is used. It resets at midnight Pacific. You get a warning at 80 percent.
 - You cannot move a post after the app has handed it to YouTube (Auto mode, inside the handoff window). Cancel the post, delete the scheduled video in YouTube Studio, then schedule it again.
+
+---
+
+## 9. Facebook Pages and Instagram: connect Meta (Phase 3)
+
+Do SETUP_B_META_FACEBOOK_INSTAGRAM.md steps 1 to 6 first. You need an App ID and an App Secret. In step 4 the redirect address must be exactly `http://localhost:53682/meta/callback`.
+
+Keep the keys in your `ELO Keys` folder, outside the project. Never share them.
+
+### Save the Meta credentials (once)
+
+1. Open the app and click **Connections**.
+2. In the **Meta (Facebook Pages and Instagram)** box, paste the **App ID** and the **App Secret**.
+3. Click **Save**. They are stored encrypted. From now on only the last 4 characters show.
+
+### Connect Meta (one login for every brand)
+
+1. Click **Connect Meta**.
+2. Your browser opens a Facebook login. Sign in with the Facebook account that manages the Pages.
+3. Meta asks which Pages and Instagram accounts to allow. Choose **all** brand Pages and **all** brand Instagram accounts. Click **Continue** or **Save** on every screen. Leave every permission switched on.
+4. The browser page says **Connected. You can close this tab and return to Expect Less Output.** Close the tab.
+5. If the app says **Port 53682 is busy**, quit any other copy of Expect Less Output and try again.
+
+### Match each brand to its Page and Instagram
+
+1. Under **Match brands to Pages** every brand has a row. The app pre-picks the Page and Instagram with the most similar name.
+2. Fix any wrong choice with the two boxes. "None (dry run)" means that platform stays a dry run for that brand.
+3. Click **Save** on each row. The brand's card above then shows the real Page and Instagram names with a green **connected** label.
+
+### Keep the login fresh
+
+- Meta logins last about 60 days. The Connections screen shows the date and the days left.
+- 7 days before it runs out you get a notification, a banner in the left list, and a warning on the Connections screen.
+- To renew, click **Reconnect Meta**, approve everything again, and your matches stay.
+- **needs sign in** on a card means Meta stopped accepting the login. Click **Reconnect Meta**.
+- A new brand? Create its Page and Instagram, link them together, click **Reconnect Meta**, tick the new ones, then match them.
+
+### Post a test Reel to Facebook and Instagram
+
+1. Click **New Post**. Pick a short vertical MP4 or MOV (Facebook needs 3 to 90 seconds). If it is longer the app tells you and will not schedule it.
+2. Pick the brand. Tick **Facebook** and **Instagram**. They show a **live** label.
+3. Optional: type a number in **Instagram cover frame** to pick the cover picture (1500 means 1.5 seconds in).
+4. Under **When**, choose **Pick a different time...** and set it 30 minutes from now.
+5. Click **Fine.**
+6. What happens:
+   - **Facebook:** about 3 hours before the time (the setting on the Settings screen) the app uploads the Reel and tells Facebook to publish it at the exact time. Posts with less than 15 minutes to go are published at their time instead. Open **Meta Business Suite**, then **Content**, then **Scheduled** to see it waiting.
+   - **Instagram:** at the scheduled time the app uploads, waits for Instagram to process it (up to 15 minutes, checked every 30 seconds), then publishes.
+7. When done the post shows **posted** and the Reel link is saved on the post.
+8. If you ticked the **AI** box: Instagram gets the real AI label. Facebook has no way to do this from outside, so the post shows a yellow **Add AI label in app** note with a link. Open the post in the Facebook app, add the label, then click **Done**.
+9. **Delete the test:**
+   - Facebook: open the Reel from the link, click the three dots, then **Move to trash**. Or in Meta Business Suite open **Content**, find it, and delete it.
+   - Instagram: open the Reel in the Instagram app, tap the three dots, then **Delete**.
+
+### Limits to know
+
+- Facebook allows 30 API Reels per Page per 24 hours. Instagram allows 100 API posts per account per 24 hours. The app stops with a clear message at the limit.
+- A post Facebook is already holding (handed off early) cannot be moved in the app. Cancel it, delete the scheduled Reel in Meta Business Suite, then schedule it again.
+- Instagram captions: up to 2200 characters and 30 hashtags.

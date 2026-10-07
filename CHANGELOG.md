@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0 Phase 3: Facebook Pages (Reels) and Instagram (Reels)
+
+- Meta App ID and Secret saved in the encrypted secret store. One Meta login (Graph API v25.0, fixed localhost port) gives a long-lived token and every Page with its Instagram account. Page tokens stored encrypted.
+- Match each brand to a Page and an Instagram account, pre-matched by name similarity.
+- Facebook Reels: start, resumable upload, finish. Early handoff with SCHEDULED and an exact publish time (15 minute minimum lead, Meta requires 10). Less lead publishes at the scheduled time. 30 Reels per Page per day guard.
+- Instagram Reels: resumable upload of the local file (no Cloudflare R2 needed), status polling every scheduler tick, publish once, permalink saved. content_publishing_limit respected. Cover frame offset and brand share to feed setting.
+- AI label: Instagram uses Meta's `is_ai_generated` field. Facebook has no documented field, so the post gets an Add AI label in app checklist and a notification.
+- Duration limits enforced for Facebook (3 to 90 seconds) and Instagram (3 seconds to 15 minutes), when scheduling and again before upload.
+- Token health: real expiry read from Meta, 7 day warning (notification, sidebar banner, Connections warning), needs_reauth with an alert when Meta rejects the login.
+- Meta error codes classified into temporary (retry) and permanent (stop and explain).
+
 ## 0.2.0 Phase 2: YouTube (Shorts)
 
 - Google credentials (Client ID and Secret) saved in the encrypted secret store, shown masked.

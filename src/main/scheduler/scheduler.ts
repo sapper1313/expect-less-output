@@ -46,6 +46,7 @@ interface DueRow {
   title: string
   caption: string
   video_path: string
+  video_meta_json: string | null
 }
 
 const STALE_LOCK_MS = 10 * 60_000
@@ -121,7 +122,7 @@ export class Scheduler {
     // 1. Pending targets that are due (or due for early handoff).
     const rows = this.d.db
       .prepare(
-        `SELECT t.*, p.scheduled_at_utc, p.title, p.caption, p.video_path, p.brand_id, b.name AS brand_name
+        `SELECT t.*, p.scheduled_at_utc, p.title, p.caption, p.video_path, p.video_meta_json, p.brand_id, b.name AS brand_name
          FROM post_targets t
          JOIN posts p ON p.id = t.post_id
          JOIN brands b ON b.id = p.brand_id
@@ -183,7 +184,7 @@ export class Scheduler {
     // 2. Handed off or processing targets: ask the platform whether they went live.
     const watch = this.d.db
       .prepare(
-        `SELECT t.*, p.scheduled_at_utc, p.title, p.caption, p.video_path, p.brand_id, b.name AS brand_name
+        `SELECT t.*, p.scheduled_at_utc, p.title, p.caption, p.video_path, p.video_meta_json, p.brand_id, b.name AS brand_name
          FROM post_targets t
          JOIN posts p ON p.id = t.post_id
          JOIN brands b ON b.id = p.brand_id
@@ -269,6 +270,12 @@ export class Scheduler {
 
   private buildContext(row: DueRow): AdapterContext {
     let lastProgressWrite = 0
+    let videoMeta: { durationSeconds?: number; sizeBytes?: number } = {}
+    try {
+      videoMeta = JSON.parse(row.video_meta_json ?? '{}')
+    } catch {
+      // unknown video details
+    }
     const setState = (patch: Record<string, unknown>) => {
       const next = { ...this.targetState(row.id), ...patch }
       this.d.db
@@ -284,6 +291,10 @@ export class Scheduler {
       caption: row.caption_override ?? row.caption,
       aiFlag: !!row.ai_flag,
       videoAbsPath: this.d.library.resolve(row.video_path),
+      videoDurationSeconds: videoMeta.durationSeconds ?? 0,
+      videoSizeBytes: videoMeta.sizeBytes ?? 0,
+      settings: this.targetState(row.id),
+      nowMs: () => this.now(),
       scheduledAtUtc: row.scheduled_at_utc,
       account: this.loadAccount(row.account_id),
       getState: () => this.targetState(row.id),
@@ -366,6 +377,8 @@ export class Scheduler {
     } catch (err) {
       if (err instanceof AdapterError && err.kind === 'permanent') {
         this.failTarget(row, err.message, { kind: 'permanent', source: 'status check' })
+      } else if (err instanceof AdapterError) {
+        this.handleFailure(row, err) // a temporary problem while waiting: retry on the normal schedule
       } else {
         this.d.log.log('warn', `Status check failed: ${(err as Error).message}`, {
           postId: row.post_id,

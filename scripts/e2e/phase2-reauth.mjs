@@ -20,7 +20,10 @@ await invoke(page, 'youtube.setMode', 1, 'auto')
 
 // Healthy check first
 await invoke(page, 'youtube.checkHealth')
-log('healthy status:', (await invoke(page, 'accounts.list', 1)).find((a) => a.platform === 'youtube').status)
+log(
+  'healthy status:',
+  (await invoke(page, 'accounts.list', 1)).find((a) => a.platform === 'youtube').status,
+)
 
 // Now Google forgets the access token and rejects the refresh token.
 fake.state.accessTokens.clear()
@@ -38,7 +41,15 @@ const { makeVideos } = await import('./lib.mjs')
 const { tmpdir } = await import('os')
 const { join } = await import('path')
 const [vid] = makeVideos(join(tmpdir(), 'elo-vids'), ['yt_a.mp4'])
-const p = await invoke(page, 'posts.create', { brandId: 1, sourcePath: vid, title: 'Dead Token Post', caption: 'x', scheduledAtUtc: new Date(Date.now() + 10_000).toISOString(), status: 'scheduled', targets: [{ platform: 'youtube', aiFlag: false }] })
+const p = await invoke(page, 'posts.create', {
+  brandId: 1,
+  sourcePath: vid,
+  title: 'Dead Token Post',
+  caption: 'x',
+  scheduledAtUtc: new Date(Date.now() + 10_000).toISOString(),
+  status: 'scheduled',
+  targets: [{ platform: 'youtube', aiFlag: false }],
+})
 for (let i = 0; i < 60; i++) {
   const t = (await invoke(page, 'posts.get', p.id)).targets[0]
   if (t.status === 'failed') {

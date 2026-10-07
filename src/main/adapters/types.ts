@@ -22,11 +22,18 @@ export interface AdapterContext {
   caption: string
   aiFlag: boolean
   videoAbsPath: string
+  /** From ffprobe at import time. 0 when unknown. */
+  videoDurationSeconds: number
+  videoSizeBytes: number
   scheduledAtUtc: string
   account: Account | null
   /** Small per-target memory (for example a video id or upload session) that survives restarts. */
   getState(): Record<string, unknown>
   setState(patch: Record<string, unknown>): void
+  /** Optional per-target settings, for example the Instagram cover frame. */
+  settings: Record<string, unknown>
+  /** The scheduler's clock in milliseconds. Tests move it. */
+  nowMs(): number
   /** Upload progress from 0 to 1. */
   reportProgress(fraction: number): void
 }

@@ -42,6 +42,7 @@ function Shell() {
   }
   const { data: settings } = useLoad(() => api.settings.get())
   const { data: status } = useLoad(() => api.scheduler.status())
+  const { data: meta } = useLoad(() => api.meta.status())
 
   useEffect(() => {
     const root = document.documentElement
@@ -80,6 +81,16 @@ function Shell() {
             </button>
           ))}
         </nav>
+        {meta?.connected && meta.expiringSoon && (
+          <button
+            onClick={() => setScreen('connections')}
+            className="no-drag mx-3 mb-2 rounded-md border border-warn p-2 text-left text-[11px] font-semibold text-warn"
+          >
+            {meta.status === 'needs_reauth' || (meta.daysLeft !== null && meta.daysLeft < 0)
+              ? 'Meta needs you to sign in again. Click to fix.'
+              : `Meta login runs out in ${meta.daysLeft} day${meta.daysLeft === 1 ? '' : 's'}. Click to reconnect.`}
+          </button>
+        )}
         <div className="no-drag border-t border-line p-3 text-[11px] text-muted">
           <div className={status?.paused ? 'font-bold text-warn' : ''}>
             {status?.paused

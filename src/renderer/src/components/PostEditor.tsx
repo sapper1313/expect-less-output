@@ -47,6 +47,8 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
   const counters = captionCounters(draft.title, draft.caption)
   const failed = draft.targets.filter((t) => t.status === 'failed')
   const waiting = draft.targets.filter((t) => t.status === 'needs_action')
+  const todo = draft.targets.filter((t) => t.checklist)
+  const igTarget = draft.targets.find((t) => t.platform === 'instagram' && t.status !== 'posted')
   const uploading = draft.targets.filter((t) => t.status === 'uploading' && t.progress !== null)
   const set = <K extends keyof Post>(k: K, v: Post[K]) => setDraft({ ...draft, [k]: v })
 
@@ -62,6 +64,7 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
           platform: p,
           aiFlag: existing.get(p)?.aiFlag ?? false,
           captionOverride: existing.get(p)?.captionOverride ?? null,
+          settings: existing.get(p)?.settings,
         })),
       }),
     )
@@ -164,6 +167,30 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
               ))}
             </div>
           )}
+          {todo.map((t) => (
+            <div
+              key={t.id}
+              className="flex items-center justify-between gap-3 rounded-md border border-warn p-3 text-[13px]"
+            >
+              <span>
+                <b className="text-warn">{t.checklist}</b>: {PLATFORM_LABELS[t.platform]} has no way
+                to set the AI label from here.{' '}
+                {t.externalUrl && (
+                  <a
+                    href={t.externalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-accent underline"
+                  >
+                    Open the post
+                  </a>
+                )}
+              </span>
+              <Button disabled={busy} onClick={() => run(() => api.posts.dismissChecklist(t.id))}>
+                Done
+              </Button>
+            </div>
+          ))}
           {uploading.map((t) => (
             <div key={t.id}>
               <div className="mb-1 text-[12px] text-muted">
@@ -216,6 +243,33 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
             <div className="-mt-3 text-[12px] text-muted">
               {formatEastern(draft.scheduledAtUtc)}
             </div>
+          )}
+          {igTarget && (
+            <Field label="Instagram cover frame (milliseconds from the start, optional)">
+              <Input
+                type="number"
+                min={0}
+                disabled={locked}
+                value={igTarget.settings.thumbOffsetMs ?? ''}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    targets: draft.targets.map((t) =>
+                      t.id === igTarget.id
+                        ? {
+                            ...t,
+                            settings: {
+                              ...t.settings,
+                              thumbOffsetMs:
+                                e.target.value === '' ? undefined : Number(e.target.value),
+                            },
+                          }
+                        : t,
+                    ),
+                  })
+                }
+              />
+            </Field>
           )}
           <Field label="Platforms">
             <PlatformPicker brandId={draft.brandId} value={platforms} onChange={setPlatforms} />

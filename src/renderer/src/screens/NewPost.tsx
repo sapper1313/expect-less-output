@@ -37,6 +37,7 @@ export function NewPost({ onDone }: { onDone: () => void }) {
   const [platforms, setPlatforms] = useState<Platform[]>([])
   const [overrides, setOverrides] = useState<Partial<Record<Platform, string>>>({})
   const [showOverrides, setShowOverrides] = useState(false)
+  const [coverMs, setCoverMs] = useState('')
   const [ai, setAi] = useState<Record<Platform, boolean>>({
     youtube: false,
     facebook: false,
@@ -129,6 +130,8 @@ export function NewPost({ onDone }: { onDone: () => void }) {
           platform: p,
           aiFlag: ai[p],
           captionOverride: overrides[p] ?? null,
+          settings:
+            p === 'instagram' && coverMs !== '' ? { thumbOffsetMs: Number(coverMs) } : undefined,
         })),
       }),
     )
@@ -284,6 +287,19 @@ export function NewPost({ onDone }: { onDone: () => void }) {
                     />
                   </Field>
                 ))}
+              </div>
+            )}
+            {platforms.includes('instagram') && (
+              <div className="mt-4 max-w-sm">
+                <Field label="Instagram cover frame (milliseconds from the start, optional)">
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="Example: 1500"
+                    value={coverMs}
+                    onChange={(e) => setCoverMs(e.target.value)}
+                  />
+                </Field>
               </div>
             )}
             <div className="mt-4 flex items-center justify-between">

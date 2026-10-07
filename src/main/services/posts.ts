@@ -4,6 +4,7 @@ import type { ActivityLog } from './activity'
 import type { MediaService } from './media'
 import { getNextOpenSlots, type SlotDef } from '@shared/slots'
 import { derivePostStatus } from '@shared/scheduling'
+import { durationProblem } from '@shared/platformLimits'
 import { DateTime } from 'luxon'
 import { ZONE } from '@shared/time'
 import type {
@@ -68,6 +69,8 @@ export class PostService {
       handedOffAtUtc: r.handed_off_at_utc,
       postedAtUtc: r.posted_at_utc,
       progress: progressOf(r.settings_json),
+      checklist: stateOf(r.settings_json).checklist ?? null,
+      settings: { thumbOffsetMs: stateOf(r.settings_json).thumbOffsetMs },
     }
   }
 
@@ -201,8 +204,8 @@ export class PostService {
 
   private insertTargets(postId: number, brandId: number, targets: PostTargetInput[]): void {
     const ins = this.db.prepare(
-      `INSERT INTO post_targets (post_id, platform, account_id, caption_override, ai_flag)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO post_targets (post_id, platform, account_id, caption_override, ai_flag, settings_json)
+       VALUES (?, ?, ?, ?, ?, ?)`,
     )
     const seen = new Set<Platform>()
     for (const t of targets) {
@@ -214,7 +217,26 @@ export class PostService {
         this.accountFor(brandId, t.platform),
         t.captionOverride?.trim() ? t.captionOverride : null,
         t.aiFlag ? 1 : 0,
+        JSON.stringify(cleanSettings(t.settings)),
       )
+    }
+  }
+
+  /** Facebook and Instagram have hard length limits. Block a real account early with a clear message. */
+  private checkDurations(
+    brandId: number,
+    durationSeconds: number | undefined,
+    targets: PostTargetInput[],
+  ): void {
+    if (!durationSeconds) return
+    for (const t of targets) {
+      if (t.platform !== 'facebook' && t.platform !== 'instagram') continue
+      const acct = this.db
+        .prepare('SELECT mode FROM accounts WHERE brand_id = ? AND platform = ?')
+        .get(brandId, t.platform) as { mode: string } | undefined
+      if (!acct || acct.mode === 'dry_run') continue // dry runs only warn
+      const problem = durationProblem(t.platform, durationSeconds)
+      if (problem) throw new Error(problem)
     }
   }
 
@@ -240,6 +262,7 @@ export class PostService {
         if (this.media) {
           const m = await this.media.probe(input.sourcePath)
           meta = JSON.stringify(m)
+          this.checkDurations(input.brandId, m.durationSeconds, input.targets)
           poster = await this.media.poster(input.sourcePath, m.durationSeconds)
         }
         const rel = this.library.importToQueue(brand, input.sourcePath)
@@ -345,8 +368,18 @@ export class PostService {
           if (e) {
             if (e.status !== 'posted')
               this.db
-                .prepare('UPDATE post_targets SET caption_override = ?, ai_flag = ? WHERE id = ?')
-                .run(t.captionOverride?.trim() ? t.captionOverride : null, t.aiFlag ? 1 : 0, e.id)
+                .prepare(
+                  'UPDATE post_targets SET caption_override = ?, ai_flag = ?, settings_json = ? WHERE id = ?',
+                )
+                .run(
+                  t.captionOverride?.trim() ? t.captionOverride : null,
+                  t.aiFlag ? 1 : 0,
+                  JSON.stringify({
+                    ...stateOf(this.rawSettings(e.id)),
+                    ...cleanSettings(t.settings),
+                  }),
+                  e.id,
+                )
           } else {
             this.insertTargets(id, cur.brandId, [t])
           }
@@ -423,6 +456,24 @@ export class PostService {
     this.emit()
   }
 
+  private rawSettings(targetId: number): string | null {
+    return (
+      (
+        this.db.prepare('SELECT settings_json FROM post_targets WHERE id = ?').get(targetId) as
+          { settings_json: string | null } | undefined
+      )?.settings_json ?? null
+    )
+  }
+
+  dismissChecklist(targetId: number): void {
+    const next = { ...stateOf(this.rawSettings(targetId)) }
+    delete next.checklist
+    this.db
+      .prepare('UPDATE post_targets SET settings_json = ? WHERE id = ?')
+      .run(JSON.stringify(next), targetId)
+    this.emit()
+  }
+
   // ---------- status helpers used by the scheduler ----------
 
   recomputeStatus(postId: number): PostStatus {
@@ -464,6 +515,15 @@ function safeParse(s: string): any {
   }
 }
 
+function stateOf(settingsJson: string | null): Record<string, any> {
+  if (!settingsJson) return {}
+  try {
+    return JSON.parse(settingsJson) ?? {}
+  } catch {
+    return {}
+  }
+}
+
 function progressOf(settingsJson: string | null): number | null {
   if (!settingsJson) return null
   try {
@@ -472,4 +532,11 @@ function progressOf(settingsJson: string | null): number | null {
   } catch {
     return null
   }
+}
+
+function cleanSettings(s: { thumbOffsetMs?: number } | undefined): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  if (s && typeof s.thumbOffsetMs === 'number' && s.thumbOffsetMs >= 0)
+    out.thumbOffsetMs = Math.round(s.thumbOffsetMs)
+  return out
 }

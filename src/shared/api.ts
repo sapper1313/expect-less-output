@@ -7,6 +7,8 @@ import type {
   BrandSlot,
   ConnectResult,
   GoogleCredentialsStatus,
+  MetaCredentialsStatus,
+  MetaStatus,
   QuotaStatus,
   YoutubeMode,
   YoutubeOption,
@@ -80,6 +82,7 @@ export interface Api {
     remove(ids: number[], alsoDeleteFile: boolean): Promise<void>
     retryTarget(targetId: number): Promise<void>
     markPosted(targetId: number, url?: string): Promise<void>
+    dismissChecklist(targetId: number): Promise<void>
     postNow(id: number): Promise<void>
   }
   log: {
@@ -103,6 +106,16 @@ export interface Api {
     categories(): Promise<YoutubeOption[]>
     playlists(brandId: number): Promise<YoutubeOption[]>
     checkHealth(): Promise<void>
+  }
+  meta: {
+    credentialsStatus(): Promise<MetaCredentialsStatus>
+    saveCredentials(appId: string, appSecret: string): Promise<MetaCredentialsStatus>
+    connect(): Promise<MetaStatus>
+    cancelConnect(): Promise<void>
+    disconnect(): Promise<void>
+    status(): Promise<MetaStatus>
+    assign(brandId: number, pageId: string | null, igId: string | null): Promise<MetaStatus>
+    checkHealth(): Promise<MetaStatus>
   }
   textAssist: {
     available(): Promise<boolean>
