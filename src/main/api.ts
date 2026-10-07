@@ -13,6 +13,7 @@ import type { MetaService } from './meta/metaService'
 import type { TikTokService } from './tiktok/service'
 import type { AlertService } from './alerts/service'
 import type { AgentRuntime } from './agent/runtime'
+import type { StatsService } from './stats/service'
 import { OpenAICompatibleProvider, checkLlmUrl } from './services/textAssist'
 import type { RestorePreview } from '@shared/types'
 import { healthRows } from './services/health'
@@ -52,6 +53,7 @@ export interface ApiDeps {
   tiktok: TikTokService
   alerts: AlertService
   agent: AgentRuntime
+  stats: StatsService
   db: Db
   dataDir: string
   postersDir: string
@@ -178,8 +180,8 @@ export function buildApi(d: ApiDeps): Api {
     },
     tiktok: {
       credentialsStatus: async () => d.tiktok.credentialsStatus(),
-      saveCredentials: async (key, secret, redirect, publish) =>
-        d.tiktok.saveCredentials(key, secret, redirect, publish),
+      saveCredentials: async (key, secret, redirect, publish, stats) =>
+        d.tiktok.saveCredentials(key, secret, redirect, publish, stats),
       connect: async (brandId) => d.tiktok.connect(brandId),
       submitCode: async (code) => d.tiktok.submitCode(code),
       cancelConnect: async () => d.tiktok.cancelConnect(),
@@ -259,6 +261,12 @@ export function buildApi(d: ApiDeps): Api {
         dismissRestoreReport(d.db)
         d.emit()
       },
+    },
+    stats: {
+      forPosts: async (ids) => d.stats.forPosts(ids),
+      post: async (id) => d.stats.postStats(id),
+      refresh: async (postId) => d.stats.refresh({ postId, force: true }),
+      brandSummary: async (brandId, range) => d.stats.brandSummary(brandId, range),
     },
     agent: {
       status: async () => d.agent.status(),

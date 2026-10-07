@@ -44,6 +44,7 @@ Meta changes these screens often. If a screen does not match, screenshot it and 
    - `instagram_content_publish`
    - `read_insights`
    - `instagram_manage_insights`
+   - `pages_manage_engagement` (added in Phase 7 so Facebook Reel stats work)
 4. If an Instagram permission is not in this list, go back to **Use cases** and look under the Instagram use case, or click **Add use case** and add the Instagram one. Then add it there.
 
 ## Step 4: Set the login redirect

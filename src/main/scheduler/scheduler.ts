@@ -6,6 +6,7 @@ import type { PostService } from '../services/posts'
 import { AdapterError, type AdapterContext, type PlatformAdapter } from '../adapters/types'
 import { backoffMs, decideMissed, handoffDueMs } from '@shared/scheduling'
 import { COPY } from '@shared/copy'
+import { parseVideoId } from '../stats/ids'
 import type { AlertItem } from '../alerts/format'
 import { PLATFORM_LABELS } from '@shared/platformLimits'
 import type { Account, Platform, SchedulerStatus, Settings, TargetStatus } from '@shared/types'
@@ -300,6 +301,7 @@ export class Scheduler {
       caption: row.caption_override ?? row.caption,
       aiFlag: !!row.ai_flag,
       videoAbsPath: this.d.library.resolve(row.video_path),
+      externalId: row.external_id,
       videoDurationSeconds: videoMeta.durationSeconds ?? 0,
       videoSizeBytes: videoMeta.sizeBytes ?? 0,
       settings: this.targetState(row.id),
@@ -510,6 +512,12 @@ export class Scheduler {
         "UPDATE post_targets SET status = 'posted', posted_at_utc = ?, external_url = COALESCE(?, external_url), last_error = NULL WHERE id = ?",
       )
       .run(new Date(this.now()).toISOString(), link, targetId)
+    // Remember the video id from the link, so stats can be read for a post that was finished by hand.
+    const videoId = link ? parseVideoId(t.platform, link) : null
+    if (videoId)
+      this.d.db
+        .prepare('UPDATE post_targets SET external_id = ? WHERE id = ?')
+        .run(videoId, targetId)
     this.d.log.log('info', `${PLATFORM_LABELS[t.platform]} marked as posted by hand.`, {
       postId: t.post_id,
       platform: t.platform,

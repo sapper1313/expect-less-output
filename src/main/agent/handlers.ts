@@ -85,6 +85,22 @@ function brandOut(s: AgentServices, b: Brand) {
   }
 }
 
+function numbersOf(
+  n: {
+    views: number | null
+    likes: number | null
+    comments: number | null
+    shares: number | null
+  } | null,
+) {
+  return {
+    views: n?.views ?? null,
+    likes: n?.likes ?? null,
+    comments: n?.comments ?? null,
+    shares: n?.shares ?? null,
+  }
+}
+
 interface Ctx {
   s: AgentServices
   params: any
@@ -173,4 +189,46 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
   }),
 
   health: ({ s }) => s.health(),
+
+  postStats: ({ s, params }) => {
+    const p = s.posts.get(params.id)
+    if (!p) throw new AgentError(404, 'not_found', `No post with id ${params.id}.`)
+    if (!s.stats) throw new AgentError(500, 'server_error', 'Stats are not available.')
+    const st = s.stats.postStats(p.id)
+    return {
+      post_id: p.id,
+      targets: st.targets.map((t) => ({
+        platform: t.platform,
+        state: t.state,
+        reason: t.reason,
+        fetched_at: t.latest?.fetchedAt ?? null,
+        approximate: t.latest?.approximate ?? [],
+        numbers: numbersOf(t.latest),
+      })),
+      totals: numbersOf(st.totals),
+    }
+  },
+
+  brandStats: ({ s, params, query }) => {
+    try {
+      s.brands.get(params.id)
+    } catch {
+      throw new AgentError(404, 'not_found', `No brand with id ${params.id}.`)
+    }
+    if (!s.stats) throw new AgentError(500, 'server_error', 'Stats are not available.')
+    const b = s.stats.brandSummary(params.id, query.range)
+    return {
+      brand_id: params.id,
+      range: b.range,
+      posts: b.posts,
+      platforms: b.platforms.map((p) => ({
+        ...numbersOf(p),
+        platform: p.platform,
+        videos: p.videos,
+        unavailable: p.unavailable,
+        reason: p.reason,
+      })),
+      totals: numbersOf(b.totals),
+    }
+  },
 }

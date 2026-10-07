@@ -34,6 +34,7 @@ export const DEFAULT_SETTINGS: Settings = {
   llmBaseUrl: 'http://localhost:11434/v1',
   llmModel: '',
   llmAllowLan: false,
+  tiktokRequestStatsScope: false,
 }
 
 export class SettingsService {

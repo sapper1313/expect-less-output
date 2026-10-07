@@ -5,6 +5,7 @@ import { AppProvider, useLoad } from './hooks'
 import { Toasts } from './ui'
 import { Calendar } from './screens/Calendar'
 import { Queue } from './screens/Queue'
+import { Stats } from './screens/Stats'
 import { NewPost } from './screens/NewPost'
 import { Bulk } from './screens/Bulk'
 import { Brands } from './screens/Brands'
@@ -17,6 +18,7 @@ type Screen =
   | 'tiktokDemo'
   | 'calendar'
   | 'queue'
+  | 'stats'
   | 'newPost'
   | 'bulk'
   | 'brands'
@@ -33,6 +35,7 @@ const SHORTCUTS: Partial<Record<Screen, string>> = {
 const NAV: Screen[] = [
   'calendar',
   'queue',
+  'stats',
   'newPost',
   'bulk',
   'brands',
@@ -176,6 +179,7 @@ function Shell() {
         )}
         {screen === 'calendar' && <Calendar />}
         {screen === 'queue' && <Queue />}
+        {screen === 'stats' && <Stats />}
         {screen === 'newPost' && <NewPost key={newPostKey} onDone={() => setScreen('calendar')} />}
         {screen === 'bulk' && <Bulk onDone={() => setScreen('calendar')} />}
         {screen === 'brands' && <Brands />}

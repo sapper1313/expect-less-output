@@ -12,6 +12,7 @@ export const META_SCOPES = [
   'pages_show_list',
   'pages_read_engagement',
   'pages_manage_posts',
+  'pages_manage_engagement',
   'business_management',
   'instagram_basic',
   'instagram_content_publish',
@@ -20,6 +21,13 @@ export const META_SCOPES = [
 ]
 
 /** Permissions this phase cannot work without. The insights ones are only needed in Phase 7. */
+/** Needed only to read stats. Without them posting still works and stats show as not available. */
+export const META_STATS_SCOPES = [
+  'read_insights',
+  'pages_manage_engagement',
+  'instagram_manage_insights',
+]
+
 export const META_REQUIRED_SCOPES = [
   'pages_show_list',
   'pages_read_engagement',

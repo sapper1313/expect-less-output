@@ -5,6 +5,7 @@ import { formatEastern, localInputToIso } from '@shared/time'
 import type { PostFilter } from '@shared/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
+import { fmt } from '../components/StatsPanel'
 import { PostEditor } from '../components/PostEditor'
 import {
   BrandDot,
@@ -30,6 +31,13 @@ export function Queue() {
   })
   const { data: brands } = useLoad(() => api.brands.list())
   const { data: posts } = useLoad(() => api.posts.list(filter), [JSON.stringify(filter)])
+  const { data: statsMap } = useLoad(
+    () =>
+      api.stats.forPosts(
+        (posts ?? []).filter((p) => p.targets.some((t) => t.status === 'posted')).map((p) => p.id),
+      ),
+    [posts?.map((p) => p.id).join(',')],
+  )
   const [sel, setSel] = useState<Set<number>>(new Set())
   const [editing, setEditing] = useState<number | null>(null)
   const [confirm, setConfirm] = useState<'cancel' | 'delete' | null>(null)
@@ -167,6 +175,10 @@ export function Queue() {
                   <th className="p-3">Brand</th>
                   <th className="p-3">When</th>
                   <th className="p-3">Platforms</th>
+                  <th className="p-3">Views</th>
+                  <th className="p-3">Likes</th>
+                  <th className="p-3">Comments</th>
+                  <th className="p-3">Shares</th>
                   <th className="p-3">Status</th>
                 </tr>
               </thead>
@@ -210,6 +222,24 @@ export function Queue() {
                         ))}
                       </div>
                     </td>
+                    {(['views', 'likes', 'comments', 'shares'] as const).map((k) => {
+                      const st = statsMap?.[p.id]
+                      const tip = st?.targets
+                        .map(
+                          (t) =>
+                            `${PLATFORM_LABELS[t.platform]}: ${t.state === 'ok' ? fmt(t.latest?.[k]) : COPY.stats.notAvailable}`,
+                        )
+                        .join('\n')
+                      return (
+                        <td key={k} className="p-3 tabular-nums" title={tip}>
+                          {st && st.targets.some((t) => t.state === 'ok')
+                            ? fmt(st.totals[k])
+                            : st && st.targets.length > 0
+                              ? '-'
+                              : ''}
+                        </td>
+                      )
+                    })}
                     <td className="p-3">
                       <StatusBadge status={p.status} />
                       {p.targets.some((t) => t.lastError && t.status === 'failed') && (

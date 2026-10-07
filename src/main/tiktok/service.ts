@@ -11,6 +11,7 @@ import {
   DEFAULT_REDIRECT_URI,
   SCOPES_BASE,
   SCOPE_PUBLISH,
+  SCOPE_STATS,
   TT_SECRET_KEY,
   TT_SECRET_REDIRECT,
   TT_SECRET_SECRET,
@@ -67,6 +68,7 @@ export class TikTokService {
       clientSecretMasked: secret ? mask(secret) : '',
       redirectUri: this.d.secrets.get(TT_SECRET_REDIRECT) ?? DEFAULT_REDIRECT_URI,
       requestPublishScope: this.d.settings.get().tiktokRequestPublishScope,
+      requestStatsScope: this.d.settings.get().tiktokRequestStatsScope,
     }
   }
 
@@ -75,13 +77,17 @@ export class TikTokService {
     clientSecret: string,
     redirectUri: string,
     requestPublishScope: boolean,
+    requestStatsScope = false,
   ): TikTokCredentialsStatus {
     const uri = redirectUri.trim() || DEFAULT_REDIRECT_URI
     if (!/^https?:\/\//i.test(uri)) throw new Error('The Redirect URI must start with https://')
     if (clientKey.trim()) this.d.secrets.set(TT_SECRET_KEY, clientKey.trim())
     if (clientSecret.trim()) this.d.secrets.set(TT_SECRET_SECRET, clientSecret.trim())
     this.d.secrets.set(TT_SECRET_REDIRECT, uri)
-    this.d.settings.set({ tiktokRequestPublishScope: requestPublishScope })
+    this.d.settings.set({
+      tiktokRequestPublishScope: requestPublishScope,
+      tiktokRequestStatsScope: requestStatsScope,
+    })
     this.d.log.log('info', 'TikTok credentials saved (encrypted).')
     return this.credentialsStatus()
   }
@@ -141,6 +147,7 @@ export class TikTokService {
     const scopes = [
       ...SCOPES_BASE,
       ...(this.d.settings.get().tiktokRequestPublishScope ? [SCOPE_PUBLISH] : []),
+      ...(this.d.settings.get().tiktokRequestStatsScope ? [SCOPE_STATS] : []),
     ]
     const url = new URL(this.d.urls.authorize)
     url.searchParams.set('client_key', key)
@@ -426,6 +433,12 @@ export class TikTokService {
       `${a.name}: reconnect TikTok on the Connections screen.`,
     )
     this.d.emit()
+  }
+
+  /** The scopes TikTok granted when this account connected, or null when unknown. */
+  grantedScope(accountId: number): string | null {
+    const t = this.readTokens(accountId)
+    return t && t.scope ? t.scope : null
   }
 
   /** When the saved login stops being renewable, for the health panel. */

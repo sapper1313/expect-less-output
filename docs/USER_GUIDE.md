@@ -2,7 +2,7 @@
 
 This guide is for you, the owner. Every step is meant to be followed exactly, one at a time.
 
-Phase note: YouTube (Phase 2), Facebook Pages and Instagram (Phase 3) are real now. TikTok (Phase 4) is real now too. A dry run waits a few seconds and says it worked, and never contacts the platform. Their real connections come in later phases.
+Phase note: Stats (Phase 7) are covered in section 17. YouTube (Phase 2), Facebook Pages and Instagram (Phase 3) are real now. TikTok (Phase 4) is real now too. A dry run waits a few seconds and says it worked, and never contacts the platform. Their real connections come in later phases.
 
 ---
 
@@ -442,7 +442,7 @@ What happens next:
 
 ## 15. Connect Claude with MCP (Phase 6)
 
-MCP lets Claude use the app directly. The nine tools are `list_brands`, `get_next_open_slots`, `create_post`, `list_posts`, `get_post`, `update_post`, `cancel_post`, `retry_post` and `get_health`. They follow the same drafts-only rule.
+MCP lets Claude use the app directly. The eleven tools are `list_brands`, `get_next_open_slots`, `create_post`, `list_posts`, `get_post`, `update_post`, `cancel_post`, `retry_post`, `get_health`, `get_post_stats` and `get_brand_stats`. They follow the same drafts-only rule.
 
 You need: the local API turned on, a token, and the MCP file. In **Settings**, **Agents**, the **Connect Claude (MCP)** box shows the exact file path and the exact text to paste for your Mac, with Copy buttons.
 
@@ -477,3 +477,46 @@ Adds **Suggest titles**, **Suggest captions** and **Suggest hashtags** buttons t
 4. Type the **Model name** exactly as the server lists it, for example `llama3.1`.
 5. Click **Test the model**. It says if the server answered.
 6. If the model runs on another computer in your home (for example a Mac Studio), tick **My model runs on another computer on my network** and use its address. The app never allows an address on the internet.
+
+
+## 17. Stats (Phase 7)
+
+The app reads views, likes, comments and shares for videos it posted. It never reads other people's comments and has no inbox.
+
+### Where to see them
+
+- **Queue:** the Views, Likes, Comments and Shares columns show totals for each posted video. Hover a number to see it per platform.
+- **Edit post:** open a posted video. The **Stats** section shows each platform with a line chart of views over time.
+- **Stats** (left menu): pick a brand (or All brands) and **Last 7 days** or **Last 30 days**. You get totals per platform for videos published in that time.
+- Click **Refresh stats** to read the numbers right now. Otherwise the app reads them by itself every 6 hours for the first 7 days of a video, then once a day until day 30, then stops.
+
+### What each platform gives
+
+- **YouTube:** views, likes, comments. YouTube does not share a share count, so it shows a dash.
+- **Instagram:** views, likes, comments, shares.
+- **Facebook Reels:** views, likes, comments. Shares are a rough number and show a ~ sign.
+- **TikTok:** views, likes, comments, shares, but only for videos where the app knows the video id (see below).
+
+A dash or "Not available" is not an error. The reason is written next to it.
+
+### Steps you must do once
+
+**Facebook and Instagram**
+
+1. Open the Meta developer site and your app, then the use case you set up in SETUP_B step 3.
+2. Add the permission `pages_manage_engagement` (it sits next to `read_insights`). Also make sure `instagram_manage_insights` is added.
+3. In the app, go to **Connections** and click **Reconnect Meta**. Approve everything on the Meta page.
+
+**TikTok**
+
+1. Open the TikTok developer portal, your app, then **Scopes**. Add `video.list`. TikTok may ask you to explain why. Say it is used to show view counts to the account owner.
+2. In the app, **Connections**, TikTok credentials, click **Replace**, tick **Also ask for video.list (stats)** and click Save (you do not have to retype the key, leave the key boxes empty).
+3. Click **Reconnect TikTok** on each brand and approve.
+
+### Videos you posted by hand (and TikTok Drafts)
+
+TikTok does not tell the app the video id for a draft, and a manual post has no id either. When you click **Mark as posted**, paste the video link first (for example `https://www.tiktok.com/@name/video/123...` or a YouTube Shorts link). The app reads the id from the link, and stats start working. Without a link the stats say "Paste the video link when you mark the post as posted."
+
+### Ask Claude
+
+With MCP connected you can ask "How did last week's Trash Panda posts do?". The tools are `get_post_stats` and `get_brand_stats`, and the local API has `GET /v1/posts/{id}/stats` and `GET /v1/brands/{id}/stats?range=7d`.

@@ -46,6 +46,8 @@ export interface Settings {
   llmModel: string
   /** Allow a model on another computer on the local network. */
   llmAllowLan: boolean
+  /** Also ask TikTok for the video.list permission, so stats can be read. */
+  tiktokRequestStatsScope: boolean
 }
 
 export interface Brand {
@@ -223,6 +225,7 @@ export interface TikTokCredentialsStatus {
   clientSecretMasked: string
   redirectUri: string
   requestPublishScope: boolean
+  requestStatsScope: boolean
 }
 
 /** Optional per-target settings. */
@@ -433,4 +436,46 @@ export interface TextAssistStatus {
   available: boolean
   model: string
   baseUrl: string
+}
+
+// ---------- stats ----------
+
+export interface StatsNumbers {
+  views: number | null
+  likes: number | null
+  comments: number | null
+  shares: number | null
+}
+
+export interface TargetStats {
+  targetId: number
+  platform: Platform
+  /** ok: numbers exist. unavailable: cannot be read, see reason. pending: nothing fetched yet. */
+  state: 'ok' | 'unavailable' | 'pending'
+  reason: string | null
+  latest: (StatsNumbers & { fetchedAt: string; approximate: string[] }) | null
+  history: Array<StatsNumbers & { t: string }>
+}
+
+export interface PostStats {
+  postId: number
+  targets: TargetStats[]
+  totals: StatsNumbers
+}
+
+export type StatsRange = '7d' | '30d'
+
+export interface BrandStats {
+  brandId: number | null
+  range: StatsRange
+  posts: number
+  platforms: Array<
+    StatsNumbers & {
+      platform: Platform
+      videos: number
+      unavailable: number
+      reason: string | null
+    }
+  >
+  totals: StatsNumbers
 }

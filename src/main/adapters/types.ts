@@ -24,6 +24,8 @@ export interface AdapterContext {
   caption: string
   aiFlag: boolean
   videoAbsPath: string
+  /** The platform's id for this video once it exists, otherwise null. */
+  externalId: string | null
   /** From ffprobe at import time. 0 when unknown. */
   videoDurationSeconds: number
   videoSizeBytes: number

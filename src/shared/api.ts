@@ -5,9 +5,12 @@ import type {
   AlertChannel,
   AlertStatus,
   AlertTestResult,
+  BrandStats,
   AppInfo,
   HealthRow,
   McpConfig,
+  PostStats,
+  StatsRange,
   TextAssistStatus,
   RestorePreview,
   RestoreReport,
@@ -127,6 +130,7 @@ export interface Api {
       clientSecret: string,
       redirectUri: string,
       requestPublishScope: boolean,
+      requestStatsScope?: boolean,
     ): Promise<TikTokCredentialsStatus>
     connect(brandId: number): Promise<Account>
     submitCode(code: string): Promise<void>
@@ -160,6 +164,13 @@ export interface Api {
     restore(zipPath: string, newMediaRoot: string): Promise<void>
     report(): Promise<RestoreReport | null>
     dismissReport(): Promise<void>
+  }
+  stats: {
+    forPosts(ids: number[]): Promise<Record<number, PostStats>>
+    post(id: number): Promise<PostStats>
+    /** Reads stats now. Without an id it covers every posted video. */
+    refresh(postId?: number): Promise<{ fetched: number; unavailable: number }>
+    brandSummary(brandId: number | null, range: StatsRange): Promise<BrandStats>
   }
   agent: {
     status(): Promise<AgentStatus>

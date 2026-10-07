@@ -1,3 +1,4 @@
+import { fetchOneStats, type StatsProvider } from '../stats/providers'
 import { statSync } from 'fs'
 import {
   AdapterError,
@@ -25,6 +26,8 @@ export interface MetaAdapterHost {
 }
 
 export interface FacebookDeps {
+  /** Reads views, likes and so on for one posted video. */
+  stats?: StatsProvider
   graph: GraphClient
   urls: MetaUrls
   host: MetaAdapterHost
@@ -207,5 +210,9 @@ export class FacebookAdapter implements PlatformAdapter {
       )
     }
     return { status: how === 'schedule' ? 'handed_off' : 'processing', externalId: videoId }
+  }
+
+  async fetchStats(ctx: AdapterContext): Promise<Record<string, number>> {
+    return fetchOneStats(this.d.stats, 'facebook', ctx)
   }
 }

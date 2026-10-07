@@ -27,6 +27,7 @@ export const COPY = {
   nav: {
     calendar: 'Calendar',
     queue: 'Queue',
+    stats: 'Stats',
     newPost: 'New Post',
     bulk: 'Bulk Upload',
     brands: 'Brands',
@@ -35,6 +36,16 @@ export const COPY = {
     settings: 'Settings',
     about: 'About',
     tiktokDemo: 'TikTok demo',
+  },
+  stats: {
+    notAvailable: 'Not available',
+    pending: 'Not read yet. Numbers appear after the first refresh.',
+    approximate: 'A ~ means the platform only gives a rough number.',
+    chartNeedsMore: 'The chart appears after two readings.',
+    refreshed: 'Stats refreshed',
+    empty: 'No posts were published in this time range yet.',
+    summaryNote:
+      'Totals use the latest numbers for videos published in the range. Platforms that give no numbers say why.',
   },
   confirm: {
     deletePost: 'Delete this post? The video file stays on disk unless you tick the box.',

@@ -112,6 +112,32 @@ export class YoutubeClient implements YoutubeClientLike {
     }
   }
 
+  /** Views, likes and comments for up to 50 videos in one call. Ids YouTube does not return are left out. */
+  async videoStatistics(
+    accountId: number,
+    ids: string[],
+  ): Promise<Map<string, { views: number | null; likes: number | null; comments: number | null }>> {
+    const res = await this.call(accountId, (yt) =>
+      yt.videos.list({ part: ['statistics'], id: ids, maxResults: 50 }),
+    )
+    this.quota.record('videosList')
+    const out = new Map<
+      string,
+      { views: number | null; likes: number | null; comments: number | null }
+    >()
+    const n = (v: string | null | undefined) =>
+      v === undefined || v === null || v === '' ? null : Number(v)
+    for (const v of res.data.items ?? []) {
+      if (v.id)
+        out.set(v.id, {
+          views: n(v.statistics?.viewCount),
+          likes: n(v.statistics?.likeCount),
+          comments: n(v.statistics?.commentCount),
+        })
+    }
+    return out
+  }
+
   async addToPlaylist(accountId: number, playlistId: string, videoId: string): Promise<void> {
     await this.call(accountId, (yt) =>
       yt.playlistItems.insert({

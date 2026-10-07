@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0 Phase 7: Basic stats
+
+- Views, likes, comments and shares per posted video, saved over time in `post_stats`. Read every 6 hours for posts under 7 days old, daily from 7 to 30 days, then never again. A Refresh stats button reads them right now.
+- YouTube: `videos.list` statistics, up to 50 videos per call (1 quota unit). No share count exists there. Instagram: insights (views, likes, comments, shares, plus reach and saved). Facebook Reels: `blue_reels_play_count` for views, reactions summed for likes, comments from the video, shares approximate (marked with ~). TikTok: `/v2/video/query/`, needs the `video.list` scope and a real video id.
+- A platform that gives no numbers shows "Not available" with the reason (for example "Reconnect Meta for stats") and is retried at most once a day. Dry run posts show that nothing real was posted.
+- Mark as posted now reads the video id from a pasted YouTube or TikTok link, which is how manual and TikTok Drafts posts get stats.
+- Queue columns (totals, per platform on hover), a Stats section with a views chart in the post editor, and a new Stats screen with a brand picker and Last 7 or 30 days totals per platform.
+- Agent API: `GET /v1/posts/{id}/stats` and `GET /v1/brands/{id}/stats?range=7d|30d`, plus MCP tools `get_post_stats` and `get_brand_stats` (eleven tools now).
+- Meta now asks for `pages_manage_engagement`. A "Also ask for video.list (stats)" box was added for TikTok.
+
 ## 0.6.0 Phase 6: Local agent API and MCP
 
 - Local HTTP API on 127.0.0.1 only (default port 47821), off by default, bearer token (shown once, regenerate to cancel), Host and Origin checks, every call logged. Endpoints for brands, next open slots, posts (create, list, get, change, cancel, retry), calendar, activity and health.

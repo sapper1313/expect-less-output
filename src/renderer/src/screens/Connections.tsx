@@ -712,10 +712,12 @@ function TikTokCard() {
   const [secret, setSecret] = useState('')
   const [redirect, setRedirect] = useState('')
   const [publish, setPublish] = useState<boolean | null>(null)
+  const [statsScope, setStatsScope] = useState<boolean | null>(null)
   const [editing, setEditing] = useState(false)
   const saved = !!st?.hasClientKey && !!st?.hasClientSecret
   const showForm = !saved || editing
   const publishOn = publish ?? st?.requestPublishScope ?? false
+  const statsOn = statsScope ?? st?.requestStatsScope ?? false
 
   return (
     <Card title="TikTok credentials">
@@ -756,6 +758,10 @@ function TikTokCard() {
           <Check checked={publishOn} onChange={setPublish}>
             Also ask for video.publish (Direct Post). Leave off until TikTok approves the audit.
           </Check>
+          <Check checked={statsOn} onChange={setStatsScope}>
+            Also ask for video.list (stats). Add it in the TikTok developer portal first, then
+            Reconnect TikTok.
+          </Check>
           <div className="text-[12px] text-muted">
             Get these from SETUP_C_TIKTOK.md step 7. They are saved encrypted in the macOS Keychain
             and never shown again in full.
@@ -764,7 +770,12 @@ function TikTokCard() {
             <Button
               variant="primary"
               disabled={
-                busy || (!key.trim() && !secret.trim() && redirect === '' && publish === null)
+                busy ||
+                (!key.trim() &&
+                  !secret.trim() &&
+                  redirect === '' &&
+                  publish === null &&
+                  statsScope === null)
               }
               onClick={async () => {
                 if (
@@ -774,6 +785,7 @@ function TikTokCard() {
                       secret,
                       redirect || st?.redirectUri || '',
                       publishOn,
+                      statsOn,
                     ),
                   )
                 ) {
@@ -781,6 +793,7 @@ function TikTokCard() {
                   setSecret('')
                   setRedirect('')
                   setPublish(null)
+                  setStatsScope(null)
                   setEditing(false)
                   reload()
                   toast({
@@ -809,6 +822,9 @@ function TikTokCard() {
             <div className="text-muted">
               Direct Post permission:{' '}
               {st?.requestPublishScope ? 'requested on connect' : 'not requested'}
+            </div>
+            <div className="text-muted">
+              Stats permission: {st?.requestStatsScope ? 'requested on connect' : 'not requested'}
             </div>
           </div>
           <Button onClick={() => setEditing(true)}>Replace</Button>

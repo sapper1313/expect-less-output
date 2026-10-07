@@ -35,4 +35,13 @@ try {
   console.log('launch at login put back to:', await read(), '(was', before + ')')
 }
 await shot(page, 'packaged-settings')
+await nav(page, 'Stats')
+await sleep(800)
+console.log(
+  'Stats screen:',
+  (await page.locator('main, body').first().innerText()).slice(0, 160).replace(/\n/g, ' | '),
+)
+const sum = await invoke(page, 'stats.brandSummary', null, '7d')
+console.log('stats.brandSummary posts:', sum.posts, 'platforms:', sum.platforms.length)
+await shot(page, 'packaged-stats')
 await app.close()

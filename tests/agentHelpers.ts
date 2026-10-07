@@ -5,6 +5,7 @@ import { join } from 'path'
 import { AgentRuntime } from '../src/main/agent/runtime'
 import { buildHealth } from '../src/main/agent/health'
 import type { AgentServices } from '../src/main/agent/core'
+import { StatsService } from '../src/main/stats/service'
 import { SecretStore } from '../src/main/services/secrets'
 import { fakeCrypto } from './googleHelpers'
 import { makeEnv } from './helpers'
@@ -21,6 +22,13 @@ export async function makeAgentEnv(patch: Record<string, unknown> = {}) {
     scheduler: env.scheduler,
     log: env.log,
     appVersion: '9.9.9',
+    stats: new StatsService({
+      db: env.db,
+      log: env.log,
+      emit: () => {},
+      providers: {},
+      now: () => env.clock.ms,
+    }),
     now: () => env.clock.ms,
     health: () =>
       buildHealth({

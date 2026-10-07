@@ -54,6 +54,8 @@ export interface AgentServices {
   appVersion: string
   /** Health data assembled by the app (accounts, quota, scheduler). */
   health: () => unknown
+  /** Stats numbers. Missing in the Inbox watcher, which never reads them. */
+  stats?: import('../stats/service').StatsService
   now?: () => number
 }
 

@@ -1,3 +1,4 @@
+import { fetchOneStats, type StatsProvider } from '../stats/providers'
 import { statSync } from 'fs'
 import {
   AdapterError,
@@ -11,6 +12,8 @@ import type { Account, TikTokCreatorInfo, TikTokPostSettings } from '@shared/typ
 import { TikTokApiError, mimeFor, type TikTokClient } from '../tiktok/client'
 
 export interface TikTokAdapterDeps {
+  /** Reads views, likes and so on for one posted video. */
+  stats?: StatsProvider
   client: TikTokClient
   accessToken: (accountId: number, force?: boolean) => Promise<string>
   /** Asks TikTok for the creator's current options. Never cached. */
@@ -204,5 +207,9 @@ export class TikTokAdapter implements PlatformAdapter {
         return { status: 'processing', externalId: publishId }
       }
     }
+  }
+
+  async fetchStats(ctx: AdapterContext): Promise<Record<string, number>> {
+    return fetchOneStats(this.d.stats, 'tiktok', ctx)
   }
 }

@@ -1,3 +1,4 @@
+import { fetchOneStats, type StatsProvider } from '../stats/providers'
 import type { Account, BrandDefaults } from '@shared/types'
 import {
   AdapterError,
@@ -17,6 +18,8 @@ export interface YoutubeHost {
 }
 
 export interface YoutubeAdapterDeps {
+  /** Reads views, likes and so on for one posted video. */
+  stats?: StatsProvider
   client: YoutubeClientLike
   host: YoutubeHost
   brandDefaults: (brandId: number) => BrandDefaults
@@ -170,5 +173,9 @@ export class YoutubeAdapter implements PlatformAdapter {
     if (lateBy > (this.d.publishGraceMs ?? 10 * 60_000))
       throw new AdapterError(LOCKED_MESSAGE, 'permanent')
     return { status: 'handed_off' }
+  }
+
+  async fetchStats(ctx: AdapterContext): Promise<Record<string, number>> {
+    return fetchOneStats(this.d.stats, 'youtube', ctx)
   }
 }

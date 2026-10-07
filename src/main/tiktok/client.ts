@@ -376,6 +376,41 @@ export class TikTokClient {
     }
   }
 
+  /** Views, likes, comments and shares for up to 20 of the owner's own videos. Needs the video.list permission. */
+  async queryVideos(
+    token: string,
+    ids: string[],
+  ): Promise<
+    Map<
+      string,
+      { views: number | null; likes: number | null; comments: number | null; shares: number | null }
+    >
+  > {
+    const j = await this.call(
+      'POST',
+      '/v2/video/query/?fields=id,view_count,like_count,comment_count,share_count',
+      {
+        token,
+        json: { filters: { video_ids: ids } },
+      },
+    )
+    const n = (v: unknown) => (typeof v === 'number' ? v : null)
+    const out = new Map<
+      string,
+      { views: number | null; likes: number | null; comments: number | null; shares: number | null }
+    >()
+    for (const v of j?.data?.videos ?? []) {
+      if (v?.id)
+        out.set(String(v.id), {
+          views: n(v.view_count),
+          likes: n(v.like_count),
+          comments: n(v.comment_count),
+          shares: n(v.share_count),
+        })
+    }
+    return out
+  }
+
   async status(
     token: string,
     publishId: string,

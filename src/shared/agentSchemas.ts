@@ -312,3 +312,49 @@ export const RetryOut = z.object({ post: PostOut, retried_targets: z.array(z.num
 
 export type CreatePostInput = z.infer<typeof CreatePostBody>
 export type UpdatePostInput = z.infer<typeof UpdatePostBody>
+
+// ---------- stats ----------
+
+const StatNumbersOut = z.object({
+  views: z.number().int().nullable(),
+  likes: z.number().int().nullable(),
+  comments: z.number().int().nullable(),
+  shares: z.number().int().nullable(),
+})
+
+export const BrandStatsQuery = z.object({
+  range: z.enum(['7d', '30d']).default('7d'),
+})
+
+export const PostStatsOut = z.object({
+  post_id: z.number().int(),
+  targets: z.array(
+    z.object({
+      platform: PlatformEnum,
+      state: z.enum(['ok', 'unavailable', 'pending']).meta({
+        description:
+          'ok means numbers are present. unavailable means the platform gave none (see reason). pending means not read yet.',
+      }),
+      reason: z.string().nullable(),
+      fetched_at: z.string().nullable(),
+      approximate: z.array(z.string()),
+      numbers: StatNumbersOut,
+    }),
+  ),
+  totals: StatNumbersOut,
+})
+
+export const BrandStatsOut = z.object({
+  brand_id: z.number().int(),
+  range: z.enum(['7d', '30d']),
+  posts: z.number().int(),
+  platforms: z.array(
+    StatNumbersOut.extend({
+      platform: PlatformEnum,
+      videos: z.number().int(),
+      unavailable: z.number().int(),
+      reason: z.string().nullable(),
+    }),
+  ),
+  totals: StatNumbersOut,
+})

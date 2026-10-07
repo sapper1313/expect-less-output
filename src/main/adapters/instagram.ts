@@ -1,3 +1,4 @@
+import { fetchOneStats, type StatsProvider } from '../stats/providers'
 import { statSync } from 'fs'
 import {
   AdapterError,
@@ -12,6 +13,8 @@ import { MetaApiError, type GraphClient } from '../meta/graph'
 import type { MetaAdapterHost } from './facebook'
 
 export interface InstagramDeps {
+  /** Reads views, likes and so on for one posted video. */
+  stats?: StatsProvider
   graph: GraphClient
   urls: MetaUrls
   host: MetaAdapterHost
@@ -222,5 +225,9 @@ export class InstagramAdapter implements PlatformAdapter {
       )
     }
     return { status: 'posted', externalId: mediaId, externalUrl: link }
+  }
+
+  async fetchStats(ctx: AdapterContext): Promise<Record<string, number>> {
+    return fetchOneStats(this.d.stats, 'instagram', ctx)
   }
 }

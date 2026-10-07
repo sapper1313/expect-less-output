@@ -22,6 +22,13 @@ import { AlertService } from './alerts/service'
 import { AgentRuntime } from './agent/runtime'
 import { InboxWatcher } from './agent/inbox'
 import { buildHealth } from './agent/health'
+import { StatsService } from './stats/service'
+import {
+  FacebookStatsProvider,
+  InstagramStatsProvider,
+  TikTokStatsProvider,
+  YoutubeStatsProvider,
+} from './stats/providers'
 import { applyPendingRestore, finishRestore } from './services/backup'
 import { seedIfEmpty } from './db/seed'
 import { buildApi, type Host } from './api'
@@ -218,7 +225,9 @@ async function boot(): Promise<void> {
       await shell.openExternal(url)
     },
   })
+  const ytStats = new YoutubeStatsProvider(ytClient)
   const youtubeAdapter = new YoutubeAdapter({
+    stats: ytStats,
     client: ytClient,
     brandDefaults: (brandId) => brands.getDefaults(brandId),
     log: (level, message, ctx) =>
@@ -266,7 +275,15 @@ async function boot(): Promise<void> {
     log: (level: 'info' | 'warn' | 'error', message: string, ctx: { postId: number }) =>
       log.log(level, message, { postId: ctx.postId }),
   }
+  const metaStatsDeps = {
+    graph,
+    tokenFor: (account: Account | null) => meta.tokenForAccount(account),
+    onAuthFailed: (reason: string) => meta.markReauth(reason),
+  }
+  const fbStats = new FacebookStatsProvider(metaStatsDeps)
+  const igStats = new InstagramStatsProvider(metaStatsDeps)
   const facebookAdapter = new FacebookAdapter({
+    stats: fbStats,
     graph,
     urls: mUrls,
     host: metaHost,
@@ -274,6 +291,7 @@ async function boot(): Promise<void> {
     recordPublish: (pageId) => meta.recordFbPublish(pageId),
   })
   const instagramAdapter = new InstagramAdapter({
+    stats: igStats,
     graph,
     urls: mUrls,
     host: metaHost,
@@ -314,7 +332,19 @@ async function boot(): Promise<void> {
     tiktok.handleOpenUrl(pendingOpenUrl)
     pendingOpenUrl = null
   }
+  const ttStats = new TikTokStatsProvider({
+    client: tiktokClient,
+    accessToken: (id, force) => tiktok.accessToken(id, force),
+    grantedScope: (id) => tiktok.grantedScope(id),
+  })
+  const stats = new StatsService({
+    db,
+    log,
+    emit,
+    providers: { youtube: ytStats, facebook: fbStats, instagram: igStats, tiktok: ttStats },
+  })
   const tiktokAdapter = new TikTokAdapter({
+    stats: ttStats,
     client: tiktokClient,
     accessToken: (id, force) => tiktok.accessToken(id, force),
     freshCreator: (id) => tiktok.fresh(id),
@@ -361,6 +391,7 @@ async function boot(): Promise<void> {
       scheduler,
       log,
       appVersion: app.getVersion(),
+      stats,
       health: () =>
         buildHealth({
           db,
@@ -479,6 +510,7 @@ async function boot(): Promise<void> {
     tiktok,
     alerts,
     agent,
+    stats,
     db,
     dataDir,
     postersDir,
@@ -545,6 +577,7 @@ async function boot(): Promise<void> {
   meta.startHealthChecks()
   tiktok.startHealthChecks()
   alerts.start()
+  stats.start()
   void agent.apply()
   inbox.start()
   updateBlocker()
@@ -558,6 +591,7 @@ async function boot(): Promise<void> {
       meta.stop()
       tiktok.stop()
       alerts.stop()
+      stats.stop()
       inbox.stop()
       void agent.server.stop()
       app.quit()

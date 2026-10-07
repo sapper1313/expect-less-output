@@ -20,6 +20,7 @@ import {
   useBusy,
 } from '../ui'
 import { PlatformPicker } from './pickers'
+import { PostStatsPanel } from './StatsPanel'
 import { PostingAs, TikTokSection, useCreator } from './TikTokSection'
 import { previewFor } from '@shared/preview'
 import { Suggest } from './Suggest'
@@ -158,6 +159,10 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
             </div>
           )}
 
+          {(draft.status === 'posted' || draft.status === 'partial') && (
+            <PostStatsPanel postId={draft.id} />
+          )}
+
           {waiting.length > 0 && (
             <div className="rounded-md border border-warn p-3">
               <div className="display text-2xl text-warn">Waiting for you</div>
@@ -169,7 +174,7 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
                   </div>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Video link (optional)"
+                      placeholder="Video link (optional, lets Stats work)"
                       value={urls[t.id] ?? ''}
                       onChange={(e) => setUrls({ ...urls, [t.id]: e.target.value })}
                     />

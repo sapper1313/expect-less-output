@@ -9,6 +9,7 @@ export const APP_CALLBACK_PREFIX = 'expectless://oauth/tiktok'
 
 export const SCOPES_BASE = ['user.info.basic', 'video.upload']
 export const SCOPE_PUBLISH = 'video.publish'
+export const SCOPE_STATS = 'video.list'
 
 /** Chunk rules from TikTok's media transfer guide. */
 export const MIN_CHUNK = 5 * 1024 * 1024
