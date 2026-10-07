@@ -150,6 +150,7 @@ export class StatsService {
           postedAt: r.posted_at_utc as string,
         }))
         const results = await provider.fetch(targets)
+        const soft = new Map<string, number>()
         const at = new Date(this.now()).toISOString()
         for (const t of targets) {
           const o = results.get(t.targetId)
@@ -174,11 +175,13 @@ export class StatsService {
             this.setAvailability(t.targetId, false, o.reason, at)
             unavailable++
           } else {
-            this.d.log.log('warn', `Could not read ${platform} stats just now: ${o.reason}`, {
-              platform,
-            })
+            soft.set(o.reason, (soft.get(o.reason) ?? 0) + 1)
           }
         }
+        for (const [reason, n] of soft)
+          this.d.log.log('warn', `Could not read ${n} ${platform} video(s) just now: ${reason}`, {
+            platform,
+          })
       }
       if (fetched || unavailable) this.d.emit?.()
     } finally {

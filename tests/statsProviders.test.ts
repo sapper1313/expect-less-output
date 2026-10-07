@@ -102,6 +102,39 @@ describe('Facebook and Instagram providers', () => {
   })
 })
 
+describe('Facebook metric fallback', () => {
+  it('keeps the metrics Meta accepts when it refuses one', async () => {
+    const asked: string[] = []
+    const p = new FacebookStatsProvider({
+      tokenFor: () => 't',
+      graph: {
+        get: async (path: string, params: Record<string, string>) => {
+          if (!path.endsWith('video_insights')) return {}
+          asked.push(params.metric)
+          if (params.metric.includes(',') || params.metric === 'post_video_social_actions')
+            throw new MetaApiError(
+              '(#100) The value must be a valid insights metric',
+              'permanent',
+              100,
+              0,
+            )
+          return {
+            data: [
+              {
+                name: params.metric,
+                values: [{ value: params.metric === 'blue_reels_play_count' ? 77 : { like: 2 } }],
+              },
+            ],
+          }
+        },
+      } as never,
+    })
+    const r = await p.fetch([target(1, 'facebook', '123')])
+    expect(r.get(1)).toMatchObject({ ok: true, numbers: { views: 77, likes: 2 } })
+    expect(asked.length).toBe(4)
+  })
+})
+
 describe('TikTok provider', () => {
   const client = {
     async queryVideos(_t: string, ids: string[]) {

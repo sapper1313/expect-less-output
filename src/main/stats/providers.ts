@@ -119,7 +119,7 @@ function metaFailure(e: unknown, permissionHelp: string, deps: MetaStatsDeps): S
     }
     if (e.code === 10 || (e.code >= 200 && e.code <= 299))
       return { ok: false, unavailable: true, reason: permissionHelp }
-    return { ok: false, unavailable: e.kind === 'permanent' && e.code !== 100, reason: e.message }
+    return { ok: false, unavailable: e.kind === 'permanent', reason: e.message }
   }
   return { ok: false, unavailable: false, reason: (e as Error).message }
 }
@@ -193,29 +193,54 @@ export class InstagramStatsProvider implements StatsProvider {
 
 // ---------------- Facebook ----------------
 
+/** Meta retires metrics from time to time, so a metric it refuses is skipped instead of failing the whole read. */
 const FB_METRICS = [
   'blue_reels_play_count',
   'post_video_likes_by_reaction_type',
   'post_video_social_actions',
-  'post_impressions_unique',
 ]
 
 export class FacebookStatsProvider implements StatsProvider {
   readonly platform = 'facebook' as const
   constructor(private d: MetaStatsDeps) {}
 
+  /** All metrics in one call. If Meta refuses one of them (code 100), ask for each alone and keep the ones that work. */
+  private async insights(
+    id: string,
+    token: string,
+  ): Promise<{ data: Array<{ name: string; values?: Array<{ value: unknown }> }> }> {
+    type R = { data: Array<{ name: string; values?: Array<{ value: unknown }> }> }
+    const ask = (metrics: string[]) =>
+      this.d.graph.get<R>(
+        `/${id}/video_insights`,
+        { metric: metrics.join(','), period: 'lifetime' },
+        token,
+      )
+    try {
+      return await ask(FB_METRICS)
+    } catch (e) {
+      if (!(e instanceof MetaApiError) || e.code !== 100) throw e
+      const data: R['data'] = []
+      let lastError: unknown = e
+      for (const m of FB_METRICS) {
+        try {
+          data.push(...((await ask([m])).data ?? []))
+        } catch (e2) {
+          if (!(e2 instanceof MetaApiError) || e2.code !== 100) throw e2
+          lastError = e2
+        }
+      }
+      if (data.length === 0) throw lastError
+      return { data }
+    }
+  }
+
   async fetch(targets: StatsTarget[]): Promise<Map<number, StatsOutcome>> {
     const out = new Map<number, StatsOutcome>()
     for (const t of targets) {
       try {
         const token = this.d.tokenFor(t.account)
-        const ins = await this.d.graph.get<{
-          data: Array<{ name: string; values?: Array<{ value: unknown }> }>
-        }>(
-          `/${t.externalId}/video_insights`,
-          { metric: FB_METRICS.join(','), period: 'lifetime' },
-          token,
-        )
+        const ins = await this.insights(t.externalId, token)
         const val = (name: string) => ins.data?.find((m) => m.name === name)?.values?.[0]?.value
         const plays = num(val('blue_reels_play_count'))
         const likes = sum(val('post_video_likes_by_reaction_type'))
@@ -248,7 +273,7 @@ export class FacebookStatsProvider implements StatsProvider {
           ok: true,
           numbers: { views: plays, likes, comments, shares },
           approximate,
-          extra: { reach: num(val('post_impressions_unique')), social_actions: social ?? null },
+          extra: { social_actions: social ?? null },
         })
       } catch (e) {
         out.set(
