@@ -10,9 +10,11 @@ import { Bulk } from './screens/Bulk'
 import { Brands } from './screens/Brands'
 import { About, Activity, SettingsScreen } from './screens/Simple'
 import { Connections } from './screens/Connections'
+import { TikTokDemo } from './screens/TikTokDemo'
 import logoWide from './assets/logo-wide.png'
 
 type Screen =
+  | 'tiktokDemo'
   | 'calendar'
   | 'queue'
   | 'newPost'
@@ -60,6 +62,18 @@ function Shell() {
     mq.addEventListener('change', apply)
     return () => mq.removeEventListener('change', apply)
   }, [settings?.theme])
+
+  // Hidden: Command+Shift+D opens the TikTok demo screen used to record the review video.
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault()
+        setScreenRaw('tiktokDemo')
+      }
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
 
   return (
     <div className="flex h-full">
@@ -112,6 +126,7 @@ function Shell() {
         {screen === 'activity' && <Activity />}
         {screen === 'settings' && <SettingsScreen />}
         {screen === 'about' && <About />}
+        {screen === 'tiktokDemo' && <TikTokDemo onExit={() => setScreenRaw('connections')} />}
       </main>
       <Toasts />
     </div>

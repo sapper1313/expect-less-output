@@ -2,7 +2,7 @@
 
 This guide is for you, the owner. Every step is meant to be followed exactly, one at a time.
 
-Phase note: YouTube (Phase 2), Facebook Pages and Instagram (Phase 3) are real now. TikTok is still a "dry run". A dry run waits a few seconds and says it worked, and never contacts the platform. Their real connections come in later phases.
+Phase note: YouTube (Phase 2), Facebook Pages and Instagram (Phase 3) are real now. TikTok (Phase 4) is real now too. A dry run waits a few seconds and says it worked, and never contacts the platform. Their real connections come in later phases.
 
 ---
 
@@ -210,3 +210,74 @@ Keep the keys in your `ELO Keys` folder, outside the project. Never share them.
 - Facebook allows 30 API Reels per Page per 24 hours. Instagram allows 100 API posts per account per 24 hours. The app stops with a clear message at the limit.
 - A post Facebook is already holding (handed off early) cannot be moved in the app. Cancel it, delete the scheduled Reel in Meta Business Suite, then schedule it again.
 - Instagram captions: up to 2200 characters and 30 hashtags.
+
+---
+
+## 10. TikTok (Phase 4)
+
+Do SETUP_C_TIKTOK.md steps 1 to 7 first. You need a Client Key and a Client Secret. The website pages from SETUP_D must be live, especially `https://expectlessmedia.com/oauth/tiktok/`.
+
+Your TikTok app starts in **Sandbox**. That is fine for Drafts mode. Direct post stays locked until TikTok approves the audit.
+
+### Save the TikTok credentials (once)
+
+1. Open the app and click **Connections**.
+2. In the **TikTok credentials** box, paste the **Client Key** and the **Client Secret**.
+3. Leave **Redirect URI** as it is: `https://expectlessmedia.com/oauth/tiktok/`. It must match the Login Kit Redirect URI in the TikTok developer portal exactly, including the slash at the end.
+4. Leave **Also ask for video.publish** switched off for now.
+5. Click **Save**. They are stored encrypted. Only the last 4 characters show afterward.
+
+### Connect each brand's TikTok account
+
+1. On **Connections**, find the brand's card, then the **TikTok** box. Click **Connect TikTok**.
+2. Your browser opens TikTok. **Log in to THAT brand's TikTok account.** If you are logged in as a different account, log out of tiktok.com first.
+3. Click **Authorize**.
+4. The website page sends you back to the app. If your Mac asks "Open Expect Less Output?", click **Open**. The box then shows a green **connected** label.
+5. If the app does not come back (this always happens when you start the app with `npm run dev`):
+   - On the website page, click **Copy** next to the code.
+   - In the app, paste it into the **Paste code** box (it appears while the app is waiting) and click **Use this code**.
+6. Repeat for each brand. The first mode is **Drafts**.
+
+### Send a test draft and finish it in the TikTok app
+
+1. Click **New Post**. Pick a short vertical video and the brand. Keep only **TikTok** ticked.
+2. Under **TikTok** you will see "Post to TikTok as" and the account name. In Drafts mode TikTok asks for privacy and settings later, in its own app.
+3. Under **When**, choose **Pick a different time...** and set it 5 minutes from now.
+4. Click **Fine.**
+5. At the time, the app uploads the video. You get a notification: **TikTok draft ready for (brand). Open TikTok, tap the inbox notification, add the AI label if needed, and post.**
+6. On your phone, open TikTok and tap the **Inbox** notification. Choose the privacy and settings. Add the AI label if the video is AI-made. Tap **Post**. Or delete the draft if it is only a test.
+7. Back in the app, open the post (Calendar or Queue) and click **Mark as posted**. You can paste the video link if you want.
+
+### How to record the demo video for TikTok's review
+
+TikTok wants a screen recording of the whole flow. The demo screen never posts anything.
+
+1. Press **Command + Shift + 5** and choose **Record Entire Screen** or **Record Selected Portion**. Click **Record**.
+2. In the app press **Command + Shift + D** to open the **TikTok demo** screen.
+3. Walk through the four steps with **Next**. Say or show each thing:
+   - **1 Connect:** the connected account name. (If you want the real login on camera, first open **Connections**, click **Disconnect**, then **Connect TikTok**, then come back with Command + Shift + D.)
+   - **2 Write the post:** type a title and caption.
+   - **3 Choose settings:** pick who can view (nothing is chosen for you), the Comment, Duet and Stitch boxes, the commercial content switch with **Your brand** and **Branded content**, and tick the consent line.
+   - **4 Review and send:** click **Fine.** and show the message.
+4. Stop recording (the stop button in the menu bar). Upload that file when you submit the app for review (SETUP_C step 9) or the audit (step 10).
+
+### Switch to Direct post after TikTok approves the audit
+
+Only do this after TikTok has approved the Direct Post audit.
+
+1. On **Connections**, in the **TikTok credentials** box click **Replace**, tick **Also ask for video.publish**, and click **Save**.
+2. On each brand's card, click **Reconnect** and approve the new permission.
+3. Change **Mode** to **Direct post**. The app asks "Has TikTok approved your Direct Post audit?" Click **Yes, it is approved**.
+4. From now on, **New Post** shows the full TikTok screen. You must choose each time:
+   - **Who can view this video.** Nothing is pre-selected. The choices come from TikTok for that account.
+   - **Comment, Duet, Stitch.** All start unticked. Some may be greyed out because they are off in the TikTok app.
+   - **Disclose commercial content** (off by default). Branded content cannot be private.
+   - The consent line (Music Usage Confirmation, and the Branded Content Policy when branded content is on).
+5. **Fine.** stays grey until all of it is valid. Bulk Upload has one TikTok box that applies to every row.
+6. Until the audit is approved, TikTok only lets the app post privately.
+
+### Limits and problems
+
+- TikTok allows about 15 posts a day per account. When it says the account is full, the app waits an hour and tries again (up to 24 times) and sends one alert.
+- **needs sign in** on a card: TikTok stopped accepting the saved login (they last up to a year). Click **Reconnect**.
+- TikTok brand defaults do not exist on purpose: TikTok's rules say you must choose privacy and interaction settings on every post.

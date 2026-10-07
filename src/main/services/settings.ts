@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dryRunFailPlatform: null,
   dryRunFailKind: 'transient',
   fastBackoff: false,
+  tiktokRequestPublishScope: false,
 }
 
 export class SettingsService {

@@ -11,6 +11,7 @@ import type { Library } from './services/library'
 import { noneProvider } from './services/textAssist'
 import type { YoutubeService } from './google/youtubeService'
 import type { MetaService } from './meta/metaService'
+import type { TikTokService } from './tiktok/service'
 
 /** The parts that need Electron. Everything else is plain services. */
 export interface Host {
@@ -33,6 +34,7 @@ export interface ApiDeps {
   library: Library
   youtube: YoutubeService
   meta: MetaService
+  tiktok: TikTokService
   host: Host
   emit: () => void
 }
@@ -141,6 +143,18 @@ export function buildApi(d: ApiDeps): Api {
       categories: async () => d.youtube.categories(),
       playlists: async (brandId) => d.youtube.playlists(brandId),
       checkHealth: async () => d.youtube.checkHealth(true),
+    },
+    tiktok: {
+      credentialsStatus: async () => d.tiktok.credentialsStatus(),
+      saveCredentials: async (key, secret, redirect, publish) =>
+        d.tiktok.saveCredentials(key, secret, redirect, publish),
+      connect: async (brandId) => d.tiktok.connect(brandId),
+      submitCode: async (code) => d.tiktok.submitCode(code),
+      cancelConnect: async () => d.tiktok.cancelConnect(),
+      disconnect: async (brandId) => d.tiktok.disconnect(brandId),
+      setMode: async (brandId, mode, approved) => d.tiktok.setMode(brandId, mode, approved),
+      creatorInfo: async (brandId, refresh) => d.tiktok.creatorInfo(brandId, refresh),
+      checkHealth: async () => d.tiktok.checkHealth(),
     },
     meta: {
       credentialsStatus: async () => d.meta.credentialsStatus(),

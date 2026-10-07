@@ -10,6 +10,9 @@ import type {
   MetaCredentialsStatus,
   MetaStatus,
   QuotaStatus,
+  TikTokCreatorInfo,
+  TikTokCredentialsStatus,
+  TikTokMode,
   YoutubeMode,
   YoutubeOption,
   HashtagSet,
@@ -105,6 +108,22 @@ export interface Api {
     quota(): Promise<QuotaStatus>
     categories(): Promise<YoutubeOption[]>
     playlists(brandId: number): Promise<YoutubeOption[]>
+    checkHealth(): Promise<void>
+  }
+  tiktok: {
+    credentialsStatus(): Promise<TikTokCredentialsStatus>
+    saveCredentials(
+      clientKey: string,
+      clientSecret: string,
+      redirectUri: string,
+      requestPublishScope: boolean,
+    ): Promise<TikTokCredentialsStatus>
+    connect(brandId: number): Promise<Account>
+    submitCode(code: string): Promise<void>
+    cancelConnect(): Promise<void>
+    disconnect(brandId: number): Promise<void>
+    setMode(brandId: number, mode: TikTokMode, auditApproved?: boolean): Promise<void>
+    creatorInfo(brandId: number, refresh?: boolean): Promise<TikTokCreatorInfo>
     checkHealth(): Promise<void>
   }
   meta: {

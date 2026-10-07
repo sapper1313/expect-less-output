@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0 Phase 4: TikTok
+
+- TikTok Client Key, Client Secret and Redirect URI saved in the encrypted secret store. Optional video.publish scope toggle.
+- Login Kit with PKCE and state. The website bounce page returns to the app through `expectless://`, with a Paste code fallback. Tokens refresh automatically (24 hour access tokens, 365 day refresh tokens), `needs_reauth` with an alert when refresh fails.
+- Drafts mode (upload to inbox): chunked upload (5 to 64 MB chunks, remainder in the last), status polling, `needs_action` with a notification, Mark as posted.
+- Direct post mode, unlocked only after the owner confirms the audit: creator_info re-checked right before publishing, privacy, interaction and commercial content fields, AI flag via `is_aigc`.
+- Posting screen follows TikTok's Content Sharing Guidelines: nickname shown, privacy from creator_info with no default, interactions unchecked and greyed when off in TikTok, commercial disclosure with required notices, consent line with links. Same section in New Post, Bulk Upload and the post editor.
+- Daily limit handling: a post is pushed an hour later (up to 24 times) without using up retries, with one alert.
+- Hidden TikTok demo screen (Command+Shift+D) for recording the review video. It never posts.
+- TikTok brand defaults removed from the Brands screen (guidelines forbid defaults).
+
 ## 0.3.0 Phase 3: Facebook Pages (Reels) and Instagram (Reels)
 
 - Meta App ID and Secret saved in the encrypted secret store. One Meta login (Graph API v25.0, fixed localhost port) gives a long-lived token and every Page with its Instagram account. Page tokens stored encrypted.

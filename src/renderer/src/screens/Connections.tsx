@@ -2,10 +2,28 @@ import { useState } from 'react'
 import { PLATFORMS, PLATFORM_LABELS } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
 import { formatEastern } from '@shared/time'
-import type { Account, Brand, ConnectResult, YoutubeChannel, YoutubeMode } from '@shared/types'
+import type {
+  Account,
+  Brand,
+  ConnectResult,
+  TikTokMode,
+  YoutubeChannel,
+  YoutubeMode,
+} from '@shared/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
-import { Button, Card, Confirm, Dialog, Field, Input, PageHeader, Select, useBusy } from '../ui'
+import {
+  Button,
+  Card,
+  Check,
+  Confirm,
+  Dialog,
+  Field,
+  Input,
+  PageHeader,
+  Select,
+  useBusy,
+} from '../ui'
 
 export const YT_MODE_LABELS: Record<YoutubeMode, string> = {
   manual_assist: 'Manual assist',
@@ -35,6 +53,7 @@ export function Connections() {
       <div className="space-y-4 px-8">
         <GoogleCard />
         <MetaCard />
+        <TikTokCard />
         {brands?.map((b) => (
           <BrandCard
             key={b.id}
@@ -286,7 +305,7 @@ function BrandCard({
         )}
       </div>
       <div className="mt-3 grid gap-2 md:grid-cols-3">
-        {PLATFORMS.filter((p) => p !== 'youtube').map((p) => {
+        {PLATFORMS.filter((p) => p !== 'youtube' && p !== 'tiktok').map((p) => {
           const a = accounts.find((x) => x.brandId === brand.id && x.platform === p)
           const real = !!a && a.mode !== 'dry_run'
           return (
@@ -310,14 +329,16 @@ function BrandCard({
               <div className="text-[12px] text-muted">
                 {real
                   ? a?.displayName
-                  : p === 'tiktok'
-                    ? 'Dry run account'
-                    : 'Not connected (dry run only)'}
+                  : 'Not connected yet. Use the Meta box at the top, then match it to this brand.'}
               </div>
             </div>
           )
         })}
       </div>
+      <TikTokTile
+        brand={brand}
+        account={accounts.find((x) => x.brandId === brand.id && x.platform === 'tiktok')}
+      />
       {confirmDisconnect && (
         <Confirm
           title="Disconnect YouTube?"
@@ -679,5 +700,272 @@ function MetaCard() {
         />
       )}
     </Card>
+  )
+}
+
+function TikTokCard() {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
+  const { data: st, reload } = useLoad(() => api.tiktok.credentialsStatus())
+  const [key, setKey] = useState('')
+  const [secret, setSecret] = useState('')
+  const [redirect, setRedirect] = useState('')
+  const [publish, setPublish] = useState<boolean | null>(null)
+  const [editing, setEditing] = useState(false)
+  const saved = !!st?.hasClientKey && !!st?.hasClientSecret
+  const showForm = !saved || editing
+  const publishOn = publish ?? st?.requestPublishScope ?? false
+
+  return (
+    <Card title="TikTok credentials">
+      {showForm ? (
+        <div className="space-y-3">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Client Key">
+              <Input
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={st?.hasClientKey ? st.clientKeyMasked : 'Client key'}
+                value={key}
+                onChange={(e) => setKey(e.target.value)}
+              />
+            </Field>
+            <Field label="Client Secret">
+              <Input
+                type="password"
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={st?.hasClientSecret ? st.clientSecretMasked : 'Client secret'}
+                value={secret}
+                onChange={(e) => setSecret(e.target.value)}
+              />
+            </Field>
+          </div>
+          <Field
+            label="Redirect URI"
+            hint="Must match the Login Kit Redirect URI in the TikTok developer portal exactly, including the slash at the end."
+          >
+            <Input
+              spellCheck={false}
+              placeholder={st?.redirectUri}
+              value={redirect || st?.redirectUri || ''}
+              onChange={(e) => setRedirect(e.target.value)}
+            />
+          </Field>
+          <Check checked={publishOn} onChange={setPublish}>
+            Also ask for video.publish (Direct Post). Leave off until TikTok approves the audit.
+          </Check>
+          <div className="text-[12px] text-muted">
+            Get these from SETUP_C_TIKTOK.md step 7. They are saved encrypted in the macOS Keychain
+            and never shown again in full.
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="primary"
+              disabled={
+                busy || (!key.trim() && !secret.trim() && redirect === '' && publish === null)
+              }
+              onClick={async () => {
+                if (
+                  await run(() =>
+                    api.tiktok.saveCredentials(
+                      key,
+                      secret,
+                      redirect || st?.redirectUri || '',
+                      publishOn,
+                    ),
+                  )
+                ) {
+                  setKey('')
+                  setSecret('')
+                  setRedirect('')
+                  setPublish(null)
+                  setEditing(false)
+                  reload()
+                  toast({
+                    kind: 'success',
+                    headline: COPY.success,
+                    detail: 'TikTok credentials saved.',
+                  })
+                }
+              }}
+            >
+              Save
+            </Button>
+            {saved && <Button onClick={() => setEditing(false)}>Cancel</Button>}
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-[13px]">
+            <div>
+              Client Key: <span className="font-mono">{st?.clientKeyMasked}</span>
+            </div>
+            <div>
+              Client Secret: <span className="font-mono">{st?.clientSecretMasked}</span>
+            </div>
+            <div className="text-muted">Redirect URI: {st?.redirectUri}</div>
+            <div className="text-muted">
+              Direct Post permission:{' '}
+              {st?.requestPublishScope ? 'requested on connect' : 'not requested'}
+            </div>
+          </div>
+          <Button onClick={() => setEditing(true)}>Replace</Button>
+        </div>
+      )}
+      <div className="mt-3 text-[11px] text-muted">
+        Recording the review video for TikTok? Press Command+Shift+D to open the TikTok demo. It
+        never posts anything.
+      </div>
+    </Card>
+  )
+}
+
+function TikTokTile({ brand, account }: { brand: Brand; account: Account | undefined }) {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
+  const [waiting, setWaiting] = useState(false)
+  const [code, setCode] = useState('')
+  const [confirmDirect, setConfirmDirect] = useState(false)
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false)
+  const real = !!account && account.mode !== 'dry_run'
+
+  async function connect() {
+    setWaiting(true)
+    const a = await run(() => api.tiktok.connect(brand.id))
+    setWaiting(false)
+    setCode('')
+    if (a)
+      toast({
+        kind: 'success',
+        headline: COPY.success,
+        detail: `${a.displayName} is connected to ${brand.name}.`,
+      })
+  }
+
+  return (
+    <div className="mt-3 rounded-lg border border-line p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {real && account?.avatarUrl ? (
+            <img src={account.avatarUrl} alt="" className="h-10 w-10 rounded-full" />
+          ) : (
+            <div className="h-10 w-10 rounded-full bg-surface2" />
+          )}
+          <div>
+            <div className="font-semibold">TikTok</div>
+            {real ? (
+              <div className="text-[13px]">
+                {account!.displayName}{' '}
+                {account!.status === 'needs_reauth' ? (
+                  <span className="ml-1 rounded bg-bad/20 px-2 py-0.5 text-[11px] font-bold uppercase text-bad">
+                    needs sign in
+                  </span>
+                ) : (
+                  <span className="ml-1 rounded bg-ok/20 px-2 py-0.5 text-[11px] font-bold uppercase text-ok">
+                    connected
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="text-[13px] text-muted">Not connected (dry run only)</div>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {waiting ? (
+            <>
+              <Button disabled>Waiting for your browser...</Button>
+              <Button onClick={() => api.tiktok.cancelConnect()}>Cancel</Button>
+            </>
+          ) : real ? (
+            <>
+              <Button onClick={connect} disabled={busy}>
+                Reconnect
+              </Button>
+              <Button variant="danger" onClick={() => setConfirmDisconnect(true)} disabled={busy}>
+                Disconnect
+              </Button>
+            </>
+          ) : (
+            <Button variant="primary" onClick={connect} disabled={busy}>
+              Connect TikTok
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {waiting && (
+        <div className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
+          <Field
+            label="Did the app not come back to the front? Paste the code from the website page here"
+            hint="The page at the website shows a code with a Copy button."
+          >
+            <Input
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="Paste code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
+          </Field>
+          <Button
+            className="self-start md:mt-5"
+            disabled={!code.trim()}
+            onClick={() => run(() => api.tiktok.submitCode(code))}
+          >
+            Use this code
+          </Button>
+        </div>
+      )}
+
+      {real && (
+        <div className="mt-4 grid gap-3 md:grid-cols-[220px_1fr]">
+          <Field label="Mode">
+            <Select
+              value={account!.mode}
+              onChange={(e) => {
+                const m = e.target.value as TikTokMode
+                if (m === 'direct') setConfirmDirect(true)
+                else void run(() => api.tiktok.setMode(brand.id, m))
+              }}
+            >
+              <option value="drafts">Drafts</option>
+              <option value="direct">Direct post</option>
+            </Select>
+          </Field>
+          <div className="self-end pb-2 text-[12px] text-muted">
+            {account!.mode === 'drafts'
+              ? "At the scheduled time the video goes to the brand's TikTok inbox. Open TikTok, tap the inbox notification, add the AI label if needed, and post."
+              : 'Posts on its own with the choices you make on each post. Public posts only work after TikTok approves the audit.'}
+          </div>
+        </div>
+      )}
+      {confirmDirect && (
+        <Confirm
+          title="Switch to Direct post?"
+          message="Has TikTok approved your Direct Post audit? Until it has, TikTok only lets this app post privately, and public posts fail. Only continue if you got the approval."
+          confirmLabel="Yes, it is approved"
+          onCancel={() => setConfirmDirect(false)}
+          onConfirm={async () => {
+            await run(() => api.tiktok.setMode(brand.id, 'direct', true))
+            setConfirmDirect(false)
+          }}
+        />
+      )}
+      {confirmDisconnect && (
+        <Confirm
+          title="Disconnect TikTok?"
+          message={`This removes the saved TikTok login for ${account?.displayName} on ${brand.name} and withdraws the app's access at TikTok. Scheduled TikTok posts for this brand will turn into dry runs until you connect again.`}
+          confirmLabel="Disconnect"
+          danger
+          onCancel={() => setConfirmDisconnect(false)}
+          onConfirm={async () => {
+            await run(() => api.tiktok.disconnect(brand.id))
+            setConfirmDisconnect(false)
+          }}
+        />
+      )}
+    </div>
   )
 }

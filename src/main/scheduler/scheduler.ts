@@ -50,6 +50,8 @@ interface DueRow {
 }
 
 const STALE_LOCK_MS = 10 * 60_000
+/** How many times a daily cap may push a post an hour later before it fails. */
+const MAX_DEFERRALS = 24
 
 export class Scheduler {
   private timer: NodeJS.Timeout | null = null
@@ -360,7 +362,22 @@ export class Scheduler {
     try {
       const ctx = this.buildContext(row)
       const result = await this.d.adapterFor(row.platform, ctx.account).checkStatus(ctx, this.now())
-      if (result.status === 'posted') {
+      if (result.status === 'needs_action') {
+        this.d.db
+          .prepare(
+            "UPDATE post_targets SET status = 'needs_action', external_id = COALESCE(?, external_id), last_error = NULL WHERE id = ?",
+          )
+          .run(result.externalId ?? null, row.id)
+        this.d.log.log(
+          'info',
+          `${PLATFORM_LABELS[row.platform]}: waiting for you to finish "${row.title}" in the app.`,
+          {
+            postId: row.post_id,
+            platform: row.platform,
+          },
+        )
+        this.afterTargetChange(row.post_id)
+      } else if (result.status === 'posted') {
         const nowIso = new Date(this.now()).toISOString()
         this.d.db
           .prepare(
@@ -396,6 +413,30 @@ export class Scheduler {
     const label = PLATFORM_LABELS[row.platform]
     const t = this.d.db.prepare('SELECT attempts FROM post_targets WHERE id = ?').get(row.id) as {
       attempts: number
+    }
+    const deferMs = err instanceof AdapterError ? err.retryAfterMs : undefined
+    if (deferMs && kind === 'transient') {
+      const state = this.targetState(row.id)
+      const deferrals = (typeof state.deferrals === 'number' ? state.deferrals : 0) + 1
+      if (deferrals <= MAX_DEFERRALS) {
+        const next = new Date(this.now() + deferMs).toISOString()
+        this.d.db
+          .prepare(
+            "UPDATE post_targets SET status = 'pending', attempts = MAX(attempts - 1, 0), last_error = ?, next_attempt_at_utc = ?, lock_token = NULL, locked_at_utc = NULL, settings_json = ? WHERE id = ?",
+          )
+          .run(reason, next, JSON.stringify({ ...state, deferrals }), row.id)
+        this.d.log.log('warn', `${label} is full for now: ${reason} Trying again at ${next}.`, {
+          postId: row.post_id,
+          platform: row.platform,
+        })
+        if (deferrals === 1)
+          this.d.notifier.failure(
+            COPY.tiktokFullHeadline,
+            `${label}, ${row.brand_name}, "${row.title}": ${reason} The app will try again in an hour.`,
+          )
+        this.afterTargetChange(row.post_id)
+        return
+      }
     }
     const delay =
       kind === 'transient' ? backoffMs(t.attempts, this.d.getSettings().fastBackoff) : null

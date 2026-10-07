@@ -5,6 +5,7 @@ import type { MediaService } from './media'
 import { getNextOpenSlots, type SlotDef } from '@shared/slots'
 import { derivePostStatus } from '@shared/scheduling'
 import { durationProblem } from '@shared/platformLimits'
+import { tiktokSettingsProblem } from '@shared/tiktok'
 import { DateTime } from 'luxon'
 import { ZONE } from '@shared/time'
 import type {
@@ -15,6 +16,7 @@ import type {
   PostTarget,
   PostTargetInput,
   PostUpdate,
+  TargetSettings,
   Platform,
   TargetStatus,
 } from '@shared/types'
@@ -70,7 +72,10 @@ export class PostService {
       postedAtUtc: r.posted_at_utc,
       progress: progressOf(r.settings_json),
       checklist: stateOf(r.settings_json).checklist ?? null,
-      settings: { thumbOffsetMs: stateOf(r.settings_json).thumbOffsetMs },
+      settings: {
+        thumbOffsetMs: stateOf(r.settings_json).thumbOffsetMs,
+        tiktok: stateOf(r.settings_json).tiktok,
+      },
     }
   }
 
@@ -222,6 +227,23 @@ export class PostService {
     }
   }
 
+  /** A TikTok Direct Post must carry the creator's own choices. Drafts mode does not need them. */
+  private checkTikTok(
+    brandId: number,
+    durationSeconds: number | undefined,
+    targets: PostTargetInput[],
+  ): void {
+    for (const t of targets) {
+      if (t.platform !== 'tiktok') continue
+      const acct = this.db
+        .prepare('SELECT mode FROM accounts WHERE brand_id = ? AND platform = ?')
+        .get(brandId, 'tiktok') as { mode: string } | undefined
+      if (!acct || acct.mode !== 'direct') continue
+      const problem = tiktokSettingsProblem(t.settings?.tiktok, null, durationSeconds ?? 0)
+      if (problem) throw new Error(`TikTok: ${problem}`)
+    }
+  }
+
   /** Facebook and Instagram have hard length limits. Block a real account early with a clear message. */
   private checkDurations(
     brandId: number,
@@ -264,6 +286,13 @@ export class PostService {
           meta = JSON.stringify(m)
           this.checkDurations(input.brandId, m.durationSeconds, input.targets)
           poster = await this.media.poster(input.sourcePath, m.durationSeconds)
+        }
+        if (input.status === 'scheduled') {
+          this.checkTikTok(
+            input.brandId,
+            (JSON.parse(meta) as { durationSeconds?: number }).durationSeconds,
+            input.targets,
+          )
         }
         const rel = this.library.importToQueue(brand, input.sourcePath)
         prepared.push({ input, rel, meta, poster })
@@ -534,9 +563,10 @@ function progressOf(settingsJson: string | null): number | null {
   }
 }
 
-function cleanSettings(s: { thumbOffsetMs?: number } | undefined): Record<string, unknown> {
+function cleanSettings(s: TargetSettings | undefined): Record<string, unknown> {
   const out: Record<string, unknown> = {}
   if (s && typeof s.thumbOffsetMs === 'number' && s.thumbOffsetMs >= 0)
     out.thumbOffsetMs = Math.round(s.thumbOffsetMs)
+  if (s?.tiktok) out.tiktok = s.tiktok
   return out
 }

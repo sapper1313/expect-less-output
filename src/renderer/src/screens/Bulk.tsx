@@ -7,6 +7,9 @@ import type { MediaInspection } from '@shared/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { PlatformPicker } from '../components/pickers'
+import { TikTokSection, useCreator } from '../components/TikTokSection'
+import { emptyTikTokSettings, tiktokSettingsProblem } from '@shared/tiktok'
+import type { TikTokPostSettings } from '@shared/types'
 import {
   Button,
   Card,
@@ -52,6 +55,25 @@ export function Bulk({ onDone }: { onDone: () => void }) {
   const [dragOver, setDragOver] = useState(false)
   const [bulkCaption, setBulkCaption] = useState('')
   const brand = brands?.find((b) => b.id === brandId)
+  const { data: accounts } = useLoad(
+    () => (brandId ? api.accounts.list(brandId) : Promise.resolve([])),
+    [brandId],
+  )
+  const ttAccount = accounts?.find((a) => a.platform === 'tiktok')
+  const ttDirect =
+    platforms.includes('tiktok') &&
+    ttAccount?.mode === 'direct' &&
+    ttAccount.status === 'connected' &&
+    rows.some((r) => r.platforms.includes('tiktok'))
+  const [tt, setTt] = useState<TikTokPostSettings>(emptyTikTokSettings())
+  const creator = useCreator(brandId, ttDirect)
+  const ttProblem = ttDirect
+    ? tiktokSettingsProblem(
+        tt,
+        creator.info,
+        Math.max(0, ...rows.map((r) => r.info.meta.durationSeconds)),
+      )
+    : null
 
   useEffect(() => {
     if (brands?.length && brandId === null) setBrandId(brands[0].id)
@@ -112,7 +134,9 @@ export function Bulk({ onDone }: { onDone: () => void }) {
 
   const dup = new Set(rows.map((r) => r.when).filter((w, i, a) => w && a.indexOf(w) !== i))
   const ready =
-    rows.length > 0 && rows.every((r) => r.when && r.platforms.length > 0 && r.title.trim())
+    rows.length > 0 &&
+    rows.every((r) => r.when && r.platforms.length > 0 && r.title.trim()) &&
+    !ttProblem
 
   async function confirm() {
     if (!brandId) return
@@ -125,7 +149,11 @@ export function Bulk({ onDone }: { onDone: () => void }) {
           caption: r.caption,
           scheduledAtUtc: r.when,
           status: 'scheduled' as const,
-          targets: r.platforms.map((p) => ({ platform: p, aiFlag: r.ai[p] })),
+          targets: r.platforms.map((p) => ({
+            platform: p,
+            aiFlag: r.ai[p],
+            settings: p === 'tiktok' && ttDirect ? { tiktok: tt } : undefined,
+          })),
         })),
       ),
     )
@@ -241,6 +269,23 @@ export function Bulk({ onDone }: { onDone: () => void }) {
 
         {rows.length > 0 && (
           <>
+            {ttDirect && (
+              <Card title="TikTok settings for every row">
+                <p className="mb-3 text-[12px] text-muted">
+                  TikTok needs these choices for every post and does not allow defaults, so choose
+                  them once here and they apply to all rows.
+                </p>
+                <TikTokSection
+                  info={creator.info}
+                  loading={creator.loading}
+                  error={creator.error}
+                  value={tt}
+                  onChange={setTt}
+                  durationSeconds={Math.max(0, ...rows.map((r) => r.info.meta.durationSeconds))}
+                  aiFlag={rows.some((r) => r.ai.tiktok)}
+                />
+              </Card>
+            )}
             <Card title="Apply to all">
               <div className="grid gap-4 md:grid-cols-[1fr_auto]">
                 <Field

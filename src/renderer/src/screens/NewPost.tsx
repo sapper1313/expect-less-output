@@ -7,6 +7,9 @@ import type { MediaInspection } from '@shared/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { PlatformPicker, SchedulePicker } from '../components/pickers'
+import { PostingAs, TikTokSection, useCreator } from '../components/TikTokSection'
+import { emptyTikTokSettings, tiktokSettingsProblem } from '@shared/tiktok'
+import type { TikTokPostSettings } from '@shared/types'
 import {
   Button,
   Card,
@@ -38,6 +41,7 @@ export function NewPost({ onDone }: { onDone: () => void }) {
   const [overrides, setOverrides] = useState<Partial<Record<Platform, string>>>({})
   const [showOverrides, setShowOverrides] = useState(false)
   const [coverMs, setCoverMs] = useState('')
+  const [tt, setTt] = useState<TikTokPostSettings>(emptyTikTokSettings())
   const [ai, setAi] = useState<Record<Platform, boolean>>({
     youtube: false,
     facebook: false,
@@ -54,6 +58,18 @@ export function NewPost({ onDone }: { onDone: () => void }) {
     [brandId],
   )
   const brand = brands?.find((b) => b.id === brandId)
+  const { data: accounts } = useLoad(
+    () => (brandId ? api.accounts.list(brandId) : Promise.resolve([])),
+    [brandId],
+  )
+  const ttAccount = accounts?.find((a) => a.platform === 'tiktok')
+  const ttLive =
+    platforms.includes('tiktok') &&
+    !!ttAccount &&
+    ttAccount.mode !== 'dry_run' &&
+    ttAccount.status === 'connected'
+  const ttDirect = ttLive && ttAccount?.mode === 'direct'
+  const creator = useCreator(brandId, ttLive)
   const picked = useRef(false)
 
   useEffect(() => {
@@ -113,8 +129,11 @@ export function NewPost({ onDone }: { onDone: () => void }) {
   const counters = useMemo(() => captionCounters(title, caption), [title, caption])
   const mode = settings?.schedulingMode ?? 'both'
   const labels = platforms.map((p) => PLATFORM_LABELS[p])
+  const ttProblem = ttDirect
+    ? tiktokSettingsProblem(tt, creator.info, source?.meta.durationSeconds ?? 0)
+    : null
   const canSchedule =
-    !!source && !!brandId && platforms.length > 0 && !!when && title.trim().length > 0
+    !!source && !!brandId && platforms.length > 0 && !!when && title.trim().length > 0 && !ttProblem
 
   async function save(status: 'draft' | 'scheduled') {
     if (!source || !brandId) return
@@ -131,7 +150,11 @@ export function NewPost({ onDone }: { onDone: () => void }) {
           aiFlag: ai[p],
           captionOverride: overrides[p] ?? null,
           settings:
-            p === 'instagram' && coverMs !== '' ? { thumbOffsetMs: Number(coverMs) } : undefined,
+            p === 'instagram' && coverMs !== ''
+              ? { thumbOffsetMs: Number(coverMs) }
+              : p === 'tiktok' && ttDirect
+                ? { tiktok: tt }
+                : undefined,
         })),
       }),
     )
@@ -324,6 +347,30 @@ export function NewPost({ onDone }: { onDone: () => void }) {
             </Field>
           </Card>
 
+          {ttLive && (
+            <Card title="TikTok">
+              {ttDirect ? (
+                <TikTokSection
+                  info={creator.info}
+                  loading={creator.loading}
+                  error={creator.error}
+                  value={tt}
+                  onChange={setTt}
+                  durationSeconds={source?.meta.durationSeconds ?? 0}
+                  aiFlag={ai.tiktok}
+                />
+              ) : (
+                <div className="space-y-2 text-[13px]">
+                  <PostingAs info={creator.info} />
+                  <p className="text-muted">
+                    Drafts mode: the video goes to the TikTok inbox. You choose privacy, comments,
+                    Duet, Stitch and the AI label in the TikTok app before you post.
+                  </p>
+                </div>
+              )}
+            </Card>
+          )}
+
           <Card>
             <Field label="When (Eastern time)">
               <SchedulePicker
@@ -350,6 +397,16 @@ export function NewPost({ onDone }: { onDone: () => void }) {
               {COPY.publishButton}
             </Button>
           </div>
+          {ttLive && creator.info && (
+            <div className="flex justify-end">
+              <PostingAs info={creator.info} />
+            </div>
+          )}
+          {ttProblem && (
+            <div className="text-right text-[12px] font-semibold text-warn">
+              TikTok: {ttProblem}
+            </div>
+          )}
         </div>
       </div>
     </div>

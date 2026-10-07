@@ -20,11 +20,22 @@ import {
   useBusy,
 } from '../ui'
 import { PlatformPicker } from './pickers'
+import { PostingAs, TikTokSection, useCreator } from './TikTokSection'
+import { emptyTikTokSettings } from '@shared/tiktok'
 
 export function PostEditor({ postId, onClose }: { postId: number; onClose: () => void }) {
   const { toast } = useApp()
   const [busy, run] = useBusy()
   const { data: post } = useLoad(() => api.posts.get(postId), [postId])
+  const { data: accounts } = useLoad(
+    () => (post ? api.accounts.list(post.brandId) : Promise.resolve([])),
+    [post?.brandId],
+  )
+  const ttAcct = accounts?.find((a) => a.platform === 'tiktok')
+  const ttOpen =
+    !!post && post.targets.some((t) => t.platform === 'tiktok' && t.status !== 'posted')
+  const ttLive = ttOpen && !!ttAcct && ttAcct.mode !== 'dry_run' && ttAcct.status === 'connected'
+  const creator = useCreator(post?.brandId ?? null, ttLive)
   const [draft, setDraft] = useState<Post | null>(null)
   const [platforms, setPlatforms] = useState<Post['targets'][number]['platform'][]>([])
   const [confirm, setConfirm] = useState<'cancel' | 'delete' | null>(null)
@@ -48,6 +59,7 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
   const failed = draft.targets.filter((t) => t.status === 'failed')
   const waiting = draft.targets.filter((t) => t.status === 'needs_action')
   const todo = draft.targets.filter((t) => t.checklist)
+  const ttTarget = draft.targets.find((t) => t.platform === 'tiktok' && t.status !== 'posted')
   const igTarget = draft.targets.find((t) => t.platform === 'instagram' && t.status !== 'posted')
   const uploading = draft.targets.filter((t) => t.status === 'uploading' && t.progress !== null)
   const set = <K extends keyof Post>(k: K, v: Post[K]) => setDraft({ ...draft, [k]: v })
@@ -242,6 +254,36 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
           {draft.scheduledAtUtc && (
             <div className="-mt-3 text-[12px] text-muted">
               {formatEastern(draft.scheduledAtUtc)}
+            </div>
+          )}
+          {ttTarget && ttLive && !locked && (
+            <div className="space-y-2 rounded-md border border-line p-3">
+              <div className="display text-xl">TikTok</div>
+              {ttAcct?.mode === 'direct' ? (
+                <TikTokSection
+                  info={creator.info}
+                  loading={creator.loading}
+                  error={creator.error}
+                  value={ttTarget.settings.tiktok ?? emptyTikTokSettings()}
+                  durationSeconds={draft.videoMeta.durationSeconds ?? 0}
+                  aiFlag={ttTarget.aiFlag}
+                  onChange={(v) =>
+                    setDraft({
+                      ...draft,
+                      targets: draft.targets.map((t) =>
+                        t.id === ttTarget.id ? { ...t, settings: { ...t.settings, tiktok: v } } : t,
+                      ),
+                    })
+                  }
+                />
+              ) : (
+                <div className="space-y-1 text-[13px]">
+                  <PostingAs info={creator.info} />
+                  <p className="text-muted">
+                    Drafts mode: you choose the privacy and settings in the TikTok app.
+                  </p>
+                </div>
+              )}
             </div>
           )}
           {igTarget && (

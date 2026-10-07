@@ -11,11 +11,13 @@ export const COPY = {
   emptyLog: 'No activity yet.',
   metaReauthHeadline: 'Meta needs you to sign in again.',
   metaExpiryHeadline: 'Meta sign-in runs out soon.',
+  tiktokReauthHeadline: 'TikTok needs you to sign in again.',
+  tiktokFullHeadline: 'TikTok is full for today.',
   reauthHeadline: 'YouTube needs you to sign in again.',
   missedHeadline: 'Missed it. The Mac was asleep.',
   aiChecklist: 'Add AI label in app',
   textAssistPlaceholder: 'AI assist (coming soon)',
-  dryRunBadge: 'dry run',
+  dryRunBadge: 'not connected yet',
   scheduleTooltip: (platforms: string[], when: string) =>
     platforms.length
       ? `Schedule to ${platforms.join(', ')} at ${when}`
@@ -32,6 +34,7 @@ export const COPY = {
     activity: 'Activity Log',
     settings: 'Settings',
     about: 'About',
+    tiktokDemo: 'TikTok demo',
   },
   confirm: {
     deletePost: 'Delete this post? The video file stays on disk unless you tick the box.',

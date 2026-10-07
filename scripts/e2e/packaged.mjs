@@ -1,35 +1,31 @@
-// Launches the built .app and checks that it boots, seeds brands, inspects a video and shows a tray-ready scheduler.
-import { launch, makeVideos, shot, invoke } from './lib.mjs'
-import { tmpdir } from 'os'
+// Launches the built .app with a throwaway data folder and checks that every phase is in it.
+import { launch, shot, nav, invoke } from './lib.mjs'
 import { join } from 'path'
-const vids = makeVideos(join(tmpdir(), 'elo-vids'), ['clip_1.mp4'])
 const exe = join(
   process.cwd(),
   'release/mac-arm64/Expect Less Output.app/Contents/MacOS/Expect Less Output',
 )
 const { app, page } = await launch({ executablePath: exe })
-const brands = await invoke(page, 'brands.list')
-const info = await invoke(page, 'media.inspect', vids[0])
-const st = await invoke(page, 'scheduler.status')
-console.log('brands', brands.map((b) => b.name).join(' | '))
+const info = await invoke(page, 'app.info')
+console.log('version', info.version)
+await nav(page, 'Connections')
+await page.waitForTimeout(800)
+const titles = await page.locator('section h2').allTextContents()
+console.log('Connections cards:', titles.join(' | '))
 console.log(
-  'inspect',
-  info.meta.width + 'x' + info.meta.height,
-  info.meta.videoCodec,
-  'poster',
-  !!info.posterUrl,
+  'Meta connect button:',
+  await page
+    .locator('section:has(h2:text-is("Meta (Facebook Pages and Instagram)")) input')
+    .count(),
+  'input fields',
 )
-console.log('scheduler running', st.running)
-const img = await page.evaluate(
-  (u) =>
-    new Promise((res) => {
-      const i = new Image()
-      i.onload = () => res('loaded ' + i.naturalWidth + 'x' + i.naturalHeight)
-      i.onerror = () => res('error')
-      i.src = u
-    }),
-  info.posterUrl,
+console.log(
+  'TikTok connect buttons:',
+  await page.locator('button:has-text("Connect TikTok")').count(),
+  '| YouTube:',
+  await page.locator('button:has-text("Connect YouTube")').count(),
 )
-console.log('poster image', img)
-await shot(page, 'packaged')
+const migs = await invoke(page, 'brands.list')
+console.log('brands', migs.length)
+await shot(page, 'packaged-connections')
 await app.close()

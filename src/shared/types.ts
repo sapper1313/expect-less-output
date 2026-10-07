@@ -19,6 +19,8 @@ export interface Settings {
   dryRunFailPlatform: Platform | null
   dryRunFailKind: 'transient' | 'permanent'
   fastBackoff: boolean
+  /** Also ask TikTok for the video.publish permission (needs Direct Post turned on in the developer portal). */
+  tiktokRequestPublishScope: boolean
 }
 
 export interface Brand {
@@ -59,6 +61,7 @@ export interface BrandDefaults {
   tiktokAllowStitch: boolean
 }
 
+export type TikTokAccountMode = TikTokMode
 export type YoutubeMode = 'manual_assist' | 'test_private' | 'auto'
 
 export interface Account {
@@ -162,10 +165,47 @@ export interface Post {
   targets: PostTarget[]
 }
 
+export type TikTokMode = 'drafts' | 'direct'
+
+/** What the TikTok posting screen collects for a Direct Post. Nothing is pre-selected. */
+export interface TikTokPostSettings {
+  privacy: string | null
+  allowComment: boolean
+  allowDuet: boolean
+  allowStitch: boolean
+  commercialOn: boolean
+  yourBrand: boolean
+  brandedContent: boolean
+  /** The owner ticked the consent line. Required before a Direct Post is scheduled. */
+  consent: boolean
+}
+
+export interface TikTokCreatorInfo {
+  nickname: string
+  username: string
+  avatarUrl: string | null
+  privacyOptions: string[]
+  commentDisabled: boolean
+  duetDisabled: boolean
+  stitchDisabled: boolean
+  maxDurationSec: number
+}
+
+export interface TikTokCredentialsStatus {
+  hasClientKey: boolean
+  hasClientSecret: boolean
+  clientKeyMasked: string
+  clientSecretMasked: string
+  redirectUri: string
+  requestPublishScope: boolean
+}
+
 /** Optional per-target settings. */
 export interface TargetSettings {
   /** Instagram cover frame, in milliseconds from the start. */
   thumbOffsetMs?: number
+  /** TikTok Direct Post choices. */
+  tiktok?: TikTokPostSettings
 }
 
 export interface PostTargetInput {

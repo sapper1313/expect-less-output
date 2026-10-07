@@ -1,6 +1,6 @@
 import { _electron as electron } from 'playwright-core'
 import { execFileSync } from 'child_process'
-import { mkdirSync, mkdtempSync, existsSync, writeFileSync } from 'fs'
+import { mkdirSync, mkdtempSync, existsSync, writeFileSync, appendFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join, resolve } from 'path'
 import ffmpegPath from 'ffmpeg-static'
@@ -51,6 +51,12 @@ export async function launch({ dataDir, mediaRoot, executablePath } = {}) {
   const app = await electron.launch(
     executablePath ? { executablePath, env } : { args: [ROOT], cwd: ROOT, env },
   )
+  const logPath = join(SHOTS, 'app-output.log')
+  writeFileSync(logPath, '')
+  const keep = (d) => appendFileSync(logPath, d)
+  app.process().stdout?.on('data', keep)
+  app.process().stderr?.on('data', keep)
+  app.on('close', () => appendFileSync(logPath, '\n[app closed]\n'))
   const page = await app.firstWindow()
   apps.set(page, app)
   await page.waitForLoadState('domcontentloaded')
@@ -65,18 +71,31 @@ export const invoke = (page, name, ...args) =>
 const apps = new WeakMap()
 export const shot = async (page, name) => {
   const path = join(SHOTS, `${name}.png`)
+  const within = (p, ms) =>
+    Promise.race([
+      p,
+      new Promise((_, rej) => setTimeout(() => rej(new Error('screenshot timed out')), ms)),
+    ])
   try {
     await page.screenshot({ path, timeout: 6000 })
   } catch {
-    // Electron sometimes stalls page.screenshot when the window is covered. Capture from inside instead.
-    const b64 = await apps
-      .get(page)
-      .evaluate(async ({ BrowserWindow }) =>
-        (await BrowserWindow.getAllWindows()[0].webContents.capturePage())
-          .toPNG()
-          .toString('base64'),
+    // Electron sometimes stalls page.screenshot when the window is covered. Capture from inside instead,
+    // and never let a stuck screenshot hold up the test.
+    try {
+      const b64 = await within(
+        apps
+          .get(page)
+          .evaluate(async ({ BrowserWindow }) =>
+            (await BrowserWindow.getAllWindows()[0].webContents.capturePage())
+              .toPNG()
+              .toString('base64'),
+          ),
+        8000,
       )
-    writeFileSync(path, Buffer.from(b64, 'base64'))
+      writeFileSync(path, Buffer.from(b64, 'base64'))
+    } catch (err) {
+      console.log('screenshot skipped:', name, String(err.message))
+    }
   }
 }
 export const nav = async (page, label) => {

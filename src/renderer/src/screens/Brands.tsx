@@ -387,19 +387,10 @@ function DefaultsEditor({ brandId }: { brandId: number }) {
             ))}
           </div>
         </Field>
-        <Field label="TikTok defaults" className="md:col-span-2">
-          <div className="flex flex-wrap gap-x-5 gap-y-2">
-            <Check checked={d.tiktokAllowComments} onChange={(v) => set('tiktokAllowComments', v)}>
-              Allow comments
-            </Check>
-            <Check checked={d.tiktokAllowDuet} onChange={(v) => set('tiktokAllowDuet', v)}>
-              Allow duet
-            </Check>
-            <Check checked={d.tiktokAllowStitch} onChange={(v) => set('tiktokAllowStitch', v)}>
-              Allow stitch
-            </Check>
-          </div>
-        </Field>
+        <div className="text-[12px] text-muted md:col-span-2">
+          TikTok has no brand defaults on purpose. TikTok's rules say privacy and comment, Duet and
+          Stitch choices must be made on every post, with nothing pre-selected.
+        </div>
       </div>
     </Card>
   )

@@ -3,6 +3,8 @@ import type { Account, Platform } from '@shared/types'
 export type ErrorKind = 'transient' | 'permanent'
 
 export class AdapterError extends Error {
+  /** When set, try again after this many milliseconds without using up a retry (for example a daily cap). */
+  retryAfterMs?: number
   constructor(
     message: string,
     public kind: ErrorKind,

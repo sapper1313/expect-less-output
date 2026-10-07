@@ -35,6 +35,10 @@ import { InstagramAdapter } from './adapters/instagram'
 import { metaUrls } from './meta/config'
 import { GraphClient } from './meta/graph'
 import { MetaService } from './meta/metaService'
+import { TikTokAdapter } from './adapters/tiktok'
+import { tiktokUrls } from './tiktok/config'
+import { TikTokClient } from './tiktok/client'
+import { TikTokService } from './tiktok/service'
 import { googleUrls, STUDIO_URL } from './google/config'
 import { QuotaTracker } from './google/quota'
 import { TokenManager } from './google/tokens'
@@ -60,6 +64,9 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 let mainWindow: BrowserWindow | null = null
+// The expectless:// link can arrive before the app has finished starting.
+let pendingOpenUrl: string | null = null
+let tiktokRef: { handleOpenUrl: (url: string) => boolean } | null = null
 let quitting = false
 
 if (!app.requestSingleInstanceLock()) {
@@ -244,6 +251,54 @@ async function boot(): Promise<void> {
     brandDefaults: (brandId) => brands.getDefaults(brandId),
   })
 
+  // TikTok
+  const tUrls = tiktokUrls()
+  const tiktokClient = new TikTokClient({ urls: tUrls })
+  const tiktok = new TikTokService({
+    db,
+    secrets,
+    settings,
+    urls: tUrls,
+    client: tiktokClient,
+    log,
+    emit,
+    alert: (headline, detail) => notifier.failure(headline, detail),
+    openBrowser: async (url) => {
+      if (process.env['ELO_TEST_NO_BROWSER']) {
+        // Test only: a fake TikTok answers right away. Keep the code so the test can play the bounce page.
+        void fetch(url, { redirect: 'manual' })
+          .then((r) => {
+            const back = new URL(r.headers.get('location') as string)
+            ;(globalThis as Record<string, unknown>).__ttLast = {
+              code: back.searchParams.get('code'),
+              state: back.searchParams.get('state'),
+            }
+          })
+          .catch(() => {})
+        return
+      }
+      await shell.openExternal(url)
+    },
+  })
+  tiktokRef = tiktok
+  if (pendingOpenUrl) {
+    tiktok.handleOpenUrl(pendingOpenUrl)
+    pendingOpenUrl = null
+  }
+  const tiktokAdapter = new TikTokAdapter({
+    client: tiktokClient,
+    accessToken: (id, force) => tiktok.accessToken(id, force),
+    freshCreator: (id) => tiktok.fresh(id),
+    host: {
+      notify: (title, body) => {
+        if (Notification.isSupported()) new Notification({ title, body }).show()
+        send({ type: 'toast', toast: { kind: 'info', headline: title, detail: body } })
+      },
+      log: (level, message, ctx) =>
+        log.log(level, message, { postId: ctx.postId, platform: 'tiktok' }),
+    },
+  })
+
   const dryRuns = Object.fromEntries(
     PLATFORMS.map((p) => [p, new DryRunAdapter(p, { getSettings: () => settings.get() })]),
   ) as unknown as Record<Platform, PlatformAdapter>
@@ -252,6 +307,7 @@ async function boot(): Promise<void> {
       if (platform === 'youtube') return youtubeAdapter
       if (platform === 'facebook') return facebookAdapter
       if (platform === 'instagram') return instagramAdapter
+      if (platform === 'tiktok') return tiktokAdapter
     }
     return dryRuns[platform]
   }
@@ -326,6 +382,7 @@ async function boot(): Promise<void> {
     library,
     youtube,
     meta,
+    tiktok,
     host,
     emit,
   })
@@ -347,6 +404,8 @@ async function boot(): Promise<void> {
     return net.fetch(pathToFileURL(file).toString())
   })
 
+  // The bounce page on the website sends the TikTok login back through expectless://
+  if (app.isPackaged) app.setAsDefaultProtocolClient('expectless')
   nativeTheme.themeSource = settings.get().theme
   if (settings.get().launchAtLogin) app.setLoginItemSettings({ openAtLogin: true })
 
@@ -383,6 +442,7 @@ async function boot(): Promise<void> {
   scheduler.start()
   youtube.startHealthChecks()
   meta.startHealthChecks()
+  tiktok.startHealthChecks()
   updateBlocker()
   log.log('info', 'App started.')
 
@@ -392,6 +452,7 @@ async function boot(): Promise<void> {
       scheduler.stop()
       youtube.stop()
       meta.stop()
+      tiktok.stop()
       app.quit()
     }
   }
@@ -407,7 +468,12 @@ async function boot(): Promise<void> {
 
 app.on('second-instance', showWindow)
 app.on('activate', showWindow)
-app.on('open-url', (e) => e.preventDefault()) // expectless:// is wired up in the TikTok phase
+app.on('open-url', (e, url) => {
+  e.preventDefault()
+  if (tiktokRef) tiktokRef.handleOpenUrl(url)
+  else pendingOpenUrl = url
+  if (mainWindow) showWindow()
+})
 
 app
   .whenReady()
