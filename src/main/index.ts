@@ -23,6 +23,7 @@ import { AgentRuntime } from './agent/runtime'
 import { InboxWatcher } from './agent/inbox'
 import { buildHealth } from './agent/health'
 import { StatsService } from './stats/service'
+import { FacebookLister, ImportService, InstagramLister, YoutubeLister } from './stats/imported'
 import {
   FacebookStatsProvider,
   InstagramStatsProvider,
@@ -337,10 +338,22 @@ async function boot(): Promise<void> {
     accessToken: (id, force) => tiktok.accessToken(id, force),
     grantedScope: (id) => tiktok.grantedScope(id),
   })
+  const imported = new ImportService({
+    db,
+    log,
+    emit,
+    providers: { youtube: ytStats, facebook: fbStats, instagram: igStats, tiktok: ttStats },
+    listers: {
+      youtube: new YoutubeLister(ytClient),
+      facebook: new FacebookLister(metaStatsDeps),
+      instagram: new InstagramLister(metaStatsDeps),
+    },
+  })
   const stats = new StatsService({
     db,
     log,
     emit,
+    imported,
     providers: { youtube: ytStats, facebook: fbStats, instagram: igStats, tiktok: ttStats },
   })
   const tiktokAdapter = new TikTokAdapter({
@@ -511,6 +524,7 @@ async function boot(): Promise<void> {
     alerts,
     agent,
     stats,
+    imported,
     db,
     dataDir,
     postersDir,

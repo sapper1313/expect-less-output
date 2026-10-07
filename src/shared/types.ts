@@ -463,7 +463,7 @@ export interface PostStats {
   totals: StatsNumbers
 }
 
-export type StatsRange = '7d' | '30d'
+export type StatsRange = '7d' | '30d' | 'all'
 
 export interface BrandStats {
   brandId: number | null
@@ -478,4 +478,27 @@ export interface BrandStats {
     }
   >
   totals: StatsNumbers
+}
+
+/** A video that was on a channel before the app posted anything. */
+export interface ImportedVideo {
+  id: number
+  brandId: number
+  brandName: string
+  platform: Platform
+  title: string
+  url: string | null
+  thumbnailUrl: string | null
+  publishedAt: string | null
+  state: 'ok' | 'unavailable' | 'pending'
+  reason: string | null
+  fetchedAt: string | null
+  numbers: StatsNumbers
+  approximate: string[]
+}
+
+export interface ImportResult {
+  found: number
+  added: number
+  problems: Array<{ brand: string; platform: Platform; message: string }>
 }

@@ -9,6 +9,8 @@ import type {
   AppInfo,
   HealthRow,
   McpConfig,
+  ImportResult,
+  ImportedVideo,
   PostStats,
   StatsRange,
   TextAssistStatus,
@@ -171,6 +173,9 @@ export interface Api {
     /** Reads stats now. Without an id it covers every posted video. */
     refresh(postId?: number): Promise<{ fetched: number; unavailable: number }>
     brandSummary(brandId: number | null, range: StatsRange): Promise<BrandStats>
+    /** Finds videos already on the connected channels and reads their numbers. */
+    importExisting(brandId: number | null): Promise<ImportResult>
+    imported(brandId: number | null, range: StatsRange): Promise<ImportedVideo[]>
   }
   agent: {
     status(): Promise<AgentStatus>

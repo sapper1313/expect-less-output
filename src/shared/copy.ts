@@ -43,7 +43,12 @@ export const COPY = {
     approximate: 'A ~ means the platform only gives a rough number.',
     chartNeedsMore: 'The chart appears after two readings.',
     refreshed: 'Stats refreshed',
-    empty: 'No posts were published in this time range yet.',
+    imported: 'Existing videos imported',
+    importProblems: 'Imported with problems',
+    importedNote:
+      'Videos that were on your channels before this app. They are read once and then every day for 90 days after they were published.',
+    empty:
+      'No posts were published in this time range yet. Click Import existing videos to add the ones already on your channels.',
     summaryNote:
       'Totals use the latest numbers for videos published in the range. Platforms that give no numbers say why.',
   },

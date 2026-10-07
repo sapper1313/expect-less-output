@@ -520,3 +520,13 @@ TikTok does not tell the app the video id for a draft, and a manual post has no 
 ### Ask Claude
 
 With MCP connected you can ask "How did last week's Trash Panda posts do?". The tools are `get_post_stats` and `get_brand_stats`, and the local API has `GET /v1/posts/{id}/stats` and `GET /v1/brands/{id}/stats?range=7d`.
+
+### Videos that were on your channels before the app
+
+1. Open **Stats** and pick a brand (or All brands).
+2. Click **Import existing videos**. The app lists the videos on each connected YouTube channel, Instagram account and Facebook Page, and reads their numbers. A big channel can take a minute.
+3. They appear under **Existing videos** and count in the totals. Choose **All time** to include the oldest ones.
+4. After that they are refreshed once a day for 90 days after they were published. Older ones keep the numbers from when you imported. Click **Import existing videos** again any time to pick up new uploads you made outside the app, and **Refresh stats** to re-read everything now.
+5. TikTok is not included yet. It needs TikTok to approve `video.list` first.
+
+Your logins stay as they are. YouTube already has the permission it needs, so you do not need to reconnect.

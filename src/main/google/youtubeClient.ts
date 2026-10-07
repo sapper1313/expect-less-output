@@ -138,6 +138,62 @@ export class YoutubeClient implements YoutubeClientLike {
     return out
   }
 
+  /** Videos in a channel's uploads list, newest first. One quota unit per 50 videos, capped at `max`. */
+  async listUploads(
+    accountId: number,
+    channelId: string,
+    max = 500,
+  ): Promise<
+    Array<{
+      id: string
+      title: string
+      publishedAt: string | null
+      thumbnailUrl: string | null
+    }>
+  > {
+    const ch = await this.call(accountId, (yt) =>
+      yt.channels.list({ part: ['contentDetails'], id: [channelId], maxResults: 1 }),
+    )
+    this.quota.record('channelsList')
+    // Every channel's uploads list is "UU" plus the rest of the channel id.
+    const playlistId =
+      ch.data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads ??
+      (channelId.startsWith('UC') ? 'UU' + channelId.slice(2) : null)
+    if (!playlistId) return []
+    const out: Array<{
+      id: string
+      title: string
+      publishedAt: string | null
+      thumbnailUrl: string | null
+    }> = []
+    let pageToken: string | undefined
+    do {
+      const token = pageToken
+      const res = await this.call(accountId, (yt) =>
+        yt.playlistItems.list({
+          part: ['snippet', 'contentDetails'],
+          playlistId,
+          maxResults: 50,
+          pageToken: token,
+        }),
+      )
+      this.quota.record('playlistItemsList')
+      for (const it of res.data.items ?? []) {
+        const id = it.contentDetails?.videoId
+        if (!id) continue
+        out.push({
+          id,
+          title: it.snippet?.title ?? '',
+          publishedAt: it.contentDetails?.videoPublishedAt ?? it.snippet?.publishedAt ?? null,
+          thumbnailUrl:
+            it.snippet?.thumbnails?.medium?.url ?? it.snippet?.thumbnails?.default?.url ?? null,
+        })
+      }
+      pageToken = res.data.nextPageToken ?? undefined
+    } while (pageToken && out.length < max)
+    return out.slice(0, max)
+  }
+
   async addToPlaylist(accountId: number, playlistId: string, videoId: string): Promise<void> {
     await this.call(accountId, (yt) =>
       yt.playlistItems.insert({

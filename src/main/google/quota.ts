@@ -13,6 +13,7 @@ export const COST = {
   playlistItemInsert: { bucket: 'other', units: 50 },
   channelsList: { bucket: 'other', units: 1 },
   playlistsList: { bucket: 'other', units: 1 },
+  playlistItemsList: { bucket: 'other', units: 1 },
   videosList: { bucket: 'other', units: 1 },
   videoCategoriesList: { bucket: 'other', units: 1 },
 } as const

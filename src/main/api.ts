@@ -14,6 +14,7 @@ import type { TikTokService } from './tiktok/service'
 import type { AlertService } from './alerts/service'
 import type { AgentRuntime } from './agent/runtime'
 import type { StatsService } from './stats/service'
+import type { ImportService } from './stats/imported'
 import { OpenAICompatibleProvider, checkLlmUrl } from './services/textAssist'
 import type { RestorePreview } from '@shared/types'
 import { healthRows } from './services/health'
@@ -54,6 +55,7 @@ export interface ApiDeps {
   alerts: AlertService
   agent: AgentRuntime
   stats: StatsService
+  imported: ImportService
   db: Db
   dataDir: string
   postersDir: string
@@ -265,7 +267,17 @@ export function buildApi(d: ApiDeps): Api {
     stats: {
       forPosts: async (ids) => d.stats.forPosts(ids),
       post: async (id) => d.stats.postStats(id),
-      refresh: async (postId) => d.stats.refresh({ postId, force: true }),
+      refresh: async (postId) => {
+        const mine = await d.stats.refresh({ postId, force: true })
+        if (postId) return mine
+        const old = await d.imported.refresh({ force: true })
+        return {
+          fetched: mine.fetched + old.fetched,
+          unavailable: mine.unavailable + old.unavailable,
+        }
+      },
+      importExisting: async (brandId) => d.imported.importExisting(brandId),
+      imported: async (brandId, range) => d.imported.list(brandId, range),
       brandSummary: async (brandId, range) => d.stats.brandSummary(brandId, range),
     },
     agent: {

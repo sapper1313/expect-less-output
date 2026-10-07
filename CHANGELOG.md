@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1 Stats for existing videos
+
+- **Import existing videos** on the Stats screen finds videos that were on your channels before this app and reads their numbers. YouTube (uploads list), Instagram (videos and Reels) and Facebook Page Reels. TikTok waits for video.list approval.
+- Imported videos are read once, then daily for 90 days after they were published. They count in the brand totals and a new **All time** range was added.
+- Profile pictures on Connections now load (the page security rule allows secure web images).
+
 ## 0.7.0 Phase 7: Basic stats
 
 - Views, likes, comments and shares per posted video, saved over time in `post_stats`. Read every 6 hours for posts under 7 days old, daily from 7 to 30 days, then never again. A Refresh stats button reads them right now.

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { PLATFORM_LABELS } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
+import { formatEastern } from '@shared/time'
 import type { StatsRange } from '@shared/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
@@ -14,6 +15,10 @@ export function Stats() {
   const [brandId, setBrandId] = useState<number | null>(null)
   const [range, setRange] = useState<StatsRange>('7d')
   const { data, reload } = useLoad(() => api.stats.brandSummary(brandId, range), [brandId, range])
+  const { data: old, reload: reloadOld } = useLoad(
+    () => api.stats.imported(brandId, range),
+    [brandId, range],
+  )
 
   return (
     <div className="h-full overflow-auto pb-10">
@@ -23,6 +28,7 @@ export function Stats() {
           onClick={async () => {
             const r = await run(() => api.stats.refresh())
             reload()
+            reloadOld()
             if (r)
               toast({
                 kind: 'info',
@@ -32,6 +38,27 @@ export function Stats() {
           }}
         >
           Refresh stats
+        </Button>
+        <Button
+          disabled={busy}
+          onClick={async () => {
+            const r = await run(() => api.stats.importExisting(brandId))
+            reload()
+            reloadOld()
+            if (r) {
+              toast({
+                kind: r.problems.length ? 'error' : 'success',
+                headline: r.problems.length ? COPY.stats.importProblems : COPY.stats.imported,
+                detail:
+                  `${r.found} videos found, ${r.added} new.` +
+                  r.problems
+                    .map((p) => ` ${p.brand}, ${PLATFORM_LABELS[p.platform]}: ${p.message}`)
+                    .join(''),
+              })
+            }
+          }}
+        >
+          Import existing videos
         </Button>
       </PageHeader>
       <div className="space-y-4 px-8">
@@ -57,6 +84,7 @@ export function Stats() {
           >
             <option value="7d">Last 7 days</option>
             <option value="30d">Last 30 days</option>
+            <option value="all">All time</option>
           </Select>
         </div>
         <div className="text-[12px] text-muted">{COPY.stats.summaryNote}</div>
@@ -104,6 +132,52 @@ export function Stats() {
                     <td className="p-2">{fmt(data.totals.shares)}</td>
                   </tr>
                 )}
+              </tbody>
+            </table>
+          </Card>
+        )}
+        {old && old.length > 0 && (
+          <Card title={`Existing videos (${old.length})`}>
+            <div className="mb-2 text-[12px] text-muted">{COPY.stats.importedNote}</div>
+            <table className="w-full text-left text-[13px]">
+              <thead className="text-[11px] uppercase tracking-wider text-muted">
+                <tr>
+                  <th className="p-2">Video</th>
+                  <th className="p-2">Platform</th>
+                  <th className="p-2">Published</th>
+                  <th className="p-2">Views</th>
+                  <th className="p-2">Likes</th>
+                  <th className="p-2">Comments</th>
+                  <th className="p-2">Shares</th>
+                </tr>
+              </thead>
+              <tbody>
+                {old.map((v) => (
+                  <tr key={v.id} className="border-t border-line">
+                    <td className="max-w-[280px] p-2">
+                      <div className="truncate font-semibold" title={v.title}>
+                        {v.title || '(no title)'}
+                      </div>
+                      <div className="text-[11px] text-muted">{v.brandName}</div>
+                    </td>
+                    <td className="p-2">{PLATFORM_LABELS[v.platform]}</td>
+                    <td className="p-2">{v.publishedAt ? formatEastern(v.publishedAt) : '-'}</td>
+                    {v.state === 'ok' ? (
+                      (['views', 'likes', 'comments', 'shares'] as const).map((k) => (
+                        <td key={k} className="p-2 tabular-nums">
+                          {fmt(v.numbers[k])}
+                          {v.approximate.includes(k) ? '~' : ''}
+                        </td>
+                      ))
+                    ) : (
+                      <td className="p-2 text-muted" colSpan={4}>
+                        {v.state === 'pending'
+                          ? COPY.stats.pending
+                          : `${COPY.stats.notAvailable}. ${v.reason ?? ''}`}
+                      </td>
+                    )}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </Card>

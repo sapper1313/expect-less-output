@@ -34,6 +34,8 @@ export interface StatsDeps {
   log: ActivityLog
   emit?: () => void
   now?: () => number
+  /** Imported (pre-existing) videos, included in brand totals. */
+  imported?: import('./imported').ImportService
 }
 
 const EMPTY: StatsNumbers = { views: null, likes: null, comments: null, shares: null }
@@ -200,8 +202,10 @@ export class StatsService {
   }
 
   /** The scheduled pass. Safe to call often, it only touches what is due. */
-  refreshDue(): Promise<{ fetched: number; unavailable: number }> {
-    return this.refresh({})
+  async refreshDue(): Promise<{ fetched: number; unavailable: number }> {
+    const mine = await this.refresh({})
+    const old = this.d.imported ? await this.d.imported.refresh({}) : { fetched: 0, unavailable: 0 }
+    return { fetched: mine.fetched + old.fetched, unavailable: mine.unavailable + old.unavailable }
   }
 
   start(): void {
@@ -311,13 +315,14 @@ export class StatsService {
   }
 
   brandSummary(brandId: number | null, range: StatsRange): BrandStats {
-    const days = range === '7d' ? 7 : 30
+    const days = range === '7d' ? 7 : range === '30d' ? 30 : 36500
     const since = new Date(this.now() - days * DAY).toISOString()
     const rows = this.rows(
       `WHERE t.status = 'posted' AND t.posted_at_utc >= ? ${brandId ? 'AND p.brand_id = ?' : ''}`,
       brandId ? [since, brandId] : [since],
     )
     const posts = new Set(rows.map((r) => r.post_id))
+    const old = this.d.imported ? this.d.imported.list(brandId, range) : []
     const platforms = PLATFORMS.map((platform) => {
       const mine = rows.filter((r) => r.platform === platform)
       let totals = EMPTY
@@ -334,9 +339,18 @@ export class StatsService {
           reason ??= this.explain(r).reason
         }
       }
+      for (const v of old.filter((x) => x.platform === platform)) {
+        if (v.state === 'ok') {
+          totals = addAll(totals, v.numbers)
+          videos++
+        } else {
+          unavailable++
+          reason ??= v.reason
+        }
+      }
       return { platform, videos, unavailable, reason, ...totals }
     }).filter((p) => p.videos + p.unavailable > 0)
     const totals = platforms.reduce<StatsNumbers>((acc, p) => addAll(acc, p), EMPTY)
-    return { brandId, range, posts: posts.size, platforms, totals }
+    return { brandId, range, posts: posts.size + old.length, platforms, totals }
   }
 }
