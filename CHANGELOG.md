@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 Phase 5: Alerts and polish
+
+- Alert service: failures, missed posts, logins needing renewal, Meta expiry within 7 days, daily limits and a missing Media Root. Always a macOS notification, plus iMessage (AppleScript through Messages, both current forms tried) and optional Gmail email (app password, nodemailer).
+- Short messages under 300 characters in the required format. More than 3 alerts in 5 minutes: the first 3 go out, the rest are combined. Quiet hours hold iMessage and email and send one summary. Send test alert for each channel.
+- Reconcile on start and wake. Pause per brand. Health panel on Connections.
+- Backup and restore (zip with database, settings, thumbnails and a folder manifest; no tokens, no videos). Restore remaps the Media Root, flags accounts to reconnect, and keeps a safety copy.
+- Keyboard shortcuts, duplicate post, per-platform preview, Queue search.
+
 ## 0.4.0 Phase 4: TikTok
 
 - TikTok Client Key, Client Secret and Redirect URI saved in the encrypted secret store. Optional video.publish scope toggle.

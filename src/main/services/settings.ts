@@ -17,6 +17,15 @@ export const DEFAULT_SETTINGS: Settings = {
   dryRunFailKind: 'transient',
   fastBackoff: false,
   tiktokRequestPublishScope: false,
+  alertIMessageEnabled: true,
+  alertIMessageNumber: '+18046340444',
+  alertEmailEnabled: false,
+  alertEmailFrom: '',
+  alertEmailTo: '',
+  alertQuietEnabled: false,
+  alertQuietStart: '22:00',
+  alertQuietEnd: '08:00',
+  pausedBrandIds: [],
 }
 
 export class SettingsService {

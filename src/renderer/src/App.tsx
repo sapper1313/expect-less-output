@@ -24,6 +24,12 @@ type Screen =
   | 'activity'
   | 'settings'
   | 'about'
+const SHORTCUTS: Partial<Record<Screen, string>> = {
+  newPost: '⌘N',
+  bulk: '⇧⌘N',
+  calendar: '⌘1',
+  queue: '⌘2',
+}
 const NAV: Screen[] = [
   'calendar',
   'queue',
@@ -45,6 +51,7 @@ function Shell() {
   const { data: settings } = useLoad(() => api.settings.get())
   const { data: status } = useLoad(() => api.scheduler.status())
   const { data: meta } = useLoad(() => api.meta.status())
+  const { data: report } = useLoad(() => api.backup.report())
 
   useEffect(() => {
     const root = document.documentElement
@@ -62,6 +69,30 @@ function Shell() {
     mq.addEventListener('change', apply)
     return () => mq.removeEventListener('change', apply)
   }, [settings?.theme])
+
+  // Keyboard shortcuts: Command+N new post, Shift+Command+N bulk upload, Command+1 calendar, Command+2 queue.
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (!e.metaKey || e.altKey || e.ctrlKey) return
+      const k = e.key.toLowerCase()
+      if (k === 'n' && !e.shiftKey) {
+        e.preventDefault()
+        setNewPostKey((n) => n + 1)
+        setScreenRaw('newPost')
+      } else if (k === 'n' && e.shiftKey) {
+        e.preventDefault()
+        setScreenRaw('bulk')
+      } else if (k === '1' && !e.shiftKey) {
+        e.preventDefault()
+        setScreenRaw('calendar')
+      } else if (k === '2' && !e.shiftKey) {
+        e.preventDefault()
+        setScreenRaw('queue')
+      }
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
 
   // Hidden: Command+Shift+D opens the TikTok demo screen used to record the review video.
   useEffect(() => {
@@ -91,7 +122,12 @@ function Shell() {
               onClick={() => setScreen(s)}
               className={`w-full rounded-md px-3 py-2 text-left text-[13px] font-semibold ${screen === s ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}
             >
-              {COPY.nav[s]}
+              <span className="flex items-center justify-between">
+                {COPY.nav[s]}
+                {SHORTCUTS[s] && (
+                  <span className="text-[11px] font-normal opacity-60">{SHORTCUTS[s]}</span>
+                )}
+              </span>
             </button>
           ))}
         </nav>
@@ -117,6 +153,27 @@ function Shell() {
         </div>
       </aside>
       <main className="min-w-0 flex-1">
+        {report && (
+          <div className="mx-8 mt-3 flex items-center justify-between gap-4 rounded-md border border-warn p-3 text-[13px]">
+            <div>
+              <b>Restored from backup.</b>{' '}
+              {report.accountsToReconnect.length
+                ? `Reconnect these accounts: ${report.accountsToReconnect.map((a) => `${a.brandName} ${a.platform}`).join(', ')}.`
+                : 'No accounts were connected.'}
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <button
+                className="font-semibold text-accent"
+                onClick={() => setScreen('connections')}
+              >
+                Go to Connections
+              </button>
+              <button className="text-muted" onClick={() => api.backup.dismissReport()}>
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
         {screen === 'calendar' && <Calendar />}
         {screen === 'queue' && <Queue />}
         {screen === 'newPost' && <NewPost key={newPostKey} onDone={() => setScreen('calendar')} />}

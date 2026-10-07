@@ -21,6 +21,7 @@ import {
 } from '../ui'
 import { PlatformPicker } from './pickers'
 import { PostingAs, TikTokSection, useCreator } from './TikTokSection'
+import { previewFor } from '@shared/preview'
 import { emptyTikTokSettings } from '@shared/tiktok'
 
 export function PostEditor({ postId, onClose }: { postId: number; onClose: () => void }) {
@@ -32,6 +33,10 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
     [post?.brandId],
   )
   const ttAcct = accounts?.find((a) => a.platform === 'tiktok')
+  const { data: brandDefaults } = useLoad(
+    () => (post ? api.brands.getDefaults(post.brandId) : Promise.resolve(null)),
+    [post?.brandId],
+  )
   const ttOpen =
     !!post && post.targets.some((t) => t.platform === 'tiktok' && t.status !== 'posted')
   const ttLive = ttOpen && !!ttAcct && ttAcct.mode !== 'dry_run' && ttAcct.status === 'connected'
@@ -313,6 +318,29 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
               />
             </Field>
           )}
+          {draft.targets.length > 0 && (
+            <div className="space-y-2 rounded-md border border-line p-3">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+                What each platform will get
+              </div>
+              {draft.targets.map((t) => {
+                const pv = previewFor(t.platform, draft, t.captionOverride, {
+                  appendShorts: !!brandDefaults?.youtubeAppendShorts,
+                })
+                return (
+                  <div key={t.id} className="text-[12px]">
+                    <div className="font-semibold">{PLATFORM_LABELS[t.platform]}</div>
+                    {pv.title !== undefined && (
+                      <div className="text-ink">Title: {pv.title || '(empty)'}</div>
+                    )}
+                    <div className="whitespace-pre-wrap text-muted">
+                      {pv.body || '(empty caption)'}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
           <Field label="Platforms">
             <PlatformPicker brandId={draft.brandId} value={platforms} onChange={setPlatforms} />
           </Field>
@@ -328,6 +356,22 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
       </div>
       <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-2">
+          <Button
+            disabled={busy}
+            onClick={async () => {
+              const copy = await run(() => api.posts.duplicate(draft.id))
+              if (copy) {
+                toast({
+                  kind: 'success',
+                  headline: COPY.success,
+                  detail: `Duplicated as a draft: "${copy.title}". Find it in the Queue.`,
+                })
+                onClose()
+              }
+            }}
+          >
+            Duplicate
+          </Button>
           <Button variant="danger" disabled={busy} onClick={() => setConfirm('delete')}>
             Delete
           </Button>

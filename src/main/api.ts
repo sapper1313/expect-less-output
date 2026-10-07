@@ -12,6 +12,17 @@ import { noneProvider } from './services/textAssist'
 import type { YoutubeService } from './google/youtubeService'
 import type { MetaService } from './meta/metaService'
 import type { TikTokService } from './tiktok/service'
+import type { AlertService } from './alerts/service'
+import type { RestorePreview } from '@shared/types'
+import { healthRows } from './services/health'
+import {
+  createBackup,
+  dismissRestoreReport,
+  readBackup,
+  readRestoreReport,
+  stageRestore,
+} from './services/backup'
+import type { Db } from './db'
 
 /** The parts that need Electron. Everything else is plain services. */
 export interface Host {
@@ -21,6 +32,9 @@ export interface Host {
   quit(): void
   appInfo(): { version: string; dataDir: string; dbPath: string; encryptionAvailable: boolean }
   applySettings(prev: Settings, next: Settings): void
+  pickSavePath(defaultName: string): Promise<string | null>
+  pickZip(): Promise<string | null>
+  relaunch(): void
 }
 
 export interface ApiDeps {
@@ -35,6 +49,12 @@ export interface ApiDeps {
   youtube: YoutubeService
   meta: MetaService
   tiktok: TikTokService
+  alerts: AlertService
+  db: Db
+  dataDir: string
+  postersDir: string
+  appVersion: string
+  maxSchema: number
   host: Host
   emit: () => void
 }
@@ -109,6 +129,7 @@ export function buildApi(d: ApiDeps): Api {
       remove: async (ids, alsoDeleteFile) => d.posts.remove(ids, alsoDeleteFile),
       retryTarget: async (id) => d.scheduler.retryTarget(id),
       markPosted: async (id, url) => d.scheduler.markPosted(id, url),
+      duplicate: async (id) => d.posts.duplicate(id),
       dismissChecklist: async (id) => d.posts.dismissChecklist(id),
       postNow: async (id) => d.scheduler.postNow(id),
     },
@@ -165,6 +186,68 @@ export function buildApi(d: ApiDeps): Api {
       status: async () => d.meta.status(),
       assign: async (brandId, pageId, igId) => d.meta.assign(brandId, pageId, igId),
       checkHealth: async () => d.meta.checkHealth(),
+    },
+    alerts: {
+      status: async () => d.alerts.status(),
+      saveEmailPassword: async (pw) => d.alerts.saveEmailPassword(pw),
+      sendTest: async (channel) => d.alerts.sendTest(channel),
+    },
+    health: {
+      list: async () =>
+        healthRows({
+          db: d.db,
+          metaExpiresAt: () => d.meta.status().expiresAt,
+          tiktokExpiresAt: (id) => d.tiktok.refreshExpiry(id),
+        }),
+    },
+    backup: {
+      export: async () => {
+        const stamp = new Date().toISOString().slice(0, 10)
+        const out = await d.host.pickSavePath(`Expect Less Output backup ${stamp}.zip`)
+        if (!out) return null
+        const r = await createBackup({
+          db: d.db,
+          outPath: out,
+          appVersion: d.appVersion,
+          mediaRoot: d.settings.get().mediaRoot,
+          postersDir: d.postersDir,
+        })
+        d.log.log('info', `Backup saved to ${out} (${Math.round(r.bytes / 1024)} KB).`)
+        return { saved: out, accounts: r.accounts }
+      },
+      pick: async (): Promise<RestorePreview | null> => {
+        const zip = await d.host.pickZip()
+        if (!zip) return null
+        const { manifest } = readBackup(zip, d.maxSchema)
+        return {
+          zipPath: zip,
+          appVersion: manifest.appVersion,
+          createdAt: manifest.createdAt,
+          oldMediaRoot: manifest.mediaRoot,
+          folderCount: manifest.folders.length,
+          accountsToReconnect: manifest.accountsToReconnect,
+        }
+      },
+      restore: async (zipPath, newMediaRoot) => {
+        if (!newMediaRoot) throw new Error('Choose the Media Root folder on this Mac first.')
+        // A safety copy of what is here now, then park the new data. The swap happens when the app restarts.
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+        await createBackup({
+          db: d.db,
+          outPath: `${d.dataDir}/safety-backup-${stamp}.zip`,
+          appVersion: d.appVersion,
+          mediaRoot: d.settings.get().mediaRoot,
+          postersDir: d.postersDir,
+        })
+        stageRestore({ zipPath, dataDir: d.dataDir, newMediaRoot, maxSchema: d.maxSchema })
+        d.log.log('info', 'Restore staged. Restarting to finish it.')
+        setTimeout(() => d.host.relaunch(), 600)
+      },
+      report: async () => readRestoreReport(d.db),
+      dismissReport: async () => {
+        dismissRestoreReport(d.db)
+        d.emit()
+      },
     },
     textAssist: { available: async () => noneProvider.available },
   }

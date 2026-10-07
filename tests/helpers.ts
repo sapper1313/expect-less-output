@@ -20,6 +20,7 @@ export function makeEnv(
   opts: {
     adapterFor?: (platform: Platform, account: Account | null) => PlatformAdapter
     media?: import('../src/main/services/media').MediaService | null
+    notifier?: Notifier
   } = {},
 ) {
   const db = new Database(':memory:')
@@ -56,7 +57,7 @@ export function makeEnv(
     log,
     getSettings: () => settings.get(),
     adapterFor: opts.adapterFor ?? ((platform) => adapters[platform]),
-    notifier,
+    notifier: opts.notifier ?? notifier,
     now: () => clock.ms,
   })
   /** Creates a scheduled post with a real file in the brand Queue. */

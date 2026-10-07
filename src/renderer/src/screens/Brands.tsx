@@ -113,6 +113,8 @@ function BrandEditor({ brand }: { brand: Brand }) {
   const [name, setName] = useState(brand.name)
   const [color, setColor] = useState(brand.color)
   const [confirmArchive, setConfirmArchive] = useState(false)
+  const { data: settings } = useLoad(() => api.settings.get())
+  const paused = !!settings?.pausedBrandIds.includes(brand.id)
 
   return (
     <div className="space-y-4">
@@ -140,7 +142,27 @@ function BrandEditor({ brand }: { brand: Brand }) {
             Save
           </Button>
         </div>
-        <div className="mt-3">
+        <div className="mt-3 space-y-3">
+          <div>
+            <Check
+              checked={paused}
+              onChange={(v) =>
+                run(() =>
+                  api.settings.set({
+                    pausedBrandIds: v
+                      ? [...(settings?.pausedBrandIds ?? []), brand.id]
+                      : (settings?.pausedBrandIds ?? []).filter((id) => id !== brand.id),
+                  }),
+                )
+              }
+            >
+              Pause this brand
+            </Check>
+            <div className="ml-6 text-[12px] text-muted">
+              Its posts stay scheduled but nothing goes out. When you resume, a post that is less
+              than your grace time late goes out; older ones are held as missed.
+            </div>
+          </div>
           {brand.archived ? (
             <Button onClick={() => run(() => api.brands.archive(brand.id, false))}>
               Restore brand

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PLATFORMS, PLATFORM_LABELS } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
 import { formatEastern, localInputToIso } from '@shared/time'
@@ -35,6 +35,11 @@ export function Queue() {
   const [confirm, setConfirm] = useState<'cancel' | 'delete' | null>(null)
   const [alsoFile, setAlsoFile] = useState(false)
   const [when, setWhen] = useState('')
+  const [searchText, setSearchText] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setFilter((f) => ({ ...f, search: searchText })), 250)
+    return () => clearTimeout(t)
+  }, [searchText])
 
   const toggle = (id: number) => {
     const n = new Set(sel)
@@ -49,6 +54,13 @@ export function Queue() {
       <PageHeader title={COPY.nav.queue} />
       <div className="space-y-4 px-8">
         <div className="flex flex-wrap items-end gap-3">
+          <Input
+            className="w-64"
+            placeholder="Search title or caption"
+            aria-label="Search"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
           <Select
             className="w-52"
             aria-label="Brand"

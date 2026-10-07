@@ -1,3 +1,4 @@
+import { existsSync } from 'fs'
 import type { Db } from '../db'
 import type { Library } from './library'
 import type { ActivityLog } from './activity'
@@ -124,6 +125,13 @@ export class PostService {
   list(filter: PostFilter = {}): Post[] {
     const where: string[] = []
     const args: unknown[] = []
+    if (filter.search?.trim()) {
+      const like = `%${filter.search.trim().replace(/[\\%_]/g, (c) => '\\' + c)}%`
+      where.push(
+        "(p.title LIKE ? ESCAPE '\\' OR p.caption LIKE ? ESCAPE '\\' OR p.video_path LIKE ? ESCAPE '\\')",
+      )
+      args.push(like, like, like)
+    }
     if (filter.brandId) {
       where.push('p.brand_id = ?')
       args.push(filter.brandId)
@@ -501,6 +509,47 @@ export class PostService {
       .prepare('UPDATE post_targets SET settings_json = ? WHERE id = ?')
       .run(JSON.stringify(next), targetId)
     this.emit()
+  }
+
+  /** Makes a new draft from an existing post, with its own copy of the video, for reposting. */
+  duplicate(id: number): Post {
+    const src = this.get(id)
+    if (!src) throw new Error('Post not found.')
+    const abs = this.library.resolve(src.videoPath)
+    if (!existsSync(abs))
+      throw new Error('The video file for this post is missing, so it cannot be duplicated.')
+    const rel = this.library.importToQueue(src.brandName, abs)
+    const newId = this.db.transaction(() => {
+      const nid = Number(
+        this.db
+          .prepare(
+            `INSERT INTO posts (brand_id, video_path, video_meta_json, poster_path, title, caption, scheduled_at_utc, status)
+             VALUES (?, ?, ?, ?, ?, ?, NULL, 'draft')`,
+          )
+          .run(
+            src.brandId,
+            rel,
+            JSON.stringify(src.videoMeta),
+            src.posterUrl ? src.posterUrl.split('/').pop() : null,
+            src.title,
+            src.caption,
+          ).lastInsertRowid,
+      )
+      this.insertTargets(
+        nid,
+        src.brandId,
+        src.targets.map((t) => ({
+          platform: t.platform,
+          aiFlag: t.aiFlag,
+          captionOverride: t.captionOverride,
+          settings: { thumbOffsetMs: t.settings.thumbOffsetMs, tiktok: t.settings.tiktok },
+        })),
+      )
+      return nid
+    })()
+    this.log.log('info', `Duplicated "${src.title}" as a new draft.`, { postId: newId })
+    this.emit()
+    return this.get(newId) as Post
   }
 
   // ---------- status helpers used by the scheduler ----------

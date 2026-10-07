@@ -1,7 +1,13 @@
 import type {
   Account,
   AppEvent,
+  AlertChannel,
+  AlertStatus,
+  AlertTestResult,
   AppInfo,
+  HealthRow,
+  RestorePreview,
+  RestoreReport,
   Brand,
   BrandDefaults,
   BrandSlot,
@@ -85,6 +91,7 @@ export interface Api {
     remove(ids: number[], alsoDeleteFile: boolean): Promise<void>
     retryTarget(targetId: number): Promise<void>
     markPosted(targetId: number, url?: string): Promise<void>
+    duplicate(id: number): Promise<Post>
     dismissChecklist(targetId: number): Promise<void>
     postNow(id: number): Promise<void>
   }
@@ -135,6 +142,21 @@ export interface Api {
     status(): Promise<MetaStatus>
     assign(brandId: number, pageId: string | null, igId: string | null): Promise<MetaStatus>
     checkHealth(): Promise<MetaStatus>
+  }
+  alerts: {
+    status(): Promise<AlertStatus>
+    saveEmailPassword(password: string): Promise<AlertStatus>
+    sendTest(channel: AlertChannel): Promise<AlertTestResult>
+  }
+  health: {
+    list(): Promise<HealthRow[]>
+  }
+  backup: {
+    export(): Promise<{ saved: string; accounts: number } | null>
+    pick(): Promise<RestorePreview | null>
+    restore(zipPath: string, newMediaRoot: string): Promise<void>
+    report(): Promise<RestoreReport | null>
+    dismissReport(): Promise<void>
   }
   textAssist: {
     available(): Promise<boolean>

@@ -51,6 +51,7 @@ export function Connections() {
     <div className="h-full overflow-auto pb-10">
       <PageHeader title={COPY.nav.connections} />
       <div className="space-y-4 px-8">
+        <HealthCard />
         <GoogleCard />
         <MetaCard />
         <TikTokCard />
@@ -967,5 +968,70 @@ function TikTokTile({ brand, account }: { brand: Brand; account: Account | undef
         />
       )}
     </div>
+  )
+}
+
+function HealthCard() {
+  const { data: rows } = useLoad(() => api.health.list())
+  const { data: quota } = useLoad(() => api.youtube.quota())
+  return (
+    <Card title="Health">
+      {!rows || rows.length === 0 ? (
+        <p className="text-[13px] text-muted">
+          No real accounts are connected yet. Everything below says "not connected" until you
+          connect it.
+        </p>
+      ) : (
+        <div className="overflow-hidden rounded-md border border-line">
+          <table className="w-full text-left text-[12px]">
+            <thead className="bg-surface2 text-[10px] uppercase tracking-wider text-muted">
+              <tr>
+                <th className="p-2">Brand</th>
+                <th className="p-2">Platform</th>
+                <th className="p-2">Account</th>
+                <th className="p-2">Status</th>
+                <th className="p-2">Mode</th>
+                <th className="p-2">Last check</th>
+                <th className="p-2">Login runs out</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.accountId} className="border-t border-line">
+                  <td className="p-2">{r.brandName}</td>
+                  <td className="p-2">{PLATFORM_LABELS[r.platform]}</td>
+                  <td className="p-2">{r.displayName ?? ''}</td>
+                  <td className="p-2">
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${r.status === 'connected' ? 'bg-ok/20 text-ok' : 'bg-bad/20 text-bad'}`}
+                    >
+                      {r.status === 'connected'
+                        ? 'ok'
+                        : r.status === 'needs_reauth'
+                          ? 'needs sign in'
+                          : 'problem'}
+                    </span>
+                  </td>
+                  <td className="p-2 text-muted">{r.note}</td>
+                  <td className="p-2 text-muted">
+                    {r.lastCheckedAt ? formatEastern(r.lastCheckedAt, false) : 'not yet'}
+                  </td>
+                  <td className="p-2 text-muted">
+                    {r.expiresAt ? formatEastern(r.expiresAt, false) : 'no date'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {quota && rows?.some((r) => r.platform === 'youtube') && (
+        <div className="mt-3 text-[12px] text-muted">
+          YouTube today: {quota.uploads.used} of {quota.uploads.limit} uploads, {quota.other.used}{' '}
+          of {quota.other.limit} other calls.
+          {quota.warn && <b className="ml-2 text-warn">Over 80 percent of a limit.</b>}
+        </div>
+      )}
+    </Card>
   )
 }

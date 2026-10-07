@@ -14,10 +14,12 @@ import {
   safeStorage,
   shell,
 } from 'electron'
-import { existsSync, mkdirSync } from 'fs'
+import { appendFileSync, existsSync, mkdirSync } from 'fs'
 import { join, normalize } from 'path'
 import { pathToFileURL } from 'url'
-import { openDb } from './db'
+import { latestSchemaVersion, openDb } from './db'
+import { AlertService } from './alerts/service'
+import { applyPendingRestore, finishRestore } from './services/backup'
 import { seedIfEmpty } from './db/seed'
 import { buildApi, type Host } from './api'
 import { ActivityLog } from './services/activity'
@@ -44,7 +46,7 @@ import { QuotaTracker } from './google/quota'
 import { TokenManager } from './google/tokens'
 import { YoutubeClient } from './google/youtubeClient'
 import { YoutubeService } from './google/youtubeService'
-import { makeNotifier } from './notifier'
+import { makeLocalShow, makeNotifier } from './notifier'
 import { confirmQuit, createTray, resourcesDir } from './tray'
 import { PLATFORMS } from '@shared/platformLimits'
 import type { PlatformAdapter } from './adapters/types'
@@ -131,8 +133,11 @@ async function boot(): Promise<void> {
   const postersDir = join(dataDir, 'posters')
   mkdirSync(postersDir, { recursive: true })
 
+  // A restore from a backup is parked on disk and swapped in here, before the database opens.
+  const restored = applyPendingRestore(dataDir)
   const db = openDb(dbPath)
   seedIfEmpty(db)
+  if (restored) finishRestore(db, restored.mediaRoot)
   const settings = new SettingsService(db)
   const log = new ActivityLog(db)
   const library = new Library(() => settings.get().mediaRoot)
@@ -149,7 +154,21 @@ async function boot(): Promise<void> {
   }
   ensureAllFolders()
 
-  const notifier = makeNotifier(send)
+  const alerts = new AlertService({
+    getSettings: () => settings.get(),
+    secrets,
+    showLocal: makeLocalShow(send),
+    log: (level, message) => log.log(level, message),
+    mediaRoot: () => settings.get().mediaRoot,
+    // Test only: write alerts to a file instead of sending real iMessages.
+    sendIMessage: process.env['ELO_FAKE_IMESSAGE_LOG']
+      ? async (number, text) => {
+          appendFileSync(process.env['ELO_FAKE_IMESSAGE_LOG'] as string, `${number}\t${text}\n`)
+          return { ok: true, message: 'Sent (test log).' }
+        }
+      : undefined,
+  })
+  const notifier = makeNotifier(send, alerts)
   const urls = googleUrls()
   const quota = new QuotaTracker(db, Date.now, (bucket, used, limit) => {
     const msg = `YouTube ${bucket === 'uploads' ? 'upload' : 'API'} quota is at ${used} of ${limit} for today (resets midnight Pacific).`
@@ -168,7 +187,11 @@ async function boot(): Promise<void> {
         { brand_id: number } | undefined
       const name = a ? brandName(a.brand_id) : 'A brand'
       log.log('error', `YouTube sign-in expired for ${name}: ${reason}`, { platform: 'youtube' })
-      notifier.failure(COPY.reauthHeadline, `${name}: reconnect YouTube on the Connections screen.`)
+      notifier.failure(
+        COPY.reauthHeadline,
+        `${name}: reconnect YouTube on the Connections screen.`,
+        { kind: 'reauth' },
+      )
       emit()
     },
   })
@@ -218,7 +241,10 @@ async function boot(): Promise<void> {
     graph,
     log,
     emit,
-    alert: (headline, detail) => notifier.failure(headline, detail),
+    alert: (headline, detail) =>
+      notifier.failure(headline, detail, {
+        kind: headline === COPY.metaExpiryHeadline ? 'expiry' : 'reauth',
+      }),
     openBrowser: async (url) => {
       if (process.env['ELO_TEST_NO_BROWSER']) {
         void fetch(url).catch(() => {})
@@ -262,7 +288,7 @@ async function boot(): Promise<void> {
     client: tiktokClient,
     log,
     emit,
-    alert: (headline, detail) => notifier.failure(headline, detail),
+    alert: (headline, detail) => notifier.failure(headline, detail, { kind: 'reauth' }),
     openBrowser: async (url) => {
       if (process.env['ELO_TEST_NO_BROWSER']) {
         // Test only: a fake TikTok answers right away. Keep the code so the test can play the bounce page.
@@ -350,6 +376,25 @@ async function boot(): Promise<void> {
     async openPath(p) {
       await shell.openPath(p)
     },
+    async pickSavePath(defaultName) {
+      const r = await dialog.showSaveDialog({
+        defaultPath: join(app.getPath('documents'), defaultName),
+        filters: [{ name: 'Zip', extensions: ['zip'] }],
+      })
+      return r.canceled || !r.filePath ? null : r.filePath
+    },
+    async pickZip() {
+      const r = await dialog.showOpenDialog({
+        properties: ['openFile'],
+        filters: [{ name: 'Backup', extensions: ['zip'] }],
+      })
+      return r.canceled ? null : r.filePaths[0]
+    },
+    relaunch() {
+      quitting = true
+      app.relaunch()
+      app.exit(0)
+    },
     quit: () => void requestQuit(),
     appInfo: () => ({
       version: app.getVersion(),
@@ -383,6 +428,12 @@ async function boot(): Promise<void> {
     youtube,
     meta,
     tiktok,
+    alerts,
+    db,
+    dataDir,
+    postersDir,
+    appVersion: app.getVersion(),
+    maxSchema: latestSchemaVersion(),
     host,
     emit,
   })
@@ -443,6 +494,7 @@ async function boot(): Promise<void> {
   youtube.startHealthChecks()
   meta.startHealthChecks()
   tiktok.startHealthChecks()
+  alerts.start()
   updateBlocker()
   log.log('info', 'App started.')
 
@@ -453,6 +505,7 @@ async function boot(): Promise<void> {
       youtube.stop()
       meta.stop()
       tiktok.stop()
+      alerts.stop()
       app.quit()
     }
   }

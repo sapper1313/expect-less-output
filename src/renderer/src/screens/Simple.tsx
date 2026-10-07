@@ -7,6 +7,7 @@ import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { Button, Card, Check, Empty, Field, Input, PageHeader, Select } from '../ui'
 import logoStacked from '../assets/logo-stacked.jpg'
+import { AlertsCard, BackupCard } from './AlertsBackup'
 
 const LEVEL_STYLE = { info: 'text-muted', warn: 'text-warn', error: 'text-bad' }
 
@@ -225,12 +226,8 @@ export function SettingsScreen() {
             {info?.encryptionAvailable ? 'available' : 'NOT available'} on this Mac.
           </p>
         </Card>
-        <Card title="Alerts">
-          <p className="text-muted">
-            Failure alerts by iMessage and email are set up in a later phase. For now you get a
-            macOS notification and a message in the app.
-          </p>
-        </Card>
+        <AlertsCard s={s} save={save} />
+        <BackupCard />
 
         <Card title="Testing tools (dry run)">
           <div className="grid gap-4 md:grid-cols-3">

@@ -44,3 +44,12 @@ export function migrate(db: Db): void {
     })()
   }
 }
+
+/** The newest migration this build knows about. A backup from a newer build cannot be restored here. */
+export function latestSchemaVersion(): number {
+  return Math.max(
+    ...Object.keys(migrationFiles).map((p) =>
+      parseInt((p.split('/').pop() as string).split('_')[0], 10),
+    ),
+  )
+}

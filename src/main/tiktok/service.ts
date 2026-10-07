@@ -428,6 +428,12 @@ export class TikTokService {
     this.d.emit()
   }
 
+  /** When the saved login stops being renewable, for the health panel. */
+  refreshExpiry(accountId: number): string | null {
+    const t = this.readTokens(accountId)
+    return t ? new Date(t.refreshExpiresAt).toISOString() : null
+  }
+
   // ---------- creator info and health ----------
 
   /** What this account allows right now. Cached for 5 minutes unless `refresh` is set. */

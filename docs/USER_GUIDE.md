@@ -281,3 +281,91 @@ Only do this after TikTok has approved the Direct Post audit.
 - TikTok allows about 15 posts a day per account. When it says the account is full, the app waits an hour and tries again (up to 24 times) and sends one alert.
 - **needs sign in** on a card: TikTok stopped accepting the saved login (they last up to a year). Click **Reconnect**.
 - TikTok brand defaults do not exist on purpose: TikTok's rules say you must choose privacy and interaction settings on every post.
+
+---
+
+## 11. Alerts (Phase 5)
+
+The app tells you when something goes wrong, and only then (a success is just a quiet "Task adequate."). You are told when:
+
+- a post fails for good, after its retries;
+- a post is missed because the Mac was asleep;
+- a login needs renewing (YouTube, Meta or TikTok);
+- the Meta login is about to run out (7 days before);
+- a daily limit is hit (TikTok);
+- the Media Root folder goes missing (for example an unplugged drive).
+
+Every alert shows on screen and as a macOS notification at once. You can also get it by iMessage and email.
+
+### Set up iMessage alerts
+
+1. Open **Settings** and find **Alerts (failures only)**.
+2. Check that **iMessage** is ticked and the phone number is right. It starts as `+18046340444`. Use the form `+1` and the ten digits.
+3. Click **Send test alert**.
+4. The first time, macOS asks: "Expect Less Output wants to control Messages." Click **OK**.
+5. If you missed that question or clicked Don't Allow:
+   1. Open **System Settings**.
+   2. Click **Privacy and Security**, then **Automation**.
+   3. Find **Expect Less Output** and switch on **Messages**.
+   4. Come back and click **Send test alert** again.
+6. Messages must be signed in with your Apple ID on this Mac. Open Messages, choose Settings, then iMessage, and sign in if it is not.
+7. Your phone should show a text starting "Expect Less Output test alert". If it does, you are done.
+
+### Set up email alerts (optional)
+
+1. Open your Google Account, then **Security**.
+2. **2-Step Verification** must be on. Turn it on first if it is not.
+3. Search for **App passwords** and open it.
+4. Name it **Expect Less Output** and click **Create**.
+5. Copy the 16 characters Google shows.
+6. In the app, under **Email**, tick it, type your Gmail address in **From** and where to send in **To**, paste the 16 characters into **Gmail app password**, and click **Save**.
+7. Click **Send test email**. It says if Gmail refused and why.
+
+### Quiet hours
+
+Tick **Quiet hours** and pick a start and end (Eastern time). During quiet hours iMessage and email wait, and you get one summary when quiet hours end. The notification on this Mac still shows.
+
+### Many alerts at once
+
+If more than 3 alerts happen within 5 minutes, the first 3 are sent right away and the rest are sent together as one message when the 5 minutes are up.
+
+### What an alert looks like
+
+> Could not post. Probably for the best. Instagram, Trash Panda, "Fridge Math", Tue Jun 2, 5:00 PM ET. Reason: token expired. Open Expect Less Output to retry.
+
+Open the app, find the post (Calendar or Queue) and click **Retry**.
+
+## 12. Everyday extras (Phase 5)
+
+- **Keyboard shortcuts:** Command+N new post, Shift+Command+N bulk upload, Command+1 calendar, Command+2 queue.
+- **Duplicate a post** (to post it again): open the post and click **Duplicate**. You get a new draft with its own copy of the video.
+- **Search the Queue:** type in the search box at the top of the Queue. It looks at the title, caption and file name.
+- **See what each platform will get:** open a post. The box "What each platform will get" shows the final text, with the template and hashtags already applied.
+- **Pause one brand:** open **Brands**, pick the brand, tick **Pause this brand**. Its posts wait. Untick it to resume. A post less than your grace time late (Settings) goes out; older ones are held as missed and you are alerted. **Pause the scheduler** in the menu bar pauses everything.
+- **Health panel:** on **Connections**, the **Health** box lists every connected account, its status, mode, last check and when its login runs out.
+- **Stuck posts:** when the app starts or the Mac wakes, anything stuck uploading for over 30 minutes goes back in the queue, and anything still being processed gets checked right away.
+
+## 13. Move to a new Mac (backup and restore)
+
+A backup holds your brands, slots, posts, settings and thumbnails. It does **not** hold your videos, and it does **not** hold any logins or keys.
+
+### On the old Mac
+
+1. Open **Settings**, find **Backup and restore**, and click **Export backup**. Save the zip somewhere you can reach (for example Documents).
+2. Copy your Media Root folder to the new Mac. It is `Movies/Expect Less Output` unless you changed it in Settings. Use AirDrop or an external drive.
+3. Copy the backup zip to the new Mac too.
+4. Keep your key notes (the "ELO Keys" folder): you will paste them again.
+
+### On the new Mac
+
+1. Build or copy the app and install it (section 3 and 4 of this guide). Open it.
+2. Open **Settings**, then **Backup and restore**, and click **Restore from backup**. Pick the zip.
+3. The app shows what is in it and which accounts you must reconnect. Click **Choose** and pick the Media Root folder you copied.
+4. Click **Restore and restart**, then confirm. The app restarts.
+5. A banner lists the accounts to reconnect. Open **Connections**.
+6. Paste the credentials again (they are never in a backup): Google Client ID and Secret, Meta App ID and Secret, TikTok Client Key and Secret, and the Gmail app password if you use email.
+7. Connect every account again (YouTube, Meta, TikTok), then check the **Health** box.
+8. Open **Settings**, click **Send test alert**, and allow the Automation question for Messages.
+9. Scheduled posts come back as they were. Anything that was due while the Mac was off follows your "missed post" setting.
+
+The old data is never deleted: before a restore the app saves a copy of what was there in the `safety-backups` folder inside its data folder.

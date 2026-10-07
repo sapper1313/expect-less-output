@@ -21,6 +21,18 @@ export interface Settings {
   fastBackoff: boolean
   /** Also ask TikTok for the video.publish permission (needs Direct Post turned on in the developer portal). */
   tiktokRequestPublishScope: boolean
+  // Alerts (failures only)
+  alertIMessageEnabled: boolean
+  alertIMessageNumber: string
+  alertEmailEnabled: boolean
+  alertEmailFrom: string
+  alertEmailTo: string
+  alertQuietEnabled: boolean
+  /** HH:MM Eastern. Alerts by iMessage and email wait until quiet hours end. */
+  alertQuietStart: string
+  alertQuietEnd: string
+  /** Brands whose scheduled posts are held. */
+  pausedBrandIds: number[]
 }
 
 export interface Brand {
@@ -235,6 +247,8 @@ export interface PostUpdate {
 }
 
 export interface PostFilter {
+  /** Matches title, caption or file name. */
+  search?: string
   brandId?: number | null
   status?: PostStatus | 'all' | 'upcoming' | 'recent'
   platform?: Platform | null
@@ -332,4 +346,44 @@ export interface MetaStatus {
   missingPermissions: string[]
   pages: MetaPage[]
   suggestions: MetaSuggestion[]
+}
+
+export type AlertChannel = 'imessage' | 'email' | 'notification'
+
+export interface AlertTestResult {
+  ok: boolean
+  message: string
+}
+
+export interface AlertStatus {
+  emailPasswordSet: boolean
+  emailPasswordMasked: string
+}
+
+export interface HealthRow {
+  accountId: number
+  brandId: number
+  brandName: string
+  platform: Platform
+  displayName: string | null
+  status: 'connected' | 'needs_reauth' | 'error'
+  mode: string
+  lastCheckedAt: string | null
+  /** When the login stops working. Null means it renews itself or no date is known. */
+  expiresAt: string | null
+  note: string
+}
+
+export interface RestoreReport {
+  restoredAt: string
+  accountsToReconnect: Array<{ brandName: string; platform: Platform; displayName: string | null }>
+}
+
+export interface RestorePreview {
+  zipPath: string
+  appVersion: string
+  createdAt: string
+  oldMediaRoot: string
+  folderCount: number
+  accountsToReconnect: Array<{ brandName: string; platform: string; displayName: string | null }>
 }

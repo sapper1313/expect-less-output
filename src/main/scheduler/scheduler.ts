@@ -6,13 +6,16 @@ import type { PostService } from '../services/posts'
 import { AdapterError, type AdapterContext, type PlatformAdapter } from '../adapters/types'
 import { backoffMs, decideMissed, handoffDueMs } from '@shared/scheduling'
 import { COPY } from '@shared/copy'
+import type { AlertItem } from '../alerts/format'
 import { PLATFORM_LABELS } from '@shared/platformLimits'
 import type { Account, Platform, SchedulerStatus, Settings, TargetStatus } from '@shared/types'
 
+export type AlertMeta = Partial<Omit<AlertItem, 'headline' | 'detail'>>
+
 export interface Notifier {
-  failure(headline: string, detail: string): void
+  failure(headline: string, detail: string, meta?: AlertMeta): void
   success(headline: string, detail: string): void
-  missed(headline: string, detail: string): void
+  missed(headline: string, detail: string, meta?: AlertMeta): void
 }
 
 export interface SchedulerDeps {
@@ -66,7 +69,7 @@ export class Scheduler {
 
   start(intervalMs = 30_000): void {
     this.recoverOnStart()
-    void this.tick()
+    void this.reconcile().then(() => this.tick())
     this.timer = setInterval(() => void this.tick(), intervalMs)
   }
 
@@ -78,6 +81,7 @@ export class Scheduler {
   /** Called when the Mac wakes up. Runs the normal pass right away. */
   async onWake(): Promise<void> {
     this.d.log.log('info', 'Mac woke up. Checking for posts that came due.')
+    await this.reconcile()
     await this.tick()
   }
 
@@ -136,7 +140,9 @@ export class Scheduler {
       .all(nowIso) as DueRow[]
 
     const missedPosts = new Set<number>()
+    const paused = new Set(settings.pausedBrandIds ?? [])
     for (const row of rows) {
+      if (paused.has(row.brand_id)) continue // a paused brand's posts wait until it is resumed
       if (missedPosts.has(row.post_id) || this.inFlight.has(row.id)) continue
       const scheduledMs = new Date(row.scheduled_at_utc).getTime()
       const account = this.loadAccount(row.account_id)
@@ -226,6 +232,7 @@ export class Scheduler {
     this.d.notifier.missed(
       COPY.missedHeadline,
       `${row.brand_name}, "${row.title}" was due and the Mac was not awake in time. Open the app and reschedule or post now.`,
+      { kind: 'missed', brand: row.brand_name, title: row.title, whenUtc: row.scheduled_at_utc },
     )
     this.d.emit?.()
   }
@@ -433,6 +440,7 @@ export class Scheduler {
           this.d.notifier.failure(
             COPY.tiktokFullHeadline,
             `${label}, ${row.brand_name}, "${row.title}": ${reason} The app will try again in an hour.`,
+            { kind: 'cap' },
           )
         this.afterTargetChange(row.post_id)
         return
@@ -474,6 +482,14 @@ export class Scheduler {
     this.d.notifier.failure(
       COPY.failureHeadline,
       COPY.failureDetail(label, row.brand_name, row.title, reason),
+      {
+        kind: 'failure',
+        platform: label,
+        brand: row.brand_name,
+        title: row.title,
+        whenUtc: row.scheduled_at_utc,
+        reason,
+      },
     )
     this.afterTargetChange(row.post_id)
   }
@@ -563,16 +579,70 @@ export class Scheduler {
   /** True when anything is due within the next N minutes, so the Mac should stay awake. */
   hasDueWithin(minutes: number): boolean {
     const until = new Date(this.now() + minutes * 60_000).toISOString()
+    const paused = this.d.getSettings().pausedBrandIds ?? []
+    const skip = paused.length ? ` AND p.brand_id NOT IN (${paused.map(() => '?').join(',')})` : ''
     const n = (
       this.d.db
         .prepare(
           `SELECT COUNT(*) AS n FROM post_targets t JOIN posts p ON p.id = t.post_id
            WHERE p.status IN ('scheduled','in_progress','partial') AND p.scheduled_at_utc <= ?
-             AND t.status IN ('pending','uploading','handed_off','processing')`,
+             AND t.status IN ('pending','uploading','handed_off','processing')${skip}`,
         )
-        .get(until) as { n: number }
+        .get(until, ...paused) as { n: number }
     ).n
     return n > 0
+  }
+
+  /**
+   * Runs at start and when the Mac wakes. Anything stuck uploading for over 30 minutes is put back in the
+   * queue, and every target that is processing gets a status check through its adapter right now.
+   */
+  async reconcile(): Promise<number> {
+    const nowMs = this.now()
+    const cutoff = new Date(nowMs - 30 * 60_000).toISOString()
+    const stuck = this.d.db
+      .prepare(
+        "SELECT id, post_id, external_id FROM post_targets WHERE status = 'uploading' AND locked_at_utc < ?",
+      )
+      .all(cutoff) as Array<{ id: number; post_id: number; external_id: string | null }>
+    let touched = 0
+    for (const t of stuck) {
+      if (this.inFlight.has(t.id)) continue
+      const next: TargetStatus = t.external_id ? 'processing' : 'pending'
+      this.d.db
+        .prepare(
+          'UPDATE post_targets SET status = ?, lock_token = NULL, locked_at_utc = NULL WHERE id = ?',
+        )
+        .run(next, t.id)
+      this.d.log.log(
+        'warn',
+        `Reconciled a target stuck uploading for over 30 minutes (now ${next}).`,
+        { postId: t.post_id },
+      )
+      touched++
+    }
+    const rows = this.d.db
+      .prepare(
+        `SELECT t.*, p.scheduled_at_utc, p.title, p.caption, p.video_path, p.video_meta_json, p.brand_id, b.name AS brand_name
+         FROM post_targets t JOIN posts p ON p.id = t.post_id JOIN brands b ON b.id = p.brand_id
+         WHERE t.status = 'processing' AND t.lock_token IS NULL AND p.status NOT IN ('canceled','draft')`,
+      )
+      .all() as DueRow[]
+    for (const row of rows) {
+      if (this.inFlight.has(row.id)) continue
+      this.d.log.log(
+        'info',
+        `Reconcile: checking ${PLATFORM_LABELS[row.platform]} status for "${row.title}".`,
+        {
+          postId: row.post_id,
+          platform: row.platform,
+        },
+      )
+      await this.check(row)
+      touched++
+    }
+    if (touched) this.d.emit?.()
+    return touched
   }
 
   status(): SchedulerStatus {
@@ -581,9 +651,10 @@ export class Scheduler {
       .prepare(
         `SELECT p.id, p.title, p.scheduled_at_utc, b.name AS brand_name FROM posts p JOIN brands b ON b.id = p.brand_id
          WHERE p.status IN ('scheduled','in_progress','partial') AND p.scheduled_at_utc IS NOT NULL
+           AND p.brand_id NOT IN (SELECT value FROM json_each(?))
          ORDER BY p.scheduled_at_utc LIMIT 1`,
       )
-      .get() as any
+      .get(JSON.stringify(this.d.getSettings().pausedBrandIds ?? [])) as any
     const pending = (
       this.d.db
         .prepare(
