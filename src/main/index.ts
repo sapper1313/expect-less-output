@@ -1,11 +1,13 @@
 import {
   app,
   BrowserWindow,
+  clipboard,
   dialog,
   ipcMain,
   nativeImage,
   nativeTheme,
   net,
+  Notification,
   powerMonitor,
   powerSaveBlocker,
   protocol,
@@ -27,11 +29,18 @@ import { SecretStore } from './services/secrets'
 import { SettingsService } from './services/settings'
 import { Scheduler } from './scheduler/scheduler'
 import { DryRunAdapter } from './adapters/dryRun'
+import { YoutubeAdapter } from './adapters/youtube'
+import { googleUrls, STUDIO_URL } from './google/config'
+import { QuotaTracker } from './google/quota'
+import { TokenManager } from './google/tokens'
+import { YoutubeClient } from './google/youtubeClient'
+import { YoutubeService } from './google/youtubeService'
 import { makeNotifier } from './notifier'
 import { confirmQuit, createTray, resourcesDir } from './tray'
 import { PLATFORMS } from '@shared/platformLimits'
 import type { PlatformAdapter } from './adapters/types'
-import type { AppEvent, Platform, Settings } from '@shared/types'
+import { COPY } from '@shared/copy'
+import type { Account, AppEvent, Platform, Settings } from '@shared/types'
 
 const APP_NAME = 'Expect Less Output'
 app.setName(APP_NAME)
@@ -128,9 +137,72 @@ async function boot(): Promise<void> {
   }
   ensureAllFolders()
 
-  const adapters = Object.fromEntries(
+  const notifier = makeNotifier(send)
+  const urls = googleUrls()
+  const quota = new QuotaTracker(db, Date.now, (bucket, used, limit) => {
+    const msg = `YouTube ${bucket === 'uploads' ? 'upload' : 'API'} quota is at ${used} of ${limit} for today (resets midnight Pacific).`
+    log.log('warn', msg, { platform: 'youtube' })
+    send({ type: 'toast', toast: { kind: 'info', headline: 'YouTube quota warning', detail: msg } })
+  })
+  const brandName = (id: number) =>
+    (db.prepare('SELECT name FROM brands WHERE id = ?').get(id) as { name: string } | undefined)
+      ?.name ?? 'A brand'
+  const tokens = new TokenManager({
+    db,
+    secrets,
+    urls,
+    onNeedsReauth: (accountId, reason) => {
+      const a = db.prepare('SELECT brand_id FROM accounts WHERE id = ?').get(accountId) as
+        { brand_id: number } | undefined
+      const name = a ? brandName(a.brand_id) : 'A brand'
+      log.log('error', `YouTube sign-in expired for ${name}: ${reason}`, { platform: 'youtube' })
+      notifier.failure(COPY.reauthHeadline, `${name}: reconnect YouTube on the Connections screen.`)
+      emit()
+    },
+  })
+  const ytClient = new YoutubeClient(tokens, urls, quota)
+  const youtube = new YoutubeService({
+    db,
+    secrets,
+    urls,
+    tokens,
+    client: ytClient,
+    quota,
+    log,
+    emit,
+    notifyReauth: () => {},
+    openBrowser: async (url) => {
+      if (process.env['ELO_TEST_NO_BROWSER']) {
+        // Test only: a fake Google server answers right away, so follow the redirect ourselves.
+        void fetch(url).catch(() => {})
+        return
+      }
+      await shell.openExternal(url)
+    },
+  })
+  const youtubeAdapter = new YoutubeAdapter({
+    client: ytClient,
+    brandDefaults: (brandId) => brands.getDefaults(brandId),
+    log: (level, message, ctx) =>
+      log.log(level, message, { postId: ctx.postId, platform: 'youtube' }),
+    host: {
+      notify: (title, body) => {
+        if (Notification.isSupported()) new Notification({ title, body }).show()
+        send({ type: 'toast', toast: { kind: 'info', headline: title, detail: body } })
+      },
+      copyText: (text) => clipboard.writeText(text),
+      openExternal: (url) => {
+        if (url === STUDIO_URL) void shell.openExternal(url)
+      },
+    },
+  })
+  const dryRuns = Object.fromEntries(
     PLATFORMS.map((p) => [p, new DryRunAdapter(p, { getSettings: () => settings.get() })]),
   ) as unknown as Record<Platform, PlatformAdapter>
+  const adapterFor = (platform: Platform, account: Account | null): PlatformAdapter =>
+    platform === 'youtube' && account && account.mode !== 'dry_run'
+      ? youtubeAdapter
+      : dryRuns[platform]
 
   const scheduler = new Scheduler({
     db,
@@ -138,8 +210,8 @@ async function boot(): Promise<void> {
     library,
     log,
     getSettings: () => settings.get(),
-    adapters,
-    notifier: makeNotifier(send),
+    adapterFor,
+    notifier,
     emit,
   })
 
@@ -200,6 +272,7 @@ async function boot(): Promise<void> {
     scheduler,
     secrets,
     library,
+    youtube,
     host,
     emit,
   })
@@ -255,6 +328,7 @@ async function boot(): Promise<void> {
   powerMonitor.on('resume', () => void scheduler.onWake().then(updateBlocker))
 
   scheduler.start()
+  youtube.startHealthChecks()
   updateBlocker()
   log.log('info', 'App started.')
 
@@ -262,6 +336,7 @@ async function boot(): Promise<void> {
     if (await confirmQuit(scheduler.status().pendingCount)) {
       quitting = true
       scheduler.stop()
+      youtube.stop()
       app.quit()
     }
   }

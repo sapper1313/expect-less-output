@@ -67,6 +67,7 @@ export class PostService {
       lastError: r.last_error,
       handedOffAtUtc: r.handed_off_at_utc,
       postedAtUtc: r.posted_at_utc,
+      progress: progressOf(r.settings_json),
     }
   }
 
@@ -289,9 +290,28 @@ export class PostService {
     return (await this.createMany([input]))[0]
   }
 
+  /** Targets already handed to a real platform (not a dry run). The platform now holds the schedule. */
+  private realHandedOff(postId: number): Array<{ platform: string }> {
+    return this.db
+      .prepare(
+        `SELECT t.platform FROM post_targets t JOIN accounts a ON a.id = t.account_id
+         WHERE t.post_id = ? AND t.status IN ('handed_off','processing') AND a.mode != 'dry_run'`,
+      )
+      .all(postId) as Array<{ platform: string }>
+  }
+
   update(id: number, patch: PostUpdate): Post {
     const cur = this.get(id)
     if (!cur) throw new Error('Post not found.')
+    if (
+      patch.scheduledAtUtc &&
+      patch.scheduledAtUtc !== cur.scheduledAtUtc &&
+      this.realHandedOff(id).length
+    ) {
+      throw new Error(
+        'This post is already scheduled inside YouTube. Cancel it and delete the scheduled video in YouTube Studio first, then schedule it again.',
+      )
+    }
     if (['posted', 'in_progress'].includes(cur.status)) {
       throw new Error('This post is already going out. Wait for it to finish first.')
     }
@@ -369,6 +389,13 @@ export class PostService {
           )
           .run(id)
         this.log.log('info', 'Post canceled.', { postId: id })
+        if (this.realHandedOff(id).length) {
+          this.log.log(
+            'warn',
+            'This post was already scheduled inside YouTube. Delete the scheduled video in YouTube Studio so it does not publish.',
+            { postId: id },
+          )
+        }
       }
     })()
     this.emit()
@@ -434,5 +461,15 @@ function safeParse(s: string): any {
     return JSON.parse(s)
   } catch {
     return {}
+  }
+}
+
+function progressOf(settingsJson: string | null): number | null {
+  if (!settingsJson) return null
+  try {
+    const v = JSON.parse(settingsJson)?.progress
+    return typeof v === 'number' ? v : null
+  } catch {
+    return null
   }
 }

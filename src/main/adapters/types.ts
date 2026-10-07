@@ -15,6 +15,7 @@ export class AdapterError extends Error {
 export interface AdapterContext {
   postId: number
   targetId: number
+  brandId: number
   brandName: string
   title: string
   /** Shared caption, or the per-platform override when one exists. */
@@ -23,6 +24,11 @@ export interface AdapterContext {
   videoAbsPath: string
   scheduledAtUtc: string
   account: Account | null
+  /** Small per-target memory (for example a video id or upload session) that survives restarts. */
+  getState(): Record<string, unknown>
+  setState(patch: Record<string, unknown>): void
+  /** Upload progress from 0 to 1. */
+  reportProgress(fraction: number): void
 }
 
 export interface AdapterResult {
@@ -33,8 +39,10 @@ export interface AdapterResult {
 
 export interface PlatformAdapter {
   readonly platform: Platform
-  /** True when the platform can schedule on its own after an early handoff. */
-  readonly supportsHandoff: boolean
+  /** True when this account should be handed to the platform early so it publishes on its own. */
+  wantsHandoff(account: Account | null): boolean
+  /** Do not hand off when the scheduled time is closer than this. The post goes out at its time instead. */
+  minHandoffLeadMs(account: Account | null): number
   connect(account: Account): Promise<void>
   refreshIfNeeded(account: Account): Promise<void>
   validate(ctx: AdapterContext): Promise<void>

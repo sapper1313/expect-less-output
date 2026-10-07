@@ -268,6 +268,11 @@ function DefaultsEditor({ brandId }: { brandId: number }) {
   const [busy, run] = useBusy()
   const { data } = useLoad(() => api.brands.getDefaults(brandId), [brandId])
   const { data: sets } = useLoad(() => api.hashtags.list(brandId), [brandId])
+  const { data: categories } = useLoad(() => api.youtube.categories())
+  const { data: playlists } = useLoad(
+    () => api.youtube.playlists(brandId).catch(() => []),
+    [brandId],
+  )
   const [d, setD] = useState<BrandDefaults | null>(null)
   useEffect(() => {
     if (data) setD(data)
@@ -322,11 +327,35 @@ function DefaultsEditor({ brandId }: { brandId: number }) {
             value={d.youtubeCategoryId}
             onChange={(e) => set('youtubeCategoryId', e.target.value)}
           >
-            {YT_CATEGORIES.map(([id, label]) => (
-              <option key={id} value={id}>
-                {label}
+            {(categories ?? YT_CATEGORIES.map(([id, title]) => ({ id, title }))).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}
               </option>
             ))}
+            {categories && !categories.some((c) => c.id === d.youtubeCategoryId) && (
+              <option value={d.youtubeCategoryId}>Category {d.youtubeCategoryId}</option>
+            )}
+          </Select>
+        </Field>
+        <Field
+          label="YouTube playlist"
+          hint={
+            playlists?.length ? undefined : 'Connect YouTube for this brand to pick a playlist.'
+          }
+        >
+          <Select
+            value={d.youtubePlaylistId ?? ''}
+            onChange={(e) => set('youtubePlaylistId', e.target.value || null)}
+          >
+            <option value="">No playlist</option>
+            {playlists?.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.title}
+              </option>
+            ))}
+            {d.youtubePlaylistId && !playlists?.some((p) => p.id === d.youtubePlaylistId) && (
+              <option value={d.youtubePlaylistId}>{d.youtubePlaylistId}</option>
+            )}
           </Select>
         </Field>
         <div className="space-y-2">
@@ -336,6 +365,9 @@ function DefaultsEditor({ brandId }: { brandId: number }) {
           <div className="text-[11px] text-muted">
             Leave this off unless the videos are made for kids.
           </div>
+          <Check checked={d.youtubeAppendShorts} onChange={(v) => set('youtubeAppendShorts', v)}>
+            YouTube: append #Shorts to the description
+          </Check>
         </div>
         <Field label="Made with AI by default">
           <div className="flex flex-wrap gap-x-4 gap-y-2">

@@ -50,6 +50,7 @@ export interface BrandDefaults {
   youtubeCategoryId: string
   youtubeMadeForKids: boolean
   youtubePlaylistId: string | null
+  youtubeAppendShorts: boolean
   aiFlag: Record<Platform, boolean>
   tiktokPrivacyDefault: string | null
   tiktokAllowComments: boolean
@@ -57,13 +58,53 @@ export interface BrandDefaults {
   tiktokAllowStitch: boolean
 }
 
+export type YoutubeMode = 'manual_assist' | 'test_private' | 'auto'
+
 export interface Account {
   id: number
   brandId: number
   platform: Platform
   displayName: string | null
+  avatarUrl: string | null
+  externalId: string | null
   status: 'connected' | 'needs_reauth' | 'error'
+  /** `dry_run`, or for YouTube one of manual_assist, test_private, auto. */
   mode: string
+  lastCheckedAt: string | null
+}
+
+export interface GoogleCredentialsStatus {
+  hasClientId: boolean
+  hasClientSecret: boolean
+  clientIdMasked: string
+  clientSecretMasked: string
+}
+
+export interface QuotaBucket {
+  used: number
+  limit: number
+}
+
+export interface QuotaStatus {
+  dayPt: string
+  uploads: QuotaBucket
+  other: QuotaBucket
+  warn: boolean
+}
+
+export interface YoutubeChannel {
+  id: string
+  title: string
+  avatarUrl: string | null
+}
+
+export type ConnectResult =
+  | { status: 'connected'; account: Account }
+  | { status: 'pick'; sessionId: string; channels: YoutubeChannel[] }
+
+export interface YoutubeOption {
+  id: string
+  title: string
 }
 
 export type PostStatus =
@@ -94,6 +135,8 @@ export interface PostTarget {
   lastError: string | null
   handedOffAtUtc: string | null
   postedAtUtc: string | null
+  /** Upload progress from 0 to 1 while a video is going up. */
+  progress: number | null
 }
 
 export interface Post {

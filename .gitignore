@@ -10,3 +10,7 @@ release
 .DS_Store
 secrets.bin
 .claude/
+
+ELO KEYS/
+client_secret*.json
+*.keys

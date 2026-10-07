@@ -16,17 +16,23 @@ const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 /** Simulates a platform. Waits 2 to 5 seconds, succeeds, or fails on purpose if Settings says so. */
 export class DryRunAdapter implements PlatformAdapter {
-  readonly supportsHandoff: boolean
+  private handoff: boolean
   private sleep: (ms: number) => Promise<void>
 
   constructor(
     readonly platform: Platform,
     private opts: DryRunOptions,
   ) {
-    this.supportsHandoff = platform === 'youtube' || platform === 'facebook'
+    this.handoff = platform === 'youtube' || platform === 'facebook'
     this.sleep = opts.sleep ?? defaultSleep
   }
 
+  wantsHandoff(): boolean {
+    return this.handoff
+  }
+  minHandoffLeadMs(): number {
+    return 0
+  }
   async connect(): Promise<void> {}
   async refreshIfNeeded(): Promise<void> {}
   async validate(): Promise<void> {}

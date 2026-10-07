@@ -21,7 +21,8 @@ export interface SchedulerDeps {
   library: Library
   log: ActivityLog
   getSettings: () => Settings
-  adapters: Record<Platform, PlatformAdapter>
+  /** Picks the adapter for a platform. Real YouTube accounts get the YouTube adapter, the rest dry run. */
+  adapterFor: (platform: Platform, account: Account | null) => PlatformAdapter
   notifier: Notifier
   now?: () => number
   emit?: () => void
@@ -36,6 +37,8 @@ interface DueRow {
   ai_flag: number
   status: TargetStatus
   attempts: number
+  settings_json: string | null
+  brand_id: number
   next_attempt_at_utc: string | null
   external_id: string | null
   scheduled_at_utc: string
@@ -118,7 +121,7 @@ export class Scheduler {
     // 1. Pending targets that are due (or due for early handoff).
     const rows = this.d.db
       .prepare(
-        `SELECT t.*, p.scheduled_at_utc, p.title, p.caption, p.video_path, b.name AS brand_name
+        `SELECT t.*, p.scheduled_at_utc, p.title, p.caption, p.video_path, p.brand_id, b.name AS brand_name
          FROM post_targets t
          JOIN posts p ON p.id = t.post_id
          JOIN brands b ON b.id = p.brand_id
@@ -133,19 +136,25 @@ export class Scheduler {
     for (const row of rows) {
       if (missedPosts.has(row.post_id) || this.inFlight.has(row.id)) continue
       const scheduledMs = new Date(row.scheduled_at_utc).getTime()
-      const adapter = this.d.adapters[row.platform]
+      const account = this.loadAccount(row.account_id)
+      const adapter = this.d.adapterFor(row.platform, account)
       const hours =
         row.platform === 'youtube'
           ? settings.handoffHoursYoutube
           : row.platform === 'facebook'
             ? settings.handoffHoursFacebook
             : 0
-      const wantsHandoff = adapter.supportsHandoff && !!adapter.handOff && hours > 0
+      const wantsHandoff = adapter.wantsHandoff(account) && !!adapter.handOff && hours > 0
       const handoffMs = handoffDueMs(scheduledMs, hours)
 
       let action: 'handoff' | 'publish' | null = null
       if (nowMs >= scheduledMs) action = 'publish'
-      else if (wantsHandoff && nowMs >= handoffMs) action = 'handoff'
+      else if (
+        wantsHandoff &&
+        nowMs >= handoffMs &&
+        scheduledMs - nowMs >= adapter.minHandoffLeadMs(account)
+      )
+        action = 'handoff'
       if (!action) continue
 
       // Missed check only applies to first attempts. Retries and manual retries set next_attempt.
@@ -174,7 +183,7 @@ export class Scheduler {
     // 2. Handed off or processing targets: ask the platform whether they went live.
     const watch = this.d.db
       .prepare(
-        `SELECT t.*, p.scheduled_at_utc, p.title, p.caption, p.video_path, b.name AS brand_name
+        `SELECT t.*, p.scheduled_at_utc, p.title, p.caption, p.video_path, p.brand_id, b.name AS brand_name
          FROM post_targets t
          JOIN posts p ON p.id = t.post_id
          JOIN brands b ON b.id = p.brand_id
@@ -231,31 +240,61 @@ export class Scheduler {
     return res.changes === 1 ? token : null
   }
 
+  private loadAccount(accountId: number | null): Account | null {
+    if (!accountId) return null
+    const a = this.d.db.prepare('SELECT * FROM accounts WHERE id = ?').get(accountId) as any
+    if (!a) return null
+    return {
+      id: a.id,
+      brandId: a.brand_id,
+      platform: a.platform,
+      displayName: a.display_name,
+      avatarUrl: a.avatar_url,
+      externalId: a.external_id,
+      status: a.status,
+      mode: a.mode,
+      lastCheckedAt: a.last_checked_at,
+    }
+  }
+
+  private targetState(id: number): Record<string, unknown> {
+    const r = this.d.db.prepare('SELECT settings_json FROM post_targets WHERE id = ?').get(id) as
+      { settings_json: string | null } | undefined
+    try {
+      return r?.settings_json ? JSON.parse(r.settings_json) : {}
+    } catch {
+      return {}
+    }
+  }
+
   private buildContext(row: DueRow): AdapterContext {
-    const account = row.account_id
-      ? ((this.d.db.prepare('SELECT * FROM accounts WHERE id = ?').get(row.account_id) as any) ??
-        null)
-      : null
-    const acct: Account | null = account
-      ? {
-          id: account.id,
-          brandId: account.brand_id,
-          platform: account.platform,
-          displayName: account.display_name,
-          status: account.status,
-          mode: account.mode,
-        }
-      : null
+    let lastProgressWrite = 0
+    const setState = (patch: Record<string, unknown>) => {
+      const next = { ...this.targetState(row.id), ...patch }
+      this.d.db
+        .prepare('UPDATE post_targets SET settings_json = ? WHERE id = ?')
+        .run(JSON.stringify(next), row.id)
+    }
     return {
       postId: row.post_id,
       targetId: row.id,
+      brandId: row.brand_id,
       brandName: row.brand_name,
       title: row.title,
       caption: row.caption_override ?? row.caption,
       aiFlag: !!row.ai_flag,
       videoAbsPath: this.d.library.resolve(row.video_path),
       scheduledAtUtc: row.scheduled_at_utc,
-      account: acct,
+      account: this.loadAccount(row.account_id),
+      getState: () => this.targetState(row.id),
+      setState,
+      reportProgress: (fraction) => {
+        const t = Date.now()
+        if (fraction < 1 && t - lastProgressWrite < 1500) return
+        lastProgressWrite = t
+        setState({ progress: Math.round(fraction * 1000) / 1000 })
+        this.d.emit?.()
+      },
     }
   }
 
@@ -263,10 +302,10 @@ export class Scheduler {
     const token = this.lock(row.id, this.now())
     if (!token) return // someone else has it, never double post
     this.inFlight.add(row.id)
-    const adapter = this.d.adapters[row.platform]
     const label = PLATFORM_LABELS[row.platform]
     try {
       const ctx = this.buildContext(row)
+      const adapter = this.d.adapterFor(row.platform, ctx.account)
       if (ctx.account) await adapter.refreshIfNeeded(ctx.account)
       await adapter.validate(ctx)
       const result =
@@ -309,7 +348,7 @@ export class Scheduler {
     this.inFlight.add(row.id)
     try {
       const ctx = this.buildContext(row)
-      const result = await this.d.adapters[row.platform].checkStatus(ctx, this.now())
+      const result = await this.d.adapterFor(row.platform, ctx.account).checkStatus(ctx, this.now())
       if (result.status === 'posted') {
         const nowIso = new Date(this.now()).toISOString()
         this.d.db
@@ -325,10 +364,14 @@ export class Scheduler {
         this.afterTargetChange(row.post_id)
       }
     } catch (err) {
-      this.d.log.log('warn', `Status check failed: ${(err as Error).message}`, {
-        postId: row.post_id,
-        platform: row.platform,
-      })
+      if (err instanceof AdapterError && err.kind === 'permanent') {
+        this.failTarget(row, err.message, { kind: 'permanent', source: 'status check' })
+      } else {
+        this.d.log.log('warn', `Status check failed: ${(err as Error).message}`, {
+          postId: row.post_id,
+          platform: row.platform,
+        })
+      }
     } finally {
       this.inFlight.delete(row.id)
     }
@@ -356,22 +399,53 @@ export class Scheduler {
         { postId: row.post_id, platform: row.platform, detail: { kind, attempt: t.attempts } },
       )
     } else {
-      this.d.db
-        .prepare(
-          "UPDATE post_targets SET status = 'failed', last_error = ?, next_attempt_at_utc = NULL, lock_token = NULL, locked_at_utc = NULL WHERE id = ?",
-        )
-        .run(reason, row.id)
-      this.d.log.log('error', `${label} failed for "${row.title}": ${reason}`, {
-        postId: row.post_id,
-        platform: row.platform,
-        detail: { kind, attempts: t.attempts },
-      })
-      this.d.notifier.failure(
-        COPY.failureHeadline,
-        COPY.failureDetail(label, row.brand_name, row.title, reason),
-      )
+      this.failTarget(row, reason, { kind, attempts: t.attempts })
+      return
     }
     this.afterTargetChange(row.post_id)
+  }
+
+  private failTarget(row: DueRow, reason: string, detail: Record<string, unknown>): void {
+    const label = PLATFORM_LABELS[row.platform]
+    this.d.db
+      .prepare(
+        "UPDATE post_targets SET status = 'failed', last_error = ?, next_attempt_at_utc = NULL, lock_token = NULL, locked_at_utc = NULL WHERE id = ?",
+      )
+      .run(reason, row.id)
+    this.d.log.log('error', `${label} failed for "${row.title}": ${reason}`, {
+      postId: row.post_id,
+      platform: row.platform,
+      detail,
+    })
+    this.d.notifier.failure(
+      COPY.failureHeadline,
+      COPY.failureDetail(label, row.brand_name, row.title, reason),
+    )
+    this.afterTargetChange(row.post_id)
+  }
+
+  /** The owner finished a Manual assist post by hand. */
+  markPosted(targetId: number, url?: string): void {
+    const t = this.d.db
+      .prepare('SELECT post_id, status, platform FROM post_targets WHERE id = ?')
+      .get(targetId) as { post_id: number; status: TargetStatus; platform: Platform } | undefined
+    if (!t) throw new Error('That platform entry no longer exists.')
+    if (t.status !== 'needs_action')
+      throw new Error('Only a post waiting for you can be marked as posted.')
+    const link = url?.trim() || null
+    if (link && !/^https?:\/\//i.test(link))
+      throw new Error('The video link must start with http:// or https://')
+    this.d.db
+      .prepare(
+        "UPDATE post_targets SET status = 'posted', posted_at_utc = ?, external_url = COALESCE(?, external_url), last_error = NULL WHERE id = ?",
+      )
+      .run(new Date(this.now()).toISOString(), link, targetId)
+    this.d.log.log('info', `${PLATFORM_LABELS[t.platform]} marked as posted by hand.`, {
+      postId: t.post_id,
+      platform: t.platform,
+    })
+    this.afterTargetChange(t.post_id)
+    this.d.emit?.()
   }
 
   /** Recomputes the post status and moves the file once every target succeeded. */

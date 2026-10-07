@@ -9,6 +9,7 @@ export const COPY = {
   emptyCalendar: 'Nothing scheduled. The algorithm is hungry.',
   emptyQueue: 'Nothing in the queue. Add a video from New Post or Bulk Upload.',
   emptyLog: 'No activity yet.',
+  reauthHeadline: 'YouTube needs you to sign in again.',
   missedHeadline: 'Missed it. The Mac was asleep.',
   textAssistPlaceholder: 'AI assist (coming soon)',
   dryRunBadge: 'dry run',

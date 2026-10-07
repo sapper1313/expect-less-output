@@ -29,6 +29,7 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
   const [platforms, setPlatforms] = useState<Post['targets'][number]['platform'][]>([])
   const [confirm, setConfirm] = useState<'cancel' | 'delete' | null>(null)
   const [alsoFile, setAlsoFile] = useState(false)
+  const [urls, setUrls] = useState<Record<number, string>>({})
 
   useEffect(() => {
     if (post && (!draft || draft.id !== post.id)) {
@@ -45,6 +46,8 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
   const locked = ['posted', 'in_progress'].includes(draft.status)
   const counters = captionCounters(draft.title, draft.caption)
   const failed = draft.targets.filter((t) => t.status === 'failed')
+  const waiting = draft.targets.filter((t) => t.status === 'needs_action')
+  const uploading = draft.targets.filter((t) => t.status === 'uploading' && t.progress !== null)
   const set = <K extends keyof Post>(k: K, v: Post[K]) => setDraft({ ...draft, [k]: v })
 
   async function save(status?: 'draft' | 'scheduled') {
@@ -133,6 +136,47 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
               )}
             </div>
           )}
+
+          {waiting.length > 0 && (
+            <div className="rounded-md border border-warn p-3">
+              <div className="display text-2xl text-warn">Waiting for you</div>
+              {waiting.map((t) => (
+                <div key={t.id} className="mt-2 space-y-2 text-[13px]">
+                  <div>
+                    {PLATFORM_LABELS[t.platform]}, {draft.brandName}, "{draft.title}": the title and
+                    description were copied. Upload the video by hand, then mark it done.
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Video link (optional)"
+                      value={urls[t.id] ?? ''}
+                      onChange={(e) => setUrls({ ...urls, [t.id]: e.target.value })}
+                    />
+                    <Button
+                      variant="primary"
+                      disabled={busy}
+                      onClick={() => run(() => api.posts.markPosted(t.id, urls[t.id]))}
+                    >
+                      Mark as posted
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {uploading.map((t) => (
+            <div key={t.id}>
+              <div className="mb-1 text-[12px] text-muted">
+                Uploading to {PLATFORM_LABELS[t.platform]}: {Math.round((t.progress ?? 0) * 100)}%
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded bg-surface2">
+                <div
+                  className="h-full bg-hot"
+                  style={{ width: `${Math.round((t.progress ?? 0) * 100)}%` }}
+                />
+              </div>
+            </div>
+          ))}
 
           <Field label="Title">
             <Input

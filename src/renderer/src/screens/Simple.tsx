@@ -5,7 +5,7 @@ import { formatEastern } from '@shared/time'
 import type { LogFilter, Settings } from '@shared/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
-import { BrandDot, Button, Card, Check, Empty, Field, Input, PageHeader, Select } from '../ui'
+import { Button, Card, Check, Empty, Field, Input, PageHeader, Select } from '../ui'
 import logoStacked from '../assets/logo-stacked.jpg'
 
 const LEVEL_STYLE = { info: 'text-muted', warn: 'text-warn', error: 'text-bad' }
@@ -66,47 +66,6 @@ export function Activity() {
             ))}
           </div>
         )}
-      </div>
-    </div>
-  )
-}
-
-export function Connections() {
-  const { data: brands } = useLoad(() => api.brands.list())
-  const { data: accounts } = useLoad(() => api.accounts.list())
-  return (
-    <div className="h-full overflow-auto pb-10">
-      <PageHeader title={COPY.nav.connections} />
-      <div className="space-y-4 px-8">
-        <Card>
-          <p className="text-muted">
-            Real connections to YouTube, Facebook, Instagram and TikTok arrive in later phases.
-            Until then every brand has a dry run account for each platform. Dry runs wait a few
-            seconds and report success, and never contact any platform.
-          </p>
-        </Card>
-        {brands?.map((b) => (
-          <Card key={b.id} title={b.name}>
-            <div className="mb-2">
-              <BrandDot color={b.color} />
-            </div>
-            <div className="grid gap-2 md:grid-cols-4">
-              {PLATFORMS.map((p) => {
-                const a = accounts?.find((x) => x.brandId === b.id && x.platform === p)
-                return (
-                  <div key={p} className="rounded-md border border-line p-3">
-                    <div className="font-semibold">{PLATFORM_LABELS[p]}</div>
-                    <div className="text-[12px] text-muted">
-                      {a
-                        ? `${a.displayName ?? 'Account'} (${a.mode.replace('_', ' ')})`
-                        : 'Not connected'}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </Card>
-        ))}
       </div>
     </div>
   )
@@ -261,8 +220,8 @@ export function SettingsScreen() {
 
         <Card title="Connections">
           <p className="text-muted">
-            Platform logins will be set up here in later phases. Secrets are stored encrypted in the
-            macOS Keychain and are never shown in full. Keychain encryption is{' '}
+            Google and YouTube logins are on the Connections screen. Secrets are stored encrypted in
+            the macOS Keychain and are never shown in full. Keychain encryption is{' '}
             {info?.encryptionAvailable ? 'available' : 'NOT available'} on this Mac.
           </p>
         </Card>

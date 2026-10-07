@@ -5,6 +5,11 @@ import type {
   Brand,
   BrandDefaults,
   BrandSlot,
+  ConnectResult,
+  GoogleCredentialsStatus,
+  QuotaStatus,
+  YoutubeMode,
+  YoutubeOption,
   HashtagSet,
   LogEntry,
   LogFilter,
@@ -74,6 +79,7 @@ export interface Api {
     cancel(ids: number[]): Promise<void>
     remove(ids: number[], alsoDeleteFile: boolean): Promise<void>
     retryTarget(targetId: number): Promise<void>
+    markPosted(targetId: number, url?: string): Promise<void>
     postNow(id: number): Promise<void>
   }
   log: {
@@ -84,6 +90,19 @@ export interface Api {
     pause(): Promise<void>
     resume(): Promise<void>
     simulateFailure(platform: Platform | null, kind?: 'transient' | 'permanent'): Promise<void>
+  }
+  youtube: {
+    credentialsStatus(): Promise<GoogleCredentialsStatus>
+    saveCredentials(clientId: string, clientSecret: string): Promise<GoogleCredentialsStatus>
+    connect(brandId: number): Promise<ConnectResult>
+    finishConnect(sessionId: string, channelId: string): Promise<ConnectResult>
+    cancelConnect(): Promise<void>
+    disconnect(brandId: number): Promise<void>
+    setMode(brandId: number, mode: YoutubeMode): Promise<void>
+    quota(): Promise<QuotaStatus>
+    categories(): Promise<YoutubeOption[]>
+    playlists(brandId: number): Promise<YoutubeOption[]>
+    checkHealth(): Promise<void>
   }
   textAssist: {
     available(): Promise<boolean>

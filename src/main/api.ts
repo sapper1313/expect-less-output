@@ -9,6 +9,7 @@ import type { SettingsService } from './services/settings'
 import type { Scheduler } from './scheduler/scheduler'
 import type { Library } from './services/library'
 import { noneProvider } from './services/textAssist'
+import type { YoutubeService } from './google/youtubeService'
 
 /** The parts that need Electron. Everything else is plain services. */
 export interface Host {
@@ -29,6 +30,7 @@ export interface ApiDeps {
   scheduler: Scheduler
   secrets: SecretStore
   library: Library
+  youtube: YoutubeService
   host: Host
   emit: () => void
 }
@@ -102,6 +104,7 @@ export function buildApi(d: ApiDeps): Api {
       cancel: async (ids) => d.posts.cancel(ids),
       remove: async (ids, alsoDeleteFile) => d.posts.remove(ids, alsoDeleteFile),
       retryTarget: async (id) => d.scheduler.retryTarget(id),
+      markPosted: async (id, url) => d.scheduler.markPosted(id, url),
       postNow: async (id) => d.scheduler.postNow(id),
     },
     log: { list: async (filter) => d.log.list(filter) },
@@ -122,6 +125,19 @@ export function buildApi(d: ApiDeps): Api {
         d.settings.set({ dryRunFailPlatform: platform, dryRunFailKind: kind })
         d.emit()
       },
+    },
+    youtube: {
+      credentialsStatus: async () => d.youtube.credentialsStatus(),
+      saveCredentials: async (id, secret) => d.youtube.saveCredentials(id, secret),
+      connect: async (brandId) => d.youtube.connect(brandId),
+      finishConnect: async (sessionId, channelId) => d.youtube.finishConnect(sessionId, channelId),
+      cancelConnect: async () => d.youtube.cancelConnect(),
+      disconnect: async (brandId) => d.youtube.disconnect(brandId),
+      setMode: async (brandId, mode) => d.youtube.setMode(brandId, mode),
+      quota: async () => d.youtube.quotaStatus(),
+      categories: async () => d.youtube.categories(),
+      playlists: async (brandId) => d.youtube.playlists(brandId),
+      checkHealth: async () => d.youtube.checkHealth(true),
     },
     textAssist: { available: async () => noneProvider.available },
   }

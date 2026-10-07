@@ -32,4 +32,30 @@ In this website project, add four new pages that match the existing site design.
    - Must be served over HTTPS at exactly `https://expectlessmedia.com/oauth/tiktok/` (with the trailing slash working).
    - The page must not be indexed: add `<meta name="robots" content="noindex">`.
 
+///////
 Then deploy, give me the four live URLs, and give me numbered steps to confirm each page loads on my phone.
+
+Start the app in dev mode
+
+Open Terminal and run cd ~/Projects/expect-less-output.
+Run npm run dev (the first time, run npm install first).
+
+Build and install it
+
+Run npm run dist.
+Open the release folder and double click the .dmg.
+Drag Expect Less Output onto Applications.
+Right click the app, choose Open, then click Open again.
+////////
+
+https://expectlessmedia.com/output/
+ https://expectlessmedia.com/oauth/tiktok/?code=test123&state=abc
+
+https://expectlessmedia.com/privacy/
+https://expectlessmedia.com/terms
+
+475345681711-dfqb0nqdndp8es56pt6lfq4ekljjlfks.apps.googleusercontent.com
+
+[secret removed, kept in a private file outside the repo]
+
+

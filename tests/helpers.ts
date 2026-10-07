@@ -6,15 +6,19 @@ import { migrate } from '../src/main/db'
 import { seedIfEmpty } from '../src/main/db/seed'
 import { ActivityLog } from '../src/main/services/activity'
 import { Library } from '../src/main/services/library'
+import { BrandService } from '../src/main/services/brands'
 import { PostService } from '../src/main/services/posts'
 import { SettingsService } from '../src/main/services/settings'
 import { Scheduler, type Notifier } from '../src/main/scheduler/scheduler'
 import { DryRunAdapter } from '../src/main/adapters/dryRun'
 import { PLATFORMS } from '../src/shared/platformLimits'
-import type { Platform } from '../src/shared/types'
+import type { Account, Platform } from '../src/shared/types'
 import type { PlatformAdapter } from '../src/main/adapters/types'
 
-export function makeEnv(startMs = Date.UTC(2026, 5, 1, 12, 0, 0)) {
+export function makeEnv(
+  startMs = Date.UTC(2026, 5, 1, 12, 0, 0),
+  opts: { adapterFor?: (platform: Platform, account: Account | null) => PlatformAdapter } = {},
+) {
   const db = new Database(':memory:')
   db.pragma('foreign_keys = ON')
   migrate(db)
@@ -48,7 +52,7 @@ export function makeEnv(startMs = Date.UTC(2026, 5, 1, 12, 0, 0)) {
     library,
     log,
     getSettings: () => settings.get(),
-    adapters,
+    adapterFor: opts.adapterFor ?? ((platform) => adapters[platform]),
     notifier,
     now: () => clock.ms,
   })
@@ -72,5 +76,18 @@ export function makeEnv(startMs = Date.UTC(2026, 5, 1, 12, 0, 0)) {
       targets: (opts.platforms ?? PLATFORMS).map((platform) => ({ platform, aiFlag: false })),
     })
   }
-  return { db, root, settings, library, log, posts, scheduler, clock, events, makePost }
+  const brandsSvc = new BrandService(db, (name) => library.ensureBrandFolders(name))
+  return {
+    db,
+    root,
+    brands: brandsSvc,
+    settings,
+    library,
+    log,
+    posts,
+    scheduler,
+    clock,
+    events,
+    makePost,
+  }
 }

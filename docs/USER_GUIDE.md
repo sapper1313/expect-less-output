@@ -2,7 +2,7 @@
 
 This guide is for you, the owner. Every step is meant to be followed exactly, one at a time.
 
-Phase 1 note: the app does not talk to YouTube, Facebook, Instagram or TikTok yet. Every platform is a "dry run". A dry run waits a few seconds and says it worked. Real connections come in the next phases.
+Phase note: YouTube is real now (Phase 2). Facebook, Instagram and TikTok are still "dry runs". A dry run waits a few seconds and says it worked, and never contacts the platform. Their real connections come in later phases.
 
 ---
 
@@ -100,3 +100,55 @@ If macOS still refuses: open **System Settings**, then **Privacy and Security**,
 - If the Mac was asleep when a post was due, the app posts it on wake if it is less than 2 hours late (change this in Settings). Otherwise it holds the post as **missed** and tells you.
 - Your data lives in `~/Library/Application Support/Expect Less Output`. Videos live in the Media Root folder (default `~/Movies/Expect Less Output`). Nothing is sent anywhere.
 - Video files are copied into the app's Queue folder when you save a post. Your original file is never touched.
+
+---
+
+## 8. YouTube: connect a channel (Phase 2)
+
+Do SETUP_A_GOOGLE_YOUTUBE.md steps 1 to 5 first. You need a Client ID and a Client Secret.
+
+Keep the downloaded Google keys file outside the project folder (for example in `Documents`, in a folder named `ELO Keys`). Never share it.
+
+### Save the Google credentials (once)
+
+1. Open the app and click **Connections**.
+2. In the **Google / YouTube credentials** box, paste the **Client ID** and the **Client Secret**. You can copy them from the downloaded JSON file (open it with TextEdit).
+3. Click **Save**. They are stored encrypted. From now on the app only shows the last 4 characters.
+
+### Connect each brand's channel
+
+1. On **Connections**, find the brand's card. Click **Connect YouTube**.
+2. Your browser opens. Pick that brand's Google account.
+3. If you see "Google hasn't verified this app", click **Advanced**, then **Go to Expect Less Output (unsafe)**. This is expected for your own private app.
+4. If Google asks which channel to use, pick the brand's channel. Tick every permission box. Click **Continue**.
+5. The browser page says **Connected. You can close this tab and return to Expect Less Output.** Close the tab.
+6. Back in the app, the card shows the channel name and a green **connected** label. If the account has several channels, the app asks you to pick one.
+7. Repeat for the next brand.
+
+To change channels, click **Reconnect**. To remove it, click **Disconnect**.
+
+### Choose a mode
+
+Each connected channel has a **Mode** box on its card.
+
+- **Manual assist** (the starting mode). At the scheduled time the app shows a notification, copies the title and description, and opens YouTube Studio. You upload the video yourself. Then open the post (Calendar or Queue) and click **Mark as posted**. You can paste the video link if you want.
+- **Test private**. The app really uploads, but the video stays **private**. Use it for testing only.
+- **Auto**. The app uploads early (3 hours before, set in Settings) and YouTube publishes at the exact time. **Switch to Auto only after Google approves your audit (SETUP_A step 9).** Until then Google locks every upload to private.
+
+### Test a private upload
+
+1. On **Connections**, set the brand's mode to **Test private**.
+2. Click **New Post**. Pick a short vertical video and that brand. Keep only **YouTube** ticked. Tick the **AI** box for YouTube if you want to test it.
+3. Under **When**, choose **Pick a different time...** and set it 5 minutes from now.
+4. Click **Fine.**
+5. Wait. The app checks every 30 seconds, so allow a minute past the time. Open the post to see the upload progress.
+6. Open **YouTube Studio** (studio.youtube.com) as that brand's account, then **Content**. The video is there as **Private**. Open it and check **Altered content** says Yes if you ticked the AI box.
+7. **Delete the test video:** in YouTube Studio click the three dots next to it, then **Delete forever**. Confirm.
+8. Back in the app, set the mode to **Manual assist** again.
+
+### If something goes wrong
+
+- **needs sign in** on a card: Google stopped accepting the saved login. Click **Reconnect** on that brand's card.
+- **Google has not approved your app yet**: the video was locked to private. Use **Manual assist** until the audit is approved.
+- **Daily limit**: the Connections screen shows how much of today's YouTube limit is used. It resets at midnight Pacific. You get a warning at 80 percent.
+- You cannot move a post after the app has handed it to YouTube (Auto mode, inside the handoff window). Cancel the post, delete the scheduled video in YouTube Studio, then schedule it again.

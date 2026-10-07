@@ -8,7 +8,8 @@ import { Queue } from './screens/Queue'
 import { NewPost } from './screens/NewPost'
 import { Bulk } from './screens/Bulk'
 import { Brands } from './screens/Brands'
-import { About, Activity, Connections, SettingsScreen } from './screens/Simple'
+import { About, Activity, SettingsScreen } from './screens/Simple'
+import { Connections } from './screens/Connections'
 import logoWide from './assets/logo-wide.png'
 
 type Screen =

@@ -114,3 +114,7 @@ Until this is approved, any video uploaded through your app is locked as Private
    - If asked for screenshots or a screen recording, record Expect Less Output connecting a channel and scheduling a post (Command + Shift + 5 on the Mac records the screen).
 4. Submit. Approval can take days to weeks. Watch the owner email for questions from Google and answer them quickly.
 5. When approved, switch each YouTube account's mode in Expect Less Output to **Auto**.
+
+
+app: 475345681711
+

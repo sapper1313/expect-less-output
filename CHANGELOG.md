@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 Phase 2: YouTube (Shorts)
+
+- Google credentials (Client ID and Secret) saved in the encrypted secret store, shown masked.
+- Connect a YouTube channel per brand with the installed-app loopback flow (PKCE, offline access). Brand Account channel picker. Connect, Reconnect and Disconnect.
+- Per channel modes: Manual assist (notify, copy title and description, open Studio, Mark as posted), Test private, Auto (early handoff with publishAt, public upload when under 15 minutes away).
+- Resumable uploads with progress, resume after dropped connections, token refresh, and duplicate protection.
+- Token health: automatic refresh, needs_reauth on invalid_grant with an alert, daily channel check.
+- Quota guard with two buckets (uploads, everything else), Pacific day reset, warning at 80 percent.
+- Brand settings: YouTube category list from YouTube, playlist picker, Append #Shorts.
+- Docs check: quota costs changed (videos.insert is 1 unit in its own 100 per day bucket). Unverified projects are still locked to private.
+
 ## 0.1.0 Phase 1: core app (dry run only)
 
 - Electron, React, Tailwind, SQLite app shell with a menu bar icon. Closing the window keeps the scheduler running.
