@@ -1,0 +1,2520 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Expect Less Output local agent API",
+    "version": "1.0.0",
+    "description": "Runs inside the Expect Less Output app on 127.0.0.1 only. Off until the owner turns it on in Settings. Send the token as \"Authorization: Bearer <token>\". Scheduled posts only go out while the app is running. Agents can never connect accounts, change credentials, or delete files."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:47821",
+      "description": "Default port. The owner can change it in Settings."
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/v1/brands": {
+      "get": {
+        "operationId": "listBrands",
+        "summary": "List brands with their slots, defaults and connected platforms.",
+        "x-mcp-tool": "list_brands",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "brands": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string"
+                          },
+                          "archived": {
+                            "type": "boolean"
+                          },
+                          "paused": {
+                            "type": "boolean"
+                          },
+                          "inbox_enabled": {
+                            "type": "boolean"
+                          },
+                          "slots": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "day_type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "weekday",
+                                    "weekend"
+                                  ]
+                                },
+                                "time_local": {
+                                  "type": "string",
+                                  "example": "17:00"
+                                },
+                                "enabled": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "day_type",
+                                "time_local",
+                                "enabled"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "Posting times, in Eastern time."
+                          },
+                          "defaults": {
+                            "type": "object",
+                            "properties": {
+                              "caption_template": {
+                                "type": "string"
+                              },
+                              "default_hashtags": {
+                                "type": "string"
+                              },
+                              "youtube_category_id": {
+                                "type": "string"
+                              },
+                              "youtube_made_for_kids": {
+                                "type": "boolean"
+                              },
+                              "youtube_append_shorts": {
+                                "type": "boolean"
+                              },
+                              "instagram_share_to_feed": {
+                                "type": "boolean"
+                              },
+                              "ai_flags": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "boolean"
+                                }
+                              }
+                            },
+                            "required": [
+                              "caption_template",
+                              "default_hashtags",
+                              "youtube_category_id",
+                              "youtube_made_for_kids",
+                              "youtube_append_shorts",
+                              "instagram_share_to_feed",
+                              "ai_flags"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "hashtag_sets": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "tags": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "tags"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "platforms": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "platform": {
+                                  "type": "string",
+                                  "enum": [
+                                    "youtube",
+                                    "facebook",
+                                    "instagram",
+                                    "tiktok"
+                                  ]
+                                },
+                                "connected": {
+                                  "type": "boolean",
+                                  "description": "True when a real account is connected. False means a dry run placeholder."
+                                },
+                                "mode": {
+                                  "type": "string"
+                                },
+                                "account_name": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "needs_reauth": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "platform",
+                                "connected",
+                                "mode",
+                                "account_name",
+                                "needs_reauth"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "color",
+                          "archived",
+                          "paused",
+                          "inbox_enabled",
+                          "slots",
+                          "defaults",
+                          "hashtag_sets",
+                          "platforms"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "brands"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/slots/next-open": {
+      "get": {
+        "operationId": "nextOpenSlots",
+        "summary": "The next open posting slots for a brand (slots already taken by scheduled posts are skipped).",
+        "x-mcp-tool": "get_next_open_slots",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brand_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 3,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Start looking after this time. Defaults to now.",
+              "type": "string",
+              "pattern": "(Z|[+-]\\d{2}:\\d{2})$",
+              "example": "2026-06-02T17:00:00-04:00"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "brand_id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "slots": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "at": {
+                            "type": "string",
+                            "description": "UTC"
+                          },
+                          "eastern": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "at",
+                          "eastern"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "brand_id",
+                    "slots"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/posts": {
+      "post": {
+        "operationId": "createPost",
+        "summary": "Create a post from a video file. Creates a draft unless agents are allowed to schedule.",
+        "description": "The video is copied into the brand Queue folder. While the app setting \"Agents may create drafts only\" is on, asking for status scheduled or next_slot true is refused with HTTP 403 and code drafts_only. Nothing is silently downgraded.",
+        "x-mcp-tool": "create_post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "brand_id": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991,
+                    "description": "Brand to post for. See GET /v1/brands."
+                  },
+                  "file_path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Absolute path to an .mp4 or .mov file on this Mac. It is COPIED into the brand Queue folder. The original is never moved or deleted."
+                  },
+                  "title": {
+                    "description": "Defaults to the file name, cleaned up.",
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "caption": {
+                    "description": "Shared caption. Defaults to the brand's caption template filled in with the title and the default hashtag set.",
+                    "type": "string",
+                    "maxLength": 5000
+                  },
+                  "platforms": {
+                    "description": "Defaults to every platform that is connected for the brand.",
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "youtube",
+                        "facebook",
+                        "instagram",
+                        "tiktok"
+                      ]
+                    }
+                  },
+                  "caption_overrides": {
+                    "description": "Per-platform caption that replaces the shared one.",
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "ai_flags": {
+                    "description": "AI-generated disclosure per platform. Defaults to the brand's defaults.",
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "boolean"
+                    }
+                  },
+                  "tiktok": {
+                    "type": "object",
+                    "properties": {
+                      "privacy": {
+                        "description": "One of the privacy options TikTok allows for the account, for example SELF_ONLY or PUBLIC_TO_EVERYONE.",
+                        "type": "string"
+                      },
+                      "allow_comment": {
+                        "type": "boolean"
+                      },
+                      "allow_duet": {
+                        "type": "boolean"
+                      },
+                      "allow_stitch": {
+                        "type": "boolean"
+                      },
+                      "commercial_content": {
+                        "type": "object",
+                        "properties": {
+                          "your_brand": {
+                            "type": "boolean"
+                          },
+                          "branded_content": {
+                            "type": "boolean"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "consent": {
+                        "description": "True only if the owner has agreed to TikTok's consent line (Music Usage Confirmation). Do not set this on the owner's behalf.",
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Choices for a TikTok Direct Post. Not needed for Drafts mode."
+                  },
+                  "thumb_offset_ms": {
+                    "description": "Instagram cover frame, milliseconds from the start.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "scheduled_at": {
+                    "type": "string",
+                    "pattern": "(Z|[+-]\\d{2}:\\d{2})$",
+                    "description": "ISO 8601 date and time WITH a zone offset or Z.",
+                    "example": "2026-06-02T17:00:00-04:00"
+                  },
+                  "next_slot": {
+                    "description": "Use the brand's next open slot. Not allowed while agents are limited to drafts.",
+                    "type": "boolean"
+                  },
+                  "status": {
+                    "default": "draft",
+                    "description": "draft (default) or scheduled. Scheduled is refused with 403 while agents are limited to drafts.",
+                    "type": "string",
+                    "enum": [
+                      "draft",
+                      "scheduled"
+                    ]
+                  }
+                },
+                "required": [
+                  "brand_id",
+                  "file_path"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "brand_id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "brand_name": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "caption": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "scheduled",
+                        "in_progress",
+                        "partial",
+                        "posted",
+                        "failed",
+                        "missed",
+                        "canceled"
+                      ]
+                    },
+                    "scheduled_at": {
+                      "nullable": true,
+                      "description": "UTC.",
+                      "type": "string"
+                    },
+                    "scheduled_at_eastern": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "file_name": {
+                      "type": "string"
+                    },
+                    "duration_seconds": {
+                      "nullable": true,
+                      "type": "number"
+                    },
+                    "targets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "platform": {
+                            "type": "string",
+                            "enum": [
+                              "youtube",
+                              "facebook",
+                              "instagram",
+                              "tiktok"
+                            ]
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "caption_override": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "ai_flag": {
+                            "type": "boolean"
+                          },
+                          "attempts": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "last_error": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "external_url": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "progress": {
+                            "nullable": true,
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "platform",
+                          "status",
+                          "caption_override",
+                          "ai_flag",
+                          "attempts",
+                          "last_error",
+                          "external_url",
+                          "progress"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "brand_id",
+                    "brand_name",
+                    "title",
+                    "caption",
+                    "status",
+                    "scheduled_at",
+                    "scheduled_at_eastern",
+                    "file_name",
+                    "duration_seconds",
+                    "targets",
+                    "created_at",
+                    "updated_at"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listPosts",
+        "summary": "List posts, newest schedule first.",
+        "x-mcp-tool": "list_posts",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brand_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "scheduled",
+                "in_progress",
+                "partial",
+                "posted",
+                "failed",
+                "missed",
+                "canceled"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "(Z|[+-]\\d{2}:\\d{2})$",
+              "description": "ISO 8601 date and time WITH a zone offset or Z.",
+              "example": "2026-06-02T17:00:00-04:00"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "(Z|[+-]\\d{2}:\\d{2})$",
+              "description": "ISO 8601 date and time WITH a zone offset or Z.",
+              "example": "2026-06-02T17:00:00-04:00"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "posts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "brand_id": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "brand_name": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "caption": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "scheduled",
+                              "in_progress",
+                              "partial",
+                              "posted",
+                              "failed",
+                              "missed",
+                              "canceled"
+                            ]
+                          },
+                          "scheduled_at": {
+                            "nullable": true,
+                            "description": "UTC.",
+                            "type": "string"
+                          },
+                          "scheduled_at_eastern": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "file_name": {
+                            "type": "string"
+                          },
+                          "duration_seconds": {
+                            "nullable": true,
+                            "type": "number"
+                          },
+                          "targets": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "platform": {
+                                  "type": "string",
+                                  "enum": [
+                                    "youtube",
+                                    "facebook",
+                                    "instagram",
+                                    "tiktok"
+                                  ]
+                                },
+                                "status": {
+                                  "type": "string"
+                                },
+                                "caption_override": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "ai_flag": {
+                                  "type": "boolean"
+                                },
+                                "attempts": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "last_error": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "external_url": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "progress": {
+                                  "nullable": true,
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "platform",
+                                "status",
+                                "caption_override",
+                                "ai_flag",
+                                "attempts",
+                                "last_error",
+                                "external_url",
+                                "progress"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "updated_at": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "brand_id",
+                          "brand_name",
+                          "title",
+                          "caption",
+                          "status",
+                          "scheduled_at",
+                          "scheduled_at_eastern",
+                          "file_name",
+                          "duration_seconds",
+                          "targets",
+                          "created_at",
+                          "updated_at"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "posts"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/posts/{id}": {
+      "get": {
+        "operationId": "getPost",
+        "summary": "One post with the status of every platform.",
+        "x-mcp-tool": "get_post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "brand_id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "brand_name": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "caption": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "scheduled",
+                        "in_progress",
+                        "partial",
+                        "posted",
+                        "failed",
+                        "missed",
+                        "canceled"
+                      ]
+                    },
+                    "scheduled_at": {
+                      "nullable": true,
+                      "description": "UTC.",
+                      "type": "string"
+                    },
+                    "scheduled_at_eastern": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "file_name": {
+                      "type": "string"
+                    },
+                    "duration_seconds": {
+                      "nullable": true,
+                      "type": "number"
+                    },
+                    "targets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "platform": {
+                            "type": "string",
+                            "enum": [
+                              "youtube",
+                              "facebook",
+                              "instagram",
+                              "tiktok"
+                            ]
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "caption_override": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "ai_flag": {
+                            "type": "boolean"
+                          },
+                          "attempts": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "last_error": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "external_url": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "progress": {
+                            "nullable": true,
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "platform",
+                          "status",
+                          "caption_override",
+                          "ai_flag",
+                          "attempts",
+                          "last_error",
+                          "external_url",
+                          "progress"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "brand_id",
+                    "brand_name",
+                    "title",
+                    "caption",
+                    "status",
+                    "scheduled_at",
+                    "scheduled_at_eastern",
+                    "file_name",
+                    "duration_seconds",
+                    "targets",
+                    "created_at",
+                    "updated_at"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such post.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updatePost",
+        "summary": "Change a post.",
+        "description": "While agents are limited to drafts, only drafts can be changed and status scheduled is refused with 403 drafts_only. Posts that are posting or posted cannot be changed.",
+        "x-mcp-tool": "update_post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 5000
+                  },
+                  "platforms": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "youtube",
+                        "facebook",
+                        "instagram",
+                        "tiktok"
+                      ]
+                    }
+                  },
+                  "caption_overrides": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "ai_flags": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "boolean"
+                    }
+                  },
+                  "tiktok": {
+                    "type": "object",
+                    "properties": {
+                      "privacy": {
+                        "description": "One of the privacy options TikTok allows for the account, for example SELF_ONLY or PUBLIC_TO_EVERYONE.",
+                        "type": "string"
+                      },
+                      "allow_comment": {
+                        "type": "boolean"
+                      },
+                      "allow_duet": {
+                        "type": "boolean"
+                      },
+                      "allow_stitch": {
+                        "type": "boolean"
+                      },
+                      "commercial_content": {
+                        "type": "object",
+                        "properties": {
+                          "your_brand": {
+                            "type": "boolean"
+                          },
+                          "branded_content": {
+                            "type": "boolean"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "consent": {
+                        "description": "True only if the owner has agreed to TikTok's consent line (Music Usage Confirmation). Do not set this on the owner's behalf.",
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Choices for a TikTok Direct Post. Not needed for Drafts mode."
+                  },
+                  "thumb_offset_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "scheduled_at": {
+                    "description": "New time, or null to clear it.",
+                    "nullable": true,
+                    "type": "string",
+                    "pattern": "(Z|[+-]\\d{2}:\\d{2})$",
+                    "example": "2026-06-02T17:00:00-04:00"
+                  },
+                  "status": {
+                    "description": "Changing to scheduled is refused with 403 while agents are limited to drafts.",
+                    "type": "string",
+                    "enum": [
+                      "draft",
+                      "scheduled"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "brand_id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "brand_name": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "caption": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "scheduled",
+                        "in_progress",
+                        "partial",
+                        "posted",
+                        "failed",
+                        "missed",
+                        "canceled"
+                      ]
+                    },
+                    "scheduled_at": {
+                      "nullable": true,
+                      "description": "UTC.",
+                      "type": "string"
+                    },
+                    "scheduled_at_eastern": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "file_name": {
+                      "type": "string"
+                    },
+                    "duration_seconds": {
+                      "nullable": true,
+                      "type": "number"
+                    },
+                    "targets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "platform": {
+                            "type": "string",
+                            "enum": [
+                              "youtube",
+                              "facebook",
+                              "instagram",
+                              "tiktok"
+                            ]
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "caption_override": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "ai_flag": {
+                            "type": "boolean"
+                          },
+                          "attempts": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "last_error": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "external_url": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "progress": {
+                            "nullable": true,
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "platform",
+                          "status",
+                          "caption_override",
+                          "ai_flag",
+                          "attempts",
+                          "last_error",
+                          "external_url",
+                          "progress"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "brand_id",
+                    "brand_name",
+                    "title",
+                    "caption",
+                    "status",
+                    "scheduled_at",
+                    "scheduled_at_eastern",
+                    "file_name",
+                    "duration_seconds",
+                    "targets",
+                    "created_at",
+                    "updated_at"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such post.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The post is not in a state where this can be done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/posts/{id}/cancel": {
+      "post": {
+        "operationId": "cancelPost",
+        "summary": "Cancel a post so it is not published. Nothing is deleted.",
+        "x-mcp-tool": "cancel_post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "brand_id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "brand_name": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "caption": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "scheduled",
+                        "in_progress",
+                        "partial",
+                        "posted",
+                        "failed",
+                        "missed",
+                        "canceled"
+                      ]
+                    },
+                    "scheduled_at": {
+                      "nullable": true,
+                      "description": "UTC.",
+                      "type": "string"
+                    },
+                    "scheduled_at_eastern": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "file_name": {
+                      "type": "string"
+                    },
+                    "duration_seconds": {
+                      "nullable": true,
+                      "type": "number"
+                    },
+                    "targets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "platform": {
+                            "type": "string",
+                            "enum": [
+                              "youtube",
+                              "facebook",
+                              "instagram",
+                              "tiktok"
+                            ]
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "caption_override": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "ai_flag": {
+                            "type": "boolean"
+                          },
+                          "attempts": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "last_error": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "external_url": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "progress": {
+                            "nullable": true,
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "platform",
+                          "status",
+                          "caption_override",
+                          "ai_flag",
+                          "attempts",
+                          "last_error",
+                          "external_url",
+                          "progress"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "brand_id",
+                    "brand_name",
+                    "title",
+                    "caption",
+                    "status",
+                    "scheduled_at",
+                    "scheduled_at_eastern",
+                    "file_name",
+                    "duration_seconds",
+                    "targets",
+                    "created_at",
+                    "updated_at"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such post.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The post is not in a state where this can be done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/posts/{id}/retry": {
+      "post": {
+        "operationId": "retryPost",
+        "summary": "Retry every platform of a post that failed.",
+        "x-mcp-tool": "retry_post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "post": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "brand_id": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "brand_name": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "caption": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "scheduled",
+                            "in_progress",
+                            "partial",
+                            "posted",
+                            "failed",
+                            "missed",
+                            "canceled"
+                          ]
+                        },
+                        "scheduled_at": {
+                          "nullable": true,
+                          "description": "UTC.",
+                          "type": "string"
+                        },
+                        "scheduled_at_eastern": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "file_name": {
+                          "type": "string"
+                        },
+                        "duration_seconds": {
+                          "nullable": true,
+                          "type": "number"
+                        },
+                        "targets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "platform": {
+                                "type": "string",
+                                "enum": [
+                                  "youtube",
+                                  "facebook",
+                                  "instagram",
+                                  "tiktok"
+                                ]
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "caption_override": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "ai_flag": {
+                                "type": "boolean"
+                              },
+                              "attempts": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "last_error": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "external_url": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "progress": {
+                                "nullable": true,
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "platform",
+                              "status",
+                              "caption_override",
+                              "ai_flag",
+                              "attempts",
+                              "last_error",
+                              "external_url",
+                              "progress"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "warnings": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "updated_at": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "brand_id",
+                        "brand_name",
+                        "title",
+                        "caption",
+                        "status",
+                        "scheduled_at",
+                        "scheduled_at_eastern",
+                        "file_name",
+                        "duration_seconds",
+                        "targets",
+                        "created_at",
+                        "updated_at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "retried_targets": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    }
+                  },
+                  "required": [
+                    "post",
+                    "retried_targets"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such post.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The post is not in a state where this can be done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/calendar": {
+      "get": {
+        "operationId": "calendar",
+        "summary": "Scheduled posts as calendar events (canceled posts are left out).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brand_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "(Z|[+-]\\d{2}:\\d{2})$",
+              "description": "ISO 8601 date and time WITH a zone offset or Z.",
+              "example": "2026-06-02T17:00:00-04:00"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "(Z|[+-]\\d{2}:\\d{2})$",
+              "description": "ISO 8601 date and time WITH a zone offset or Z.",
+              "example": "2026-06-02T17:00:00-04:00"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "brand_id": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "brand_name": {
+                            "type": "string"
+                          },
+                          "start": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "scheduled",
+                              "in_progress",
+                              "partial",
+                              "posted",
+                              "failed",
+                              "missed",
+                              "canceled"
+                            ]
+                          },
+                          "platforms": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "platform": {
+                                  "type": "string",
+                                  "enum": [
+                                    "youtube",
+                                    "facebook",
+                                    "instagram",
+                                    "tiktok"
+                                  ]
+                                },
+                                "status": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "platform",
+                                "status"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "brand_id",
+                          "brand_name",
+                          "start",
+                          "status",
+                          "platforms"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "events"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/activity": {
+      "get": {
+        "operationId": "activity",
+        "summary": "Recent activity log entries, newest first.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "(Z|[+-]\\d{2}:\\d{2})$",
+              "description": "ISO 8601 date and time WITH a zone offset or Z.",
+              "example": "2026-06-02T17:00:00-04:00"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "at": {
+                            "type": "string"
+                          },
+                          "level": {
+                            "type": "string",
+                            "enum": [
+                              "info",
+                              "warn",
+                              "error"
+                            ]
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "post_id": {
+                            "nullable": true,
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "platform": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "at",
+                          "level",
+                          "message",
+                          "post_id",
+                          "platform"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "entries"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/health": {
+      "get": {
+        "operationId": "health",
+        "summary": "Accounts, modes, quota and scheduler state.",
+        "x-mcp-tool": "get_health",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "app_version": {
+                      "type": "string"
+                    },
+                    "scheduler": {
+                      "type": "object",
+                      "properties": {
+                        "running": {
+                          "type": "boolean"
+                        },
+                        "paused": {
+                          "type": "boolean"
+                        },
+                        "pending_posts": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "next_post": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "post_id": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "brand": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "at": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "post_id",
+                            "brand",
+                            "title",
+                            "at"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "running",
+                        "paused",
+                        "pending_posts",
+                        "next_post"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "agents": {
+                      "type": "object",
+                      "properties": {
+                        "drafts_only": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "drafts_only"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "accounts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "brand": {
+                            "type": "string"
+                          },
+                          "platform": {
+                            "type": "string",
+                            "enum": [
+                              "youtube",
+                              "facebook",
+                              "instagram",
+                              "tiktok"
+                            ]
+                          },
+                          "account": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "mode": {
+                            "type": "string"
+                          },
+                          "last_checked_at": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "login_expires_at": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "brand",
+                          "platform",
+                          "account",
+                          "status",
+                          "mode",
+                          "last_checked_at",
+                          "login_expires_at"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "youtube_quota": {
+                      "type": "object",
+                      "properties": {
+                        "uploads_used": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "uploads_limit": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "other_used": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "other_limit": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "uploads_used",
+                        "uploads_limit",
+                        "other_used",
+                        "other_limit"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "app_version",
+                    "scheduler",
+                    "agents",
+                    "accounts",
+                    "youtube_quota"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "unauthorized",
+                  "forbidden",
+                  "drafts_only",
+                  "not_found",
+                  "validation",
+                  "bad_request",
+                  "conflict",
+                  "method_not_allowed",
+                  "server_error"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {}
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

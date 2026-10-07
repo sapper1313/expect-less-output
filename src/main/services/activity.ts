@@ -43,6 +43,10 @@ export class ActivityLog {
       where.push('platform = ?')
       args.push(filter.platform)
     }
+    if (filter.sinceUtc) {
+      where.push('ts_utc > ?')
+      args.push(filter.sinceUtc)
+    }
     if (filter.postId) {
       where.push('post_id = ?')
       args.push(filter.postId)

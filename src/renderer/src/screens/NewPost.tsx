@@ -8,6 +8,7 @@ import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { PlatformPicker, SchedulePicker } from '../components/pickers'
 import { PostingAs, TikTokSection, useCreator } from '../components/TikTokSection'
+import { Suggest } from '../components/Suggest'
 import { emptyTikTokSettings, tiktokSettingsProblem } from '@shared/tiktok'
 import type { TikTokPostSettings } from '@shared/types'
 import {
@@ -326,9 +327,35 @@ export function NewPost({ onDone }: { onDone: () => void }) {
               </div>
             )}
             <div className="mt-4 flex items-center justify-between">
-              <Button disabled title="Coming in a later update">
-                {COPY.textAssistPlaceholder}
-              </Button>
+              <div className="flex flex-wrap items-start gap-2">
+                <Suggest
+                  kind="title"
+                  brandId={brandId}
+                  title={title}
+                  caption={caption}
+                  onPick={(t) => setTitle(t)}
+                />
+                <Suggest
+                  kind="caption"
+                  brandId={brandId}
+                  title={title}
+                  caption={caption}
+                  onPick={(t) => {
+                    setCaption(t)
+                    setCaptionTouched(true)
+                  }}
+                />
+                <Suggest
+                  kind="hashtags"
+                  brandId={brandId}
+                  title={title}
+                  caption={caption}
+                  onPick={(t) => {
+                    setCaption((c) => `${c.trim()}${c.trim() ? '\n\n' : ''}${t}`)
+                    setCaptionTouched(true)
+                  }}
+                />
+              </div>
             </div>
           </Card>
 

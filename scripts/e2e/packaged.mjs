@@ -2,7 +2,10 @@
 // Also checks the launch at login setting round trip, and puts it back the way it was.
 import { launch, shot, nav, invoke, sleep } from './lib.mjs'
 import { join } from 'path'
-const exe = join(process.cwd(), 'release/mac-arm64/Expect Less Output.app/Contents/MacOS/Expect Less Output')
+const exe = join(
+  process.cwd(),
+  'release/mac-arm64/Expect Less Output.app/Contents/MacOS/Expect Less Output',
+)
 const { app, page } = await launch({ executablePath: exe })
 const info = await invoke(page, 'app.info')
 console.log('version', info.version)
@@ -12,7 +15,11 @@ console.log('Connections cards:', (await page.locator('section h2').allTextConte
 await nav(page, 'Settings')
 await sleep(500)
 console.log('Settings cards:', (await page.locator('section h2').allTextContents()).join(' | '))
-console.log('Backup buttons:', await page.getByRole('button', { name: 'Export backup' }).count(), await page.getByRole('button', { name: 'Restore from backup' }).count())
+console.log(
+  'Backup buttons:',
+  await page.getByRole('button', { name: 'Export backup' }).count(),
+  await page.getByRole('button', { name: 'Restore from backup' }).count(),
+)
 
 const read = () => app.evaluate(({ app }) => app.getLoginItemSettings().openAtLogin)
 const before = await read()

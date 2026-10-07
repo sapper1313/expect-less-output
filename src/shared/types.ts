@@ -33,6 +33,19 @@ export interface Settings {
   alertQuietEnd: string
   /** Brands whose scheduled posts are held. */
   pausedBrandIds: number[]
+  // Agents (local API, watched folders, MCP)
+  agentApiEnabled: boolean
+  agentApiPort: number
+  /** Off means agents can only create drafts. */
+  agentMaySchedule: boolean
+  /** Brands with a watched Inbox folder. */
+  inboxBrandIds: number[]
+  // Text assist (local AI)
+  llmProvider: 'none' | 'openai-compatible'
+  llmBaseUrl: string
+  llmModel: string
+  /** Allow a model on another computer on the local network. */
+  llmAllowLan: boolean
 }
 
 export interface Brand {
@@ -228,6 +241,8 @@ export interface PostTargetInput {
 }
 
 export interface PostInput {
+  /** Move the source file into the Queue instead of copying it (used by the watched folder). */
+  moveSource?: boolean
   brandId: number
   /** Absolute path of the original video. The app copies it into the brand Queue. */
   sourcePath: string
@@ -275,6 +290,8 @@ export interface LogEntry {
 }
 
 export interface LogFilter {
+  /** Only entries after this UTC time. */
+  sinceUtc?: string
   level?: 'info' | 'warn' | 'error' | 'all'
   platform?: Platform | null
   postId?: number | null
@@ -386,4 +403,34 @@ export interface RestorePreview {
   oldMediaRoot: string
   folderCount: number
   accountsToReconnect: Array<{ brandName: string; platform: string; displayName: string | null }>
+}
+
+export interface AgentStatus {
+  enabled: boolean
+  running: boolean
+  port: number
+  tokenSet: boolean
+  tokenMasked: string
+  /** True when agents may only create drafts. */
+  draftsOnly: boolean
+  /** Filled when the server could not start (for example the port is busy). */
+  error: string | null
+}
+
+export interface McpConfig {
+  nodePath: string
+  scriptPath: string
+  scriptExists: boolean
+  apiUrl: string
+  desktopConfigPath: string
+  /** JSON to merge into claude_desktop_config.json. The token is a placeholder. */
+  desktopJson: string
+  claudeCodeCommand: string
+}
+
+export interface TextAssistStatus {
+  provider: 'none' | 'openai-compatible'
+  available: boolean
+  model: string
+  baseUrl: string
 }

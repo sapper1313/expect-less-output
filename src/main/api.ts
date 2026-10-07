@@ -8,11 +8,12 @@ import type { SecretStore } from './services/secrets'
 import type { SettingsService } from './services/settings'
 import type { Scheduler } from './scheduler/scheduler'
 import type { Library } from './services/library'
-import { noneProvider } from './services/textAssist'
 import type { YoutubeService } from './google/youtubeService'
 import type { MetaService } from './meta/metaService'
 import type { TikTokService } from './tiktok/service'
 import type { AlertService } from './alerts/service'
+import type { AgentRuntime } from './agent/runtime'
+import { OpenAICompatibleProvider, checkLlmUrl } from './services/textAssist'
 import type { RestorePreview } from '@shared/types'
 import { healthRows } from './services/health'
 import {
@@ -50,6 +51,7 @@ export interface ApiDeps {
   meta: MetaService
   tiktok: TikTokService
   alerts: AlertService
+  agent: AgentRuntime
   db: Db
   dataDir: string
   postersDir: string
@@ -57,6 +59,15 @@ export interface ApiDeps {
   maxSchema: number
   host: Host
   emit: () => void
+}
+
+function llmProvider(c: Settings): OpenAICompatibleProvider {
+  if (c.llmProvider === 'none')
+    throw new Error('Text assist is turned off. Turn it on in Settings, under Text assist.')
+  if (!c.llmModel.trim()) throw new Error('Type the model name in Settings, under Text assist.')
+  const check = checkLlmUrl(c.llmBaseUrl, c.llmAllowLan)
+  if (!check.ok) throw new Error(check.message)
+  return new OpenAICompatibleProvider({ baseUrl: check.url, model: c.llmModel.trim() })
 }
 
 /** Every UI action goes through this one service layer, so an agent API can reuse it later (Phase 6). */
@@ -249,6 +260,41 @@ export function buildApi(d: ApiDeps): Api {
         d.emit()
       },
     },
-    textAssist: { available: async () => noneProvider.available },
+    agent: {
+      status: async () => d.agent.status(),
+      generateToken: async () => ({ token: d.agent.generateToken() }),
+      mcpConfig: async () => d.agent.mcpConfig(),
+    },
+    textAssist: {
+      available: async () => d.settings.get().llmProvider !== 'none',
+      status: async () => {
+        const c = d.settings.get()
+        return {
+          provider: c.llmProvider,
+          available: c.llmProvider !== 'none' && !!c.llmModel,
+          model: c.llmModel,
+          baseUrl: c.llmBaseUrl,
+        }
+      },
+      suggest: async (kind, brandId, title, caption) => {
+        const p = llmProvider(d.settings.get())
+        const input = { brand: d.brands.get(brandId).name, title, caption }
+        const r =
+          kind === 'title'
+            ? await p.suggestTitle(input)
+            : kind === 'caption'
+              ? await p.suggestCaption(input)
+              : await p.suggestHashtags(input)
+        return r
+      },
+      test: async () => {
+        try {
+          const said = await llmProvider(d.settings.get()).test()
+          return { ok: true, message: `The model answered: ${said}` }
+        } catch (e) {
+          return { ok: false, message: (e as Error).message }
+        }
+      },
+    },
   }
 }

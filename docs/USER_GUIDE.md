@@ -369,3 +369,111 @@ A backup holds your brands, slots, posts, settings and thumbnails. It does **not
 9. Scheduled posts come back as they were. Anything that was due while the Mac was off follows your "missed post" setting.
 
 The old data is never deleted: before a restore the app saves a copy of what was there in the `safety-backups` folder inside its data folder.
+
+---
+
+## 14. Agents: the local API and the Inbox folder (Phase 6)
+
+This lets a program, or an AI assistant such as Claude, create and manage posts on this Mac with the same rules you follow on screen.
+
+**Important:** scheduled posts only go out while Expect Less Output is running. Closing the window is fine (it keeps running in the menu bar). Quitting the app, or a Mac that is asleep or off, means nothing posts. The API and the Inbox folder only work while the app is running too.
+
+### What agents can and cannot do
+
+- They can: read brands and slots, find the next open slots, create posts, list and read posts, change posts, cancel posts, retry failed posts, read the calendar, read the activity log, and read health.
+- They can never: connect or disconnect an account, read or change a password, key or token, delete a file or a post, or change your settings. There is simply no way to ask for those.
+- The video is always COPIED into the brand's Queue folder. The original is never moved or deleted.
+
+### Turn it on
+
+1. Open **Settings** and find **Agents (local API and MCP)**.
+2. Tick **Turn on the local API**. It says "Running on http://127.0.0.1:47821". It only listens on this Mac. To use another port, change **Port**.
+3. Click **Make a token**. The token is shown **once**. Click **Copy** and keep it somewhere safe (not in a chat). Click **I copied it**.
+4. If you lose it, click **Make a new token**. The old one stops working at once.
+
+Every request must send the token: `Authorization: Bearer <token>`. A request without it, or from a web page, is refused.
+
+### Drafts only (the safe default)
+
+**Agents may create drafts only** is ticked by default. While it is on:
+
+- An agent can create **drafts** (even with a proposed time) and edit drafts.
+- If an agent asks for `status: "scheduled"` or `next_slot: true`, it gets a clear **403 drafts_only** error. Nothing is created and nothing is quietly turned into a draft.
+- Agents cannot edit a post that is already scheduled.
+- You review the drafts in the **Queue** and schedule them yourself with **Fine.**
+
+Untick it only when you trust the agent. Then agents can schedule, and a mistake by an agent can post something for real.
+
+### Try it from Terminal
+
+```
+curl -H "Authorization: Bearer PASTE_TOKEN" http://127.0.0.1:47821/v1/brands
+```
+
+The full description of every endpoint is in `docs/openapi.json`. It is generated from the same rules the app uses (run `npm run openapi` after changes).
+
+### The Inbox folder
+
+Drop a video into a brand's Inbox folder and a post is made.
+
+1. Open **Brands**, pick the brand, tick **Watch this brand's Inbox folder**.
+2. The folder is `Media Root / Brand name / Inbox` (for example `~/Movies/Expect Less Output/Trash Panda/Inbox`).
+3. Drop in `fridge.mp4`. With **no** sidecar, after about 10 seconds a **draft** appears using the brand's defaults.
+4. To control the post, drop a file with the same name and `.json` next to the video (`fridge.json`). Example:
+
+```
+{
+  "title": "Fridge Math",
+  "caption": "Do the math #trashpanda",
+  "platforms": ["instagram", "tiktok"],
+  "caption_overrides": { "instagram": "A different caption for Instagram" },
+  "ai_flags": { "instagram": false, "tiktok": true },
+  "status": "draft"
+}
+```
+
+To schedule from a sidecar (only works when **Agents may create drafts only** is unticked) add `"status": "scheduled"` and either `"next_slot": true` or `"scheduled_at": "2026-06-02T17:00:00-04:00"`. Times must include the zone. Every field is optional. `brand_id` and `file_path` are not needed (the folder decides), and a wrong `brand_id` is refused.
+
+What happens next:
+
+- The video and the sidecar are **moved** into the brand's Queue folder. Nothing is deleted.
+- A file that cannot be accepted (a broken sidecar, a request to schedule while drafts-only is on, a wrong brand) is moved to `Inbox/Rejected` with a `.error.txt` that says why, and you get one alert. Nothing is quietly changed.
+- The app waits until a file stops growing, so a big video that is still copying is safe.
+
+## 15. Connect Claude with MCP (Phase 6)
+
+MCP lets Claude use the app directly. The nine tools are `list_brands`, `get_next_open_slots`, `create_post`, `list_posts`, `get_post`, `update_post`, `cancel_post`, `retry_post` and `get_health`. They follow the same drafts-only rule.
+
+You need: the local API turned on, a token, and the MCP file. In **Settings**, **Agents**, the **Connect Claude (MCP)** box shows the exact file path and the exact text to paste for your Mac, with Copy buttons.
+
+The MCP file is built by `npm run build:mcp` (also done by `npm run dist`). It is at `~/Projects/expect-less-output/mcp/dist/elo-mcp.mjs`, and a copy is inside the installed app at `Expect Less Output.app/Contents/Resources/mcp/elo-mcp.mjs`. Use whichever path Settings shows.
+
+### Claude Code
+
+1. In Settings, **Agents**, click **Copy** under "Claude Code".
+2. Open Terminal and paste it. Before you press Return, replace `PASTE_YOUR_TOKEN_HERE` with your token.
+3. Press Return. Check it with `claude mcp list`. It should show `expect-less-output`.
+4. Start `claude` and ask: "List my Expect Less Output brands." Then: "Create a draft for Trash Panda from /Users/me/Movies/clip.mp4."
+
+### Claude Desktop
+
+1. In Settings, **Agents**, click **Copy** under "Claude Desktop".
+2. Open the file `~/Library/Application Support/Claude/claude_desktop_config.json` (in Finder choose Go, Go to Folder, and paste the folder path). Open it with TextEdit.
+3. If the file already has `"mcpServers": { ... }`, add the `"expect-less-output": { ... }` part inside it, separated by a comma. If not, paste the whole text. Be careful to keep the file valid JSON.
+4. Replace `PASTE_YOUR_TOKEN_HERE` with your token (keep the quote marks).
+5. Quit Claude Desktop completely (Command+Q) and open it again. The tools appear under the tools (plug) icon.
+
+The token only lives in that config file or command. Anyone who can read it can use the API, but only on this Mac.
+
+## 16. Text assist with a local AI (Phase 6)
+
+Adds **Suggest titles**, **Suggest captions** and **Suggest hashtags** buttons to New Post and the post editor. They stay hidden until you turn this on. Only the brand name, title and caption are sent, never your videos or keys, and only to a model on this Mac.
+
+1. Install and start a local model server:
+   - **Ollama:** install it from ollama.com, then in Terminal run `ollama pull llama3.1` (or any model), and keep Ollama running.
+   - **LM Studio:** install it, download a model, and start its local server (Developer tab, Start Server).
+2. In **Settings**, **Text assist (local AI)**, set **Provider** to **Local model**.
+3. Click **Ollama** (address `http://localhost:11434/v1`) or **LM Studio** (`http://localhost:1234/v1`).
+4. Type the **Model name** exactly as the server lists it, for example `llama3.1`.
+5. Click **Test the model**. It says if the server answered.
+6. If the model runs on another computer in your home (for example a Mac Studio), tick **My model runs on another computer on my network** and use its address. The app never allows an address on the internet.

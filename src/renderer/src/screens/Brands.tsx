@@ -115,6 +115,7 @@ function BrandEditor({ brand }: { brand: Brand }) {
   const [confirmArchive, setConfirmArchive] = useState(false)
   const { data: settings } = useLoad(() => api.settings.get())
   const paused = !!settings?.pausedBrandIds.includes(brand.id)
+  const inboxOn = !!settings?.inboxBrandIds.includes(brand.id)
 
   return (
     <div className="space-y-4">
@@ -161,6 +162,26 @@ function BrandEditor({ brand }: { brand: Brand }) {
             <div className="ml-6 text-[12px] text-muted">
               Its posts stay scheduled but nothing goes out. When you resume, a post that is less
               than your grace time late goes out; older ones are held as missed.
+            </div>
+          </div>
+          <div>
+            <Check
+              checked={inboxOn}
+              onChange={(v) =>
+                run(() =>
+                  api.settings.set({
+                    inboxBrandIds: v
+                      ? [...(settings?.inboxBrandIds ?? []), brand.id]
+                      : (settings?.inboxBrandIds ?? []).filter((id) => id !== brand.id),
+                  }),
+                )
+              }
+            >
+              Watch this brand's Inbox folder
+            </Check>
+            <div className="ml-6 text-[12px] text-muted">
+              Drop a video (and an optional .json file with the same name) into the brand's Inbox
+              folder inside the Media Root and a post is made for you. See the guide.
             </div>
           </div>
           {brand.archived ? (

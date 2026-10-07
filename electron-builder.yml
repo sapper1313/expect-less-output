@@ -16,6 +16,8 @@ files:
   - '!node_modules/better-sqlite3/{src,deps}/**'
   - '!**/*.{md,map,ts}'
 extraResources:
+  - from: mcp/dist/elo-mcp.mjs
+    to: mcp/elo-mcp.mjs
   - from: resources
     to: resources
     filter:

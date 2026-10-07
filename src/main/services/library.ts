@@ -35,11 +35,18 @@ export class Library {
   }
 
   /** Copies a video into <Brand>/Queue, keeping the name and de-duplicating with a suffix. */
-  importToQueue(brandName: string, sourcePath: string): string {
+  importToQueue(brandName: string, sourcePath: string, move = false): string {
     this.ensureBrandFolders(brandName)
     const dest = uniquePath(join(this.brandDir(brandName), 'Queue'), basename(sourcePath))
-    copyFileSync(sourcePath, dest)
+    if (move) moveFile(sourcePath, dest)
+    else copyFileSync(sourcePath, dest)
     return this.toRelative(dest)
+  }
+
+  /** Puts a file moved by importToQueue back where it came from (used when saving the post failed). */
+  moveBack(rel: string, originalPath: string): void {
+    const abs = this.resolve(rel)
+    if (existsSync(abs) && !existsSync(originalPath)) moveFile(abs, originalPath)
   }
 
   /** Moves a queued file to <Brand>/Posted/YYYY-MM. Returns the new relative path. */
@@ -71,6 +78,16 @@ export class Library {
     } catch {
       // nothing to roll back
     }
+  }
+}
+
+/** Rename, falling back to copy then remove when the folders are on different drives. */
+export function moveFile(from: string, to: string): void {
+  try {
+    renameSync(from, to)
+  } catch {
+    copyFileSync(from, to)
+    if (statSync(to).size === statSync(from).size) unlinkSync(from)
   }
 }
 

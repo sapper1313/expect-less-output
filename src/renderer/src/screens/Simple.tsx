@@ -8,6 +8,7 @@ import { useApp, useLoad } from '../hooks'
 import { Button, Card, Check, Empty, Field, Input, PageHeader, Select } from '../ui'
 import logoStacked from '../assets/logo-stacked.jpg'
 import { AlertsCard, BackupCard } from './AlertsBackup'
+import { AgentsCard, TextAssistCard } from './Agents'
 
 const LEVEL_STYLE = { info: 'text-muted', warn: 'text-warn', error: 'text-bad' }
 
@@ -227,6 +228,8 @@ export function SettingsScreen() {
           </p>
         </Card>
         <AlertsCard s={s} save={save} />
+        <AgentsCard s={s} save={save} />
+        <TextAssistCard s={s} save={save} />
         <BackupCard />
 
         <Card title="Testing tools (dry run)">

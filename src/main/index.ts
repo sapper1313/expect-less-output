@@ -19,6 +19,9 @@ import { join, normalize } from 'path'
 import { pathToFileURL } from 'url'
 import { latestSchemaVersion, openDb } from './db'
 import { AlertService } from './alerts/service'
+import { AgentRuntime } from './agent/runtime'
+import { InboxWatcher } from './agent/inbox'
+import { buildHealth } from './agent/health'
 import { applyPendingRestore, finishRestore } from './services/backup'
 import { seedIfEmpty } from './db/seed'
 import { buildApi, type Host } from './api'
@@ -349,6 +352,48 @@ async function boot(): Promise<void> {
     emit,
   })
 
+  // Agents: the local API, the watched Inbox folders and the MCP server file.
+  const agent = new AgentRuntime(
+    {
+      settings,
+      brands,
+      posts,
+      scheduler,
+      log,
+      appVersion: app.getVersion(),
+      health: () =>
+        buildHealth({
+          db,
+          scheduler,
+          settings,
+          version: app.getVersion(),
+          quota: () => youtube.quotaStatus(),
+          metaExpiresAt: () => meta.status().expiresAt,
+          tiktokExpiresAt: (id) => tiktok.refreshExpiry(id),
+        }),
+    },
+    secrets,
+    settings,
+    {
+      scriptPath: app.isPackaged
+        ? join(process.resourcesPath, 'mcp', 'elo-mcp.mjs')
+        : join(app.getAppPath(), 'mcp', 'dist', 'elo-mcp.mjs'),
+    },
+  )
+  const inbox = new InboxWatcher({
+    s: {
+      settings,
+      brands,
+      posts,
+      scheduler,
+      log,
+      appVersion: app.getVersion(),
+      health: () => null,
+    },
+    library,
+    alert: (headline, detail) => notifier.failure(headline, detail, { kind: 'other' }),
+  })
+
   let trayApi: { refresh: () => void } | null = null
   const setPaused = (paused: boolean) => {
     settings.set({ schedulerPaused: paused })
@@ -412,6 +457,10 @@ async function boot(): Promise<void> {
         }
       }
       if (prev.theme !== next.theme) nativeTheme.themeSource = next.theme
+      if (prev.agentApiEnabled !== next.agentApiEnabled || prev.agentApiPort !== next.agentApiPort)
+        void agent.apply().then(emit)
+      if (JSON.stringify(prev.inboxBrandIds) !== JSON.stringify(next.inboxBrandIds))
+        void inbox.scan().catch(() => {})
       trayApi?.refresh()
     },
   }
@@ -429,6 +478,7 @@ async function boot(): Promise<void> {
     meta,
     tiktok,
     alerts,
+    agent,
     db,
     dataDir,
     postersDir,
@@ -495,6 +545,8 @@ async function boot(): Promise<void> {
   meta.startHealthChecks()
   tiktok.startHealthChecks()
   alerts.start()
+  void agent.apply()
+  inbox.start()
   updateBlocker()
   log.log('info', 'App started.')
 
@@ -506,6 +558,8 @@ async function boot(): Promise<void> {
       meta.stop()
       tiktok.stop()
       alerts.stop()
+      inbox.stop()
+      void agent.server.stop()
       app.quit()
     }
   }

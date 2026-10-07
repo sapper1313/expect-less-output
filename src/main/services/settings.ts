@@ -26,6 +26,14 @@ export const DEFAULT_SETTINGS: Settings = {
   alertQuietStart: '22:00',
   alertQuietEnd: '08:00',
   pausedBrandIds: [],
+  agentApiEnabled: false,
+  agentApiPort: 47821,
+  agentMaySchedule: false,
+  inboxBrandIds: [],
+  llmProvider: 'none',
+  llmBaseUrl: 'http://localhost:11434/v1',
+  llmModel: '',
+  llmAllowLan: false,
 }
 
 export class SettingsService {

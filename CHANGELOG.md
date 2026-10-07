@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0 Phase 6: Local agent API and MCP
+
+- Local HTTP API on 127.0.0.1 only (default port 47821), off by default, bearer token (shown once, regenerate to cancel), Host and Origin checks, every call logged. Endpoints for brands, next open slots, posts (create, list, get, change, cancel, retry), calendar, activity and health.
+- Requests, responses, the OpenAPI file (`docs/openapi.json`) and the MCP tools are all generated from one set of zod schemas. A test fails if the OpenAPI file is out of date.
+- "Agents may create drafts only" (on by default). Asking to schedule returns 403 `drafts_only`. Nothing is silently downgraded. Agents have no way to connect accounts, change credentials, delete files or change settings.
+- Watched Inbox folder per brand with optional JSON sidecars. Files are moved into Queue, unusable ones go to `Inbox/Rejected` with an explanation.
+- MCP server (`mcp/elo-mcp.ts`, built to `mcp/dist/elo-mcp.mjs`) with nine tools, plus ready-to-paste setup for Claude Code and Claude Desktop in Settings.
+- Local AI text assist (OpenAI compatible: Ollama, LM Studio) with Suggest buttons, off by default, limited to this Mac unless the network box is ticked.
+
 ## 0.5.0 Phase 5: Alerts and polish
 
 - Alert service: failures, missed posts, logins needing renewal, Meta expiry within 7 days, daily limits and a missing Media Root. Always a macOS notification, plus iMessage (AppleScript through Messages, both current forms tried) and optional Gmail email (app password, nodemailer).

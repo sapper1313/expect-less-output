@@ -22,6 +22,7 @@ import {
 import { PlatformPicker } from './pickers'
 import { PostingAs, TikTokSection, useCreator } from './TikTokSection'
 import { previewFor } from '@shared/preview'
+import { Suggest } from './Suggest'
 import { emptyTikTokSettings } from '@shared/tiktok'
 
 export function PostEditor({ postId, onClose }: { postId: number; onClose: () => void }) {
@@ -229,6 +230,33 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
               onChange={(e) => set('title', e.target.value)}
             />
           </Field>
+          {!locked && (
+            <div className="flex flex-wrap items-start gap-2">
+              <Suggest
+                kind="title"
+                brandId={draft.brandId}
+                title={draft.title}
+                caption={draft.caption}
+                onPick={(t) => set('title', t)}
+              />
+              <Suggest
+                kind="caption"
+                brandId={draft.brandId}
+                title={draft.title}
+                caption={draft.caption}
+                onPick={(t) => set('caption', t)}
+              />
+              <Suggest
+                kind="hashtags"
+                brandId={draft.brandId}
+                title={draft.title}
+                caption={draft.caption}
+                onPick={(t) =>
+                  set('caption', `${draft.caption.trim()}${draft.caption.trim() ? '\n\n' : ''}${t}`)
+                }
+              />
+            </div>
+          )}
           <Field label="Caption">
             <Textarea
               rows={4}

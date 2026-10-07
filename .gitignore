@@ -14,3 +14,5 @@ secrets.bin
 ELO KEYS/
 client_secret*.json
 *.keys
+
+mcp/dist

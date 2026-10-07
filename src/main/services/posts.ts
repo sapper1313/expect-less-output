@@ -302,7 +302,7 @@ export class PostService {
             input.targets,
           )
         }
-        const rel = this.library.importToQueue(brand, input.sourcePath)
+        const rel = this.library.importToQueue(brand, input.sourcePath, !!input.moveSource)
         prepared.push({ input, rel, meta, poster })
       }
       const ids = this.db.transaction(() => {
@@ -341,7 +341,11 @@ export class PostService {
       this.emit()
       return ids.map((id) => this.get(id) as Post)
     } catch (err) {
-      for (const p of prepared) this.library.removeIfInside(p.rel)
+      for (const p of prepared) {
+        // A copy we made is removed. A file we moved goes back where it came from, so nothing is ever lost.
+        if (p.input.moveSource) this.library.moveBack(p.rel, p.input.sourcePath)
+        else this.library.removeIfInside(p.rel)
+      }
       throw err
     }
   }

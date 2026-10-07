@@ -1,11 +1,14 @@
 import type {
   Account,
   AppEvent,
+  AgentStatus,
   AlertChannel,
   AlertStatus,
   AlertTestResult,
   AppInfo,
   HealthRow,
+  McpConfig,
+  TextAssistStatus,
   RestorePreview,
   RestoreReport,
   Brand,
@@ -158,8 +161,22 @@ export interface Api {
     report(): Promise<RestoreReport | null>
     dismissReport(): Promise<void>
   }
+  agent: {
+    status(): Promise<AgentStatus>
+    /** Makes a new token and returns it. This is the only time it is shown. */
+    generateToken(): Promise<{ token: string }>
+    mcpConfig(): Promise<McpConfig>
+  }
   textAssist: {
     available(): Promise<boolean>
+    status(): Promise<TextAssistStatus>
+    suggest(
+      kind: 'title' | 'caption' | 'hashtags',
+      brandId: number,
+      title: string,
+      caption: string,
+    ): Promise<string[]>
+    test(): Promise<{ ok: boolean; message: string }>
   }
 }
 
