@@ -1,13 +1,20 @@
 import {
+  closeSync,
+  createWriteStream,
   existsSync,
   mkdirSync,
+  openSync,
   readdirSync,
   readFileSync,
+  readSync,
   renameSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from 'fs'
 import { basename, extname, join } from 'path'
+import { Readable, Transform } from 'stream'
+import { pipeline } from 'stream/promises'
 import { ZodError } from 'zod'
 import { CreatePostBody, type CreatePostInput } from '@shared/agentSchemas'
 import { AgentError, agentCreatePost, type AgentServices } from './core'
@@ -19,6 +26,10 @@ const VIDEO = ['.mp4', '.mov']
 const STABLE_MS = 5_000
 /** A video with no sidecar waits this long for one to show up before becoming a draft. */
 const SIDECAR_GRACE_MS = 10_000
+/** A video_url download that takes longer than this is given up on. */
+const DOWNLOAD_TIMEOUT_MS = 10 * 60_000
+/** A video_url download bigger than this is refused. */
+const DOWNLOAD_MAX_BYTES = 2 * 1024 * 1024 * 1024
 
 export interface InboxDeps {
   s: AgentServices
@@ -26,6 +37,8 @@ export interface InboxDeps {
   /** Called once for each rejected file. */
   alert: (headline: string, detail: string) => void
   now?: () => number
+  /** Replaces the network call for video_url downloads (tests). */
+  fetch?: typeof fetch
 }
 
 interface Seen {
@@ -73,8 +86,13 @@ export class InboxWatcher {
         if (!enabled.has(b.id)) continue
         const dir = this.inboxDir(b.name)
         mkdirSync(join(dir, 'Rejected'), { recursive: true })
-        for (const name of readdirSync(dir)) {
+        const names = readdirSync(dir)
+        for (const name of names) {
           const full = join(dir, name)
+          if (extname(name).toLowerCase() === '.json') {
+            if (await this.handleUrlSidecar(b.name, dir, name, full, names)) handled++
+            continue
+          }
           if (!VIDEO.includes(extname(name).toLowerCase())) continue
           let st
           try {
@@ -129,6 +147,8 @@ export class InboxWatcher {
           )
         }
         const obj = { ...(raw as object) } as Record<string, unknown>
+        // video_url only says where the video came from. By now the video is a file in the Inbox.
+        delete obj.video_url
         // The folder decides the brand and the file. Both may be left out, but not contradicted.
         if (obj.brand_id !== undefined && Number(obj.brand_id) !== brandId) {
           throw new AgentError(
@@ -168,6 +188,108 @@ export class InboxWatcher {
     }
   }
 
+  /**
+   * A .json with a "video_url" and no video next to it: download the video into the Inbox as <name>.mp4.
+   * Once it is there, the normal path above picks it up with its sidecar. If a video with that name is
+   * already in the Inbox, the file wins and the URL is ignored. A .json without video_url is left alone.
+   */
+  private async handleUrlSidecar(
+    brandName: string,
+    dir: string,
+    name: string,
+    full: string,
+    names: string[],
+  ): Promise<boolean> {
+    const stem = name.slice(0, name.length - extname(name).length)
+    if (names.some((n) => VIDEO.includes(extname(n).toLowerCase()) && n.slice(0, -extname(n).length) === stem))
+      return false
+    let size: number
+    try {
+      const st = statSync(full)
+      if (!st.isFile()) return false
+      size = st.size
+    } catch {
+      return false
+    }
+    const now = this.now()
+    const prev = this.seen.get(full)
+    if (!prev || prev.size !== size) {
+      this.seen.set(full, { size, since: now, firstSeen: prev?.firstSeen ?? now })
+      return false // maybe still being written
+    }
+    if (now - prev.since < STABLE_MS) return false
+
+    let url: unknown
+    try {
+      url = (JSON.parse(readFileSync(full, 'utf8')) as { video_url?: unknown } | null)?.video_url
+    } catch {
+      this.seen.delete(full)
+      return false // not valid JSON and no video: not ours to judge
+    }
+    if (url === undefined) {
+      this.seen.delete(full)
+      return false
+    }
+    const videoName = `${stem}.mp4`
+    try {
+      await this.download(url, join(dir, videoName))
+    } catch (e) {
+      this.reject(brandName, dir, videoName, full, e)
+    }
+    this.seen.delete(full)
+    return true
+  }
+
+  /** Downloads to a temporary file, checks it is a whole video, then renames it to `dest`. */
+  private async download(url: unknown, dest: string): Promise<void> {
+    const bad = (m: string) => new AgentError(400, 'bad_request', m, { field: 'video_url' })
+    let u: URL
+    try {
+      u = new URL(String(url))
+    } catch {
+      throw bad('video_url is not a valid web address.')
+    }
+    if (typeof url !== 'string' || (u.protocol !== 'https:' && u.protocol !== 'http:'))
+      throw bad('video_url must be an http or https address.')
+    // Only the site is written down. The full address can carry a secret token.
+    const from = u.origin
+    const tmp = join(dest, '..', `.${basename(dest)}.download`)
+    try {
+      const res = await (this.d.fetch ?? fetch)(url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) })
+      if (!res.ok || !res.body) throw bad(`The server at ${from} answered ${res.status}.`)
+      let got = 0
+      const counter = new Transform({
+        transform(chunk: Buffer, _enc, cb) {
+          got += chunk.length
+          if (got > DOWNLOAD_MAX_BYTES) cb(new Error('the file is bigger than 2 GB'))
+          else cb(null, chunk)
+        },
+      })
+      await pipeline(Readable.fromWeb(res.body as never), counter, createWriteStream(tmp))
+      // Verify the download finished: something arrived, it is as long as the server said, and it is an MP4/MOV.
+      const expected = Number(res.headers.get('content-length'))
+      const encoded = !!res.headers.get('content-encoding')
+      if (got === 0 || statSync(tmp).size !== got) throw bad('The download came back empty.')
+      if (!encoded && expected > 0 && got !== expected)
+        throw bad(`The download stopped early (${got} of ${expected} bytes).`)
+      const head = Buffer.alloc(8)
+      const fd = openSync(tmp, 'r')
+      try {
+        readSync(fd, head, 0, 8, 0)
+      } finally {
+        closeSync(fd)
+      }
+      if (head.subarray(4, 8).toString('latin1') !== 'ftyp')
+        throw bad('The download is not an MP4 or MOV video.')
+      moveFile(tmp, dest)
+    } catch (e) {
+      rmSync(tmp, { force: true })
+      if (e instanceof AgentError) throw e
+      const why = e instanceof Error ? e.message : String(e)
+      throw bad(`Could not download the video from ${from}: ${why}`)
+    }
+  }
+
   private reject(
     brandName: string,
     dir: string,
@@ -186,7 +308,8 @@ export class InboxWatcher {
     mkdirSync(rejected, { recursive: true })
     const dest = uniquePath(rejected, name)
     try {
-      renameSync(join(dir, name), dest)
+      // A failed video_url download has no video to move.
+      if (existsSync(join(dir, name))) renameSync(join(dir, name), dest)
       if (sidecar && existsSync(sidecar))
         renameSync(sidecar, uniquePath(rejected, basename(sidecar)))
       writeFileSync(

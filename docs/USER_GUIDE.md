@@ -436,6 +436,8 @@ To schedule from a sidecar (only works when **Agents may create drafts only** is
 
 To have every video in a brand's Inbox go live without opening a .json file, open **Brands**, pick the brand, and tick **Schedule Inbox videos automatically (next open slot)**. It only works when **Agents may create drafts only** is unticked in Settings, and it is off by default. Videos then go straight to the brand's next open slot with the brand's defaults, with no review. A .json file that says `"status": "draft"` still makes a draft. The brand needs posting slots set up.
 
+To have the app fetch the video for you, drop only the `.json` file (for example `fridge.json`) with a web address in it: `"video_url": "https://example.com/fridge.mp4"`. The app downloads it, checks that it is a complete MP4 or MOV, saves it as `fridge.mp4`, and then treats it like a video you dropped in, with the same title, caption, platforms and time fields. If the download fails, the .json goes to `Inbox/Rejected` with a `.error.txt` that says why. If a video named `fridge.mp4` is already in the Inbox, that video is used and the address is ignored.
+
 What happens next:
 
 - The video and the sidecar are **moved** into the brand's Queue folder. Nothing is deleted.

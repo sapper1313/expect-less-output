@@ -7,7 +7,7 @@ import { makeEnv } from './helpers'
 
 const SEC = 1000
 
-function setup(patch: Record<string, unknown> = { inboxBrandIds: [1] }) {
+function setup(patch: Record<string, unknown> = { inboxBrandIds: [1] }, fetchImpl?: typeof fetch) {
   const env = makeEnv()
   env.settings.set(patch as never)
   const services: AgentServices = {
@@ -26,6 +26,7 @@ function setup(patch: Record<string, unknown> = { inboxBrandIds: [1] }) {
     library: env.library,
     alert: (h, d) => alerts.push([h, d]),
     now: () => env.clock.ms,
+    fetch: fetchImpl,
   })
   const inbox = join(env.root, 'Trash Panda', 'Inbox')
   mkdirSync(join(inbox, 'Rejected'), { recursive: true })
@@ -238,6 +239,110 @@ describe('watched Inbox folder', () => {
     const posts = t.env.posts.list()
     expect(posts.map((p) => p.title).sort()).toEqual(['One', 'Two'])
     expect(new Set(posts.map((p) => p.videoPath)).size).toBe(2)
+  })
+
+  describe('video_url', () => {
+    const MP4 = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from('ftypmp42'), Buffer.alloc(64)])
+    function withFetch(respond: (url: string) => Response | Promise<Response>) {
+      const urls: string[] = []
+      const t = setup({ inboxBrandIds: [1] }, (async (u: string) => {
+        urls.push(u)
+        return respond(u)
+      }) as unknown as typeof fetch)
+      /** Looks, waits, looks again, then more so the downloaded video is accepted. */
+      const run = async () => {
+        for (let i = 0; i < 4; i++) {
+          await t.watcher.scan()
+          t.env.clock.ms += 6 * SEC
+        }
+      }
+      const sidecar = (name: string, body: unknown) =>
+        writeFileSync(join(t.inbox, `${name}.json`), JSON.stringify(body))
+      return { ...t, urls, run, sidecar }
+    }
+
+    it('downloads the video into Queue as <name>.mp4 and makes the post the sidecar describes', async () => {
+      const t = withFetch(
+        () => new Response(MP4, { status: 200, headers: { 'content-length': String(MP4.length) } }),
+      )
+      t.sidecar('fromurl', {
+        video_url: 'https://cdn.example.com/v.mp4?token=secret',
+        title: 'From The Web',
+        caption: 'Hello #web',
+        platforms: ['instagram'],
+      })
+      await t.run()
+      expect(t.urls).toEqual(['https://cdn.example.com/v.mp4?token=secret'])
+      const [post] = t.env.posts.list()
+      expect(post).toMatchObject({ title: 'From The Web', caption: 'Hello #web', status: 'draft' })
+      expect(post.videoPath).toBe('Trash Panda/Queue/fromurl.mp4')
+      expect(readFileSync(join(t.env.root, post.videoPath)).equals(MP4)).toBe(true)
+      expect(existsSync(join(t.env.root, 'Trash Panda', 'Queue', 'fromurl.json'))).toBe(true)
+      expect(readdirSync(t.inbox)).toEqual(['Rejected'])
+    })
+
+    it('schedules from scheduled_at exactly like a dropped video', async () => {
+      const t = withFetch(() => new Response(MP4))
+      const cfg = { inboxBrandIds: [1], agentMaySchedule: true }
+      t.env.settings.set(cfg as never)
+      const when = '2099-01-05T17:00:00-05:00'
+      t.sidecar('later', { video_url: 'https://x.example/v.mp4', status: 'scheduled', scheduled_at: when })
+      await t.run()
+      const [post] = t.env.posts.list()
+      expect(post.status).toBe('scheduled')
+      expect(post.scheduledAtUtc).toBe('2099-01-05T22:00:00.000Z')
+    })
+
+    it('rejects the sidecar with an .error.txt when the download fails, without leaking the address', async () => {
+      const t = withFetch(() => new Response('nope', { status: 404 }))
+      t.sidecar('gone', { video_url: 'https://cdn.example.com/missing.mp4?token=secret' })
+      await t.run()
+      const rejected = join(t.inbox, 'Rejected')
+      expect(readdirSync(rejected).sort()).toEqual(['gone.error.txt', 'gone.json'])
+      const why = readFileSync(join(rejected, 'gone.error.txt'), 'utf8')
+      expect(why).toContain('404')
+      expect(why).not.toContain('secret')
+      expect(t.env.posts.list()).toHaveLength(0)
+      expect(t.alerts).toHaveLength(1)
+      expect(t.urls).toHaveLength(1) // not retried forever
+    })
+
+    it('rejects an incomplete download and one that is not a video, leaving no partial file', async () => {
+      const short = withFetch(
+        () => new Response(MP4, { status: 200, headers: { 'content-length': String(MP4.length + 100) } }),
+      )
+      short.sidecar('short', { video_url: 'https://x.example/a.mp4' })
+      await short.run()
+      expect(readFileSync(join(short.inbox, 'Rejected', 'short.error.txt'), 'utf8')).toContain('stopped early')
+
+      const html = withFetch(() => new Response('<html>sign in</html>'))
+      html.sidecar('page', { video_url: 'https://x.example/page' })
+      await html.run()
+      expect(readFileSync(join(html.inbox, 'Rejected', 'page.error.txt'), 'utf8')).toContain('not an MP4')
+
+      for (const t of [short, html]) {
+        expect(readdirSync(t.inbox)).toEqual(['Rejected'])
+        expect(t.env.posts.list()).toHaveLength(0)
+      }
+    })
+
+    it('rejects an address that is not http or https', async () => {
+      const t = withFetch(() => new Response(MP4))
+      t.sidecar('local', { video_url: 'file:///etc/passwd' })
+      await t.run()
+      expect(t.urls).toHaveLength(0)
+      expect(readFileSync(join(t.inbox, 'Rejected', 'local.error.txt'), 'utf8')).toContain('http or https')
+    })
+
+    it('uses a dropped video instead of the URL, and leaves a .json without video_url alone', async () => {
+      const t = withFetch(() => new Response(MP4))
+      t.drop('both.mp4', { video_url: 'https://x.example/v.mp4', title: 'Dropped' })
+      t.sidecar('plain', { title: 'No video here' })
+      await t.run()
+      expect(t.urls).toHaveLength(0)
+      expect(t.env.posts.list().map((p) => p.title)).toEqual(['Dropped'])
+      expect(existsSync(join(t.inbox, 'plain.json'))).toBe(true)
+    })
   })
 
   it('puts a moved video back in the Inbox if saving the post fails', async () => {
