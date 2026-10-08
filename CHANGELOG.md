@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.4 TikTok upload fix
+
+- A video of 64 MB or less is now uploaded to TikTok whole, as one chunk of the full file size. Before, a 14 MB video was announced as one 10 MB chunk and TikTok refused it as `invalid_params` (chunk size invalid). Larger files still use 5 to 64 MB chunks.
+
 ## 0.7.3 Automatic scheduling for Inbox videos
 
 - New per brand switch on the Brands screen: **Schedule Inbox videos automatically (next open slot)**. A video dropped in that brand's Inbox, with or without a .json file that leaves out the status, goes to the next open slot instead of waiting as a draft. A .json file that sets `status` itself always wins.

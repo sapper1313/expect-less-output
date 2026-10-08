@@ -39,11 +39,12 @@ const bigFile = (t: T, mb: number) => {
 }
 
 describe('chunk plan', () => {
-  it('follows TikTok rules: under 5 MB is one piece, otherwise 5 to 64 MB chunks with the remainder in the last', () => {
+  it('follows TikTok rules: up to 64 MB goes up whole, bigger files use 5 to 64 MB chunks with the remainder in the last', () => {
     const MiB = 1024 * 1024
     expect(planChunks(3 * MiB)).toEqual({ chunkSize: 3 * MiB, count: 1 })
-    expect(planChunks(12 * MiB)).toEqual({ chunkSize: 10 * MiB, count: 1 }) // the single chunk carries all 12 MiB
-    expect(planChunks(25 * MiB)).toEqual({ chunkSize: 10 * MiB, count: 2 })
+    expect(planChunks(14_072_933)).toEqual({ chunkSize: 14_072_933, count: 1 }) // the video that TikTok refused before
+    expect(planChunks(64 * MiB)).toEqual({ chunkSize: 64 * MiB, count: 1 })
+    expect(planChunks(100 * MiB)).toEqual({ chunkSize: 10 * MiB, count: 10 })
     const huge = planChunks(10 * 1024 * MiB)
     expect(huge.count).toBeLessThanOrEqual(1000)
     expect(huge.chunkSize).toBeLessThanOrEqual(64 * MiB)
@@ -344,12 +345,12 @@ describe('TikTok Drafts mode (upload to inbox)', () => {
     expect(existsSync(t.env.library.resolve(t.env.posts.get(post.id)!.videoPath))).toBe(true)
   })
 
-  it('uploads a large file in order with the right ranges and reports progress', async () => {
+  it('uploads a file over 64 MB in order with the right ranges and reports progress', async () => {
     const t = await env()
     await connectTikTok(t)
     const post = await t.env.posts.create({
       brandId: 1,
-      sourcePath: bigFile(t, 25),
+      sourcePath: bigFile(t, 70),
       title: 'Big',
       caption: '',
       scheduledAtUtc: new Date(t.env.clock.ms + MIN).toISOString(),
@@ -360,17 +361,39 @@ describe('TikTok Drafts mode (upload to inbox)', () => {
     await t.env.scheduler.tick()
     const u = Object.values(t.fake.state.uploads)[0]
     const MiB = 1024 * 1024
-    expect(u.chunks).toEqual([
-      [0, 10 * MiB - 1],
-      [10 * MiB, 25 * MiB - 1],
-    ])
+    expect(u.chunks).toEqual(
+      Array.from({ length: 7 }, (_, i) => [i * 10 * MiB, (i + 1) * 10 * MiB - 1]),
+    )
     expect(u.complete).toBe(true)
     expect(t.fake.state.inits[0].body.source_info).toMatchObject({
-      video_size: 25 * MiB,
+      video_size: 70 * MiB,
       chunk_size: 10 * MiB,
-      total_chunk_count: 2,
+      total_chunk_count: 7,
     })
     expect(t.env.posts.get(post.id)!.targets[0].progress).toBe(1)
+  })
+
+  it('uploads a 14 MB file whole in one piece', async () => {
+    const t = await env()
+    await connectTikTok(t)
+    await t.env.posts.create({
+      brandId: 1,
+      sourcePath: bigFile(t, 14),
+      title: 'Whole',
+      caption: '',
+      scheduledAtUtc: new Date(t.env.clock.ms + MIN).toISOString(),
+      status: 'scheduled',
+      targets: [{ platform: 'tiktok', aiFlag: false }],
+    })
+    t.env.clock.ms += 2 * MIN
+    await t.env.scheduler.tick()
+    const MiB = 1024 * 1024
+    expect(t.fake.state.inits[0].body.source_info).toMatchObject({
+      video_size: 14 * MiB,
+      chunk_size: 14 * MiB,
+      total_chunk_count: 1,
+    })
+    expect(Object.values(t.fake.state.uploads)[0].chunks).toEqual([[0, 14 * MiB - 1]])
   })
 
   it('retries a chunk after a dropped connection and a temporary server error', async () => {

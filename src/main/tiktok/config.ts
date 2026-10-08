@@ -41,13 +41,16 @@ export function tiktokUrls(env: NodeJS.ProcessEnv = process.env): TikTokUrls {
   }
 }
 
-/** Splits a file into the chunk plan TikTok expects. The last chunk takes the remainder. */
+/**
+ * Splits a file into the chunk plan TikTok expects. A file up to 64 MB goes up whole: chunk_size is the full
+ * size and there is one chunk (a 14 MB video sent as one 10 MB chunk was refused as "chunk size invalid").
+ * Bigger files use 5 to 64 MB chunks and the last chunk takes the remainder.
+ */
 export function planChunks(size: number): { chunkSize: number; count: number } {
   if (size <= 0) throw new Error('The video file is empty.')
-  if (size < MIN_CHUNK) return { chunkSize: size, count: 1 }
+  if (size <= MAX_CHUNK) return { chunkSize: size, count: 1 }
   let chunk = DEFAULT_CHUNK
   while (Math.floor(size / chunk) > MAX_CHUNKS && chunk < MAX_CHUNK) chunk *= 2
   chunk = Math.min(chunk, MAX_CHUNK)
-  if (size < chunk) return { chunkSize: size, count: 1 }
   return { chunkSize: chunk, count: Math.floor(size / chunk) }
 }
