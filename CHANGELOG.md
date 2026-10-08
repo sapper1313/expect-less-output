@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.5 No Intel code in the app
+
+- The video inspection tool (ffprobe) is now the real Apple silicon build. The old package shipped an Intel program in its arm64 folder, which made macOS say "Support Ending for Intel-based Apps". The built app now has no Intel programs inside.
+
 ## 0.7.4 TikTok upload fix
 
 - A video of 64 MB or less is now uploaded to TikTok whole, as one chunk of the full file size. Before, a 14 MB video was announced as one 10 MB chunk and TikTok refused it as `invalid_params` (chunk size invalid). Larger files still use 5 to 64 MB chunks.

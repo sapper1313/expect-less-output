@@ -9,7 +9,7 @@ files:
   - package.json
   - '!node_modules/ffprobe-static/bin/win32/**'
   - '!node_modules/ffprobe-static/bin/linux/**'
-  - '!node_modules/ffprobe-static/bin/darwin/x64/**'
+  - '!node_modules/ffprobe-static/bin/darwin/**'
   - '!node_modules/better-sqlite3/prebuilds/win32-*'
   - '!node_modules/better-sqlite3/prebuilds/linux*'
   - '!node_modules/better-sqlite3/prebuilds/darwin-x64.node'
@@ -27,6 +27,7 @@ extraResources:
 asarUnpack:
   - node_modules/ffmpeg-static/**
   - node_modules/ffprobe-static/**
+  - node_modules/@ffprobe-installer/darwin-arm64/**
   - node_modules/better-sqlite3/**
 npmRebuild: false
 mac:

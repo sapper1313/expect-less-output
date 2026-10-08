@@ -1,7 +1,7 @@
 import { execFile } from 'child_process'
 import { createHash } from 'crypto'
 import { existsSync, mkdirSync, statSync } from 'fs'
-import { basename, join } from 'path'
+import { basename, dirname, join } from 'path'
 import { promisify } from 'util'
 import ffmpegStatic from 'ffmpeg-static'
 import ffprobeStatic from 'ffprobe-static'
@@ -15,8 +15,26 @@ function unpacked(p: string | null): string {
   return p.replace('app.asar' + '/', 'app.asar.unpacked/')
 }
 
+/**
+ * ffprobe-static ships an Intel binary in its arm64 folder, which makes macOS warn that Intel support is ending.
+ * On Apple silicon use the real arm64 build from @ffprobe-installer instead.
+ */
+function ffprobePath(): string {
+  if (process.platform === 'darwin' && process.arch === 'arm64') {
+    try {
+      return join(
+        dirname(require.resolve('@ffprobe-installer/darwin-arm64/package.json')),
+        'ffprobe',
+      )
+    } catch {
+      // fall back to the generic one
+    }
+  }
+  return ffprobeStatic.path
+}
+
 export class MediaService {
-  private ffprobe = unpacked(ffprobeStatic.path)
+  private ffprobe = unpacked(ffprobePath())
   private ffmpeg = unpacked(ffmpegStatic as unknown as string)
 
   constructor(private postersDir: string) {
