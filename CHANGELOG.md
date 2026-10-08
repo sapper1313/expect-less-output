@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.3 Automatic scheduling for Inbox videos
+
+- New per brand switch on the Brands screen: **Schedule Inbox videos automatically (next open slot)**. A video dropped in that brand's Inbox, with or without a .json file that leaves out the status, goes to the next open slot instead of waiting as a draft. A .json file that sets `status` itself always wins.
+- It only works while "Agents may create drafts only" is unticked in Settings. Otherwise the video still becomes a draft. Off by default.
+
 ## 0.7.2 Best times and recommended slots
 
 - **Best times to post** on the Stats screen: top hours, a typical views by hour chart and a day by hour heat map (Eastern time), per brand and platform. Only videos at least 7 days old are compared. With more than one brand or platform the numbers are shown as "times your typical video".

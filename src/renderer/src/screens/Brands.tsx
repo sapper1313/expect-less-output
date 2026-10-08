@@ -116,6 +116,7 @@ function BrandEditor({ brand }: { brand: Brand }) {
   const { data: settings } = useLoad(() => api.settings.get())
   const paused = !!settings?.pausedBrandIds.includes(brand.id)
   const inboxOn = !!settings?.inboxBrandIds.includes(brand.id)
+  const autoOn = !!settings?.inboxAutoScheduleBrandIds.includes(brand.id)
 
   return (
     <div className="space-y-4">
@@ -182,6 +183,34 @@ function BrandEditor({ brand }: { brand: Brand }) {
             <div className="ml-6 text-[12px] text-muted">
               Drop a video (and an optional .json file with the same name) into the brand's Inbox
               folder inside the Media Root and a post is made for you. See the guide.
+            </div>
+            <div className="ml-6 mt-2">
+              <Check
+                checked={autoOn}
+                onChange={(v) =>
+                  run(() =>
+                    api.settings.set({
+                      inboxAutoScheduleBrandIds: v
+                        ? [...(settings?.inboxAutoScheduleBrandIds ?? []), brand.id]
+                        : (settings?.inboxAutoScheduleBrandIds ?? []).filter(
+                            (id) => id !== brand.id,
+                          ),
+                    }),
+                  )
+                }
+              >
+                Schedule Inbox videos automatically (next open slot)
+              </Check>
+              <div className="ml-6 text-[12px] text-muted">
+                A video dropped in the Inbox goes live at the next open slot with no review. Leave
+                this off to get drafts you check first.
+                {autoOn && !settings?.agentMaySchedule && (
+                  <span className="text-warn">
+                    {' '}
+                    This does nothing yet. Untick "Agents may create drafts only" in Settings.
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           {brand.archived ? (

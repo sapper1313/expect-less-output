@@ -434,6 +434,8 @@ Drop a video into a brand's Inbox folder and a post is made.
 
 To schedule from a sidecar (only works when **Agents may create drafts only** is unticked) add `"status": "scheduled"` and either `"next_slot": true` or `"scheduled_at": "2026-06-02T17:00:00-04:00"`. Times must include the zone. Every field is optional. `brand_id` and `file_path` are not needed (the folder decides), and a wrong `brand_id` is refused.
 
+To have every video in a brand's Inbox go live without opening a .json file, open **Brands**, pick the brand, and tick **Schedule Inbox videos automatically (next open slot)**. It only works when **Agents may create drafts only** is unticked in Settings, and it is off by default. Videos then go straight to the brand's next open slot with the brand's defaults, with no review. A .json file that says `"status": "draft"` still makes a draft. The brand needs posting slots set up.
+
 What happens next:
 
 - The video and the sidecar are **moved** into the brand's Queue folder. Nothing is deleted.

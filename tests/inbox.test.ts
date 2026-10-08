@@ -173,6 +173,36 @@ describe('watched Inbox folder', () => {
     expect(post.scheduledAtUtc).toBe(expected)
   })
 
+  it('schedules a bare video when the brand is set to automatic', async () => {
+    const t = setup({ inboxBrandIds: [1], inboxAutoScheduleBrandIds: [1], agentMaySchedule: true })
+    const expected = t.env.posts.nextSlots(1, 1)[0]
+    writeFileSync(join(t.inbox, 'bare.mp4'), 'video bytes')
+    await t.settle()
+    t.env.clock.ms += 30 * SEC // the wait for a sidecar that never comes
+    await t.watcher.scan()
+    const [post] = t.env.posts.list()
+    expect(post.status).toBe('scheduled')
+    expect(post.scheduledAtUtc).toBe(expected)
+  })
+
+  it('automatic scheduling keeps an explicit draft and does nothing while drafts only', async () => {
+    const on = setup({ inboxBrandIds: [1], inboxAutoScheduleBrandIds: [1], agentMaySchedule: true })
+    on.drop('keep.mp4', { status: 'draft' })
+    await on.settle()
+    expect(on.env.posts.list()[0].status).toBe('draft')
+
+    const locked = setup({
+      inboxBrandIds: [1],
+      inboxAutoScheduleBrandIds: [1],
+      agentMaySchedule: false,
+    })
+    writeFileSync(join(locked.inbox, 'bare.mp4'), 'video bytes')
+    await locked.settle()
+    locked.env.clock.ms += 30 * SEC
+    await locked.watcher.scan()
+    expect(locked.env.posts.list()[0].status).toBe('draft')
+  })
+
   it('rejects a sidecar that names another brand', async () => {
     const t = setup()
     t.drop('other.mp4', { brand_id: 2, title: 'Nope' })

@@ -110,6 +110,9 @@ export class InboxWatcher {
     const stem = name.slice(0, name.length - extname(name).length)
     const sidecar = join(dir, `${stem}.json`)
     const hasSidecar = existsSync(sidecar)
+    const cfg = this.d.s.settings.get()
+    // Automatic scheduling only works while agents are allowed to schedule.
+    const auto = cfg.agentMaySchedule && cfg.inboxAutoScheduleBrandIds.includes(brandId)
     if (!hasSidecar && now - prev.firstSeen < SIDECAR_GRACE_MS) return false
 
     let body: CreatePostInput
@@ -136,9 +139,18 @@ export class InboxWatcher {
         }
         obj.brand_id = brandId
         obj.file_path = full
+        // A sidecar that does not mention status gets the brand's automatic rule. An explicit status always wins.
+        if (auto && obj.status === undefined) {
+          obj.status = 'scheduled'
+          if (obj.scheduled_at === undefined && obj.next_slot === undefined) obj.next_slot = true
+        }
         body = CreatePostBody.parse(obj)
       } else {
-        body = CreatePostBody.parse({ brand_id: brandId, file_path: full, status: 'draft' })
+        body = CreatePostBody.parse(
+          auto
+            ? { brand_id: brandId, file_path: full, status: 'scheduled', next_slot: true }
+            : { brand_id: brandId, file_path: full, status: 'draft' },
+        )
       }
       const post = await agentCreatePost(this.d.s, body, { source: 'inbox', moveSource: true })
       // Keep the sidecar with its video, in Queue.

@@ -30,6 +30,7 @@ export const DEFAULT_SETTINGS: Settings = {
   agentApiPort: 47821,
   agentMaySchedule: false,
   inboxBrandIds: [],
+  inboxAutoScheduleBrandIds: [],
   llmProvider: 'none',
   llmBaseUrl: 'http://localhost:11434/v1',
   llmModel: '',

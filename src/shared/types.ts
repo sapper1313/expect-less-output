@@ -40,6 +40,8 @@ export interface Settings {
   agentMaySchedule: boolean
   /** Brands with a watched Inbox folder. */
   inboxBrandIds: number[]
+  /** Brands whose Inbox videos go to the next open slot instead of waiting as drafts. Needs agentMaySchedule. */
+  inboxAutoScheduleBrandIds: number[]
   // Text assist (local AI)
   llmProvider: 'none' | 'openai-compatible'
   llmBaseUrl: string
