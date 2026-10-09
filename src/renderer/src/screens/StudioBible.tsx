@@ -146,10 +146,13 @@ function AgentsCard() {
   const { data, reload } = useLoad(() => api.studio.agents())
   return (
     <Card title="Agents and their models">
-      <p className="mb-2 text-[12px] text-muted">Each text agent can use its own Anthropic model. Leave empty for the default.</p>
+      <p className="mb-2 text-[12px] text-muted">Each text agent can use its own Anthropic model. Leave empty for the default. Untick an agent to switch it off: its work waits until you tick it again.</p>
       {data?.map((a) => (
-        <div key={a.name} className="grid items-center gap-2 border-b border-line py-2 md:grid-cols-[200px_1fr_260px]">
-          <b className="text-[13px]">{a.name}</b>
+        <div key={a.name} className="grid items-center gap-2 border-b border-line py-2 md:grid-cols-[220px_1fr_260px]">
+          <div className="flex items-center gap-2 text-[13px]">
+            {a.toggleable ? <Check checked={a.enabled} onChange={(v) => run(async () => { await api.studio.setAgentEnabled(a.name, v); reload() })}>{''}</Check> : <span className="w-4" />}
+            <b>{a.name}</b>
+          </div>
           <span className="text-[12px] text-muted">{a.role}</span>
           <Input defaultValue={a.isDefault ? '' : a.model} placeholder={a.model} onBlur={(e) => run(async () => { await api.studio.setAgentModel(a.name, e.target.value); reload() })} />
         </div>

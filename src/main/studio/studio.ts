@@ -1,4 +1,11 @@
 import { z } from 'zod'
+import { Analytics } from './analytics'
+import { CommentsAgent } from './comments/agent'
+import { MockCommentSource, type CommentSource, type PostedRef } from './comments/sources'
+import { BlueskyCommentSource, ThreadsCommentSource } from './comments/realSources'
+import { buildDigest } from './digest'
+import { Watchdog } from './watchdog'
+import { StudioBackup } from './backup'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -8,7 +15,7 @@ import type { Library as MediaLibrary } from '../services/library'
 import type { PostService } from '../services/posts'
 import type { SecretStore } from '../services/secrets'
 import { mask } from '../services/secrets'
-import { addDays, dueDates, nextDue, todayEastern } from '@shared/studio/cadence'
+import { addDays, dueDates, slotToUtc, nextDue, todayEastern } from '@shared/studio/cadence'
 import { estimateClips, typicalEpisodeEstimate } from '@shared/studio/pricing'
 import { recommendModels, remoteSetupSteps } from '@shared/studio/localModels'
 import type {
@@ -70,6 +77,22 @@ export interface StudioDeps {
   emit: () => void
   /** Reads thumbnail results from YouTube Analytics. Mock mode uses simulated numbers. */
   analytics?: AnalyticsReader
+  /** First run: start with everything paused, so nothing begins until the owner presses Resume. */
+  startPaused?: boolean
+  dataDir?: string
+  postersDir?: string
+  appVersion?: string
+  mediaRoot?: () => string
+  /** The existing stats pass for the four platforms the scheduler posts to. */
+  refreshStats?: () => Promise<{ fetched: number; unavailable: number }>
+  /** Sends one plain message to the owner (iMessage and email). */
+  broadcast?: (text: string) => Promise<void>
+  /** Plain lines about logins about to expire (Meta, TikTok, YouTube). */
+  expiring?: () => string[]
+  /** Folder holding install.sh and elo-watchdog.sh. */
+  watchdogDir?: () => string
+  /** YouTube, Facebook and Instagram comment sources built from the existing connections. */
+  commentSources?: () => Record<string, CommentSource>
   /** Sets a YouTube thumbnail. Mock mode records the choice only. */
   setYoutubeThumbnail?: (accountId: number | null, videoId: string, file: string) => Promise<void>
   now?: () => number
@@ -124,6 +147,12 @@ export class Studio implements StudioApi {
   readonly threads: ThreadsClient
   readonly bluesky: BlueskyClient
   readonly mockAnalytics = new MockAnalytics()
+  readonly analytics: Analytics
+  readonly comments: CommentsAgent
+  readonly watchdog: Watchdog
+  readonly backups: StudioBackup
+  readonly mockComments = new Map<string, MockCommentSource>()
+  private lastTickMs = 0
   private timers: NodeJS.Timeout[] = []
   private pulls = new Map<string, { pct: number; status: string }>()
   private ticking = false
@@ -131,6 +160,7 @@ export class Studio implements StudioApi {
   constructor(readonly d: StudioDeps) {
     const now = d.now ?? Date.now
     this.cfg = new StudioConfigService(d.db, now)
+    if (d.startPaused && !this.cfg.exists()) this.cfg.set({ paused: true })
     this.cfg.ensureBrandRows()
     this.applyBrandDefaults()
     const brandName = (id: number) =>
@@ -170,9 +200,10 @@ export class Studio implements StudioApi {
     this.holidayList = new Holidays(d.db, now)
     this.holidayList.ensureSeeded()
     this.repetition = new RepetitionGuard({ db: d.db, cfg: this.cfg, localAi: this.localAi, gateway: this.gateway })
-    this.scriptQc = new ScriptQc({ cfg: this.cfg, gateway: this.gateway })
-    this.math = new MathChecker({ gateway: this.gateway })
-    this.safety = new HollowSafetyChecker({ gateway: this.gateway })
+    const off = (name: string) => () => this.cfg.get().disabledAgents.includes(name)
+    this.scriptQc = new ScriptQc({ cfg: this.cfg, gateway: this.gateway, off: off('Script QC') })
+    this.math = new MathChecker({ gateway: this.gateway, off: off('Math Checker') })
+    this.safety = new HollowSafetyChecker({ gateway: this.gateway, off: off('Hollow Safety Checker') })
     this.runner.register(
       makeWriterAgent({
         db: d.db,
@@ -186,6 +217,7 @@ export class Studio implements StudioApi {
         math: this.math,
         safety: this.safety,
         brandName,
+        hints: (brandId) => this.analytics.hint(brandId),
       }),
     )
     this.assets = new BrandAssets(d.db, this.cfg, brandName, now)
@@ -236,7 +268,46 @@ export class Studio implements StudioApi {
         workDir: (id) => this.workDir(id),
       }),
     )
-    this.director = new Director({ db: d.db, config: this.cfg, tasks: this.tasks, audit: this.audit, alert: d.alert, now })
+    this.analytics = new Analytics({
+      db: d.db,
+      cfg: this.cfg,
+      gateway: this.gateway,
+      audit: this.audit,
+      threads: this.threads,
+      bluesky: this.bluesky,
+      tester: this.tester,
+      refreshStats: d.refreshStats ?? (async () => ({ fetched: 0, unavailable: 0 })),
+      brandName,
+      now,
+    })
+    this.comments = new CommentsAgent({ db: d.db, cfg: this.cfg, bible: this.bibles, gateway: this.gateway, audit: this.audit, sources: () => this.commentSources(), refs: (brandId) => this.postedRefs(brandId), brandName, now })
+    this.watchdog = new Watchdog(d.dataDir ?? tmpdir(), () => d.watchdogDir?.() ?? '')
+    this.backups = new StudioBackup({ db: d.db, cfg: this.cfg, audit: this.audit, appVersion: d.appVersion ?? '0', postersDir: d.postersDir ?? '', mediaRoot: () => d.mediaRoot?.() ?? '', libraryRoot: () => expandHome(this.cfg.get().libraryDir), now })
+    this.runner.register({
+      name: 'Analytics',
+      taskType: 'analytics_daily',
+      role: this.analytics.role,
+      input: z.object({ day: z.string().optional() }),
+      output: z.object({ fetched: z.number(), social: z.number(), brands: z.number() }),
+      tools: ['stats', 'threads', 'bluesky'],
+      paid: true,
+      run: () => this.analytics.daily((id) => this.episodeDetails(id)),
+    })
+    this.runner.register({
+      name: 'Comments',
+      taskType: 'comments_pass',
+      role: this.comments.role,
+      input: z.object({}).passthrough(),
+      output: z.object({ checked: z.number(), replied: z.number(), drafted: z.number(), flagged: z.number(), spam: z.number(), waiting: z.number() }),
+      tools: ['youtube', 'facebook', 'instagram', 'threads', 'bluesky'],
+      paid: true,
+      run: async (ctx) => {
+        if (!ctx.task.brandId) throw new Error('A comment pass needs a brand.')
+        return this.comments.pass(ctx.task.brandId)
+      },
+    })
+    this.runner.setDisabled(this.cfg.get().disabledAgents)
+    this.director = new Director({ db: d.db, config: this.cfg, tasks: this.tasks, audit: this.audit, alert: d.alert, now, onTick: () => this.heartbeat() })
     this.ingest = makeIngestHooks({ db: d.db, cfg: this.cfg, episodes: this.episodes, posts: d.posts, now, qc: this.qc, pipeline: (episodeId, postId) => this.publisher.run({ episodeId, postId }).then(() => undefined) })
   }
 
@@ -269,6 +340,7 @@ export class Studio implements StudioApi {
 
   /** Resumes unfinished work after a quit or crash, then starts the timers. */
   start(): void {
+    this.writeWatchdogSettings()
     const n = this.tasks.recoverRunning()
     if (n) this.audit.write({ agent: 'Director', action: 'resume', detail: { requeued: n } })
     const every = Math.max(1, this.cfg.get().directorTickMinutes) * 60_000
@@ -293,6 +365,8 @@ export class Studio implements StudioApi {
       await this.tester.tick()
       await this.checkThreadsToken().catch(() => {})
       await this.refreshGuidelines().catch(() => {})
+      await this.maybeDigest().catch(() => {})
+      await this.maybeBackup().catch(() => {})
       this.syncEpisodePosts()
       this.d.emit()
       return { created: r.created.length, notes: r.notes }
@@ -376,6 +450,169 @@ export class Studio implements StudioApi {
     this.d.emit()
   }
 
+  // ---------- comments, insights, digest, watchdog, backups ----------
+
+  private commentSources(): Record<string, CommentSource> {
+    if (this.cfg.get().mockMode) {
+      for (const p of ['youtube', 'facebook', 'instagram', 'threads', 'bluesky']) if (!this.mockComments.has(p)) this.mockComments.set(p, new MockCommentSource(p))
+      return Object.fromEntries(this.mockComments)
+    }
+    return { ...(this.d.commentSources?.() ?? {}), threads: new ThreadsCommentSource(this.threads, () => this.accountOf('threadsUserId')), bluesky: new BlueskyCommentSource(this.bluesky) }
+  }
+
+  /** Videos posted in the last 14 days that can have comments. Mock mode includes the dry run ones. */
+  private postedRefs(brandId: number): PostedRef[] {
+    const mock = this.cfg.get().mockMode
+    const cutoff = new Date(this.now() - 14 * 86_400_000).toISOString()
+    const four = this.d.db
+      .prepare(
+        `SELECT p.brand_id, t.platform, t.external_id, t.account_id, e.id AS episode_id
+         FROM post_targets t JOIN posts p ON p.id = t.post_id LEFT JOIN episodes e ON e.post_id = p.id LEFT JOIN accounts a ON a.id = t.account_id
+         WHERE p.brand_id = ? AND t.status = 'posted' AND t.external_id IS NOT NULL AND t.platform IN ('youtube','facebook','instagram')
+           AND COALESCE(t.posted_at_utc, p.scheduled_at_utc) >= ? ${mock ? '' : "AND COALESCE(a.mode, 'dry_run') != 'dry_run'"}`,
+      )
+      .all(brandId, cutoff) as Array<{ brand_id: number; platform: string; external_id: string; account_id: number | null; episode_id: string | null }>
+    const social = this.d.db
+      .prepare(`SELECT brand_id, platform, external_id, episode_id, state_json FROM social_posts WHERE brand_id = ? AND status = 'posted' AND external_id IS NOT NULL AND posted_utc >= ? ${mock ? '' : 'AND mock = 0'}`)
+      .all(brandId, cutoff) as Array<{ brand_id: number; platform: string; external_id: string; episode_id: string | null; state_json: string }>
+    return [
+      ...four.map((r) => ({ brandId: r.brand_id, platform: r.platform, externalId: r.external_id, accountId: r.account_id, episodeId: r.episode_id, state: {} })),
+      ...social.map((r) => ({ brandId: r.brand_id, platform: r.platform, externalId: r.external_id, accountId: null, episodeId: r.episode_id, state: JSON.parse(r.state_json) as Record<string, string> })),
+    ]
+  }
+
+  /** Hook line and length of an episode, read from its package, for the analytics. */
+  private episodeDetails(id: string): { hook: string; seconds: number } {
+    const pkg = this.episodes.getPackage(id)
+    return { hook: String((pkg?.extra?.hook as string | undefined) ?? pkg?.logline ?? ''), seconds: pkg?.runtime_target_seconds ?? 0 }
+  }
+
+  async commentList(filter: { brandId?: number | null; status?: string } = {}) {
+    return this.comments.list({ brandId: filter.brandId, status: filter.status as never }).map((c) => ({ id: c.id, brandId: c.brandId, platform: c.platform, author: c.author, text: c.text, category: c.category, status: c.status, replyText: c.replyText, reason: c.reason, createdUtc: c.createdUtc }))
+  }
+  async runComments(brandId: number) {
+    const r = await this.comments.pass(brandId)
+    this.d.emit()
+    return r
+  }
+  async approveComment(id: number, text?: string) {
+    await this.comments.approveDraft(id, text)
+    this.d.emit()
+  }
+  async discardComment(id: number) {
+    this.comments.discard(id)
+    this.d.emit()
+  }
+  async draftComment(id: number, text: string) {
+    this.comments.draftFor(id, text)
+    this.d.emit()
+  }
+
+  async insightsFor(brandId: number) {
+    const st = this.analytics.stored(brandId)
+    return { summary: st.summary, updatedUtc: st.updatedUtc, insights: st.insights }
+  }
+  async refreshInsights() {
+    const r = await this.analytics.daily((id) => this.episodeDetails(id))
+    this.d.emit()
+    return r
+  }
+
+  private expiringLines(): string[] {
+    const lines = [...(this.d.expiring?.() ?? [])]
+    const t = this.accountOf('threadsExpiry')
+    if (t && this.d.secrets.has(KEY_NAMES.threads.secret)) {
+      const days = Math.ceil((Date.parse(t) - this.now()) / 86_400_000)
+      if (days <= 7) lines.push(`The Threads token expires in ${Math.max(0, days)} day(s).`)
+    }
+    return lines
+  }
+  async digestPreview() {
+    return buildDigest({ db: this.d.db, cfg: this.cfg, spend: this.spend, expiring: () => this.expiringLines(), now: () => this.now() })
+  }
+  async sendDigest() {
+    if (!this.d.broadcast) throw new Error('Messages are not available here.')
+    await this.d.broadcast(await this.digestPreview())
+  }
+
+  /** Once a day at the set time (7:30 AM Eastern by default). */
+  async maybeDigest(): Promise<void> {
+    const c = this.cfg.get()
+    if (!c.digestEnabled || c.paused || !this.d.broadcast) return
+    const et = new Date(this.now()).toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit' })
+    const [h, m] = et.split(':').map(Number)
+    const [dh, dm] = c.digestTime.split(':').map(Number)
+    const today = todayEastern(this.now())
+    if ((h % 24) * 60 + m < dh * 60 + (dm || 0) || this.readJson<string | null>('studio.lastDigest', null) === today) return
+    this.writeJson('studio.lastDigest', today)
+    await this.sendDigest()
+    this.audit.write({ agent: 'Digest', action: 'sent' })
+  }
+
+  async watchdogInfo() {
+    return this.watchdog.info()
+  }
+  async saveWatchdog(w: { enabled: boolean; runStart: string; runEnd: string; thresholdMinutes: number }) {
+    this.cfg.set({ watchdog: w })
+    this.writeWatchdogSettings()
+    this.d.emit()
+  }
+  private writeWatchdogSettings() {
+    const w = this.cfg.get().watchdog
+    const phone = this.readJson<string>('alertIMessageNumber', '')
+    const on = this.readJson<boolean>('alertIMessageEnabled', true)
+    this.watchdog.writeSettings({ ...w, enabled: w.enabled && on, phone })
+  }
+
+  /** Called at the end of every Director pass: the heartbeat, and a notice if the Mac slept through a production time. */
+  private heartbeat(): void {
+    const now = this.now()
+    const prev = this.lastTickMs || this.watchdog.lastBeatMs() || 0
+    this.lastTickMs = now
+    this.watchdog.beat(now)
+    this.writeWatchdogSettings()
+    const gap = (now - prev) / 60_000
+    if (prev && gap > this.cfg.get().watchdog.thresholdMinutes) this.sleptThrough(prev, now)
+  }
+
+  private sleptThrough(prevMs: number, nowMs: number): void {
+    for (const b of this.cfg.listBrandConfigs()) {
+      const c = b.config
+      if (c.paused || !(c.path === 'auto' || (c.format === 'long' && c.hollowViaApi))) continue
+      const [rh, rm] = c.runTime.split(':').map(Number)
+      for (let day = todayEastern(prevMs); day <= todayEastern(nowMs); day = addDays(day, 1)) {
+        const at = new Date(slotToUtc(day, `${rh}:${String(rm || 0).padStart(2, '0')}`)).getTime()
+        if (at <= prevMs || at > nowMs) continue
+        const ready = this.d.db.prepare("SELECT COUNT(*) AS n FROM episodes WHERE brand_id = ? AND status = 'Ready for production'").get(b.brandId) as { n: number }
+        const key = `slept:${b.brandId}:${day}`
+        if (!ready.n || this.d.db.prepare("SELECT 1 FROM audit_log WHERE agent = 'Watchdog' AND detail_json LIKE ?").get(`%${key}%`)) continue
+        this.audit.write({ agent: 'Watchdog', action: 'slept_through', brandId: b.brandId, detail: { key } })
+        this.d.alert('The Mac slept through a production time.', `${b.name}: the ${c.runTime} production window passed while the Mac was asleep or off. It is catching up now.`)
+      }
+    }
+  }
+
+  async backupList() {
+    return this.backups.list()
+  }
+  async backupNow() {
+    const r = await this.backups.run()
+    this.d.emit()
+    return r
+  }
+  async restoreLibrary(libraryZip: string) {
+    const n = this.backups.restoreLibrary(libraryZip)
+    this.d.emit()
+    return n
+  }
+  async maybeBackup(): Promise<void> {
+    const et = Number(new Date(this.now()).toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }))
+    const today = todayEastern(this.now())
+    if (et < 2 || this.readJson<string | null>('studio.lastBackup', null) === today) return
+    this.writeJson('studio.lastBackup', today)
+    await this.backups.run()
+  }
+
   // ---------- bible, ideas, holidays, agents ----------
 
   async bible(brandId: number) {
@@ -430,15 +667,33 @@ export class Studio implements StudioApi {
   }
   async agents() {
     const c = this.cfg.get()
-    const defs = [
-      ['Director', 'Wakes on a timer, plans every brand, and never writes content.'],
-      ['Show Writer', 'Writes the idea, script and video prompts, one instance per brand.'],
-      [this.scriptQc.name, this.scriptQc.role],
-      [this.math.name, this.math.role],
-      [this.safety.name, this.safety.role],
-      ['Repetition Guard', 'Compares a new idea with every earlier episode.'],
+    const defs: Array<[string, string, boolean]> = [
+      ['Director', 'Wakes on a timer, plans every brand, and never writes content.', true],
+      ['Show Writer', 'Writes the idea, script and video prompts, one instance per brand.', true],
+      [this.scriptQc.name, this.scriptQc.role, true],
+      [this.math.name, this.math.role, true],
+      [this.safety.name, this.safety.role, true],
+      ['Repetition Guard', 'Compares a new idea with every earlier episode.', false],
+      ['Producer', 'Makes the video through the xAI Grok Imagine API and assembles it.', true],
+      ['Video QC', 'Checks every clip, cheapest check first, and decides pass or retry.', true],
+      [this.compliance.name, this.compliance.role, false],
+      ['Thumbnail', 'Designs and scores a thumbnail or cover for every platform.', false],
+      ['Publisher', 'Writes the text for every platform and schedules everywhere.', true],
+      [this.comments.name, this.comments.role, true],
+      [this.analytics.name, this.analytics.role, true],
+      ['Archivist', 'Removes old videos and keeps packages and stats forever.', false],
     ]
-    return defs.map(([name, role]) => ({ name, role, model: c.agentModels[name] || c.defaultAgentModel, isDefault: !c.agentModels[name] }))
+    return defs.map(([name, role, toggleable]) => ({ name, role, model: c.agentModels[name] || c.defaultAgentModel, isDefault: !c.agentModels[name], enabled: !c.disabledAgents.includes(name), toggleable }))
+  }
+  async setAgentEnabled(name: string, enabled: boolean) {
+    const cur = new Set(this.cfg.get().disabledAgents)
+    if (enabled) cur.delete(name)
+    else cur.add(name)
+    this.cfg.set({ disabledAgents: [...cur] })
+    this.runner.setDisabled([...cur])
+    this.audit.write({ agent: 'Owner', action: enabled ? 'agent_on' : 'agent_off', detail: { name } })
+    this.d.emit()
+    return this.agents()
   }
   async setAgentModel(name: string, model: string) {
     this.cfg.set({ agentModels: { ...this.cfg.get().agentModels, [name]: model.trim() } })
@@ -885,16 +1140,18 @@ export class Studio implements StudioApi {
     this.d.emit()
   }
 
-  /** Simulates a day of Director decisions in mock mode and returns a plain report. Spends nothing. */
+  /**
+   * Dry run day: walks the next 24 hours and says what the Director would do, hour by hour, with the money it would use.
+   * Nothing is created, started or sent.
+   */
   async dryRunDay(): Promise<string[]> {
-    const lines: string[] = []
-    const r = this.director.tick()
-    lines.push(...r.notes)
-    for (const t of r.created) lines.push(`Would start task ${t.type} for brand ${t.brandId}: ${JSON.stringify(t.payload)}`)
+    const lines = this.director.simulate(this.now(), 24)
+    lines.push('')
     for (const b of this.cfg.listBrandConfigs()) {
       const est = typicalEpisodeEstimate(this.cfg.get(), b.config)
-      lines.push(`${b.name}: next due ${nextDue(b.config, todayEastern(this.now()))}, about $${est.firstPass.toFixed(2)} per episode (worst case $${est.worstCase.toFixed(2)}).`)
+      lines.push(`${b.name}: next due ${nextDue(b.config, todayEastern(this.now())) ?? 'none'}, about $${est.firstPass.toFixed(2)} per episode (worst case $${est.worstCase.toFixed(2)}).`)
     }
+    lines.push(this.cfg.get().paused ? 'Note: everything is paused right now, so nothing would actually run.' : 'Nothing was started. This was only a look ahead.')
     return lines
   }
 

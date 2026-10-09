@@ -48,6 +48,8 @@ export interface PublishRun {
   videoPath?: string
   srt?: string
   postId?: number
+  /** The video is a mock mode placeholder. Its post goes to the dry run adapter and is never published for real. */
+  mock?: boolean
 }
 
 export interface PublishResult {
@@ -131,6 +133,7 @@ export class Publisher {
     const brandName = (this.d.db.prepare('SELECT name FROM brands WHERE id = ?').get(ep.brandId) as { name: string }).name
     const isShort = brand.format === 'short'
     const mock = cfg.mockMode
+    const mockVideo = r.mock === true
     this.d.episodes.setStatus(r.episodeId, 'Checking video', 'Thumbnail, text and compliance.')
 
     // where the video is right now
@@ -188,7 +191,8 @@ export class Publisher {
       if (!ok(p)) continue
       const t = report.texts[p]
       const text = p === 'youtube' ? report.texts.youtube?.description : (t as { caption?: string } | undefined)?.caption
-      targets.push({ platform: p, aiFlag: brand.aiDisclosure, captionOverride: text ?? null, settings: await settingsFor(p) })
+      const cover = await settingsFor(p)
+      targets.push({ platform: p, aiFlag: brand.aiDisclosure, captionOverride: text ?? null, settings: mockVideo ? { ...(cover ?? {}), mock: true } : cover })
     }
 
     // 5. schedule
@@ -214,7 +218,7 @@ export class Publisher {
     for (const p of ['threads', 'bluesky'] as const) {
       if (!ok(p) || !when) continue
       const text = (report.texts[p] as { text: string }).text
-      this.d.social.add({ episodeId: r.episodeId, brandId: ep.brandId, platform: p, text, videoPath: videoAbs, title, scheduledAtUtc: when, mock })
+      this.d.social.add({ episodeId: r.episodeId, brandId: ep.brandId, platform: p, text, videoPath: videoAbs, title, scheduledAtUtc: when, mock: mock || mockVideo })
       social++
     }
     for (const s of skipped) this.d.db.prepare('INSERT INTO audit_log (ts_utc, brand_id, agent, action, episode_id, detail_json) VALUES (?, ?, ?, ?, ?, ?)').run(new Date(this.now()).toISOString(), ep.brandId, 'Compliance', 'platform_skipped', r.episodeId, JSON.stringify(s))
@@ -228,7 +232,7 @@ export class Publisher {
   }
 }
 
-const Input = z.object({ episodeId: z.string(), videoPath: z.string().optional(), srt: z.string().optional(), postId: z.number().optional() })
+const Input = z.object({ episodeId: z.string(), videoPath: z.string().optional(), srt: z.string().optional(), postId: z.number().optional(), mock: z.boolean().optional() })
 const Output = z.object({ postId: z.number().nullable(), scheduledAtUtc: z.string().nullable(), skipped: z.array(z.object({ platform: z.string(), reason: z.string() })), social: z.number() })
 
 export function makePublisherAgent(p: Publisher): AgentDef<z.infer<typeof Input>, z.infer<typeof Output>> {

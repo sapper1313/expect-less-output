@@ -181,6 +181,18 @@ export function registerMockResponders(mock: MockLlm): void {
     if (platforms.includes('bluesky')) out.bluesky = { text: `${title}. ${String(c.summary ?? '')}`.slice(0, 240) }
     return out
   })
+  mock.respond('Analytics', (req) => {
+    const c = readCtx(req.user)
+    return { summary: `Out of ${c.videos} videos, the quicker tips with a clear hook in the first two seconds did best. Posts around the evening hours earned more views. Keep the headlines short on thumbnails.` }
+  })
+  mock.respond('Comments', (req) => {
+    const t = String(readCtx(req.user).comment ?? '').toLowerCase()
+    if (/(love|great|awesome|amazing|nice|good)/.test(t)) return { category: 'praise', reply: 'Glad that one helped. More soon.', confidence: 0.9 }
+    if (/(thank|thanks)/.test(t)) return { category: 'thanks', reply: 'Anytime.', confidence: 0.9 }
+    if (/(lol|haha|funny)/.test(t)) return { category: 'joke', reply: 'Fine. That was a little funny.', confidence: 0.8 }
+    if (t.includes('?')) return { category: 'question', reply: 'Good question. It is in the steps near the start of the video.', confidence: 0.8 }
+    return { category: 'unsure', reply: '', confidence: 0.2 }
+  })
   mock.respond('Script QC', () => ({ pass: true, fixes: [] }))
   mock.respond('Hollow Safety Checker', () => ({ pass: true, issues: [] }))
   mock.respond('Math Checker', () => ({ claims: [], outdated: [] }))

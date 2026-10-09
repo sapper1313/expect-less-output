@@ -26,7 +26,8 @@ export interface SchedulerDeps {
   log: ActivityLog
   getSettings: () => Settings
   /** Picks the adapter for a platform. Real YouTube accounts get the YouTube adapter, the rest dry run. */
-  adapterFor: (platform: Platform, account: Account | null) => PlatformAdapter
+  /** The settings of the target are passed so a mock mode post can be steered to the dry run adapter. */
+  adapterFor: (platform: Platform, account: Account | null, settings?: Record<string, unknown>) => PlatformAdapter
   notifier: Notifier
   now?: () => number
   emit?: () => void
@@ -147,7 +148,7 @@ export class Scheduler {
       if (missedPosts.has(row.post_id) || this.inFlight.has(row.id)) continue
       const scheduledMs = new Date(row.scheduled_at_utc).getTime()
       const account = this.loadAccount(row.account_id)
-      const adapter = this.d.adapterFor(row.platform, account)
+      const adapter = this.d.adapterFor(row.platform, account, this.targetState(row.id))
       const hours =
         row.platform === 'youtube'
           ? settings.handoffHoursYoutube
@@ -327,7 +328,7 @@ export class Scheduler {
     const label = PLATFORM_LABELS[row.platform]
     try {
       const ctx = this.buildContext(row)
-      const adapter = this.d.adapterFor(row.platform, ctx.account)
+      const adapter = this.d.adapterFor(row.platform, ctx.account, ctx.settings)
       if (ctx.account) await adapter.refreshIfNeeded(ctx.account)
       await adapter.validate(ctx)
       const result =
@@ -370,7 +371,7 @@ export class Scheduler {
     this.inFlight.add(row.id)
     try {
       const ctx = this.buildContext(row)
-      const result = await this.d.adapterFor(row.platform, ctx.account).checkStatus(ctx, this.now())
+      const result = await this.d.adapterFor(row.platform, ctx.account, ctx.settings).checkStatus(ctx, this.now())
       if (result.status === 'needs_action') {
         this.d.db
           .prepare(

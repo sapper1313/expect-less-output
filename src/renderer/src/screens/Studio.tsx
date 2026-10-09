@@ -5,17 +5,20 @@ import { useApp, useLoad } from '../hooks'
 import { BrandDot, Button, Card, Empty, PageHeader, Select, Textarea, useBusy } from '../ui'
 import { StudioBible } from './StudioBible'
 import { StudioPublishing } from './StudioPublishing'
+import { StudioComments, StudioInsights } from './StudioOperations'
 import { StudioLibrary } from './StudioLibrary'
 import { StudioSpend } from './StudioSpend'
 import { StudioSettings } from './StudioSettings'
 import { StudioLocalAi } from './StudioLocalAi'
 
-type Tab = 'overview' | 'bible' | 'library' | 'publishing' | 'spend' | 'log' | 'flagged' | 'settings' | 'local'
+type Tab = 'overview' | 'bible' | 'library' | 'publishing' | 'comments' | 'insights' | 'spend' | 'log' | 'flagged' | 'settings' | 'local'
 const TABS: Array<[Tab, string]> = [
   ['overview', 'Overview'],
   ['bible', 'Bible'],
   ['library', 'Library'],
   ['publishing', 'Publishing'],
+  ['comments', 'Comments'],
+  ['insights', 'Insights'],
   ['spend', 'Spend'],
   ['log', "Director's Log"],
   ['flagged', 'Flagged'],
@@ -52,6 +55,8 @@ export function Studio({ initialTab = 'overview' }: { initialTab?: Tab }) {
         {tab === 'bible' && <StudioBible />}
         {tab === 'library' && <StudioLibrary />}
         {tab === 'publishing' && <StudioPublishing />}
+        {tab === 'comments' && <StudioComments />}
+        {tab === 'insights' && <StudioInsights />}
         {tab === 'spend' && <StudioSpend />}
         {tab === 'log' && <DirectorLog />}
         {tab === 'flagged' && <Flagged />}
@@ -98,6 +103,11 @@ function Overview() {
           </div>
         }
       >
+        {ov.paused && (
+          <div className="mb-2 rounded-md border border-warn p-2 text-[13px]">
+            The studio starts paused so nothing happens until you are ready. Check Settings (keys, caps, brands), then press Resume everything. Mock mode is on, so the first runs spend nothing.
+          </div>
+        )}
         <div className="text-[13px] text-muted">
           {ov.paused ? 'Everything is paused. Nothing new will start.' : `${ov.queued} waiting, ${ov.running} running, ${ov.openFlags} need you.`}{' '}
           Library: {ov.libraryEpisodes} episodes, {(ov.libraryBytes / 1024 / 1024).toFixed(1)} MB.

@@ -22,6 +22,9 @@ import { AlertService } from './alerts/service'
 import { AgentRuntime } from './agent/runtime'
 import { InboxWatcher } from './agent/inbox'
 import { Studio } from './studio/studio'
+import { YoutubeAnalyticsReader } from './studio/youtubeAnalytics'
+import { MetaCommentSource, YoutubeCommentSource } from './studio/comments/realSources'
+import { healthRows } from './services/health'
 import { buildHealth } from './agent/health'
 import { StatsService } from './stats/service'
 import { FacebookLister, ImportService, InstagramLister, YoutubeLister } from './stats/imported'
@@ -43,6 +46,7 @@ import { SecretStore } from './services/secrets'
 import { SettingsService } from './services/settings'
 import { Scheduler } from './scheduler/scheduler'
 import { DryRunAdapter } from './adapters/dryRun'
+import { pickAdapter } from './adapters/choose'
 import { YoutubeAdapter } from './adapters/youtube'
 import { FacebookAdapter } from './adapters/facebook'
 import { InstagramAdapter } from './adapters/instagram'
@@ -375,15 +379,9 @@ async function boot(): Promise<void> {
   const dryRuns = Object.fromEntries(
     PLATFORMS.map((p) => [p, new DryRunAdapter(p, { getSettings: () => settings.get() })]),
   ) as unknown as Record<Platform, PlatformAdapter>
-  const adapterFor = (platform: Platform, account: Account | null): PlatformAdapter => {
-    if (account && account.mode !== 'dry_run') {
-      if (platform === 'youtube') return youtubeAdapter
-      if (platform === 'facebook') return facebookAdapter
-      if (platform === 'instagram') return instagramAdapter
-      if (platform === 'tiktok') return tiktokAdapter
-    }
-    return dryRuns[platform]
-  }
+  const realAdapters = { youtube: youtubeAdapter, facebook: facebookAdapter, instagram: instagramAdapter, tiktok: tiktokAdapter } as unknown as Record<Platform, PlatformAdapter>
+  const adapterFor = (platform: Platform, account: Account | null, targetSettings?: Record<string, unknown>): PlatformAdapter =>
+    pickAdapter(platform, account, targetSettings, { dry: dryRuns, real: realAdapters })
 
   const scheduler = new Scheduler({
     db,
@@ -403,7 +401,40 @@ async function boot(): Promise<void> {
     media: library,
     log,
     alert: (headline, detail) => void alerts.alert({ kind: 'other', headline, detail }),
+    alertItem: (item) => void alerts.alert(item),
     emit,
+    startPaused: true,
+    dataDir,
+    postersDir,
+    appVersion: app.getVersion(),
+    mediaRoot: () => settings.get().mediaRoot,
+    refreshStats: () => stats.refresh({ force: true }),
+    broadcast: (text) => alerts.broadcast(text),
+    watchdogDir: () => (app.isPackaged ? join(process.resourcesPath, 'watchdog') : join(app.getAppPath(), 'scripts', 'watchdog')),
+    expiring: () => {
+      const lines: string[] = []
+      for (const r of healthRows({ db, metaExpiresAt: () => meta.status().expiresAt, tiktokExpiresAt: (id) => tiktok.refreshExpiry(id) })) {
+        if (r.status === 'needs_reauth') lines.push(`${r.brandName} ${r.platform} needs you to sign in again.`)
+        else if (r.expiresAt) {
+          const days = Math.ceil((Date.parse(r.expiresAt) - Date.now()) / 86_400_000)
+          if (days <= 7) lines.push(`${r.platform} login for ${r.brandName} expires in ${Math.max(0, days)} day(s).`)
+        }
+      }
+      return [...new Set(lines)]
+    },
+    commentSources: () => {
+      const acct = (ref: { accountId: number | null; brandId: number }) => brands.listAccounts(ref.brandId).find((a) => a.id === ref.accountId) ?? null
+      return {
+        youtube: new YoutubeCommentSource(ytClient),
+        facebook: new MetaCommentSource('facebook', graph, (a) => meta.tokenForAccount(a), acct),
+        instagram: new MetaCommentSource('instagram', graph, (a) => meta.tokenForAccount(a), acct),
+      }
+    },
+    analytics: new YoutubeAnalyticsReader((id) => tokens.getAccessToken(id)),
+    setYoutubeThumbnail: async (accountId, videoId, file) => {
+      if (accountId === null) throw new Error('No YouTube account is linked to this video.')
+      await ytClient.setThumbnail(accountId, videoId, file)
+    },
   })
 
   // Agents: the local API, the watched Inbox folders and the MCP server file.

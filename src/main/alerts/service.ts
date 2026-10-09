@@ -53,6 +53,12 @@ export class AlertService {
     await this.remote(item)
   }
 
+  /** Sends one plain message (iMessage and email) right now, without the alert batching. Used for the morning digest. */
+  async broadcast(text: string): Promise<void> {
+    this.d.log('info', 'Sending a message to the owner.')
+    await this.sendText(text)
+  }
+
   status(): AlertStatus {
     const pw = this.d.secrets.get(EMAIL_PASSWORD_KEY)
     return { emailPasswordSet: !!pw, emailPasswordMasked: pw ? mask(pw) : '' }

@@ -42,6 +42,11 @@ export class StudioConfigService {
     private now: () => number = Date.now,
   ) {}
 
+  /** Has the studio ever saved its settings? False on the very first run. */
+  exists(): boolean {
+    return !!this.db.prepare('SELECT 1 FROM settings WHERE key = ?').get(KEY)
+  }
+
   get(): StudioConfig {
     if (this.cache) return this.cache
     const row = this.db.prepare('SELECT value_json FROM settings WHERE key = ?').get(KEY) as

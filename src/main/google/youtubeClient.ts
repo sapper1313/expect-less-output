@@ -100,6 +100,31 @@ export class YoutubeClient implements YoutubeClientLike {
     return video
   }
 
+  /** Top level comments on a video, newest first. commentThreads.list costs 1 quota unit. */
+  async listComments(accountId: number, videoId: string): Promise<Array<{ id: string; text: string; author: string; publishedAt: string }>> {
+    const res = await this.call(accountId, (yt) => yt.commentThreads.list({ part: ['snippet'], videoId, maxResults: 50, order: 'time', textFormat: 'plainText' }))
+    this.quota.record('commentThreadsList')
+    return (res.data.items ?? []).map((t) => ({
+      id: t.snippet?.topLevelComment?.id ?? t.id ?? '',
+      text: t.snippet?.topLevelComment?.snippet?.textDisplay ?? '',
+      author: t.snippet?.topLevelComment?.snippet?.authorDisplayName ?? '',
+      publishedAt: t.snippet?.topLevelComment?.snippet?.publishedAt ?? '',
+    }))
+  }
+
+  /** Replies to a comment. comments.insert costs 50 quota units. */
+  async replyToComment(accountId: number, parentId: string, text: string): Promise<string> {
+    const res = await this.call(accountId, (yt) => yt.comments.insert({ part: ['snippet'], requestBody: { snippet: { parentId, textOriginal: text } } }))
+    this.quota.record('commentInsert')
+    return res.data.id ?? ''
+  }
+
+  /** Rejects an obvious spam comment (it is hidden, not deleted). */
+  async rejectComment(accountId: number, commentId: string): Promise<void> {
+    await this.call(accountId, (yt) => yt.comments.setModerationStatus({ id: [commentId], moderationStatus: 'rejected' }))
+    this.quota.record('commentModerate')
+  }
+
   /** thumbnails.set costs 50 quota units. The channel must be verified; otherwise YouTube answers 403. */
   async setThumbnail(accountId: number, videoId: string, filePath: string): Promise<void> {
     const mime = filePath.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg'

@@ -240,6 +240,8 @@ export interface TargetSettings {
   coverTimestampMs?: number
   /** Instagram custom cover, a public https address (used instead of the frame). */
   coverUrl?: string
+  /** Made from a mock mode placeholder video. The scheduler uses the dry run adapter, so nothing real is ever posted. */
+  mock?: boolean
   /** TikTok Direct Post choices. */
   tiktok?: TikTokPostSettings
 }

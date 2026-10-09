@@ -97,6 +97,43 @@ export interface AgentInfo {
   role: string
   model: string
   isDefault: boolean
+  enabled: boolean
+  toggleable: boolean
+}
+
+export interface CommentView {
+  id: number
+  brandId: number
+  platform: string
+  author: string
+  text: string
+  category: string
+  status: string
+  replyText: string | null
+  reason: string | null
+  createdUtc: string
+}
+
+export interface BackupView {
+  stamp: string
+  dbZip: string
+  libraryZip: string | null
+  bytes: number
+  createdUtc: string
+}
+
+export interface InsightsView {
+  summary: string
+  updatedUtc: string | null
+  insights: {
+    videos: number
+    totalViews: number
+    topEpisodes: Array<{ id: string; title: string; hook: string; views: number }>
+    topics: Array<{ topic: string; videos: number; avgViews: number }>
+    lengths: Array<{ bucket: string; videos: number; avgViews: number }>
+    postingHours: Array<{ hourEt: number; videos: number; avgViews: number }>
+    thumbnailStyles: Array<{ headline: string; ctr: number }>
+  } | null
 }
 
 export interface AssetView {
@@ -151,6 +188,21 @@ export interface ThumbTestView {
 }
 
 export interface StudioApi {
+  commentList(filter?: { brandId?: number | null; status?: string }): Promise<CommentView[]>
+  runComments(brandId: number): Promise<{ checked: number; replied: number; drafted: number; flagged: number; spam: number; waiting: number }>
+  approveComment(id: number, text?: string): Promise<void>
+  discardComment(id: number): Promise<void>
+  draftComment(id: number, text: string): Promise<void>
+  insightsFor(brandId: number): Promise<InsightsView>
+  refreshInsights(): Promise<{ fetched: number; social: number; brands: number }>
+  digestPreview(): Promise<string>
+  sendDigest(): Promise<void>
+  watchdogInfo(): Promise<{ installed: boolean; installCommand: string; uninstallCommand: string; heartbeatAgeMinutes: number | null; plist: string }>
+  saveWatchdog(w: { enabled: boolean; runStart: string; runEnd: string; thresholdMinutes: number }): Promise<void>
+  backupList(): Promise<BackupView[]>
+  backupNow(): Promise<BackupView>
+  restoreLibrary(libraryZip: string): Promise<number>
+  setAgentEnabled(name: string, enabled: boolean): Promise<AgentInfo[]>
   guidelineInfo(): Promise<{ current: GuidelineView; history: GuidelineView[]; proposal: { text: string; changes: string[]; at: string } | null }>
   saveGuidelines(text: string, note: string): Promise<GuidelineView>
   revertGuidelines(id: number): Promise<GuidelineView>

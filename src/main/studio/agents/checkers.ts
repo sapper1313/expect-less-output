@@ -41,7 +41,7 @@ export interface ScriptQcReport extends Report {
 export class ScriptQc {
   readonly name = 'Script QC'
   readonly role = 'Verifies a script against the series bible: voice, length, hook, banned phrases, dashes, policy, format.'
-  constructor(private d: { cfg: StudioConfigService; gateway: LlmGateway }) {}
+  constructor(private d: { cfg: StudioConfigService; gateway: LlmGateway; off?: () => boolean }) {}
 
   codeChecks(draft: Draft, bible: SeriesBibleData): string[] {
     const fixes: string[] = []
@@ -71,6 +71,7 @@ export class ScriptQc {
   }
 
   async run(draft: Draft, bible: SeriesBibleData, bibleMd: string, ctx: CheckCtx): Promise<ScriptQcReport> {
+    if (this.d.off?.()) return { pass: true, fixes: [], code: [] }
     const code = this.codeChecks(draft, bible)
     if (code.length) return { pass: false, fixes: code, code }
     const ans = await this.d.gateway.json(
@@ -110,9 +111,10 @@ const Extracted = z.object({
 export class MathChecker {
   readonly name = 'Math Checker'
   readonly role = 'Extracts every number, calculation, count and unit from a script and verifies them by executing code.'
-  constructor(private d: { gateway: LlmGateway }) {}
+  constructor(private d: { gateway: LlmGateway; off?: () => boolean }) {}
 
   async run(draft: Draft, opts: { counted: boolean; steps: boolean }, ctx: CheckCtx): Promise<MathReport> {
+    if (this.d.off?.()) return { pass: true, fixes: [], claims: [], countIssues: [], stepIssues: [], warnings: ['The Math Checker is switched off.'] }
     const text = allText(draft)
     const found: MathClaim[] = extractClaims(text)
     const warnings: string[] = []
@@ -174,9 +176,10 @@ const SafetyAnswer = z.object({ pass: z.boolean(), issues: z.array(z.object({ wh
 export class HollowSafetyChecker {
   readonly name = 'Hollow Safety Checker'
   readonly role = 'Checks made for kids scripts and prompts: age appropriate, nothing frightening, no unsafe behavior, no real people or brands, positive tone, clear lesson.'
-  constructor(private d: { gateway: LlmGateway }) {}
+  constructor(private d: { gateway: LlmGateway; off?: () => boolean }) {}
 
   async run(draft: Draft, bibleMd: string, ctx: CheckCtx): Promise<SafetyReport> {
+    if (this.d.off?.()) return { pass: true, fixes: [], hits: [] }
     const parts = isHollow(draft)
       ? [
           { where: 'title', text: draft.title },

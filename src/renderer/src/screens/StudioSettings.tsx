@@ -5,6 +5,7 @@ import type { KeyId, KeyStatus } from '@shared/studio/api'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { Button, Card, Check, Field, Input, Select, Textarea, useBusy } from '../ui'
+import { OperationsCards } from './StudioOperations'
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
@@ -23,6 +24,7 @@ export function StudioSettings() {
       <CapsTableCard cfg={cfg} reload={reload} />
       <PublicHostCard cfg={cfg} reload={reload} />
       <RetentionCard cfg={cfg} reload={reload} />
+      <OperationsCards cfg={cfg} reload={reload} />
       <WritingCard cfg={cfg} reload={reload} />
     </div>
   )

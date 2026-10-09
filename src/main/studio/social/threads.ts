@@ -85,6 +85,13 @@ export class ThreadsClient {
     await this.req('POST', `/${replyId}/manage_reply`, { hide: String(hide) })
   }
 
+  /** Views, likes, replies, reposts and quotes for one post. */
+  async insights(mediaId: string): Promise<{ views: number; likes: number; replies: number; reposts: number; quotes: number }> {
+    const r = await this.req<{ data?: Array<{ name: string; values?: Array<{ value: number }>; total_value?: { value: number } }> }>('GET', `/${mediaId}/insights`, { metric: 'views,likes,replies,reposts,quotes' })
+    const get = (n: string) => r.data?.find((m) => m.name === n)?.values?.[0]?.value ?? r.data?.find((m) => m.name === n)?.total_value?.value ?? 0
+    return { views: get('views'), likes: get('likes'), replies: get('replies'), reposts: get('reposts'), quotes: get('quotes') }
+  }
+
   /** Refreshes a long lived token (valid 60 days, refreshable after 24 hours). Returns the new token. */
   async refresh(): Promise<{ token: string; expiresInSeconds: number }> {
     const q = new URLSearchParams({ grant_type: 'th_refresh_token', access_token: this.tok() })

@@ -2,6 +2,8 @@ export const SCOPES = [
   'https://www.googleapis.com/auth/youtube.upload',
   'https://www.googleapis.com/auth/youtube',
   'https://www.googleapis.com/auth/youtube.readonly',
+  // Thumbnail click through rate for the A/B test. Existing connections keep working without it.
+  'https://www.googleapis.com/auth/yt-analytics.readonly',
 ]
 
 export const SECRET_CLIENT_ID = 'google.client_id'

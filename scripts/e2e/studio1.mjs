@@ -9,7 +9,7 @@ const ov = await invoke(page, 'studio.overview')
 console.log('mock mode:', ov.mockMode, 'brands:', ov.brands.map((b) => b.name).join(' | '))
 await nav(page, 'Studio')
 await shot(page, 's1-overview')
-for (const tab of ['Bible', 'Library', 'Publishing', 'Spend', "Director's Log", 'Flagged', 'Settings', 'Local AI']) {
+for (const tab of ['Bible', 'Library', 'Publishing', 'Comments', 'Insights', 'Spend', "Director's Log", 'Flagged', 'Settings', 'Local AI']) {
   await page.locator('main').getByRole('button', { name: tab, exact: true }).click()
   await page.waitForTimeout(500)
   await shot(page, 's1-' + tab.toLowerCase().replace(/[^a-z]/g, ''))

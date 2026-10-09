@@ -167,6 +167,15 @@ export class BlueskyClient {
     return (await res.json()) as BskyPostRef
   }
 
+  /** Like, reply and repost counts. Bluesky does not report views. */
+  async counts(uri: string): Promise<{ likes: number; replies: number; reposts: number }> {
+    const res = await this.pds(`/xrpc/app.bsky.feed.getPosts?${new URLSearchParams({ uris: uri })}`)
+    if (!res.ok) throw await httpError('Bluesky', res)
+    const d = (await res.json()) as { posts?: Array<{ likeCount?: number; replyCount?: number; repostCount?: number }> }
+    const p = d.posts?.[0]
+    return { likes: p?.likeCount ?? 0, replies: p?.replyCount ?? 0, reposts: p?.repostCount ?? 0 }
+  }
+
   async listReplies(uri: string): Promise<Array<Reply & { uri: string; cid: string }>> {
     const res = await this.pds(`/xrpc/app.bsky.feed.getPostThread?${new URLSearchParams({ uri, depth: '1' })}`)
     if (!res.ok) throw await httpError('Bluesky', res)

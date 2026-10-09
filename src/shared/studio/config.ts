@@ -60,6 +60,9 @@ export const DEFAULT_STUDIO_CONFIG: StudioConfig = {
   repetitionThreshold: 0.86,
   characterSimilarityThreshold: 0.6,
   qcMode: 'auto',
+  disabledAgents: [],
+  digestEnabled: true,
+  watchdog: { enabled: true, runStart: '07:00', runEnd: '22:00', thresholdMinutes: 30 },
   platformCaps: {},
   publicHost: { endpoint: '', bucket: '', publicBase: '', region: 'auto' },
   thumbnailEngine: { generateImages: true, candidates: 3, abDelayHours: 48, abMinImpressions: 500, font: '' },
@@ -120,6 +123,7 @@ export function defaultBrandConfig(format: BrandFormat, startDate: string): Stud
     stepsCheck: false,
     captionMode: 'sidecar',
     openingFrame: format === 'short',
+    commentLimit: 20,
   }
   if (format === 'long') {
     return {

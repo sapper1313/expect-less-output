@@ -11,11 +11,12 @@ describe('Director and agent framework', () => {
     const s = e.studio
     const first = s.director.tick()
     // 4 short brands every 3 days over a 7 day runway (days 0..7 -> dates 0,3,6) = 3 each, plus Hollow Tue/Fri
-    const shorts = first.created.filter((t) => t.brandId !== null && s.cfg.getBrand(t.brandId).format === 'short')
+    const writes = first.created.filter((t) => t.type === 'write_episode')
+    const shorts = writes.filter((t) => t.brandId !== null && s.cfg.getBrand(t.brandId).format === 'short')
     expect(shorts).toHaveLength(12)
-    expect(first.created.every((t) => t.type === 'write_episode')).toBe(true)
+    expect(first.created.every((t) => ['write_episode', 'comments_pass', 'analytics_daily'].includes(t.type))).toBe(true)
     const again = s.director.tick()
-    expect(again.created).toHaveLength(0) // deduped
+    expect(again.created.filter((t) => t.type === 'write_episode')).toHaveLength(0) // deduped
     expect(e.alerts.filter(([h]) => /runway|Runway/.test(h))).toEqual([])
     const log = s.audit.list({ agent: 'Director' })
     expect(log.some((x) => x.action === 'ask_writer')).toBe(true)
@@ -160,8 +161,10 @@ describe('Director and agent framework', () => {
   })
 
   it('missed slot: alerts once when a package brand has nothing ready for today', async () => {
-    const e = makeStudioEnv({ startMs: Date.UTC(2026, 5, 2, 10) }) // Tuesday 06:00 Eastern
+    const e = makeStudioEnv({ startMs: Date.UTC(2026, 4, 30, 10) }) // the studio began work on Saturday
     const s = e.studio
+    for (const b of s.cfg.listBrandConfigs()) s.episodes.create(b.brandId, { series: b.name, episode_number: 1, title: `Old ${b.name}`, logline: '', runtime_target_seconds: 0, counted_objects: [], scenes: [], youtube: { title: 'x', description: 'x', tags: [], made_for_kids: false, ai_disclosure: true }, tags: [], summary: '' } as never, { status: 'Idea', slotDate: '2026-05-30' })
+    e.clock.ms = Date.UTC(2026, 5, 2, 10) // Tuesday 06:00 Eastern
     s.director.tick()
     s.director.tick()
     const missed = e.alerts.filter(([h]) => h === 'A posting slot will be missed.')
@@ -176,5 +179,14 @@ describe('Director and agent framework', () => {
     e.clock.ms = Date.UTC(2026, 5, 2, 11, 45) // 07:45 Eastern, within 30 minutes of the 08:00 slot
     s.director.tick()
     expect(e.alerts.filter(([h]) => h === 'A posting slot will be missed.')).toHaveLength(5)
+  })
+
+  it('the very first day of a brand is never called a missed slot, so resuming a fresh studio sends no false alarm', async () => {
+    const e = makeStudioEnv({ startMs: Date.UTC(2026, 5, 3, 21) }) // 17:00 Eastern, after every first slot
+    const s = e.studio
+    s.director.tick()
+    await s.runner.runUntilIdle()
+    s.director.tick()
+    expect(e.alerts.filter(([h]) => h === 'A posting slot will be missed.')).toEqual([])
   })
 })

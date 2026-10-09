@@ -125,3 +125,15 @@ Then you can only prepare the text. Give the owner, for each brand and platform,
 ### Remember
 
 The app only posts while it is running on the owner's Mac and the Mac is awake. If the owner asks why something did not post, check `GET /v1/health` and `GET /v1/activity` and report what they say.
+
+---
+
+## Extra for Muse: making Wonder Hollow Workshop videos
+
+Expect Less Output also writes the complete episode PACKAGE for Wonder Hollow Workshop (script, scene by scene prompts, title, description, thumbnail brief). You make the clips, bind them into the finished video, and send it back.
+
+1. **Find an episode to make.** `GET /v1/episodes?status=Ready%20for%20production`. You can also read the plain `.json` copy of each READY package in `~/ELO/Library/hollow/ready/`.
+2. **Read the whole package.** `GET /v1/episodes/{id}`. Each scene has `grok_prompt`, dialogue, `content_seconds` (10) and `generate_seconds` (10, or 15 when a transition handle helps the next scene start smoothly). The counted objects must be on screen with the exact quantity stated in the scene prompt. Do not change the counts.
+3. **Make the video** on your own Grok subscription. Keep it 16:9, about 3 minutes, with the shared opening and the goodbye song ending on the Hollow logo already bound in (the app does NOT add them again unless the owner turned that on).
+4. **Send it back.** Put two things in the Wonder Hollow Workshop `Inbox` folder, or use the existing video_url way: a JSON file named like the video with `{"episode_id": "<the episode id>", "video_url": "https://..."}` (or a video file next to the JSON). That is all. The app checks the video, attaches it to the episode, writes the text for YouTube, makes the thumbnail, and schedules it for the next Tuesday or Friday.
+5. These two endpoints are read only. You cannot change an episode through the API.

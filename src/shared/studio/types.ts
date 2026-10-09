@@ -66,6 +66,8 @@ export interface StudioBrandConfig {
   captionMode: 'sidecar' | 'burn' | 'off'
   /** Shorts: show the winning thumbnail for the first moments so the frame YouTube picks is strong. */
   openingFrame: boolean
+  /** Most comment replies per day. */
+  commentLimit: number
 }
 
 export interface Prices {
@@ -120,6 +122,10 @@ export interface StudioConfig {
   repetitionThreshold: number
   characterSimilarityThreshold: number
   qcMode: 'off' | 'auto'
+  /** Agents the owner switched off. Their tasks wait until they are switched back on. */
+  disabledAgents: string[]
+  digestEnabled: boolean
+  watchdog: { enabled: boolean; runStart: string; runEnd: string; thresholdMinutes: number }
   /** Editable per platform limits. Missing keys use the built in table. */
   platformCaps: Record<string, unknown>
   /** Temporary public host for files a platform must fetch (Threads video, Instagram cover). */

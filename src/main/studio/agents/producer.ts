@@ -250,7 +250,7 @@ export function makeProducerAgent(d: ProducerDeps): AgentDef<z.infer<typeof Inpu
       const outFile = burned ? join(work, 'final-burned.mp4') : finalPath
       // Hand the finished video to the Publisher. It is its own task so a text or thumbnail problem never remakes the video.
       d.episodes.setStatus(episodeId, 'Video received', 'The Producer finished the video.', { videoPath: outFile })
-      ctx.tasks.create({ type: 'publish_episode', brandId: ep.brandId, episodeId, payload: { episodeId, videoPath: outFile, srt: brand.captionMode === 'off' ? undefined : srtPath }, dedupeKey: `publish:${episodeId}` })
+      ctx.tasks.create({ type: 'publish_episode', brandId: ep.brandId, episodeId, payload: { episodeId, videoPath: outFile, srt: brand.captionMode === 'off' ? undefined : srtPath, mock }, dedupeKey: `publish:${episodeId}` })
       ctx.audit('handed_to_publisher', { takes: d.jobs.all(episodeId).length })
       return { episodeId, finalPath: outFile, clips: latest.length, takes: d.jobs.all(episodeId).length }
     },

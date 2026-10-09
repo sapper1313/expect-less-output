@@ -259,3 +259,25 @@ describe('Thumbnail A/B swap test (YouTube long form)', () => {
     expect(e.db.prepare("SELECT state FROM thumb_tests WHERE episode_id = 'ep-x'").get()).toEqual({ state: 'skipped' })
   })
 })
+
+describe('mock mode never reaches a real platform', () => {
+  it('a post made from a placeholder video goes to the dry run adapter even when the account is connected', async () => {
+    const { pickAdapter } = await import('../../src/main/adapters/choose')
+    const dry = { youtube: 'dry-yt', facebook: 'dry-fb', instagram: 'dry-ig', tiktok: 'dry-tt' } as never
+    const real = { youtube: 'real-yt', facebook: 'real-fb', instagram: 'real-ig', tiktok: 'real-tt' } as never
+    const connected = { mode: 'auto' } as never
+    expect(pickAdapter('youtube', connected, {}, { dry, real })).toBe('real-yt')
+    expect(pickAdapter('youtube', connected, { mock: true }, { dry, real })).toBe('dry-yt')
+    expect(pickAdapter('tiktok', { mode: 'dry_run' } as never, {}, { dry, real })).toBe('dry-tt')
+    expect(pickAdapter('instagram', null, undefined, { dry, real })).toBe('dry-ig')
+  })
+
+  it('the Producer marks its posts as mock in mock mode, and a Muse video is not marked', async () => {
+    const { e, id } = await shortsSetup()
+    await step(e)
+    await step(e)
+    const post = e.posts.get(todays(e, id).postId!)!
+    expect(post.targets.every((t) => t.settings.mock === true)).toBe(true)
+    expect(e.studio.social.list().every((s) => s.mock)).toBe(true)
+  })
+})

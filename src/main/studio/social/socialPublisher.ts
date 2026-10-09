@@ -160,6 +160,7 @@ export class SocialPublisher {
       if (limits && limits.canUpload === false) throw new SocialError(`Bluesky will not take a video right now. ${limits.message ?? ''}`.trim(), 'transient', 60 * 60_000)
       const info = await probe(row.videoPath)
       const r = await this.d.bluesky.postVideo({ text: row.text, file: row.videoPath, width: info.width, height: info.height, alt: row.title, state, setState })
+      setState({ bskyCid: r.cid })
       return { id: r.uri, url: r.url }
     }
     // Threads: the video has to be at a public address while Threads fetches it.
