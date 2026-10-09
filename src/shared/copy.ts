@@ -28,6 +28,7 @@ export const COPY = {
     calendar: 'Calendar',
     queue: 'Queue',
     stats: 'Stats',
+    studio: 'Studio',
     newPost: 'New Post',
     bulk: 'Bulk Upload',
     brands: 'Brands',

@@ -358,3 +358,59 @@ export const BrandStatsOut = z.object({
   ),
   totals: StatNumbersOut,
 })
+
+// ---------- studio library (read only, for Muse and other agents) ----------
+
+export const EpisodeStatusEnum = z.enum([
+  'Idea',
+  'Written',
+  'Checking',
+  'Ready for production',
+  'In production',
+  'Awaiting video',
+  'Video received',
+  'Checking video',
+  'Scheduled',
+  'Posted',
+  'Flagged',
+  'Failed',
+  'Archived',
+])
+
+export const EpisodeIdParams = z.object({
+  id: z.string().min(1).meta({ description: 'Episode id, for example wonder-hollow-workshop-2026-0003.' }),
+})
+
+export const ListEpisodesQuery = z.object({
+  brand_id: id.optional(),
+  status: EpisodeStatusEnum.optional().meta({
+    description: 'Wonder Hollow episodes ready for you to produce have status "Ready for production".',
+  }),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+})
+
+export const EpisodeSummaryOut = z.object({
+  id: z.string(),
+  brand_id: z.number().int(),
+  brand_name: z.string(),
+  series: z.string(),
+  episode_number: z.number().int(),
+  title: z.string(),
+  summary: z.string(),
+  status: EpisodeStatusEnum,
+  slot_date: z.string().nullable(),
+  updated_at: z.string(),
+})
+
+export const EpisodesOut = z.object({ episodes: z.array(EpisodeSummaryOut) })
+
+export const EpisodeOut = z.object({
+  episode: EpisodeSummaryOut,
+  package: z
+    .record(z.string(), z.unknown())
+    .nullable()
+    .meta({
+      description:
+        'The full episode package: scenes with grok_prompt, dialogue, counted objects, YouTube title and description, thumbnail brief. When the finished video is ready, put a video_url and a JSON file with episode_id in the brand Inbox folder.',
+    }),
+})

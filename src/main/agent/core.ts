@@ -56,6 +56,8 @@ export interface AgentServices {
   health: () => unknown
   /** Stats numbers. Missing in the Inbox watcher, which never reads them. */
   stats?: import('../stats/service').StatsService
+  /** The studio Library, read only. Missing in the Inbox watcher. */
+  episodes?: () => import('../studio/library').EpisodeLibrary
   now?: () => number
 }
 

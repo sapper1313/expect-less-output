@@ -48,7 +48,7 @@ async function connect(env: Record<string, string>) {
 const text = (r: any): string => r.content.map((c: any) => c.text).join('')
 
 describe('MCP server', () => {
-  it('lists exactly the eleven tools with descriptions and typed inputs', async () => {
+  it('lists exactly the thirteen tools with descriptions and typed inputs', async () => {
     const a = await makeAgentEnv()
     closers.push(a.close)
     const c = await connect({ ELO_API_URL: a.base, ELO_API_TOKEN: a.token })
@@ -57,11 +57,13 @@ describe('MCP server', () => {
       'cancel_post',
       'create_post',
       'get_brand_stats',
+      'get_episode',
       'get_health',
       'get_next_open_slots',
       'get_post',
       'get_post_stats',
       'list_brands',
+      'list_episodes',
       'list_posts',
       'retry_post',
       'update_post',

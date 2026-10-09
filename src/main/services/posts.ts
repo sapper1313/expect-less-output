@@ -123,7 +123,8 @@ export class PostService {
   }
 
   list(filter: PostFilter = {}): Post[] {
-    const where: string[] = []
+    // Posts whose video was removed by retention leave the active queue. The row stays for its stats.
+    const where: string[] = ['p.media_purged_at IS NULL']
     const args: unknown[] = []
     if (filter.search?.trim()) {
       const like = `%${filter.search.trim().replace(/[\\%_]/g, (c) => '\\' + c)}%`

@@ -1,0 +1,294 @@
+import { useEffect, useState } from 'react'
+import { CAP_MAX, capError } from '@shared/studio/config'
+import { STUDIO_PLATFORMS, type Cap, type StudioBrandConfig, type StudioConfig } from '@shared/studio/types'
+import type { KeyId, KeyStatus } from '@shared/studio/api'
+import { api } from '../api'
+import { useApp, useLoad } from '../hooks'
+import { Button, Card, Check, Field, Input, Select, Textarea, useBusy } from '../ui'
+
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+export function StudioSettings() {
+  const { data: cfg, reload } = useLoad(() => api.studio.getConfig())
+  if (!cfg) return null
+  return (
+    <div className="space-y-4">
+      <ModeCard cfg={cfg} reload={reload} />
+      <KeysCard />
+      <CapsCard cfg={cfg} reload={reload} />
+      <GenerateCard cfg={cfg} reload={reload} />
+      <BrandsCard />
+      <RetentionCard cfg={cfg} reload={reload} />
+      <WritingCard cfg={cfg} reload={reload} />
+    </div>
+  )
+}
+
+function ModeCard({ cfg, reload }: { cfg: StudioConfig; reload: () => void }) {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
+  return (
+    <Card title="Mock mode">
+      <Check checked={cfg.mockMode} onChange={(v) => run(async () => { await api.studio.setMockMode(v); reload() })}>
+        Mock mode (no network calls, no real spending)
+      </Check>
+      <p className="mt-2 text-[12px] text-muted">
+        On: every flow runs with placeholder videos and canned text. Turn it off only after you saved keys and set caps.
+      </p>
+      <div className="mt-3">
+        <Button
+          disabled={busy}
+          onClick={() =>
+            run(async () => {
+              const r = await api.studio.cheapTest()
+              toast({ kind: r.ok ? 'success' : 'error', headline: r.ok ? 'Cheap test worked.' : 'Cheap test failed.', detail: `${r.message} Cost $${r.dollars.toFixed(2)}${r.mock ? ' (mock)' : ''}.` })
+            })
+          }
+        >
+          Cheap test (one 480p Lite 3 second clip)
+        </Button>
+      </div>
+    </Card>
+  )
+}
+
+const STATE_LABEL: Record<KeyStatus['state'], string> = {
+  connected: 'Connected',
+  not_set: 'Not set',
+  failed: 'Failed',
+  expiring: 'Expiring soon',
+  untested: 'Saved, not tested',
+}
+
+function KeysCard() {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
+  const { data: keys, reload } = useLoad(() => api.studio.keyStatus())
+  const [vals, setVals] = useState<Partial<Record<KeyId, string>>>({})
+  const [acct, setAcct] = useState<Partial<Record<KeyId, string>>>({})
+  return (
+    <Card title="Keys and connections">
+      <p className="mb-3 text-[12px] text-muted">Keys are stored in the macOS Keychain. They are never shown again after you save them.</p>
+      <div className="space-y-4">
+        {keys?.map((k) => (
+          <div key={k.id} className="rounded-md border border-line p-3">
+            <div className="flex items-center justify-between">
+              <b className="text-[13px]">{k.label}</b>
+              <span className={`text-[11px] font-bold uppercase ${k.state === 'connected' ? 'text-ok' : k.state === 'failed' ? 'text-bad' : 'text-muted'}`}>{STATE_LABEL[k.state]}</span>
+            </div>
+            {k.has && <div className="mt-1 text-[12px] text-muted">{k.masked}{k.account ? `  (${k.account})` : ''}{k.lastTestAt ? `  Last test ${k.lastTestAt.slice(0, 16).replace('T', ' ')} UTC: ${k.lastMessage}` : ''}</div>}
+            <div className="mt-2 flex gap-2">
+              {k.id === 'bluesky' && (
+                <Input className="w-56" placeholder="handle.bsky.social" value={acct.bluesky ?? k.account} onChange={(e) => setAcct({ ...acct, bluesky: e.target.value })} />
+              )}
+              <Input type="password" autoComplete="off" placeholder={k.has ? 'Paste a new value to replace' : 'Paste here'} value={vals[k.id] ?? ''} onChange={(e) => setVals({ ...vals, [k.id]: e.target.value })} />
+              <Button disabled={busy || (!vals[k.id] && !(k.id === 'bluesky' && acct.bluesky))} onClick={() => run(async () => { if (vals[k.id]) await api.studio.setKey(k.id, vals[k.id] as string, acct[k.id]); setVals({ ...vals, [k.id]: '' }); reload() })}>
+                {k.has ? 'Replace' : 'Save'}
+              </Button>
+              <Button disabled={busy || !k.has} onClick={() => run(async () => { const r = await api.studio.testKey(k.id); toast({ kind: r.ok ? 'success' : 'error', headline: r.ok ? 'Test passed.' : 'Test failed.', detail: r.message }); reload() })}>Test connection</Button>
+              <Button variant="danger" disabled={busy || !k.has} onClick={() => run(async () => { await api.studio.removeKey(k.id); reload() })}>Remove</Button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[12px] text-muted">Facebook, Instagram, TikTok and YouTube connections stay on the Connections screen.</p>
+    </Card>
+  )
+}
+
+function CapField({ label, cap, onChange }: { label: string; cap: Cap; onChange: (c: Cap) => void }) {
+  const [text, setText] = useState(String(cap.value))
+  useEffect(() => setText(String(cap.value)), [cap.value])
+  const err = cap.none ? null : capError(text)
+  return (
+    <div>
+      <Field label={label} hint={err ? <span className="text-bad">{err}</span> : undefined}>
+        <div className="flex items-center gap-3">
+          <span>$</span>
+          <Input
+            className="w-32"
+            inputMode="decimal"
+            disabled={cap.none}
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value)
+              if (!capError(e.target.value)) onChange({ value: Number(e.target.value), none: cap.none })
+            }}
+          />
+          <Check checked={cap.none} onChange={(none) => onChange({ value: cap.value, none })}>No spend cap</Check>
+        </div>
+      </Field>
+    </div>
+  )
+}
+
+function CapsCard({ cfg, reload }: { cfg: StudioConfig; reload: () => void }) {
+  const [, run] = useBusy()
+  const { data: brands, reload: reloadBrands } = useLoad(() => api.studio.brands())
+  const save = (patch: Partial<StudioConfig>) => run(async () => { await api.studio.setConfig(patch); reload() })
+  return (
+    <Card title="Spend caps">
+      <p className="mb-3 text-[12px] text-muted">Caps are hard stops. A step that would cross an enabled cap does not run, and you get one alert. Values from 0 to {CAP_MAX}. The month resets on the 1st, Eastern time.</p>
+      <div className="grid gap-4 md:grid-cols-2">
+        <CapField label="Global monthly cap" cap={cfg.globalCap} onChange={(c) => save({ globalCap: c })} />
+        <CapField label="AI text (Anthropic) monthly cap" cap={cfg.aiTextCap} onChange={(c) => save({ aiTextCap: c })} />
+        <CapField label="Per episode cap (default)" cap={cfg.perEpisodeCapDefault} onChange={(c) => save({ perEpisodeCapDefault: c })} />
+      </div>
+      <h3 className="mb-2 mt-4 text-[11px] font-semibold uppercase text-muted">Per brand monthly cap</h3>
+      <div className="grid gap-4 md:grid-cols-2">
+        {brands?.map((b) => (
+          <CapField key={b.brandId} label={b.name} cap={b.config.monthlyCap} onChange={(c) => run(async () => { await api.studio.setBrand(b.brandId, { monthlyCap: c }); reloadBrands() })} />
+        ))}
+      </div>
+      <h3 className="mb-2 mt-4 text-[11px] font-semibold uppercase text-muted">Per episode cap override (a brand set to "No spend cap" uses the default above)</h3>
+      <div className="grid gap-4 md:grid-cols-2">
+        {brands?.map((b) => (
+          <CapField key={b.brandId} label={b.name} cap={b.config.perEpisodeCap} onChange={(c) => run(async () => { await api.studio.setBrand(b.brandId, { perEpisodeCap: c }); reloadBrands() })} />
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+function GenerateCard({ cfg, reload }: { cfg: StudioConfig; reload: () => void }) {
+  const [, run] = useBusy()
+  const row = (format: 'short' | 'long', title: string) => (
+    <div>
+      <h3 className="mb-1 text-[11px] font-semibold uppercase text-muted">{title}</h3>
+      <div className="space-y-1">
+        <Check checked={cfg.formatModel[format] === 'lite'} onChange={(v) => run(async () => { await api.studio.setFormatModel(format, 'lite', v); reload() })}>Lite (${cfg.prices.video.lite[cfg.formatResolution[format]].toFixed(2)} per second)</Check>
+        <br />
+        <Check checked={cfg.formatModel[format] === 'standard'} onChange={(v) => run(async () => { await api.studio.setFormatModel(format, 'standard', v); reload() })}>1.5 (${cfg.prices.video.standard[cfg.formatResolution[format]].toFixed(2)} per second)</Check>
+      </div>
+    </div>
+  )
+  return (
+    <Card title="Generate settings">
+      <div className="grid gap-4 md:grid-cols-2">
+        {row('short', 'Shorts')}
+        {row('long', 'Long videos')}
+      </div>
+      <p className="mt-2 text-[12px] text-muted">Exactly one is checked for each. Prices, model names and the retake multiplier ({cfg.retakeMultiplier}x) are edited in the studio config.</p>
+    </Card>
+  )
+}
+
+function BrandsCard() {
+  const { data: brands, reload } = useLoad(() => api.studio.brands())
+  return (
+    <Card title="Brands: cadence, platforms, flags">
+      <div className="space-y-4">
+        {brands?.map((b) => <BrandRow key={b.brandId} id={b.brandId} name={b.name} cfg={b.config} nextDue={b.nextDue} reload={reload} />)}
+      </div>
+    </Card>
+  )
+}
+
+function BrandRow({ id, name, cfg, nextDue, reload }: { id: number; name: string; cfg: StudioBrandConfig; nextDue: string | null; reload: () => void }) {
+  const [, run] = useBusy()
+  const [n, setN] = useState(String(cfg.everyN))
+  const [what, setWhat] = useState<{ current: number; proposed: number } | null>(null)
+  const save = (patch: Partial<StudioBrandConfig>) => run(async () => { await api.studio.setBrand(id, patch); reload() })
+  const long = cfg.format === 'long'
+  return (
+    <div className="rounded-md border border-line p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <b>{name}</b>
+        <span className="text-[12px] text-muted">{long ? 'Long, 16:9, YouTube only' : 'Short, 9:16'}. Next due: {nextDue ?? 'none'}</span>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <Field label="Cadence">
+          <Select value={cfg.cadenceMode} onChange={(e) => save({ cadenceMode: e.target.value as never })}>
+            <option value="every_n">Every N days</option>
+            <option value="weekly">Weekly schedule</option>
+          </Select>
+        </Field>
+        {cfg.cadenceMode === 'every_n' ? (
+          <Field label="Every N days" hint="Applies from the next due date forward.">
+            <div className="flex gap-2">
+              <Input className="w-20" value={n} onChange={async (e) => { setN(e.target.value); const v = Number(e.target.value); if (Number.isInteger(v) && v >= 1) setWhat(await api.studio.cadenceWhatIf(id, v)) }} />
+              <Button disabled={!(Number.isInteger(Number(n)) && Number(n) >= 1) || Number(n) === cfg.everyN} onClick={() => save({ everyN: Number(n) }).then(() => setWhat(null))}>Save</Button>
+            </div>
+            {what && <div className="mt-1 text-[12px]">Estimated about ${what.current.toFixed(2)} a month now, ${what.proposed.toFixed(2)} a month at {n} day(s).</div>}
+          </Field>
+        ) : (
+          <Field label="Post days">
+            <div className="flex flex-wrap gap-2">
+              {WEEKDAYS.map((w, i) => (
+                <Check key={w} checked={cfg.postDays.includes(i + 1)} onChange={(v) => save({ postDays: v ? [...cfg.postDays, i + 1].sort() : cfg.postDays.filter((d) => d !== i + 1) })}>{w}</Check>
+              ))}
+            </div>
+          </Field>
+        )}
+        <Field label="Production run time (Eastern)">
+          <Input value={cfg.runTime} onChange={(e) => /^\d{1,2}:\d{2}$/.test(e.target.value) && save({ runTime: e.target.value })} />
+        </Field>
+        <Field label="Script runway days">
+          <Input value={cfg.runwayDays} onChange={(e) => Number(e.target.value) >= 0 && save({ runwayDays: Number(e.target.value) })} />
+        </Field>
+        <Field label="Resolution">
+          <Select value={cfg.resolution} onChange={(e) => save({ resolution: e.target.value as never })}>
+            <option value="480p">480p</option>
+            <option value="720p">720p</option>
+            <option value="1080p">1080p (costs much more)</option>
+          </Select>
+        </Field>
+        <Field label="Comments">
+          <Select value={cfg.commentsMode} onChange={(e) => save({ commentsMode: e.target.value as never })}>
+            <option value="auto">Auto reply</option>
+            <option value="draft">Draft only</option>
+            <option value="off">Off</option>
+          </Select>
+        </Field>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-4">
+        {STUDIO_PLATFORMS.map((p) => (
+          <Check key={p} checked={cfg.platforms[p]} disabled={long && p !== 'youtube'} onChange={(v) => save({ platforms: { ...cfg.platforms, [p]: v } })}>{p}</Check>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-4">
+        <Check checked={cfg.paused} onChange={(v) => save({ paused: v })}>Pause this brand</Check>
+        <Check checked={cfg.aiDisclosure} onChange={(v) => save({ aiDisclosure: v })}>AI disclosure</Check>
+        <Check checked={cfg.madeForKids} onChange={(v) => save({ madeForKids: v })}>Made for kids</Check>
+        <Check checked={cfg.holidayTieIns} onChange={(v) => save({ holidayTieIns: v })}>Holiday tie-ins</Check>
+        <Check checked={cfg.useOpeningOutro} onChange={(v) => save({ useOpeningOutro: v })}>Shared opening and outro</Check>
+        {long && <Check checked={cfg.addOpeningOutroOnIngest} onChange={(v) => save({ addOpeningOutroOnIngest: v })}>Add opening and outro on ingest</Check>}
+        {long && <Check checked={cfg.hollowViaApi} onChange={(v) => save({ hollowViaApi: v })}>Make this brand's video through the API</Check>}
+      </div>
+    </div>
+  )
+}
+
+function RetentionCard({ cfg, reload }: { cfg: StudioConfig; reload: () => void }) {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
+  const [report, setReport] = useState<string | null>(null)
+  return (
+    <Card title="Retention">
+      <p className="mb-2 text-[12px] text-muted">After this many days the Archivist deletes the video and the full size thumbnail of posted items. Episode packages, small previews and stats are kept forever. It runs daily at 3:00 AM Eastern.</p>
+      <div className="flex items-end gap-3">
+        <Field label="Days to keep videos">
+          <Input className="w-24" value={cfg.retentionDays} onChange={(e) => Number(e.target.value) >= 1 && run(async () => { await api.studio.setConfig({ retentionDays: Number(e.target.value) }); reload() })} />
+        </Field>
+        <Button disabled={busy} onClick={() => run(async () => { const r = await api.studio.purge(true); setReport(`Would remove ${r.count} item(s), ${(r.bytes / 1024 / 1024).toFixed(1)} MB:\n` + r.items.map((i) => `- ${i.title}: ${i.files.map((f) => f.kind).join(', ')}`).join('\n')) })}>Dry run purge</Button>
+        <Button variant="danger" disabled={busy} onClick={() => run(async () => { const r = await api.studio.purge(false); toast({ kind: 'info', headline: 'Purge done.', detail: `${r.count} item(s) cleaned.` }) })}>Purge now</Button>
+        <Button disabled={busy} onClick={() => run(async () => { const n = await api.studio.backfillPosted(); toast({ kind: 'info', headline: 'Backfill done.', detail: `${n} past item(s) added to the calendar.` }) })}>Backfill calendar from Posted folders</Button>
+      </div>
+      {report && <pre className="mt-3 max-h-48 overflow-auto rounded-md bg-bg p-3 text-[12px]">{report}</pre>}
+    </Card>
+  )
+}
+
+function WritingCard({ cfg, reload }: { cfg: StudioConfig; reload: () => void }) {
+  const [text, setText] = useState(cfg.roboticPhrases.join('\n'))
+  const [, run] = useBusy()
+  return (
+    <Card title="Writing checks">
+      <p className="mb-2 text-[12px] text-muted">Every agent text is rejected and rewritten if it has an em dash or one of these phrases. One phrase per line.</p>
+      <Textarea value={text} onChange={(e) => setText(e.target.value)} />
+      <div className="mt-2">
+        <Button onClick={() => run(async () => { await api.studio.setConfig({ roboticPhrases: text.split('\n').map((s) => s.trim()).filter(Boolean) }); reload() })}>Save phrases</Button>
+      </div>
+    </Card>
+  )
+}

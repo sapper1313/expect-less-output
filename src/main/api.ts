@@ -26,6 +26,7 @@ import {
   stageRestore,
 } from './services/backup'
 import type { Db } from './db'
+import type { Studio } from './studio/studio'
 
 /** The parts that need Electron. Everything else is plain services. */
 export interface Host {
@@ -54,6 +55,7 @@ export interface ApiDeps {
   tiktok: TikTokService
   alerts: AlertService
   agent: AgentRuntime
+  studio: Studio
   stats: StatsService
   imported: ImportService
   db: Db
@@ -287,6 +289,7 @@ export function buildApi(d: ApiDeps): Api {
       generateToken: async () => ({ token: d.agent.generateToken() }),
       mcpConfig: async () => d.agent.mcpConfig(),
     },
+    studio: d.studio,
     textAssist: {
       available: async () => d.settings.get().llmProvider !== 'none',
       status: async () => {

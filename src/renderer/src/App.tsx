@@ -6,6 +6,7 @@ import { Toasts } from './ui'
 import { Calendar } from './screens/Calendar'
 import { Queue } from './screens/Queue'
 import { Stats } from './screens/Stats'
+import { Studio } from './screens/Studio'
 import { NewPost } from './screens/NewPost'
 import { Bulk } from './screens/Bulk'
 import { Brands } from './screens/Brands'
@@ -19,6 +20,7 @@ type Screen =
   | 'calendar'
   | 'queue'
   | 'stats'
+  | 'studio'
   | 'newPost'
   | 'bulk'
   | 'brands'
@@ -36,6 +38,7 @@ const NAV: Screen[] = [
   'calendar',
   'queue',
   'stats',
+  'studio',
   'newPost',
   'bulk',
   'brands',
@@ -55,6 +58,7 @@ function Shell() {
   const { data: status } = useLoad(() => api.scheduler.status())
   const { data: meta } = useLoad(() => api.meta.status())
   const { data: report } = useLoad(() => api.backup.report())
+  const { data: studio } = useLoad(() => api.studio.overview())
 
   useEffect(() => {
     const root = document.documentElement
@@ -145,6 +149,18 @@ function Shell() {
           </button>
         )}
         <div className="no-drag border-t border-line p-3 text-[11px] text-muted">
+          {studio && (
+            <button
+              className={`mb-1 block w-full rounded-md border px-2 py-1 text-left text-[11px] font-semibold ${studio.paused ? 'border-warn text-warn' : 'border-line text-muted'}`}
+              onClick={async () => {
+                await api.studio.pauseAll(!studio.paused)
+              }}
+              title="Stops every studio agent from starting new work"
+            >
+              {studio.paused ? 'Studio paused. Click to resume.' : 'Pause everything'}
+              {studio.mockMode ? ' (mock mode)' : ''}
+            </button>
+          )}
           <div className={status?.paused ? 'font-bold text-warn' : ''}>
             {status?.paused
               ? 'Scheduler paused'
@@ -180,6 +196,7 @@ function Shell() {
         {screen === 'calendar' && <Calendar />}
         {screen === 'queue' && <Queue />}
         {screen === 'stats' && <Stats />}
+        {screen === 'studio' && <Studio />}
         {screen === 'newPost' && <NewPost key={newPostKey} onDone={() => setScreen('calendar')} />}
         {screen === 'bulk' && <Bulk onDone={() => setScreen('calendar')} />}
         {screen === 'brands' && <Brands />}

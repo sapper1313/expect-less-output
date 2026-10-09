@@ -231,4 +231,40 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
       totals: numbersOf(b.totals),
     }
   },
+
+  listEpisodes: ({ s, query }) => {
+    const lib = s.episodes?.()
+    if (!lib) throw new AgentError(500, 'server_error', 'The Library is not available.')
+    const rows = lib.list({ brandId: query.brand_id ?? null, status: query.status ?? 'all', limit: query.limit })
+    return { episodes: rows.map((r) => episodeOut(s, r)) }
+  },
+
+  getEpisode: ({ s, params }) => {
+    const lib = s.episodes?.()
+    if (!lib) throw new AgentError(500, 'server_error', 'The Library is not available.')
+    const row = lib.find(params.id)
+    if (!row) throw new AgentError(404, 'not_found', `No episode with id ${params.id}.`)
+    return { episode: episodeOut(s, row), package: lib.getPackage(row.id) as unknown as Record<string, unknown> | null }
+  },
+}
+
+function episodeOut(s: AgentServices, r: import('@shared/studio/types').EpisodeRow) {
+  let brandName = ''
+  try {
+    brandName = s.brands.get(r.brandId).name
+  } catch {
+    // brand removed
+  }
+  return {
+    id: r.id,
+    brand_id: r.brandId,
+    brand_name: brandName,
+    series: r.series,
+    episode_number: r.number,
+    title: r.title,
+    summary: r.summary,
+    status: r.status,
+    slot_date: r.slotDate,
+    updated_at: r.updatedUtc,
+  }
 }

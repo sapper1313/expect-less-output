@@ -44,6 +44,7 @@ import type {
   SecretStatus,
   Settings,
 } from './types'
+import type { StudioApi } from './studio/api'
 
 export interface Api {
   app: {
@@ -187,6 +188,7 @@ export interface Api {
     generateToken(): Promise<{ token: string }>
     mcpConfig(): Promise<McpConfig>
   }
+  studio: StudioApi
   textAssist: {
     available(): Promise<boolean>
     status(): Promise<TextAssistStatus>

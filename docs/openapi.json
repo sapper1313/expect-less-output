@@ -2700,6 +2700,342 @@
         }
       }
     },
+    "/v1/episodes": {
+      "get": {
+        "operationId": "listEpisodes",
+        "summary": "List studio episodes in the Library (read only). Filter by brand or status.",
+        "x-mcp-tool": "list_episodes",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brand_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Wonder Hollow episodes ready for you to produce have status \"Ready for production\".",
+              "type": "string",
+              "enum": [
+                "Idea",
+                "Written",
+                "Checking",
+                "Ready for production",
+                "In production",
+                "Awaiting video",
+                "Video received",
+                "Checking video",
+                "Scheduled",
+                "Posted",
+                "Flagged",
+                "Failed",
+                "Archived"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "episodes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "brand_id": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "brand_name": {
+                            "type": "string"
+                          },
+                          "series": {
+                            "type": "string"
+                          },
+                          "episode_number": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "Idea",
+                              "Written",
+                              "Checking",
+                              "Ready for production",
+                              "In production",
+                              "Awaiting video",
+                              "Video received",
+                              "Checking video",
+                              "Scheduled",
+                              "Posted",
+                              "Flagged",
+                              "Failed",
+                              "Archived"
+                            ]
+                          },
+                          "slot_date": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "updated_at": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "brand_id",
+                          "brand_name",
+                          "series",
+                          "episode_number",
+                          "title",
+                          "summary",
+                          "status",
+                          "slot_date",
+                          "updated_at"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "episodes"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/episodes/{id}": {
+      "get": {
+        "operationId": "getEpisode",
+        "summary": "One episode with its full package: scene prompts, dialogue, counted objects, title and description (read only).",
+        "x-mcp-tool": "get_episode",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Episode id, for example wonder-hollow-workshop-2026-0003."
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "episode": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "brand_id": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "brand_name": {
+                          "type": "string"
+                        },
+                        "series": {
+                          "type": "string"
+                        },
+                        "episode_number": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "summary": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "Idea",
+                            "Written",
+                            "Checking",
+                            "Ready for production",
+                            "In production",
+                            "Awaiting video",
+                            "Video received",
+                            "Checking video",
+                            "Scheduled",
+                            "Posted",
+                            "Flagged",
+                            "Failed",
+                            "Archived"
+                          ]
+                        },
+                        "slot_date": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "updated_at": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "brand_id",
+                        "brand_name",
+                        "series",
+                        "episode_number",
+                        "title",
+                        "summary",
+                        "status",
+                        "slot_date",
+                        "updated_at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "package": {
+                      "nullable": true,
+                      "description": "The full episode package: scenes with grok_prompt, dialogue, counted objects, YouTube title and description, thumbnail brief. When the finished video is ready, put a video_url and a JSON file with episode_id in the brand Inbox folder.",
+                      "type": "object",
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "episode",
+                    "package"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such post.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/health": {
       "get": {
         "operationId": "health",

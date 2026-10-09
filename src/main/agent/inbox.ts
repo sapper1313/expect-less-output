@@ -20,6 +20,7 @@ import { CreatePostBody, type CreatePostInput } from '@shared/agentSchemas'
 import { AgentError, agentCreatePost, type AgentServices } from './core'
 import { moveFile, uniquePath } from '../services/library'
 import type { Library } from '../services/library'
+import type { IngestHooks } from '../studio/ingest'
 
 const VIDEO = ['.mp4', '.mov']
 /** A file that has not changed size for this long is finished copying. */
@@ -34,6 +35,8 @@ const DOWNLOAD_MAX_BYTES = 2 * 1024 * 1024 * 1024
 export interface InboxDeps {
   s: AgentServices
   library: Library
+  /** Studio hooks for sidecars that name an episode. Without episode_id they are never called. */
+  studio?: IngestHooks
   /** Called once for each rejected file. */
   alert: (headline: string, detail: string) => void
   now?: () => number
@@ -134,6 +137,8 @@ export class InboxWatcher {
     if (!hasSidecar && now - prev.firstSeen < SIDECAR_GRACE_MS) return false
 
     let body: CreatePostInput
+    let episodeId: string | null = null
+    let sideForAfter: Record<string, unknown> = {}
     try {
       if (hasSidecar) {
         let raw: unknown
@@ -159,6 +164,22 @@ export class InboxWatcher {
         }
         obj.brand_id = brandId
         obj.file_path = full
+        // An episode id ties the finished video to a Library episode. The studio fills in what the sidecar leaves out.
+        if (obj.episode_id !== undefined) {
+          episodeId = String(obj.episode_id)
+          const side = { ...obj }
+          delete obj.episode_id
+          delete obj.description
+          delete obj.thumbnail_url
+          if (!this.d.studio) throw new AgentError(400, 'bad_request', 'This build has no studio, so episode_id cannot be used.')
+          try {
+            const fill = await this.d.studio.before(episodeId, full, side)
+            for (const [k, v] of Object.entries(fill)) if (obj[k] === undefined) obj[k] = v
+          } catch (e) {
+            throw new AgentError(400, 'bad_request', (e as Error).message)
+          }
+          sideForAfter = side
+        }
         // A sidecar that does not mention status gets the brand's automatic rule. An explicit status always wins.
         if (auto && obj.status === undefined) {
           obj.status = 'scheduled'
@@ -173,6 +194,7 @@ export class InboxWatcher {
         )
       }
       const post = await agentCreatePost(this.d.s, body, { source: 'inbox', moveSource: true })
+      if (episodeId && this.d.studio) await this.d.studio.after(episodeId, post.id, sideForAfter)
       // Keep the sidecar with its video, in Queue.
       if (hasSidecar) {
         const queueVideo = this.d.library.resolve(post.videoPath)

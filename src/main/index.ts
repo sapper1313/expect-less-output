@@ -21,6 +21,7 @@ import { latestSchemaVersion, openDb } from './db'
 import { AlertService } from './alerts/service'
 import { AgentRuntime } from './agent/runtime'
 import { InboxWatcher } from './agent/inbox'
+import { Studio } from './studio/studio'
 import { buildHealth } from './agent/health'
 import { StatsService } from './stats/service'
 import { FacebookLister, ImportService, InstagramLister, YoutubeLister } from './stats/imported'
@@ -395,6 +396,16 @@ async function boot(): Promise<void> {
     emit,
   })
 
+  const studio = new Studio({
+    db,
+    secrets,
+    posts,
+    media: library,
+    log,
+    alert: (headline, detail) => void alerts.alert({ kind: 'other', headline, detail }),
+    emit,
+  })
+
   // Agents: the local API, the watched Inbox folders and the MCP server file.
   const agent = new AgentRuntime(
     {
@@ -405,6 +416,7 @@ async function boot(): Promise<void> {
       log,
       appVersion: app.getVersion(),
       stats,
+      episodes: () => studio.episodes,
       health: () =>
         buildHealth({
           db,
@@ -435,6 +447,7 @@ async function boot(): Promise<void> {
       health: () => null,
     },
     library,
+    studio: studio.ingest,
     alert: (headline, detail) => notifier.failure(headline, detail, { kind: 'other' }),
   })
 
@@ -523,6 +536,7 @@ async function boot(): Promise<void> {
     tiktok,
     alerts,
     agent,
+    studio,
     stats,
     imported,
     db,
@@ -594,6 +608,7 @@ async function boot(): Promise<void> {
   stats.start()
   void agent.apply()
   inbox.start()
+  studio.start()
   updateBlocker()
   log.log('info', 'App started.')
 
@@ -607,6 +622,7 @@ async function boot(): Promise<void> {
       alerts.stop()
       stats.stop()
       inbox.stop()
+      studio.stop()
       void agent.server.stop()
       app.quit()
     }
