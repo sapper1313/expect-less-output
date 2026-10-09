@@ -32,6 +32,12 @@ class MockClient implements YoutubeClientLike {
     this.statusCalls++
     return this.privacy[id] ? { privacyStatus: this.privacy[id] } : null
   }
+  thumbnails: Array<{ videoId: string; file: string }> = []
+  failThumbnail = false
+  async setThumbnail(_a: number, videoId: string, file: string) {
+    if (this.failThumbnail) throw new Error('channel not verified')
+    this.thumbnails.push({ videoId, file })
+  }
   async addToPlaylist(_a: number, playlistId: string, videoId: string) {
     if (this.failPlaylist) throw new Error('playlist boom')
     this.playlistAdds.push({ playlistId, videoId })
@@ -365,5 +371,30 @@ describe('YouTube sign-in problems', () => {
     await env.scheduler.tick()
     expect(target(env, post.id).lastError).toContain('limit is 100')
     expect(client.uploads).toHaveLength(0)
+  })
+})
+
+describe('YouTube custom thumbnail (long form only)', () => {
+  it('sets the thumbnail after the upload, and a thumbnail failure never causes a second upload', async () => {
+    const { env, client } = setup('auto', { handoffHours: 3 })
+    const post = await env.makePost({ whenMs: env.clock.ms + 5 * HOUR, platforms: ['youtube'] })
+    env.db.prepare('UPDATE post_targets SET settings_json = ? WHERE post_id = ?').run(JSON.stringify({ thumbnailPath: '/tmp/thumb-a.jpg' }), post.id)
+    client.failThumbnail = true
+    env.clock.ms += 3 * HOUR
+    await env.scheduler.tick()
+    expect(client.uploads).toHaveLength(1)
+    expect(client.thumbnails).toHaveLength(0)
+    expect(env.log.list({ limit: 50 }).some((l) => /custom thumbnail was not set: channel not verified/.test(l.message))).toBe(true)
+    // a later tick never uploads again, and never retries the thumbnail either
+    env.clock.ms += 10 * MIN
+    await env.scheduler.tick()
+    expect(client.uploads).toHaveLength(1)
+
+    const ok = await env.makePost({ whenMs: env.clock.ms + 5 * HOUR, platforms: ['youtube'] })
+    env.db.prepare('UPDATE post_targets SET settings_json = ? WHERE post_id = ?').run(JSON.stringify({ thumbnailPath: '/tmp/thumb-b.jpg' }), ok.id)
+    client.failThumbnail = false
+    env.clock.ms += 3 * HOUR
+    await env.scheduler.tick()
+    expect(client.thumbnails).toEqual([{ videoId: 'vid2', file: '/tmp/thumb-b.jpg' }])
   })
 })

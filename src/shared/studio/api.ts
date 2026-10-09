@@ -15,7 +15,7 @@ import type {
   StudioConfig,
 } from './types'
 
-export type KeyId = 'xai' | 'anthropic' | 'threads' | 'bluesky'
+export type KeyId = 'xai' | 'anthropic' | 'threads' | 'bluesky' | 'r2id' | 'r2secret'
 
 export interface KeyStatus {
   id: KeyId
@@ -121,7 +121,49 @@ export interface ClipJobView {
   qc: unknown
 }
 
+export interface GuidelineView {
+  id: number
+  createdUtc: string
+  text: string
+  note: string
+  source: string
+}
+
+export interface SocialView {
+  id: number
+  episodeId: string | null
+  platform: string
+  status: string
+  text: string
+  title: string
+  scheduledAtUtc: string
+  attempts: number
+  externalUrl: string | null
+  error: string | null
+  mock: boolean
+}
+
+export interface ThumbTestView {
+  episodeId: string
+  state: string
+  note: string | null
+  variants: Array<{ variant: string; headline: string; score: number; ctr: number | null; impressions: number | null; winner: boolean; file: string }>
+}
+
 export interface StudioApi {
+  guidelineInfo(): Promise<{ current: GuidelineView; history: GuidelineView[]; proposal: { text: string; changes: string[]; at: string } | null }>
+  saveGuidelines(text: string, note: string): Promise<GuidelineView>
+  revertGuidelines(id: number): Promise<GuidelineView>
+  approveGuidelineProposal(): Promise<GuidelineView | null>
+  refreshGuidelines(): Promise<{ applied: boolean; note: string }>
+  socialPosts(episodeId?: string): Promise<SocialView[]>
+  retrySocial(id: number): Promise<void>
+  thumbTests(): Promise<ThumbTestView[]>
+  runThumbTests(): Promise<void>
+  platformCaps(): Promise<Record<string, unknown>>
+  publicHostStatus(): Promise<{ configured: boolean }>
+  threadsRefresh(): Promise<TestResult>
+
   assetList(brandId: number): Promise<AssetView[]>
   addAsset(brandId: number, kind: 'opening' | 'outro' | 'reference_image' | 'voice_reference', path: string): Promise<AssetView[]>
   removeAsset(brandId: number, id: number): Promise<AssetView[]>

@@ -1,4 +1,4 @@
-import { statSync } from 'fs'
+import { createReadStream, statSync } from 'fs'
 import { OAuth2Client } from 'google-auth-library'
 import { youtube, type youtube_v3 } from '@googleapis/youtube'
 import { AdapterError } from '../adapters/types'
@@ -29,6 +29,8 @@ export interface YoutubeClientLike {
   uploadVideo(accountId: number, args: UploadArgs): Promise<UploadedVideo>
   videoStatus(accountId: number, videoId: string): Promise<VideoStatus | null>
   addToPlaylist(accountId: number, playlistId: string, videoId: string): Promise<void>
+  /** Sets a custom thumbnail (long form only). Optional so older test doubles keep working. */
+  setThumbnail?(accountId: number, videoId: string, filePath: string): Promise<void>
 }
 
 export class YoutubeClient implements YoutubeClientLike {
@@ -96,6 +98,13 @@ export class YoutubeClient implements YoutubeClientLike {
     })
     this.quota.record('videoInsert')
     return video
+  }
+
+  /** thumbnails.set costs 50 quota units. The channel must be verified; otherwise YouTube answers 403. */
+  async setThumbnail(accountId: number, videoId: string, filePath: string): Promise<void> {
+    const mime = filePath.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg'
+    await this.call(accountId, (yt) => yt.thumbnails.set({ videoId, media: { mimeType: mime, body: createReadStream(filePath) } }))
+    this.quota.record('thumbnailsSet')
   }
 
   async videoStatus(accountId: number, videoId: string): Promise<VideoStatus | null> {

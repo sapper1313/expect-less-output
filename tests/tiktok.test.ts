@@ -588,6 +588,18 @@ describe('TikTok Direct post (mocked, real posts only after audit approval)', ()
     expect(t.env.posts.get(post.id)!.status).toBe('posted')
   })
 
+  it('sends the cover frame as video_cover_timestamp_ms in Direct Post', async () => {
+    const t = await env()
+    await direct(t)
+    const post = await sched(t, valid({ privacy: 'PUBLIC_TO_EVERYONE' }))
+    t.env.db
+      .prepare('UPDATE post_targets SET settings_json = ? WHERE post_id = ?')
+      .run(JSON.stringify({ tiktok: valid({ privacy: 'PUBLIC_TO_EVERYONE' }), coverTimestampMs: 2300 }), post.id)
+    t.env.clock.ms += 2 * MIN
+    await t.env.scheduler.tick()
+    expect(t.fake.state.inits[0].body.post_info).toMatchObject({ video_cover_timestamp_ms: 2300 })
+  })
+
   it('asks TikTok again right before posting and stops if the chosen privacy option is gone', async () => {
     const t = await env()
     await direct(t)

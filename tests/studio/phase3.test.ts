@@ -34,7 +34,8 @@ const todays = (e: Env, id: number) => e.studio.episodes.list({ brandId: id }).f
 
 /** Runs tasks until none are due, moving the test clock on past short waits (a clip still rendering). */
 async function settle(e: Env, studio: Studio = e.studio) {
-  for (let i = 0; i < 60; i++) {
+  const deadline = Date.now() + 120_000
+  for (let i = 0; i < 200 && Date.now() < deadline; i++) {
     await studio.runner.runUntilIdle()
     const open = studio.tasks.list({ status: ['queued', 'waiting', 'running'] })
     if (!open.length) return
@@ -49,6 +50,7 @@ async function step(e: Env, studio: Studio = e.studio) {
   await settle(e, studio)
 }
 
+/** Thumbnail pictures and text answers are in the ledger too; the video tests count only generated seconds. */
 const countLedger = (e: Env, where = '1=1') => (e.db.prepare(`SELECT COUNT(*) AS n FROM spend_ledger WHERE ${where}`).get() as { n: number }).n
 
 describe('QC helpers', () => {
@@ -81,7 +83,7 @@ describe('Producer (shorts)', () => {
     expect(post.status).toBe('scheduled')
     expect(post.targets.map((t) => t.platform).sort()).toEqual(['facebook', 'instagram', 'tiktok', 'youtube'])
     // ledger: one row per clip, mock, purpose first take, with request ids
-    const rows = e.db.prepare("SELECT * FROM spend_ledger WHERE vendor = 'xai'").all() as Array<{ purpose: string; mock: number; request_id: string; units: number; unit_price: number }>
+    const rows = e.db.prepare("SELECT * FROM spend_ledger WHERE vendor = 'xai' AND unit_kind = 'seconds'").all() as Array<{ purpose: string; mock: number; request_id: string; units: number; unit_price: number }>
     expect(rows.length).toBe(2)
     expect(rows.every((r) => r.mock === 1 && r.purpose === 'first take' && r.request_id)).toBe(true)
     expect(rows[0].unit_price).toBeCloseTo(0.02) // Lite at 480p
@@ -111,7 +113,7 @@ describe('Producer (shorts)', () => {
     expect(jobs.map((j) => `${j.clipN}:${j.take}:${j.status}`)).toEqual(['1:1:failed', '1:2:passed', '2:1:passed'])
     expect(jobs[0].error).toMatch(/black/)
     expect(jobs[1].purpose).toBe('retry')
-    const purposes = (e.db.prepare("SELECT purpose FROM spend_ledger WHERE vendor = 'xai' ORDER BY id").all() as Array<{ purpose: string }>).map((r) => r.purpose)
+    const purposes = (e.db.prepare("SELECT purpose FROM spend_ledger WHERE vendor = 'xai' AND unit_kind = 'seconds' ORDER BY id").all() as Array<{ purpose: string }>).map((r) => r.purpose)
     expect(purposes.sort()).toEqual(['first take', 'first take', 'retry'])
     // the retry prompt was adjusted by the text agent
     expect(jobs[1].prompt).not.toBe(jobs[0].prompt)
@@ -190,13 +192,13 @@ describe('Producer (shorts)', () => {
 
   it('killing the app mid job and relaunching resumes with no duplicate ledger rows', async () => {
     const { e, ids } = await setup()
-    e.studio.mockVideo.delayMs = 120_000
+    e.studio.mockVideo.delayMs = 6 * 3_600_000 // the clips are still rendering when the app is killed
     await step(e) // writers
     await step(e) // production starts, clips are rendering
     const ep = todays(e, ids[0])
     expect(ep.status).toBe('In production')
     expect(e.studio.jobs.all(ep.id).map((j) => j.status)).toEqual(['started', 'started'])
-    expect(countLedger(e, "vendor = 'xai'")).toBe(2)
+    expect(countLedger(e, "vendor = 'xai' AND unit_kind = 'seconds'")).toBe(2)
     // "kill": a task left running, and every in memory object gone
     const t = e.studio.tasks.list({ type: 'produce_episode' })[0]
     expect(e.studio.tasks.claim(t.id)).toBe(true)
@@ -205,8 +207,8 @@ describe('Producer (shorts)', () => {
     e.clock.ms += 5000 // time passes while the app is closed
     await settle(e, reborn)
     expect(reborn.episodes.get(ep.id).status).toBe('Scheduled')
-    expect(countLedger(e, "vendor = 'xai'")).toBe(2) // nothing paid twice
-    expect(e.db.prepare("SELECT COUNT(DISTINCT request_id) AS n FROM spend_ledger WHERE vendor = 'xai'").get()).toEqual({ n: 2 })
+    expect(countLedger(e, "vendor = 'xai' AND unit_kind = 'seconds'")).toBe(2) // nothing paid twice
+    expect(e.db.prepare("SELECT COUNT(DISTINCT request_id) AS n FROM spend_ledger WHERE vendor = 'xai' AND unit_kind = 'seconds'").get()).toEqual({ n: 2 })
     expect(reborn.jobs.all(ep.id)).toHaveLength(2)
   })
 
@@ -220,7 +222,7 @@ describe('Producer (shorts)', () => {
     expect(e.studio.assets.slot(id, 'opening')).not.toBeNull()
     await produce(e)
     const first = todays(e, id)
-    const afterFirst = countLedger(e, "vendor = 'xai'")
+    const afterFirst = countLedger(e, "vendor = 'xai' AND unit_kind = 'seconds'")
     const info1 = await probe(e.library.resolve(e.posts.get(first.postId!)!.videoPath))
     expect(info1.durationSeconds).toBeGreaterThan(25 + 4) // two clips plus the 5 second opening
     // a second episode
@@ -229,7 +231,7 @@ describe('Producer (shorts)', () => {
     const second = e.studio.episodes.list({ brandId: id }).filter((x) => x.status === 'Scheduled')
     expect(second.length).toBeGreaterThanOrEqual(2)
     expect(countLedger(e, "purpose = 'intro'")).toBe(1) // never generated again
-    const perEpisode = countLedger(e, "vendor = 'xai'") - afterFirst
+    const perEpisode = countLedger(e, "vendor = 'xai' AND unit_kind = 'seconds'") - afterFirst
     expect(perEpisode).toBe(2 * (second.length - 1)) // only each new episode's two clips, nothing for the opening
     expect(e.db.prepare("SELECT COUNT(*) AS n FROM spend_ledger WHERE purpose = 'intro' AND dollars > 0").get()).toEqual({ n: 1 })
     // the slot file itself is on disk once
@@ -278,7 +280,7 @@ describe('Producer (Hollow through the API, optional)', () => {
     expect(started[0].imageUrl).toBeUndefined()
     expect(started[1].imageUrl).toMatch(/^data:image\/jpeg;base64,/)
     expect(started[2].durationSeconds).toBe(15) // billed at the full generated seconds
-    const rows = e.db.prepare("SELECT units, dollars FROM spend_ledger WHERE vendor = 'xai' ORDER BY id").all() as Array<{ units: number; dollars: number }>
+    const rows = e.db.prepare("SELECT units, dollars FROM spend_ledger WHERE vendor = 'xai' AND unit_kind = 'seconds' ORDER BY id").all() as Array<{ units: number; dollars: number }>
     expect(rows.map((r) => r.units)).toEqual([10, 10, 15])
     // 16:9 at 720p Standard: $0.14 per second
     expect(rows[2].dollars).toBeCloseTo(15 * 0.14, 5)

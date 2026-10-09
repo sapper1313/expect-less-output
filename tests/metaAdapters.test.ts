@@ -228,6 +228,18 @@ describe('Facebook Reels', () => {
 })
 
 describe('Instagram Reels', () => {
+  it('sends a custom cover address (cover_url) when the studio made one', async () => {
+    const m = await setup()
+    const post = await m.env.makePost({ whenMs: m.env.clock.ms + MIN, platforms: ['instagram'] })
+    m.env.db
+      .prepare('UPDATE post_targets SET settings_json = ? WHERE post_id = ?')
+      .run(JSON.stringify({ coverUrl: 'https://cdn.example.com/covers/ep1.jpg' }), post.id)
+    m.env.clock.ms += 2 * MIN
+    await m.env.scheduler.tick()
+    const c = Object.values(m.fake.state.igContainers)[0]
+    expect(c.params).toMatchObject({ cover_url: 'https://cdn.example.com/covers/ep1.jpg' })
+  })
+
   it('creates a REELS container, uploads the file, waits, publishes once, and stores the permalink', async () => {
     const m = await setup()
     const post = await m.env.makePost({ whenMs: m.env.clock.ms + MIN, platforms: ['instagram'] })

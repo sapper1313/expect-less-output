@@ -10,6 +10,7 @@ export const WARN_AT = 0.8
 export const COST = {
   videoInsert: { bucket: 'uploads', units: 1 },
   videoUpdate: { bucket: 'other', units: 50 },
+  thumbnailsSet: { bucket: 'other', units: 50 },
   playlistItemInsert: { bucket: 'other', units: 50 },
   channelsList: { bucket: 'other', units: 1 },
   playlistsList: { bucket: 'other', units: 1 },

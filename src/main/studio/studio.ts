@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -43,7 +44,16 @@ import { registerMockResponders } from './agents/mockResponders'
 import { BrandAssets } from './assets'
 import { VideoJobs } from './jobs'
 import { VideoQc } from './qc'
-import { Publisher } from './publisher'
+import { Publisher, makePublisherAgent } from './publisher'
+import { Compliance } from './agents/compliance'
+import { Guidelines, Thumbnailer, lineDiff } from './thumbnails'
+import { MockAnalytics, ThumbnailTester, type AnalyticsReader } from './thumbTest'
+import { SocialPublisher } from './social/socialPublisher'
+import { PublicHost, R2_KEY_ID, R2_SECRET } from './social/publicHost'
+import { ThreadsClient } from './social/threads'
+import { BlueskyClient } from './social/bluesky'
+import type { AlertItem } from '../alerts/format'
+import type { ImageClient } from './xai'
 import { makeProducerAgent } from './agents/producer'
 import { expandHome } from './configService'
 
@@ -55,7 +65,13 @@ export interface StudioDeps {
   log: ActivityLog
   /** Sends an alert through the existing notification and iMessage path. */
   alert: (headline: string, detail: string) => void
+  /** The full alert, for failures that carry the platform, brand and title. Defaults to the plain alert. */
+  alertItem?: (item: AlertItem) => void
   emit: () => void
+  /** Reads thumbnail results from YouTube Analytics. Mock mode uses simulated numbers. */
+  analytics?: AnalyticsReader
+  /** Sets a YouTube thumbnail. Mock mode records the choice only. */
+  setYoutubeThumbnail?: (accountId: number | null, videoId: string, file: string) => Promise<void>
   now?: () => number
   fetchImpl?: typeof fetch
 }
@@ -65,6 +81,8 @@ const KEY_NAMES: Record<KeyId, { secret: string; label: string }> = {
   anthropic: { secret: 'anthropic.apiKey', label: 'Anthropic API key' },
   threads: { secret: 'threads.token', label: 'Threads token' },
   bluesky: { secret: 'bluesky.appPassword', label: 'Bluesky app password' },
+  r2id: { secret: R2_KEY_ID, label: 'Cloudflare R2 access key id' },
+  r2secret: { secret: R2_SECRET, label: 'Cloudflare R2 secret access key' },
 }
 const TESTS_KEY = 'studio.keyTests'
 const ACCOUNTS_KEY = 'studio.keyAccounts'
@@ -97,6 +115,15 @@ export class Studio implements StudioApi {
   readonly jobs: VideoJobs
   readonly qc: VideoQc
   readonly publisher: Publisher
+  readonly compliance: Compliance
+  readonly guidelines: Guidelines
+  readonly thumbnailer: Thumbnailer
+  readonly tester: ThumbnailTester
+  readonly social: SocialPublisher
+  readonly host: PublicHost
+  readonly threads: ThreadsClient
+  readonly bluesky: BlueskyClient
+  readonly mockAnalytics = new MockAnalytics()
   private timers: NodeJS.Timeout[] = []
   private pulls = new Map<string, { pct: number; status: string }>()
   private ticking = false
@@ -164,7 +191,36 @@ export class Studio implements StudioApi {
     this.assets = new BrandAssets(d.db, this.cfg, brandName, now)
     this.jobs = new VideoJobs(d.db, now)
     this.qc = new VideoQc({ cfg: this.cfg, localAi: this.localAi, audit: this.audit, assets: this.assets })
-    this.publisher = new Publisher({ db: d.db, cfg: this.cfg, episodes: this.episodes, posts: d.posts, media: d.media, now })
+    this.host = new PublicHost(this.cfg, d.secrets, d.fetchImpl, now)
+    this.threads = new ThreadsClient(() => d.secrets.get(KEY_NAMES.threads.secret), d.fetchImpl)
+    this.bluesky = new BlueskyClient({ handle: () => this.accountOf('bluesky'), password: () => d.secrets.get(KEY_NAMES.bluesky.secret) }, d.fetchImpl, undefined, undefined, now)
+    this.social = new SocialPublisher({
+      db: d.db,
+      cfg: this.cfg,
+      threads: this.threads,
+      bluesky: this.bluesky,
+      host: this.host,
+      userId: { get: () => this.accountOf('threadsUserId'), set: (id) => this.setAccountOf('threadsUserId', id) },
+      alert: (item) => (d.alertItem ? d.alertItem(item) : d.alert(item.headline, item.detail)),
+      log: (level, message) => d.log.log(level, message),
+      brandName,
+      now,
+    })
+    this.compliance = new Compliance({ db: d.db, cfg: this.cfg, bible: this.bibles })
+    this.guidelines = new Guidelines(d.db, now)
+    const images = (): ImageClient => (this.cfg.get().mockMode ? this.mockVideo : this.xai)
+    this.thumbnailer = new Thumbnailer({ db: d.db, cfg: this.cfg, episodes: this.episodes, spend: this.spend, localAi: this.localAi, gateway: this.gateway, guidelines: this.guidelines, audit: this.audit, image: images, workDir: (id) => this.workDir(id), now })
+    this.tester = new ThumbnailTester({
+      db: d.db,
+      cfg: this.cfg,
+      audit: this.audit,
+      reader: () => (this.cfg.get().mockMode || !d.analytics ? this.mockAnalytics : d.analytics),
+      setter: () => ({ set: async (acc, vid, file) => (this.cfg.get().mockMode || !d.setYoutubeThumbnail ? undefined : d.setYoutubeThumbnail(acc, vid, file)) }),
+      onShow: (v) => this.mockAnalytics.setCurrent(v),
+      now,
+    })
+    this.publisher = new Publisher({ db: d.db, cfg: this.cfg, episodes: this.episodes, posts: d.posts, media: d.media, gateway: this.gateway, bible: this.bibles, compliance: this.compliance, thumbnailer: this.thumbnailer, tester: this.tester, social: this.social, host: this.host, workDir: (id) => this.workDir(id), now })
+    this.runner.register(makePublisherAgent(this.publisher))
     this.runner.register(
       makeProducerAgent({
         db: d.db,
@@ -175,14 +231,13 @@ export class Studio implements StudioApi {
         qc: this.qc,
         assets: this.assets,
         gateway: this.gateway,
-        publisher: this.publisher,
         localAi: this.localAi,
         video: () => (this.cfg.get().mockMode ? this.mockVideo : this.xai),
         workDir: (id) => this.workDir(id),
       }),
     )
     this.director = new Director({ db: d.db, config: this.cfg, tasks: this.tasks, audit: this.audit, alert: d.alert, now })
-    this.ingest = makeIngestHooks({ db: d.db, cfg: this.cfg, episodes: this.episodes, posts: d.posts, now, qc: this.qc })
+    this.ingest = makeIngestHooks({ db: d.db, cfg: this.cfg, episodes: this.episodes, posts: d.posts, now, qc: this.qc, pipeline: (episodeId, postId) => this.publisher.run({ episodeId, postId }).then(() => undefined) })
   }
 
   private now() {
@@ -201,6 +256,13 @@ export class Studio implements StudioApi {
         this.d.db.prepare('UPDATE brand_defaults SET youtube_made_for_kids = 1, ai_flag_youtube = 1 WHERE brand_id = ? AND youtube_made_for_kids = 0').run(b.brandId)
       }
     }
+  }
+
+  private accountOf(k: string): string | null {
+    return this.readJson<Record<string, string>>(ACCOUNTS_KEY, {})[k] ?? null
+  }
+  private setAccountOf(k: string, v: string) {
+    this.writeJson(ACCOUNTS_KEY, { ...this.readJson<Record<string, string>>(ACCOUNTS_KEY, {}), [k]: v })
   }
 
   // ---------- lifecycle ----------
@@ -227,6 +289,10 @@ export class Studio implements StudioApi {
     try {
       const r = this.director.tick()
       await this.runner.runUntilIdle()
+      await this.social.tick()
+      await this.tester.tick()
+      await this.checkThreadsToken().catch(() => {})
+      await this.refreshGuidelines().catch(() => {})
       this.syncEpisodePosts()
       this.d.emit()
       return { created: r.created.length, notes: r.notes }
@@ -247,6 +313,53 @@ export class Studio implements StudioApi {
       if (r.status === 'posted') this.episodes.setStatus(r.id, 'Posted', undefined, { postedAtUtc: r.scheduled_at_utc })
       else this.episodes.setStatus(r.id, 'Failed', 'The scheduler could not post it.')
     }
+  }
+
+  /**
+   * Once a month: ask the text agent to compare the thumbnail guidelines with the platforms' own current help pages and propose
+   * changes. Small edits are applied automatically with a logged diff. Big ones wait as a proposal. No web, no refresh, and that is logged.
+   */
+  async refreshGuidelines(force = false): Promise<{ applied: boolean; note: string }> {
+    const month = new Date(this.now()).toISOString().slice(0, 7)
+    const last = this.readJson<string | null>('studio.lastGuidelineMonth', null)
+    if (!force && last === month) return { applied: false, note: 'Already refreshed this month.' }
+    this.writeJson('studio.lastGuidelineMonth', month)
+    const skip = (note: string) => {
+      this.audit.write({ agent: 'Thumbnail', action: 'guideline_refresh_skipped', detail: { note } })
+      return { applied: false, note }
+    }
+    if (this.cfg.get().mockMode) return skip('Mock mode is on, so no web research was done.')
+    const sources = ['https://support.google.com/youtube/answer/72431', 'https://support.google.com/youtube/answer/12294177']
+    const pages: string[] = []
+    for (const u of sources) {
+      try {
+        const res = await (this.d.fetchImpl ?? fetch)(u, { signal: AbortSignal.timeout(20_000) })
+        if (res.ok) pages.push(`SOURCE ${u}\n${(await res.text()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 6000)}`)
+      } catch {
+        // an unreachable page is simply not used
+      }
+    }
+    if (!pages.length) return skip('The platform help pages could not be reached, so the refresh was skipped.')
+    const cur = this.guidelines.current()
+    const out = await this.gateway.json(
+      {
+        agent: 'Thumbnail',
+        system: 'You maintain thumbnail guidelines. Compare the current guidelines with the sources. Propose an updated guidelines document that keeps the same headings. Only change what the sources support. Never use an em dash. Answer only with JSON: {"text": "the full updated markdown", "changes": ["short note per change"]}.',
+        user: `${'CTX {"task":"guideline_refresh"}'}\nCURRENT:\n${cur.text}\n\n${pages.join('\n\n')}`,
+        maxTokens: 4000,
+      },
+      z.object({ text: z.string().min(20), changes: z.array(z.string()).default([]) }),
+    )
+    const diff = lineDiff(cur.text, out.text)
+    const total = cur.text.split('\n').length
+    const small = diff.added.length + diff.removed.length <= Math.max(4, total * 0.2)
+    this.audit.write({ agent: 'Thumbnail', action: small ? 'guideline_refresh_applied' : 'guideline_refresh_proposed', detail: { added: diff.added.slice(0, 20), removed: diff.removed.slice(0, 20), changes: out.changes } })
+    if (!small) {
+      this.writeJson('studio.guidelineProposal', { text: out.text, changes: out.changes, at: new Date(this.now()).toISOString() })
+      return { applied: false, note: 'The proposed change is large, so it is waiting for you in Studio Settings.' }
+    }
+    this.guidelines.save(out.text, `Monthly refresh: ${out.changes.join('; ') || 'small edits'}`, 'refresh')
+    return { applied: true, note: `Applied ${diff.added.length} added and ${diff.removed.length} removed lines.` }
   }
 
   /** The Archivist runs once a day at or after 3:00 AM Eastern. */
@@ -338,6 +451,83 @@ export class Studio implements StudioApi {
     const t = this.tasks.create({ type: 'write_episode', brandId, payload: { slotDate: date }, dedupeKey: `write:${brandId}:${date}` })
     void this.runner.runUntilIdle().then(() => this.d.emit())
     return { taskId: t.id }
+  }
+
+  // ---------- thumbnails, social, caps ----------
+
+  async guidelineInfo() {
+    return {
+      current: this.guidelines.current(),
+      history: this.guidelines.history(),
+      proposal: this.readJson<{ text: string; changes: string[]; at: string } | null>('studio.guidelineProposal', null),
+    }
+  }
+  async saveGuidelines(text: string, note: string) {
+    return this.guidelines.save(text, note || 'Edited by the owner.', 'owner')
+  }
+  async revertGuidelines(id: number) {
+    return this.guidelines.revert(id)
+  }
+  async approveGuidelineProposal() {
+    const p = this.readJson<{ text: string; changes: string[] } | null>('studio.guidelineProposal', null)
+    if (!p) return null
+    this.writeJson('studio.guidelineProposal', null)
+    return this.guidelines.save(p.text, `Approved proposal: ${p.changes.join('; ')}`, 'refresh')
+  }
+  async socialPosts(episodeId?: string) {
+    return this.social.list({ episodeId }).map((r) => ({ id: r.id, episodeId: r.episodeId, platform: r.platform, status: r.status, text: r.text, title: r.title, scheduledAtUtc: r.scheduledAtUtc, attempts: r.attempts, externalUrl: r.externalUrl, error: r.error, mock: r.mock }))
+  }
+  async retrySocial(id: number) {
+    this.social.retry(id)
+    this.d.emit()
+  }
+  async thumbTests() {
+    const tests = this.d.db.prepare('SELECT * FROM thumb_tests ORDER BY rowid DESC LIMIT 50').all() as Array<{ episode_id: string; state: string; note: string | null }>
+    return tests.map((t) => ({
+      episodeId: t.episode_id,
+      state: t.state,
+      note: t.note,
+      variants: (this.d.db.prepare('SELECT * FROM thumb_variants WHERE episode_id = ? ORDER BY id').all(t.episode_id) as Array<any>).map((v) => ({ variant: v.variant, headline: v.headline, score: v.score, ctr: v.ctr, impressions: v.impressions, winner: !!v.winner, file: v.file_path })),
+    }))
+  }
+  async runThumbTests() {
+    await this.tester.tick()
+    this.d.emit()
+  }
+  async platformCaps() {
+    const { DEFAULT_PLATFORM_CAPS } = await import('@shared/studio/platformCaps')
+    const over = this.cfg.get().platformCaps
+    return Object.fromEntries(Object.entries(DEFAULT_PLATFORM_CAPS).map(([k, v]) => [k, { ...v, ...((over[k] as object) ?? {}) }]))
+  }
+  async publicHostStatus() {
+    return { configured: this.host.configured() }
+  }
+  /** Refreshes the long lived Threads token (60 days, refreshable after 24 hours) and remembers the new expiry. */
+  async threadsRefresh(): Promise<TestResult> {
+    try {
+      const r = await this.threads.refresh()
+      this.d.secrets.set(KEY_NAMES.threads.secret, r.token)
+      this.setAccountOf('threadsExpiry', new Date(this.now() + r.expiresInSeconds * 1000).toISOString())
+      return { ok: true, message: `Threads token refreshed. It now lasts ${Math.round(r.expiresInSeconds / 86400)} days.` }
+    } catch (e) {
+      return { ok: false, message: (e as Error).message }
+    }
+  }
+
+  /** Daily: refresh the Threads token when it is within 7 days of expiring, and warn if that does not work. */
+  async checkThreadsToken(): Promise<void> {
+    if (this.cfg.get().mockMode || !this.d.secrets.has(KEY_NAMES.threads.secret)) return
+    const exp = this.accountOf('threadsExpiry')
+    if (!exp) return
+    const days = (Date.parse(exp) - this.now()) / 86_400_000
+    if (days > 7) return
+    const r = await this.threadsRefresh()
+    if (!r.ok) {
+      const today = todayEastern(this.now())
+      if (this.accountOf('threadsWarnDay') === today) return
+      this.setAccountOf('threadsWarnDay', today)
+      this.d.alert('Threads sign in runs out soon.', `The Threads token expires in ${Math.max(0, Math.round(days))} day(s) and could not be refreshed: ${r.message}`)
+    }
   }
 
   // ---------- production ----------

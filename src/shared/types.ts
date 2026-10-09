@@ -234,6 +234,12 @@ export interface TikTokCredentialsStatus {
 export interface TargetSettings {
   /** Instagram cover frame, in milliseconds from the start. */
   thumbOffsetMs?: number
+  /** YouTube long form: a custom thumbnail file (1280x720). Never set for Shorts, which cannot take one through the API. */
+  thumbnailPath?: string
+  /** TikTok cover frame in milliseconds (Direct Post only). */
+  coverTimestampMs?: number
+  /** Instagram custom cover, a public https address (used instead of the frame). */
+  coverUrl?: string
   /** TikTok Direct Post choices. */
   tiktok?: TikTokPostSettings
 }

@@ -60,6 +60,9 @@ export const DEFAULT_STUDIO_CONFIG: StudioConfig = {
   repetitionThreshold: 0.86,
   characterSimilarityThreshold: 0.6,
   qcMode: 'auto',
+  platformCaps: {},
+  publicHost: { endpoint: '', bucket: '', publicBase: '', region: 'auto' },
+  thumbnailEngine: { generateImages: true, candidates: 3, abDelayHours: 48, abMinImpressions: 500, font: '' },
   qcClipRetryCap: 2,
   digestTime: '07:30',
   backupDir: '~/ELO/Backups',
@@ -116,6 +119,7 @@ export function defaultBrandConfig(format: BrandFormat, startDate: string): Stud
     mathCheck: false,
     stepsCheck: false,
     captionMode: 'sidecar',
+    openingFrame: format === 'short',
   }
   if (format === 'long') {
     return {

@@ -76,6 +76,9 @@ export class PostService {
       settings: {
         thumbOffsetMs: stateOf(r.settings_json).thumbOffsetMs,
         tiktok: stateOf(r.settings_json).tiktok,
+        thumbnailPath: stateOf(r.settings_json).thumbnailPath,
+        coverTimestampMs: stateOf(r.settings_json).coverTimestampMs,
+        coverUrl: stateOf(r.settings_json).coverUrl,
       },
     }
   }
@@ -547,7 +550,7 @@ export class PostService {
           platform: t.platform,
           aiFlag: t.aiFlag,
           captionOverride: t.captionOverride,
-          settings: { thumbOffsetMs: t.settings.thumbOffsetMs, tiktok: t.settings.tiktok },
+          settings: { thumbOffsetMs: t.settings.thumbOffsetMs, tiktok: t.settings.tiktok, thumbnailPath: t.settings.thumbnailPath, coverTimestampMs: t.settings.coverTimestampMs, coverUrl: t.settings.coverUrl },
         })),
       )
       return nid
@@ -622,5 +625,8 @@ function cleanSettings(s: TargetSettings | undefined): Record<string, unknown> {
   if (s && typeof s.thumbOffsetMs === 'number' && s.thumbOffsetMs >= 0)
     out.thumbOffsetMs = Math.round(s.thumbOffsetMs)
   if (s?.tiktok) out.tiktok = s.tiktok
+  if (s && typeof s.thumbnailPath === 'string' && s.thumbnailPath) out.thumbnailPath = s.thumbnailPath
+  if (s && typeof s.coverTimestampMs === 'number' && s.coverTimestampMs >= 0) out.coverTimestampMs = Math.round(s.coverTimestampMs)
+  if (s && typeof s.coverUrl === 'string' && /^https:\/\//.test(s.coverUrl)) out.coverUrl = s.coverUrl
   return out
 }

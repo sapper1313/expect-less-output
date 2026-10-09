@@ -70,6 +70,16 @@ export function makeIngestHooks(d: IngestDeps): IngestHooks {
 
     async after(episodeId, postId) {
       const ep = d.episodes.get(episodeId)
+      if (d.pipeline) {
+        // Thumbnail, text, Compliance and scheduling. A problem here never loses the video: the draft post stays.
+        d.episodes.setFields(episodeId, { postId })
+        try {
+          await d.pipeline(episodeId, postId)
+        } catch (e) {
+          d.episodes.setStatus(episodeId, 'Flagged', 'Publishing could not finish.', { flaggedReason: (e as Error).message, postId })
+        }
+        return
+      }
       const when = nextOpenPostTime(d, ep.brandId)
       const post = await d.posts.get(postId)
       if (post && when) {
@@ -81,7 +91,6 @@ export function makeIngestHooks(d: IngestDeps): IngestHooks {
         videoPath: post?.videoPath ?? null,
       })
       d.episodes.setFields(episodeId, { slotDate: ep.slotDate })
-      if (d.pipeline) await d.pipeline(episodeId, postId)
     },
   }
 }

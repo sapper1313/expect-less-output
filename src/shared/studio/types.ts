@@ -64,6 +64,8 @@ export interface StudioBrandConfig {
   stepsCheck: boolean
   /** Captions: a sidecar .srt file (default), burned into the picture, or none. */
   captionMode: 'sidecar' | 'burn' | 'off'
+  /** Shorts: show the winning thumbnail for the first moments so the frame YouTube picks is strong. */
+  openingFrame: boolean
 }
 
 export interface Prices {
@@ -118,6 +120,11 @@ export interface StudioConfig {
   repetitionThreshold: number
   characterSimilarityThreshold: number
   qcMode: 'off' | 'auto'
+  /** Editable per platform limits. Missing keys use the built in table. */
+  platformCaps: Record<string, unknown>
+  /** Temporary public host for files a platform must fetch (Threads video, Instagram cover). */
+  publicHost: { endpoint: string; bucket: string; publicBase: string; region: string }
+  thumbnailEngine: { generateImages: boolean; candidates: number; abDelayHours: number; abMinImpressions: number; font: string }
   qcClipRetryCap: number
   digestTime: string
   backupDir: string

@@ -1,5 +1,5 @@
 import { execFile } from 'child_process'
-import { existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { promisify } from 'util'
 import ffmpegStatic from 'ffmpeg-static'
@@ -176,4 +176,109 @@ export async function hasFilter(name: string): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+/** Brightness mean and spread (contrast), and how busy the picture is, from a tiny grayscale copy. */
+export async function grayStats(file: string): Promise<{ mean: number; std: number; edges: number }> {
+  const { stdout } = await run(ffmpegBin(), ['-hide_banner', '-loglevel', 'error', '-i', file, '-frames:v', '1', '-vf', 'scale=64:36', '-f', 'rawvideo', '-pix_fmt', 'gray', '-'], {
+    encoding: 'buffer',
+    maxBuffer: 1024 * 1024,
+  })
+  const px = stdout as unknown as Buffer
+  const n = px.length || 1
+  let sum = 0
+  for (const v of px) sum += v
+  const mean = sum / n
+  let varSum = 0
+  let edge = 0
+  for (let i = 0; i < px.length; i++) {
+    varSum += (px[i] - mean) ** 2
+    if (i % 64 !== 0) edge += Math.abs(px[i] - px[i - 1])
+  }
+  return { mean, std: Math.sqrt(varSum / n), edges: edge / n }
+}
+
+/** Fonts a thumbnail can use on this Mac. */
+export function findFont(preferred: string): string | null {
+  const list = [preferred, '/System/Library/Fonts/Supplemental/Impact.ttf', '/System/Library/Fonts/Supplemental/Arial Black.ttf', '/Library/Fonts/Arial Black.ttf', '/System/Library/Fonts/Supplemental/Arial Bold.ttf']
+  return list.find((f) => f && existsSync(f)) ?? null
+}
+
+/** Background image scaled to cover the size, with a bold headline. Text is wrapped and kept inside a safe box. */
+export async function composeThumbnail(o: {
+  background: string
+  out: string
+  width: number
+  height: number
+  headline: string
+  font: string | null
+  /** Keep the text inside the centered square so a square crop of a tall cover still shows it. */
+  centerSafe?: boolean
+}): Promise<{ textDrawn: boolean }> {
+  mkdirSync(dirname(o.out), { recursive: true })
+  const base = `scale=${o.width}:${o.height}:force_original_aspect_ratio=increase,crop=${o.width}:${o.height}`
+  const words = o.headline.trim().split(/\s+/).filter(Boolean)
+  if (!o.font || !words.length) {
+    await ffmpeg(['-i', o.background, '-vf', base, '-frames:v', '1', '-q:v', '3', o.out])
+    return { textDrawn: false }
+  }
+  const lines: string[] = []
+  let cur = ''
+  const maxChars = o.centerSafe ? 12 : 16
+  for (const w of words) {
+    if ((cur + ' ' + w).trim().length > maxChars && cur) {
+      lines.push(cur)
+      cur = w
+    } else cur = (cur + ' ' + w).trim()
+  }
+  if (cur) lines.push(cur)
+  const textFile = `${o.out}.txt`
+  writeFileSync(textFile, lines.join('\n'))
+  const size = Math.round((o.centerSafe ? o.width : o.height) / (o.centerSafe ? 7 : 6.5))
+  const y = o.centerSafe ? '(h-text_h)/2' : 'h-text_h-h*0.08'
+  const vf = `${base},drawtext=fontfile='${o.font.replaceAll("'", '')}':textfile='${textFile.replaceAll("'", '')}':fontsize=${size}:fontcolor=white:borderw=${Math.max(4, Math.round(size / 12))}:bordercolor=black:line_spacing=${Math.round(size / 8)}:x=(w-text_w)/2:y=${y}`
+  try {
+    await ffmpeg(['-i', o.background, '-vf', vf, '-frames:v', '1', '-q:v', '3', o.out])
+    return { textDrawn: true }
+  } catch {
+    await ffmpeg(['-i', o.background, '-vf', base, '-frames:v', '1', '-q:v', '3', o.out])
+    return { textDrawn: false }
+  } finally {
+    rmSync(textFile, { force: true })
+  }
+}
+
+/** Re-encodes a JPEG smaller and smaller until it fits. */
+export async function fitJpeg(file: string, maxBytes: number): Promise<void> {
+  for (const q of [3, 5, 8, 12, 18, 25]) {
+    if (statSync(file).size <= maxBytes) return
+    const tmp = `${file}.tmp.jpg`
+    await ffmpeg(['-i', file, '-q:v', String(q), '-frames:v', '1', tmp])
+    renameSync(tmp, file)
+  }
+}
+
+/** A short video made of one image, used as the opening frame of a Short. */
+export async function stillVideo(image: string, seconds: number, width: number, height: number, out: string): Promise<void> {
+  mkdirSync(dirname(out), { recursive: true })
+  await ffmpeg(['-loop', '1', '-i', image, '-t', String(seconds), '-vf', `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},fps=24,format=yuv420p`, '-c:v', 'libx264', '-preset', 'veryfast', out])
+}
+
+/** The most striking moment of a video (contrast and detail), in milliseconds. Used for cover frames. */
+export async function bestFrameMs(video: string, seconds: number, tmpDir: string): Promise<number> {
+  mkdirSync(tmpDir, { recursive: true })
+  let best = { ms: Math.round(seconds * 300), score: -1 }
+  for (let i = 1; i <= 8; i++) {
+    const t = seconds * (0.1 + (0.8 * (i - 1)) / 7)
+    const f = join(tmpDir, `bf-${i}.jpg`)
+    try {
+      await extractFrame(video, t, f, 160)
+      const g = await grayStats(f)
+      const score = g.std + g.edges * 0.5
+      if (score > best.score) best = { ms: Math.round(t * 1000), score }
+    } catch {
+      // a frame that cannot be read is skipped
+    }
+  }
+  return best.ms
 }

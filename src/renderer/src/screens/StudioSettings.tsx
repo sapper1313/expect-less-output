@@ -19,6 +19,9 @@ export function StudioSettings() {
       <GenerateCard cfg={cfg} reload={reload} />
       <ProductionCard cfg={cfg} reload={reload} />
       <BrandsCard />
+      <GuidelinesCard />
+      <CapsTableCard cfg={cfg} reload={reload} />
+      <PublicHostCard cfg={cfg} reload={reload} />
       <RetentionCard cfg={cfg} reload={reload} />
       <WritingCard cfg={cfg} reload={reload} />
     </div>
@@ -331,6 +334,7 @@ function BrandRow({ id, name, cfg, nextDue, reload }: { id: number; name: string
         <Check checked={cfg.madeForKids} onChange={(v) => save({ madeForKids: v })}>Made for kids</Check>
         <Check checked={cfg.holidayTieIns} onChange={(v) => save({ holidayTieIns: v })}>Holiday tie-ins</Check>
         <Check checked={cfg.useOpeningOutro} onChange={(v) => save({ useOpeningOutro: v })}>Shared opening and outro</Check>
+        {!long && <Check checked={cfg.openingFrame} onChange={(v) => save({ openingFrame: v })}>Strong opening frame (YouTube Shorts thumbnail)</Check>}
         {long && <Check checked={cfg.addOpeningOutroOnIngest} onChange={(v) => save({ addOpeningOutroOnIngest: v })}>Add opening and outro on ingest</Check>}
         {long && <Check checked={cfg.hollowViaApi} onChange={(v) => save({ hollowViaApi: v })}>Make this brand's video through the API</Check>}
       </div>
@@ -368,6 +372,89 @@ function WritingCard({ cfg, reload }: { cfg: StudioConfig; reload: () => void })
       <div className="mt-2">
         <Button onClick={() => run(async () => { await api.studio.setConfig({ roboticPhrases: text.split('\n').map((s) => s.trim()).filter(Boolean) }); reload() })}>Save phrases</Button>
       </div>
+    </Card>
+  )
+}
+
+function GuidelinesCard() {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
+  const { data, reload } = useLoad(() => api.studio.guidelineInfo())
+  const [text, setText] = useState('')
+  useEffect(() => { if (data) setText(data.current.text) }, [data?.current.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (!data) return null
+  return (
+    <Card
+      title="Thumbnail guidelines"
+      actions={<Button disabled={busy} onClick={() => run(async () => { const r = await api.studio.refreshGuidelines(); toast({ kind: r.applied ? 'success' : 'info', headline: 'Monthly check', detail: r.note }); reload() })}>Check the platforms now</Button>}
+    >
+      <p className="mb-2 text-[12px] text-muted">The Thumbnail agent reads this file on every run. Every change is a new version, so nothing is ever lost. It also checks the platforms' own help pages once a month and applies small, safe edits by itself.</p>
+      {data.proposal && (
+        <div className="mb-3 rounded-md border border-warn p-3 text-[13px]">
+          A bigger change is waiting: {data.proposal.changes.join('; ') || 'rewritten guidelines'}.
+          <div className="mt-2"><Button onClick={() => run(async () => { await api.studio.approveGuidelineProposal(); reload() })}>Use it</Button></div>
+        </div>
+      )}
+      <Textarea className="min-h-[220px] font-mono text-[12px]" value={text} onChange={(e) => setText(e.target.value)} />
+      <div className="mt-2 flex items-center gap-3">
+        <Button variant="primary" disabled={busy || text === data.current.text} onClick={() => run(async () => { await api.studio.saveGuidelines(text, 'Edited by the owner.'); reload() })}>Save as a new version</Button>
+        <span className="text-[12px] text-muted">Version {data.current.id} ({data.current.source})</span>
+      </div>
+      <h3 className="mb-1 mt-4 text-[11px] font-semibold uppercase text-muted">History</h3>
+      {data.history.slice(0, 8).map((h) => (
+        <div key={h.id} className="flex items-center justify-between border-b border-line py-1 text-[12px]">
+          <span>v{h.id}, {h.createdUtc.slice(0, 16).replace('T', ' ')} UTC, {h.source}. {h.note}</span>
+          {h.id !== data.current.id && <Button variant="ghost" disabled={busy} onClick={() => run(async () => { await api.studio.revertGuidelines(h.id); reload() })}>Revert to this</Button>}
+        </div>
+      ))}
+    </Card>
+  )
+}
+
+function CapsTableCard({ cfg, reload }: { cfg: StudioConfig; reload: () => void }) {
+  const [, run] = useBusy()
+  const { data } = useLoad(() => api.studio.platformCaps(), [JSON.stringify(cfg.platformCaps)])
+  if (!data) return null
+  const set = (key: string, field: string, value: number) =>
+    run(async () => { await api.studio.setConfig({ platformCaps: { ...cfg.platformCaps, [key]: { ...((cfg.platformCaps[key] as object) ?? {}), [field]: value } } } as never); reload() })
+  const rows = Object.entries(data) as Array<[string, Record<string, any>]>
+  return (
+    <Card title="Platform limits">
+      <p className="mb-2 text-[12px] text-muted">Filled from the platforms' own docs. A video that does not fit a platform skips that platform only. Edit a number when a platform changes its rules.</p>
+      <div className="overflow-auto">
+        <table className="w-full text-left text-[12px]">
+          <thead className="text-muted"><tr><th>Platform</th><th>Max seconds</th><th>Max MB</th><th>Text limit</th><th>Cover</th></tr></thead>
+          <tbody>
+            {rows.map(([k, c]) => (
+              <tr key={k} className="border-t border-line align-top">
+                <td className="py-1"><b>{c.label}</b><div className="max-w-[360px] text-[11px] text-muted">{c.notes}</div></td>
+                <td><Input className="w-24" defaultValue={c.maxDurationSeconds} onBlur={(e) => Number(e.target.value) > 0 && Number(e.target.value) !== c.maxDurationSeconds && set(k, 'maxDurationSeconds', Number(e.target.value))} /></td>
+                <td><Input className="w-24" defaultValue={c.maxFileMB} onBlur={(e) => Number(e.target.value) > 0 && Number(e.target.value) !== c.maxFileMB && set(k, 'maxFileMB', Number(e.target.value))} /></td>
+                <td><Input className="w-24" defaultValue={c.textMax} onBlur={(e) => Number(e.target.value) > 0 && Number(e.target.value) !== c.textMax && set(k, 'textMax', Number(e.target.value))} /></td>
+                <td className="whitespace-nowrap">{String(c.cover).replaceAll('_', ' ')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  )
+}
+
+function PublicHostCard({ cfg, reload }: { cfg: StudioConfig; reload: () => void }) {
+  const { toast } = useApp()
+  const [, run] = useBusy()
+  const h = cfg.publicHost
+  const save = (patch: Partial<typeof h>) => run(async () => { await api.studio.setConfig({ publicHost: { ...h, ...patch } } as never); reload() })
+  return (
+    <Card title="Public host (needed for Threads video)">
+      <p className="mb-2 text-[12px] text-muted">Threads downloads the video from a public web address, so each video is put in a Cloudflare R2 bucket for a few minutes and deleted right after. The two keys are on the key list above. See docs/SETUP_E_CLOUDFLARE_R2_IF_NEEDED.md. Set the bucket rule to delete files after 10 days if you also want Instagram cover pictures.</p>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field label="S3 endpoint (https://ACCOUNT.r2.cloudflarestorage.com)"><Input defaultValue={h.endpoint} onBlur={(e) => e.target.value !== h.endpoint && save({ endpoint: e.target.value.trim() })} /></Field>
+        <Field label="Bucket name"><Input defaultValue={h.bucket} onBlur={(e) => e.target.value !== h.bucket && save({ bucket: e.target.value.trim() })} /></Field>
+        <Field label="Public address of the bucket"><Input defaultValue={h.publicBase} onBlur={(e) => e.target.value !== h.publicBase && save({ publicBase: e.target.value.trim() })} /></Field>
+      </div>
+      <div className="mt-3"><Button onClick={() => run(async () => { const r = await api.studio.threadsRefresh(); toast({ kind: r.ok ? 'success' : 'error', headline: r.ok ? 'Threads token refreshed.' : 'Could not refresh.', detail: r.message }) })}>Refresh the Threads token now</Button></div>
     </Card>
   )
 }

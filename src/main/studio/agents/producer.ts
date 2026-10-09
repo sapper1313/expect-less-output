@@ -8,7 +8,6 @@ import type { EpisodeLibrary } from '../library'
 import type { SpendService } from '../spend'
 import type { VideoQc } from '../qc'
 import type { BrandAssets } from '../assets'
-import type { Publisher } from '../publisher'
 import type { VideoJobs } from '../jobs'
 import type { VideoClient } from '../xai'
 import type { LocalAi } from '../localAi'
@@ -27,14 +26,13 @@ export interface ProducerDeps {
   qc: VideoQc
   assets: BrandAssets
   gateway: LlmGateway
-  publisher: Publisher
   localAi: LocalAi
   video: () => VideoClient
   workDir: (episodeId: string) => string
 }
 
 const Input = z.object({ episodeId: z.string() })
-const Output = z.object({ episodeId: z.string(), postId: z.number(), finalPath: z.string(), clips: z.number(), takes: z.number() })
+const Output = z.object({ episodeId: z.string(), finalPath: z.string(), clips: z.number(), takes: z.number() })
 const FixedPrompt = z.object({ prompt: z.string().min(5) })
 
 const dataUri = (path: string) => `data:image/${path.endsWith('.png') ? 'png' : 'jpeg'};base64,${readFileSync(path).toString('base64')}`
@@ -250,9 +248,11 @@ export function makeProducerAgent(d: ProducerDeps): AgentDef<z.infer<typeof Inpu
         }
       }
       const outFile = burned ? join(work, 'final-burned.mp4') : finalPath
-      const sched = await d.publisher.schedule(episodeId, outFile, brand.captionMode === 'off' ? undefined : srtPath)
-      ctx.audit('scheduled', { postId: sched.postId, at: sched.scheduledAtUtc, takes: d.jobs.all(episodeId).length })
-      return { episodeId, postId: sched.postId, finalPath: outFile, clips: latest.length, takes: d.jobs.all(episodeId).length }
+      // Hand the finished video to the Publisher. It is its own task so a text or thumbnail problem never remakes the video.
+      d.episodes.setStatus(episodeId, 'Video received', 'The Producer finished the video.', { videoPath: outFile })
+      ctx.tasks.create({ type: 'publish_episode', brandId: ep.brandId, episodeId, payload: { episodeId, videoPath: outFile, srt: brand.captionMode === 'off' ? undefined : srtPath }, dedupeKey: `publish:${episodeId}` })
+      ctx.audit('handed_to_publisher', { takes: d.jobs.all(episodeId).length })
+      return { episodeId, finalPath: outFile, clips: latest.length, takes: d.jobs.all(episodeId).length }
     },
   }
 }

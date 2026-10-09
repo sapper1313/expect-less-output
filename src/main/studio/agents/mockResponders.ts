@@ -158,6 +158,29 @@ export function registerMockResponders(mock: MockLlm): void {
     return ctx.format === 'long' ? mockHollow(ctx) : mockShort(ctx)
   })
   mock.respond('Producer', (req) => ({ prompt: `${String(readCtx(req.user).prompt ?? 'A scene')} Steady, well lit and clearly visible, with clear sound.` }))
+  mock.respond('Thumbnail', (req) => {
+    const c = readCtx(req.user)
+    const title = String(c.title ?? 'New episode')
+    const words = title.replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean)
+    const n = Number(c.count ?? 3)
+    const heads = [words.slice(0, 4).join(' '), words.slice(-3).join(' '), `Watch ${words[0] ?? 'this'} now`.split(' ').slice(0, 4).join(' ')]
+    return { concepts: Array.from({ length: n }, (_, i) => ({ headline: heads[i % heads.length] || 'Watch this', image_prompt: `A bold clear scene for ${title}, option ${i + 1}`, use_video_frame: i === n - 1 && n > 2 })) }
+  })
+  mock.respond('Publisher', (req) => {
+    const c = readCtx(req.user)
+    const platforms = (c.platforms as string[]) ?? []
+    const title = String(c.title ?? 'New episode')
+    const tags = ((c.hashtags as string[]) ?? []).map((t) => (t.startsWith('#') ? t : `#${t.replace(/\s+/g, '')}`)).slice(0, 3)
+    const base = String(c.caption || c.summary || title)
+    const out: Record<string, unknown> = {}
+    if (platforms.includes('youtube')) out.youtube = { title: title.slice(0, 100), description: String(c.description || base), tags: tags.map((t) => t.slice(1)) }
+    if (platforms.includes('instagram')) out.instagram = { caption: `${base} ${tags.join(' ')}`.trim() }
+    if (platforms.includes('facebook')) out.facebook = { caption: `${base} ${tags.slice(0, 2).join(' ')}`.trim() }
+    if (platforms.includes('tiktok')) out.tiktok = { caption: `${base} ${tags.join(' ')}`.trim() }
+    if (platforms.includes('threads')) out.threads = { text: `${title}. ${String(c.summary ?? '')}`.slice(0, 380) }
+    if (platforms.includes('bluesky')) out.bluesky = { text: `${title}. ${String(c.summary ?? '')}`.slice(0, 240) }
+    return out
+  })
   mock.respond('Script QC', () => ({ pass: true, fixes: [] }))
   mock.respond('Hollow Safety Checker', () => ({ pass: true, issues: [] }))
   mock.respond('Math Checker', () => ({ claims: [], outdated: [] }))

@@ -4,16 +4,18 @@ import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { BrandDot, Button, Card, Empty, PageHeader, Select, Textarea, useBusy } from '../ui'
 import { StudioBible } from './StudioBible'
+import { StudioPublishing } from './StudioPublishing'
 import { StudioLibrary } from './StudioLibrary'
 import { StudioSpend } from './StudioSpend'
 import { StudioSettings } from './StudioSettings'
 import { StudioLocalAi } from './StudioLocalAi'
 
-type Tab = 'overview' | 'bible' | 'library' | 'spend' | 'log' | 'flagged' | 'settings' | 'local'
+type Tab = 'overview' | 'bible' | 'library' | 'publishing' | 'spend' | 'log' | 'flagged' | 'settings' | 'local'
 const TABS: Array<[Tab, string]> = [
   ['overview', 'Overview'],
   ['bible', 'Bible'],
   ['library', 'Library'],
+  ['publishing', 'Publishing'],
   ['spend', 'Spend'],
   ['log', "Director's Log"],
   ['flagged', 'Flagged'],
@@ -49,6 +51,7 @@ export function Studio({ initialTab = 'overview' }: { initialTab?: Tab }) {
         {tab === 'overview' && <Overview />}
         {tab === 'bible' && <StudioBible />}
         {tab === 'library' && <StudioLibrary />}
+        {tab === 'publishing' && <StudioPublishing />}
         {tab === 'spend' && <StudioSpend />}
         {tab === 'log' && <DirectorLog />}
         {tab === 'flagged' && <Flagged />}
