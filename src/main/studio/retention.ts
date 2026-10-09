@@ -1,4 +1,4 @@
-import { existsSync, statSync, unlinkSync } from 'fs'
+import { existsSync, rmSync, statSync, unlinkSync } from 'fs'
 import type { Db } from '../db'
 import type { Library as MediaLibrary } from '../services/library'
 import type { StudioConfigService } from './configService'
@@ -31,6 +31,8 @@ export class Archivist {
       cfg: StudioConfigService
       media: MediaLibrary
       episodes: EpisodeLibrary
+      /** Folder holding the clips and final video the Producer made for an episode. */
+      workDir?: (episodeId: string) => string
       audit: AuditLog
       now?: () => number
     },
@@ -96,6 +98,7 @@ export class Archivist {
           // already gone
         }
       }
+      if (ep && this.d.workDir) rmSync(this.d.workDir(ep.id), { recursive: true, force: true })
       this.d.db.prepare('UPDATE posts SET media_purged_at = ? WHERE id = ?').run(stamp, it.postId)
       if (ep) {
         this.d.episodes.setFields(ep.id, { mediaPurgedAt: stamp, videoPath: null, thumbPath: null })

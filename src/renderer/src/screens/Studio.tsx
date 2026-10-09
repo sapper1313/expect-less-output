@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { formatEastern } from '@shared/time'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
-import { BrandDot, Button, Card, Empty, PageHeader, Select, useBusy } from '../ui'
+import { BrandDot, Button, Card, Empty, PageHeader, Select, Textarea, useBusy } from '../ui'
 import { StudioBible } from './StudioBible'
 import { StudioLibrary } from './StudioLibrary'
 import { StudioSpend } from './StudioSpend'
@@ -177,13 +177,56 @@ function Flagged() {
           <div className="text-[13px]">
             <b>{task.status === 'stopped' ? 'Stopped' : 'Flagged'}.</b> {task.error}
           </div>
-          <div className="mt-3 flex gap-2">
-            <Button onClick={() => run(async () => { await api.studio.resolveFlag(task.id, 'retry'); reload() })}>Retry</Button>
-            <Button onClick={() => run(async () => { await api.studio.resolveFlag(task.id, 'approve'); reload() })}>Approve as is</Button>
-            <Button variant="danger" onClick={() => run(async () => { await api.studio.resolveFlag(task.id, 'discard'); reload() })}>Discard</Button>
-          </div>
+          {task.type === 'produce_episode' && episode ? (
+            <ClipActions episodeId={episode.id} onDone={reload} />
+          ) : (
+            <div className="mt-3 flex gap-2">
+              <Button onClick={() => run(async () => { await api.studio.resolveFlag(task.id, 'retry'); reload() })}>Retry</Button>
+              <Button onClick={() => run(async () => { await api.studio.resolveFlag(task.id, 'approve'); reload() })}>Approve as is</Button>
+              <Button variant="danger" onClick={() => run(async () => { await api.studio.resolveFlag(task.id, 'discard'); reload() })}>Discard</Button>
+            </div>
+          )}
         </Card>
       ))}
+    </div>
+  )
+}
+
+/** The clips of one episode, with the Flagged actions: approve as is, edit the prompt and retry, regenerate, discard. */
+export function ClipActions({ episodeId, onDone }: { episodeId: string; onDone: () => void }) {
+  const [, run] = useBusy()
+  const { data } = useLoad(() => api.studio.clipLog(episodeId), [episodeId])
+  const [edit, setEdit] = useState<Record<number, string>>({})
+  if (!data) return null
+  const latest = new Map<number, (typeof data)[number]>()
+  for (const j of data) latest.set(j.clipN, j)
+  return (
+    <div className="mt-3 space-y-3">
+      {[...latest.values()].map((j) => {
+        const qc = j.qc as { reasons?: string[]; steps?: Array<{ name: string; ok: boolean; note: string; via: string }> } | null
+        const bad = j.status === 'flagged' || j.status === 'failed' || j.status === 'expired'
+        return (
+          <div key={j.clipN} className="rounded-md border border-line p-3 text-[13px]">
+            <div className="flex items-center justify-between">
+              <b>Clip {j.clipN}, take {j.take}</b>
+              <span className={bad ? 'font-bold text-bad' : 'text-muted'}>{j.status}</span>
+            </div>
+            {j.error && <div className="mt-1 text-bad">{j.error}</div>}
+            {qc?.steps && <div className="mt-1 text-[12px] text-muted">{qc.steps.map((s) => `${s.name}: ${s.ok ? 'ok' : 'FAIL'} (${s.via}) ${s.note}`).join(' | ')}</div>}
+            {bad && (
+              <>
+                <Textarea className="mt-2 min-h-[56px]" value={edit[j.clipN] ?? j.prompt} onChange={(e) => setEdit({ ...edit, [j.clipN]: e.target.value })} />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button disabled={!j.filePath} onClick={() => run(async () => { await api.studio.resolveClip(episodeId, j.clipN, 'approve'); onDone() })}>Approve as is</Button>
+                  <Button onClick={() => run(async () => { await api.studio.resolveClip(episodeId, j.clipN, 'edit', edit[j.clipN] ?? j.prompt); onDone() })}>Edit prompt and retry</Button>
+                  <Button onClick={() => run(async () => { await api.studio.resolveClip(episodeId, j.clipN, 'regenerate'); onDone() })}>Regenerate clip</Button>
+                  <Button variant="danger" onClick={() => run(async () => { await api.studio.resolveClip(episodeId, j.clipN, 'discard'); onDone() })}>Discard</Button>
+                </div>
+              </>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

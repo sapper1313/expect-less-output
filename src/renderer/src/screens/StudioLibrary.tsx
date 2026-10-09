@@ -3,6 +3,7 @@ import { EPISODE_STATUSES, type EpisodeStatus } from '@shared/studio/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { Button, Card, Dialog, Empty, Input, Select, useBusy } from '../ui'
+import { ClipActions } from './Studio'
 
 export function StudioLibrary() {
   const [open, setOpen] = useState<string | null>(null)
@@ -127,6 +128,14 @@ function EpisodeView({ id, onClose }: { id: string; onClose: () => void }) {
           </>
         ) : (
           <Empty>This episode has no package file.</Empty>
+        )}
+        {['Ready for production', 'In production', 'Flagged', 'Scheduled', 'Posted', 'Archived'].includes(row.status) && (
+          <Card
+            title="Video clips"
+            actions={row.status === 'Ready for production' ? <Button onClick={() => run(async () => { await api.studio.produceNow(id); toast({ kind: 'info', headline: 'The Producer is on it.' }) })}>Make the video now</Button> : undefined}
+          >
+            <ClipActions episodeId={id} onDone={reload} />
+          </Card>
         )}
         <Card title="Spend for this episode">
           <div>${data.spend.dollars.toFixed(2)} real spend, {data.spend.rows.length} ledger row(s).</div>

@@ -475,6 +475,13 @@ async function boot(): Promise<void> {
       })
       return r.canceled ? [] : r.filePaths
     },
+    async pickImages(multiple) {
+      const r = await dialog.showOpenDialog({
+        properties: multiple ? ['openFile', 'multiSelections'] : ['openFile'],
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg'] }],
+      })
+      return r.canceled ? [] : r.filePaths
+    },
     async openPath(p) {
       await shell.openPath(p)
     },

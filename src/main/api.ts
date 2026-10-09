@@ -32,6 +32,7 @@ import type { Studio } from './studio/studio'
 export interface Host {
   pickFolder(defaultPath: string): Promise<string | null>
   pickVideos(multiple: boolean): Promise<string[]>
+  pickImages(multiple: boolean): Promise<string[]>
   openPath(path: string): Promise<void>
   quit(): void
   appInfo(): { version: string; dataDir: string; dbPath: string; encryptionAvailable: boolean }
@@ -129,6 +130,7 @@ export function buildApi(d: ApiDeps): Api {
     accounts: { list: async (brandId) => d.brands.listAccounts(brandId) },
     media: {
       pickVideos: async (multiple) => d.host.pickVideos(multiple),
+      pickImages: async (multiple) => d.host.pickImages(multiple),
       inspect: async (path) => d.media.inspect(path),
     },
     slots: {

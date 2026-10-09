@@ -157,6 +157,7 @@ export function registerMockResponders(mock: MockLlm): void {
     }
     return ctx.format === 'long' ? mockHollow(ctx) : mockShort(ctx)
   })
+  mock.respond('Producer', (req) => ({ prompt: `${String(readCtx(req.user).prompt ?? 'A scene')} Steady, well lit and clearly visible, with clear sound.` }))
   mock.respond('Script QC', () => ({ pass: true, fixes: [] }))
   mock.respond('Hollow Safety Checker', () => ({ pass: true, issues: [] }))
   mock.respond('Math Checker', () => ({ claims: [], outdated: [] }))

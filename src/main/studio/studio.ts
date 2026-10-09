@@ -40,6 +40,12 @@ import { RepetitionGuard } from './repetition'
 import { HollowSafetyChecker, MathChecker, ScriptQc } from './agents/checkers'
 import { makeWriterAgent } from './agents/writer'
 import { registerMockResponders } from './agents/mockResponders'
+import { BrandAssets } from './assets'
+import { VideoJobs } from './jobs'
+import { VideoQc } from './qc'
+import { Publisher } from './publisher'
+import { makeProducerAgent } from './agents/producer'
+import { expandHome } from './configService'
 
 export interface StudioDeps {
   db: Db
@@ -87,6 +93,10 @@ export class Studio implements StudioApi {
   readonly scriptQc: ScriptQc
   readonly math: MathChecker
   readonly safety: HollowSafetyChecker
+  readonly assets: BrandAssets
+  readonly jobs: VideoJobs
+  readonly qc: VideoQc
+  readonly publisher: Publisher
   private timers: NodeJS.Timeout[] = []
   private pulls = new Map<string, { pct: number; status: string }>()
   private ticking = false
@@ -113,7 +123,7 @@ export class Studio implements StudioApi {
     })
     this.episodes = new EpisodeLibrary(d.db, this.cfg, brandName, now)
     this.calendarFeed = new CalendarFeed(d.db, this.cfg, this.episodes, d.media, now)
-    this.archivist = new Archivist({ db: d.db, cfg: this.cfg, media: d.media, episodes: this.episodes, audit: this.audit, now })
+    this.archivist = new Archivist({ db: d.db, cfg: this.cfg, media: d.media, episodes: this.episodes, audit: this.audit, now, workDir: (id) => this.workDir(id) })
     this.localAi = new LocalAi({ cfg: this.cfg, audit: this.audit, gateway: this.gateway, fetchImpl: d.fetchImpl, now })
     this.runner = new AgentRunner({
       tasks: this.tasks,
@@ -151,12 +161,37 @@ export class Studio implements StudioApi {
         brandName,
       }),
     )
+    this.assets = new BrandAssets(d.db, this.cfg, brandName, now)
+    this.jobs = new VideoJobs(d.db, now)
+    this.qc = new VideoQc({ cfg: this.cfg, localAi: this.localAi, audit: this.audit, assets: this.assets })
+    this.publisher = new Publisher({ db: d.db, cfg: this.cfg, episodes: this.episodes, posts: d.posts, media: d.media, now })
+    this.runner.register(
+      makeProducerAgent({
+        db: d.db,
+        cfg: this.cfg,
+        spend: this.spend,
+        episodes: this.episodes,
+        jobs: this.jobs,
+        qc: this.qc,
+        assets: this.assets,
+        gateway: this.gateway,
+        publisher: this.publisher,
+        localAi: this.localAi,
+        video: () => (this.cfg.get().mockMode ? this.mockVideo : this.xai),
+        workDir: (id) => this.workDir(id),
+      }),
+    )
     this.director = new Director({ db: d.db, config: this.cfg, tasks: this.tasks, audit: this.audit, alert: d.alert, now })
-    this.ingest = makeIngestHooks({ db: d.db, cfg: this.cfg, episodes: this.episodes, posts: d.posts, now })
+    this.ingest = makeIngestHooks({ db: d.db, cfg: this.cfg, episodes: this.episodes, posts: d.posts, now, qc: this.qc })
   }
 
   private now() {
     return this.d.now ? this.d.now() : Date.now()
+  }
+
+  /** Where the clips and the final video of an episode live until the Archivist removes them. */
+  workDir(episodeId: string): string {
+    return join(expandHome(this.cfg.get().libraryDir), 'work', episodeId)
   }
 
   /** Long form brands get kid and AI settings on their first studio row only. */
@@ -301,6 +336,92 @@ export class Studio implements StudioApi {
     const b = this.cfg.getBrand(brandId)
     const date = slotDate ?? nextDue(b, todayEastern(this.now())) ?? addDays(todayEastern(this.now()), 1)
     const t = this.tasks.create({ type: 'write_episode', brandId, payload: { slotDate: date }, dedupeKey: `write:${brandId}:${date}` })
+    void this.runner.runUntilIdle().then(() => this.d.emit())
+    return { taskId: t.id }
+  }
+
+  // ---------- production ----------
+
+  async assetList(brandId: number) {
+    return this.assets.list(brandId).map((a) => ({ id: a.id, kind: a.kind, path: a.path, name: a.path.split('/').pop() ?? a.path, prompt: a.prompt }))
+  }
+  async addAsset(brandId: number, kind: Parameters<StudioApi['addAsset']>[1], path: string) {
+    this.assets.add(brandId, kind, path)
+    this.d.emit()
+    return this.assetList(brandId)
+  }
+  async removeAsset(brandId: number, id: number) {
+    this.assets.remove(id)
+    this.d.emit()
+    return this.assetList(brandId)
+  }
+
+  /** Generates the shared opening or outro once. Every later episode reuses the file at no cost. */
+  async generateSlot(brandId: number, kind: 'opening' | 'outro', prompt: string) {
+    const cfg = this.cfg.get()
+    const brand = this.cfg.getBrand(brandId)
+    const mock = cfg.mockMode
+    const tier = cfg.formatModel[brand.format]
+    const seconds = 5
+    const price = cfg.prices.video[tier][brand.resolution]
+    const dollars = seconds * price
+    this.spend.check({ brandId, vendor: 'xai', dollars, mock })
+    const client = mock ? this.mockVideo : this.xai
+    const { requestId } = await client.start({ model: cfg.modelIds[tier], prompt, durationSeconds: seconds, resolution: brand.resolution, aspectRatio: brand.format === 'short' ? '9:16' : '16:9' })
+    this.spend.record({ brandId, vendor: 'xai', model: cfg.modelIds[tier], resolution: brand.resolution, units: seconds, unitKind: 'seconds', unitPrice: price, dollars, requestId, purpose: kind === 'opening' ? 'intro' : 'outro', mock })
+    for (let i = 0; i < 120; i++) {
+      const st = await client.poll(requestId)
+      if (st.status === 'done') {
+        const dir = mkdtempSync(join(tmpdir(), 'elo-slot-'))
+        try {
+          const f = join(dir, `${kind}.mp4`)
+          await client.download(st.url, f)
+          this.assets.add(brandId, kind, f, prompt)
+        } finally {
+          rmSync(dir, { recursive: true, force: true })
+        }
+        this.d.emit()
+        return { dollars, mock }
+      }
+      if (st.status !== 'pending') throw new Error(st.status === 'failed' ? st.error : 'The request expired. Try again.')
+      await new Promise((r) => setTimeout(r, mock ? 20 : 5000))
+    }
+    throw new Error('Timed out waiting for the clip.')
+  }
+
+  async clipLog(episodeId: string) {
+    return this.jobs.all(episodeId).map((j) => ({ id: j.id, clipN: j.clipN, take: j.take, status: j.status, purpose: j.purpose, prompt: j.prompt, generateSeconds: j.generateSeconds, requestId: j.requestId, filePath: j.filePath, error: j.error, qc: j.qc }))
+  }
+
+  /** Flagged screen actions for one clip. */
+  async resolveClip(episodeId: string, clipN: number, action: 'approve' | 'regenerate' | 'edit' | 'discard', prompt?: string) {
+    const jobs = this.jobs.all(episodeId).filter((j) => j.clipN === clipN)
+    const last = jobs[jobs.length - 1]
+    if (!last) throw new Error(`Clip ${clipN} has no jobs.`)
+    const ep = this.episodes.get(episodeId)
+    const task = this.tasks.list({ type: 'produce_episode' }).find((t) => t.episodeId === episodeId || (t.payload as { episodeId?: string }).episodeId === episodeId)
+    if (action === 'discard') {
+      this.jobs.update(last.id, { status: 'discarded' })
+      this.episodes.setStatus(episodeId, 'Archived', 'Discarded by the owner.')
+      if (task) this.tasks.setStatus(task.id, 'failed', { error: 'Discarded by the owner.' })
+    } else if (action === 'approve') {
+      if (!last.filePath) throw new Error('This clip has no video to approve. Regenerate it instead.')
+      this.jobs.update(last.id, { status: 'approved' })
+    } else {
+      const text = action === 'edit' ? (prompt ?? '').trim() : last.prompt
+      if (!text) throw new Error('Type the new prompt first.')
+      this.jobs.update(last.id, { status: 'failed', error: last.error ?? 'Replaced by the owner.' })
+      this.jobs.plan({ episodeId, brandId: ep.brandId, clipN, take: last.take + 1, prompt: text, model: last.model, resolution: last.resolution, aspect: last.aspect, generateSeconds: last.generateSeconds, keepSeconds: last.keepSeconds, purpose: 'retry' })
+    }
+    if (task && action !== 'discard') this.tasks.reopen(task.id)
+    this.audit.write({ agent: 'Owner', action: `clip_${action}`, brandId: ep.brandId, episodeId, detail: { clip: clipN } })
+    this.d.emit()
+    if (action !== 'discard') void this.runner.runUntilIdle().then(() => this.d.emit())
+  }
+
+  async produceNow(episodeId: string) {
+    const ep = this.episodes.get(episodeId)
+    const t = this.tasks.create({ type: 'produce_episode', brandId: ep.brandId, episodeId, payload: { episodeId }, dedupeKey: `produce:${episodeId}` })
     void this.runner.runUntilIdle().then(() => this.d.emit())
     return { taskId: t.id }
   }

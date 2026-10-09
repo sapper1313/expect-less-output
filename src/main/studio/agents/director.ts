@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
 import type { Db } from '../../db'
-import { addDays, dueDates, productionDays, slotToUtc, todayEastern, windowOpensOn } from '@shared/studio/cadence'
+import { addDays, dueDates, hhmmToMinutes, productionDays, slotToUtc, todayEastern, windowOpensOn } from '@shared/studio/cadence'
 import type { AgentTask, StudioBrandConfig } from '@shared/studio/types'
 import type { StudioConfigService } from '../configService'
 import type { AuditLog, TaskStore } from './framework'
@@ -45,7 +45,7 @@ export class Director {
   private planners: Planner[] = []
 
   constructor(private d: DirectorDeps) {
-    this.planners.push(runwayPlanner, missedSlotWatcher)
+    this.planners.push(runwayPlanner, productionPlanner, missedSlotWatcher)
   }
 
   addPlanner(p: Planner): void {
@@ -119,6 +119,36 @@ const runwayPlanner: Planner = (ctx, d, notes) => {
   }
   if (created.length) notes.push(`${ctx.name}: asked the Writer for ${created.length} episode(s) to fill the runway.`)
   return created
+}
+
+/**
+ * Starts production for READY episodes of brands that ELO produces itself (shorts, and Hollow when "make the video
+ * through the API" is on). Work only starts after the brand's production run time, only one episode per brand at
+ * a time, and for weekly brands not before the production window opens.
+ */
+const productionPlanner: Planner = (ctx, d, notes) => {
+  const b = ctx.config
+  if (!(b.path === 'auto' || (b.format === 'long' && b.hollowViaApi))) return []
+  const et = DateTime.fromMillis(ctx.nowMs, { zone: 'America/New_York' })
+  if (et.hour * 60 + et.minute < hhmmToMinutes(b.runTime)) return []
+  const busy = d.tasks.list({ brandId: ctx.brandId, type: 'produce_episode', status: ['queued', 'running', 'waiting'] })
+  if (busy.length) return []
+  const rows = d.db
+    .prepare("SELECT id, slot_date FROM episodes WHERE brand_id = ? AND status = 'Ready for production' ORDER BY slot_date, id")
+    .all(ctx.brandId) as Array<{ id: string; slot_date: string | null }>
+  for (const ep of rows) {
+    const days = ep.slot_date ? productionDays(b, ep.slot_date) : []
+    if (days.length && ctx.today < days[0]) continue
+    const parked = d.tasks
+      .list({ brandId: ctx.brandId, type: 'produce_episode', status: ['flagged', 'stopped'] })
+      .some((t) => t.episodeId === ep.id || (t.payload as { episodeId?: string }).episodeId === ep.id)
+    if (parked) continue
+    const t = d.tasks.create({ type: 'produce_episode', brandId: ctx.brandId, episodeId: ep.id, payload: { episodeId: ep.id }, dedupeKey: `produce:${ep.id}` })
+    d.audit.write({ agent: AGENT, action: 'start_production', brandId: ctx.brandId, taskId: t.id, episodeId: ep.id })
+    notes.push(`${ctx.name}: started production of ${ep.id}.`)
+    return [t]
+  }
+  return []
 }
 
 /** Tells the owner when a posting slot will be missed, or when a package is still not READY after its window opened. */

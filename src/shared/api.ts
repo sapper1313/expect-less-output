@@ -85,6 +85,7 @@ export interface Api {
   }
   media: {
     pickVideos(multiple: boolean): Promise<string[]>
+    pickImages(multiple: boolean): Promise<string[]>
     inspect(path: string): Promise<MediaInspection>
   }
   slots: {

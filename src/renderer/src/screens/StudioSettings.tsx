@@ -17,6 +17,7 @@ export function StudioSettings() {
       <KeysCard />
       <CapsCard cfg={cfg} reload={reload} />
       <GenerateCard cfg={cfg} reload={reload} />
+      <ProductionCard cfg={cfg} reload={reload} />
       <BrandsCard />
       <RetentionCard cfg={cfg} reload={reload} />
       <WritingCard cfg={cfg} reload={reload} />
@@ -173,6 +174,76 @@ function GenerateCard({ cfg, reload }: { cfg: StudioConfig; reload: () => void }
   )
 }
 
+function ProductionCard({ cfg, reload }: { cfg: StudioConfig; reload: () => void }) {
+  const [, run] = useBusy()
+  const save = (patch: Partial<StudioConfig>) => run(async () => { await api.studio.setConfig(patch); reload() })
+  return (
+    <Card title="Production and QC">
+      <div className="grid gap-3 md:grid-cols-4">
+        <Field label="Video QC">
+          <Select value={cfg.qcMode} onChange={(e) => save({ qcMode: e.target.value as never })}>
+            <option value="auto">Auto (decides by itself)</option>
+            <option value="off">Off</option>
+          </Select>
+        </Field>
+        <Field label="Retries per clip">
+          <Input value={cfg.qcClipRetryCap} onChange={(e) => Number(e.target.value) >= 0 && save({ qcClipRetryCap: Number(e.target.value) })} />
+        </Field>
+        <Field label="Paid video requests at once">
+          <Input value={cfg.paidConcurrency} onChange={(e) => Number(e.target.value) >= 1 && save({ paidConcurrency: Number(e.target.value) })} />
+        </Field>
+        <Field label="Retake multiplier (estimates)">
+          <Input value={cfg.retakeMultiplier} onChange={(e) => Number(e.target.value) >= 1 && save({ retakeMultiplier: Number(e.target.value) })} />
+        </Field>
+      </div>
+      <p className="mt-2 text-[12px] text-muted">A clip that fails QC is retried with a prompt the text agent fixed. After the retries it is flagged, you get one alert, and only that video stops.</p>
+    </Card>
+  )
+}
+
+function BrandAssetsRow({ brandId }: { brandId: number }) {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
+  const { data, reload } = useLoad(() => api.studio.assetList(brandId), [brandId])
+  const [prompt, setPrompt] = useState('')
+  const pick = async (kind: 'opening' | 'outro' | 'reference_image') => {
+    const files = kind === 'reference_image' ? await api.media.pickImages(true) : await api.media.pickVideos(false)
+    for (const f of files) await api.studio.addAsset(brandId, kind, f)
+    reload()
+  }
+  const of = (k: string) => (data ?? []).filter((a) => a.kind === k)
+  return (
+    <div className="mt-3 rounded-md border border-line p-3 text-[13px]">
+      <b>Opening, outro and reference images</b>
+      <div className="mt-2 grid gap-2 md:grid-cols-3">
+        {(['opening', 'outro'] as const).map((k) => (
+          <div key={k}>
+            <div className="text-[11px] font-semibold uppercase text-muted">{k}</div>
+            <div className="text-[12px]">{of(k)[0]?.name ?? 'Not set'}</div>
+            <div className="mt-1 flex gap-2">
+              <Button disabled={busy} onClick={() => run(async () => pick(k))}>Import video</Button>
+              {of(k)[0] && <Button variant="danger" disabled={busy} onClick={() => run(async () => { await api.studio.removeAsset(brandId, of(k)[0].id); reload() })}>Remove</Button>}
+            </div>
+          </div>
+        ))}
+        <div>
+          <div className="text-[11px] font-semibold uppercase text-muted">Reference images ({of('reference_image').length})</div>
+          <div className="text-[12px]">Up to 14. Used so characters look the same.</div>
+          <div className="mt-1 flex gap-2"><Button disabled={busy} onClick={() => run(async () => pick('reference_image'))}>Add images</Button>
+            {of('reference_image').length > 0 && <Button variant="danger" disabled={busy} onClick={() => run(async () => { for (const a of of('reference_image')) await api.studio.removeAsset(brandId, a.id); reload() })}>Clear</Button>}
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 flex gap-2">
+        <Input placeholder="Or describe an opening or outro to generate once (about 5 seconds)" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+        {(['opening', 'outro'] as const).map((k) => (
+          <Button key={k} disabled={busy || !prompt.trim()} onClick={() => run(async () => { const r = await api.studio.generateSlot(brandId, k, prompt); reload(); toast({ kind: 'success', headline: `${k} generated once.`, detail: `It costs $${r.dollars.toFixed(2)} now and nothing on later episodes${r.mock ? ' (mock)' : ''}.` }) })}>Generate {k}</Button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function BrandsCard() {
   const { data: brands, reload } = useLoad(() => api.studio.brands())
   return (
@@ -233,6 +304,13 @@ function BrandRow({ id, name, cfg, nextDue, reload }: { id: number; name: string
             <option value="1080p">1080p (costs much more)</option>
           </Select>
         </Field>
+        <Field label="Captions">
+          <Select value={cfg.captionMode} onChange={(e) => save({ captionMode: e.target.value as never })}>
+            <option value="sidecar">Sidecar file (.srt)</option>
+            <option value="burn">Burned into the picture</option>
+            <option value="off">None</option>
+          </Select>
+        </Field>
         <Field label="Comments">
           <Select value={cfg.commentsMode} onChange={(e) => save({ commentsMode: e.target.value as never })}>
             <option value="auto">Auto reply</option>
@@ -241,6 +319,7 @@ function BrandRow({ id, name, cfg, nextDue, reload }: { id: number; name: string
           </Select>
         </Field>
       </div>
+      <BrandAssetsRow brandId={id} />
       <div className="mt-3 flex flex-wrap gap-4">
         {STUDIO_PLATFORMS.map((p) => (
           <Check key={p} checked={cfg.platforms[p]} disabled={long && p !== 'youtube'} onChange={(v) => save({ platforms: { ...cfg.platforms, [p]: v } })}>{p}</Check>

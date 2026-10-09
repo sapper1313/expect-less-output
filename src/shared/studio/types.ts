@@ -62,6 +62,8 @@ export interface StudioBrandConfig {
   mathCheck: boolean
   /** Check numbered steps for consistency and menus likely to be outdated. */
   stepsCheck: boolean
+  /** Captions: a sidecar .srt file (default), burned into the picture, or none. */
+  captionMode: 'sidecar' | 'burn' | 'off'
 }
 
 export interface Prices {

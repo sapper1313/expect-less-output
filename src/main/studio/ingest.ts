@@ -4,6 +4,7 @@ import { addDays, dueDates, easternDate, slotToUtc, todayEastern } from '@shared
 import type { StudioConfigService } from './configService'
 import type { EpisodeLibrary } from './library'
 import { probe } from './ffmpeg'
+import type { VideoQc } from './qc'
 
 /** What the Inbox watcher calls when a sidecar names an episode. Without episode_id none of this runs. */
 export interface IngestHooks {
@@ -21,6 +22,8 @@ export interface IngestDeps {
   episodes: EpisodeLibrary
   posts: PostService
   now?: () => number
+  /** Light QC (black or frozen picture, sound) for videos that arrive from Muse. */
+  qc?: VideoQc
   /** Further steps after a video is attached (Compliance, Thumbnail, Publisher). Added in Phase 4. */
   pipeline?: (episodeId: string, postId: number) => Promise<void>
 }
@@ -45,6 +48,8 @@ export function makeIngestHooks(d: IngestDeps): IngestHooks {
         const target = pkg?.runtime_target_seconds ?? 0
         if (target > 0 && (info.durationSeconds < target * 0.6 || info.durationSeconds > target * 1.4))
           throw new Error(`The video is ${Math.round(info.durationSeconds)} seconds long. About ${target} was expected.`)
+        const light = await d.qc?.check({ path: videoPath, episodeId, brandId: ep.brandId, expectSeconds: info.durationSeconds, aspect: brand.format === 'long' ? '16:9' : '9:16', scriptedLines: [], scene: '', mode: 'light' })
+        if (light && !light.pass) throw new Error(light.reasons[0])
       } catch (e) {
         d.episodes.setStatus(episodeId, 'Flagged', 'Video check failed.', { flaggedReason: (e as Error).message })
         throw e

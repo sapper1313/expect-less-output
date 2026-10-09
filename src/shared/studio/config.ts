@@ -115,6 +115,7 @@ export function defaultBrandConfig(format: BrandFormat, startDate: string): Stud
     path: 'auto',
     mathCheck: false,
     stepsCheck: false,
+    captionMode: 'sidecar',
   }
   if (format === 'long') {
     return {

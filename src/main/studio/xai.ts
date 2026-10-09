@@ -146,14 +146,20 @@ export class XaiClient implements VideoClient, ImageClient {
 
 export type MockOutcome = 'ok' | 'failed' | 'expired'
 
-/** Mock mode video client: placeholder clips made with ffmpeg, a short fake delay, and failures on demand. */
+/**
+ * Mock mode video client: placeholder clips made with ffmpeg, a short fake delay, and failures on demand.
+ * The request id carries everything needed to rebuild the clip, so a job started before the app quit can still
+ * be finished after it relaunches, exactly like a real request id.
+ */
 export class MockVideoClient implements VideoClient, ImageClient {
-  private jobs = new Map<string, { req: VideoRequest; readyAt: number; outcome: MockOutcome; broken: boolean }>()
+  private pending = new Map<string, { readyAt: number; outcome: MockOutcome }>()
   private n = 0
   /** Outcomes for upcoming jobs, first in first out. Missing entries mean ok. */
   script: MockOutcome[] = []
-  /** Next downloads produce a black clip with no audio (for the QC retry test). */
+  /** The next N clips come out as black clips with no sound (for the QC retry test). */
   brokenNext = 0
+  /** Every clip started with a prompt containing this text comes out broken. */
+  alwaysBrokenFor: string | null = null
   delayMs = 0
   started: VideoRequest[] = []
 
@@ -165,17 +171,18 @@ export class MockVideoClient implements VideoClient, ImageClient {
 
   async start(req: VideoRequest): Promise<{ requestId: string }> {
     this.started.push(req)
-    const id = `mock-${++this.n}-${Math.random().toString(36).slice(2, 8)}`
     const outcome = this.script.shift() ?? 'ok'
-    const broken = this.brokenNext > 0
+    let broken = this.brokenNext > 0
     if (broken) this.brokenNext--
-    this.jobs.set(id, { req, readyAt: this.now() + this.delayMs, outcome, broken })
+    if (this.alwaysBrokenFor && req.prompt.includes(this.alwaysBrokenFor)) broken = true
+    const id = `mock-${req.durationSeconds}-${req.aspectRatio === '9:16' ? 'v' : 'h'}-${broken ? 'b' : 'o'}-${++this.n}-${Math.random().toString(36).slice(2, 7)}`
+    this.pending.set(id, { readyAt: this.now() + this.delayMs, outcome })
     return { requestId: id }
   }
 
   async poll(requestId: string): Promise<VideoStatus> {
-    const j = this.jobs.get(requestId)
-    if (!j) return { status: 'expired' }
+    const j = this.pending.get(requestId)
+    if (!j) return { status: 'done', url: `mock://${requestId}` } // started before a relaunch: finished by now
     if (this.now() < j.readyAt) return { status: 'pending' }
     if (j.outcome === 'failed') return { status: 'failed', error: 'Simulated failure.' }
     if (j.outcome === 'expired') return { status: 'expired' }
@@ -183,19 +190,16 @@ export class MockVideoClient implements VideoClient, ImageClient {
   }
 
   async download(url: string, dest: string): Promise<void> {
-    const id = url.replace('mock://', '')
-    const j = this.jobs.get(id)
-    const vertical = (j?.req.aspectRatio ?? '9:16') === '9:16'
-    const w = vertical ? 270 : 480
-    const h = vertical ? 480 : 270
+    const m = /^mock-([\d.]+)-([vh])-([bo])-/.exec(url.replace('mock://', ''))
+    const seconds = m ? Number(m[1]) : 3
+    const vertical = (m?.[2] ?? 'v') === 'v'
     await makePlaceholderVideo({
       out: dest,
-      seconds: Math.max(1, Math.min(15, j?.req.durationSeconds ?? 3)),
-      width: w,
-      height: h,
-      text: j ? `MOCK ${j.req.durationSeconds}s ${j.req.prompt.slice(0, 24)}` : 'MOCK',
-      color: j?.broken ? '0x000000' : '0x3B4A6B',
-      audio: !j?.broken,
+      seconds: Math.max(1, Math.min(15, seconds)),
+      width: vertical ? 270 : 480,
+      height: vertical ? 480 : 270,
+      text: `MOCK ${seconds}s`,
+      black: m?.[3] === 'b',
     })
   }
 

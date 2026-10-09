@@ -99,7 +99,38 @@ export interface AgentInfo {
   isDefault: boolean
 }
 
+export interface AssetView {
+  id: number
+  kind: string
+  path: string
+  name: string
+  prompt: string | null
+}
+
+export interface ClipJobView {
+  id: number
+  clipN: number
+  take: number
+  status: string
+  purpose: string
+  prompt: string
+  generateSeconds: number
+  requestId: string | null
+  filePath: string | null
+  error: string | null
+  qc: unknown
+}
+
 export interface StudioApi {
+  assetList(brandId: number): Promise<AssetView[]>
+  addAsset(brandId: number, kind: 'opening' | 'outro' | 'reference_image' | 'voice_reference', path: string): Promise<AssetView[]>
+  removeAsset(brandId: number, id: number): Promise<AssetView[]>
+  /** Makes the shared opening or outro once from a prompt. It is reused on every episode at no further cost. */
+  generateSlot(brandId: number, kind: 'opening' | 'outro', prompt: string): Promise<{ dollars: number; mock: boolean }>
+  clipLog(episodeId: string): Promise<ClipJobView[]>
+  resolveClip(episodeId: string, clipN: number, action: 'approve' | 'regenerate' | 'edit' | 'discard', prompt?: string): Promise<void>
+  produceNow(episodeId: string): Promise<{ taskId: number }>
+
   bible(brandId: number): Promise<{ bible: SeriesBibleData; skills: Skill[]; markdown: string }>
   setBible(brandId: number, patch: Partial<SeriesBibleData>): Promise<SeriesBibleData>
   importSkill(brandId: number, name: string, text: string): Promise<Skill[]>
