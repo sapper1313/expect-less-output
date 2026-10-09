@@ -113,6 +113,8 @@ export function defaultBrandConfig(format: BrandFormat, startDate: string): Stud
     holidayTieIns: true,
     hollowViaApi: false,
     path: 'auto',
+    mathCheck: false,
+    stepsCheck: false,
   }
   if (format === 'long') {
     return {
@@ -131,6 +133,7 @@ export function defaultBrandConfig(format: BrandFormat, startDate: string): Stud
       useOpeningOutro: true,
       commentsMode: 'off',
       path: 'package',
+      mathCheck: true,
     }
   }
   return base

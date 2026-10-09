@@ -156,7 +156,7 @@ export class LlmGateway {
 
   modelFor(agent: string, override?: string): string {
     const c = this.d.config.get()
-    return override ?? c.agentModels[agent] ?? c.defaultAgentModel
+    return override || c.agentModels[agent] || c.defaultAgentModel
   }
 
   /** One raw call with cap check, ledger and run log. */

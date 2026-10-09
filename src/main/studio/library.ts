@@ -90,7 +90,7 @@ export class EpisodeLibrary {
     brandId: number,
     pkg: Omit<EpisodePackage, 'id' | 'brand' | 'brand_id' | 'status_history' | 'schema_version'> &
       Partial<Pick<EpisodePackage, 'status_history'>>,
-    opts: { status?: EpisodeStatus; slotDate?: string | null; origin?: string; id?: string } = {},
+    opts: { status?: EpisodeStatus; slotDate?: string | null; origin?: string; id?: string; keyText?: string } = {},
   ): EpisodeRow {
     const id = opts.id ?? this.nextId(brandId)
     const status = opts.status ?? 'Idea'
@@ -106,8 +106,8 @@ export class EpisodeLibrary {
     const now = this.iso()
     this.db
       .prepare(
-        `INSERT INTO episodes (id, brand_id, series, number, title, summary, status, tags, origin, slot_date, package_path, created_utc, updated_utc)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO episodes (id, brand_id, series, number, title, summary, status, tags, origin, slot_date, package_path, created_utc, updated_utc, key_text)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -123,6 +123,7 @@ export class EpisodeLibrary {
         path,
         now,
         now,
+        (opts.keyText ?? `${full.title} ${full.summary}`).toLowerCase(),
       )
     this.syncReadyCopy(id)
     return this.get(id)
@@ -204,7 +205,7 @@ export class EpisodeLibrary {
     return this.get(id)
   }
 
-  setFields(id: string, f: Partial<{ postId: number | null; videoPath: string | null; thumbPath: string | null; previewPath: string | null; slotDate: string | null; embeddingJson: string | null; mediaPurgedAt: string | null; scheduledAtUtc: string | null; postedAtUtc: string | null }>): void {
+  setFields(id: string, f: Partial<{ postId: number | null; videoPath: string | null; thumbPath: string | null; previewPath: string | null; slotDate: string | null; embeddingJson: string | null; keyText: string; mediaPurgedAt: string | null; scheduledAtUtc: string | null; postedAtUtc: string | null }>): void {
     const col: Record<string, string> = {
       postId: 'post_id',
       videoPath: 'video_path',
@@ -212,6 +213,7 @@ export class EpisodeLibrary {
       previewPath: 'preview_path',
       slotDate: 'slot_date',
       embeddingJson: 'embedding_json',
+      keyText: 'key_text',
       mediaPurgedAt: 'media_purged_at',
       scheduledAtUtc: 'scheduled_at_utc',
       postedAtUtc: 'posted_at_utc',

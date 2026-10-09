@@ -78,3 +78,4 @@ Anything not confirmed is kept in the editable price and model config (see 4.1) 
 ## 6. Status log
 
 - Phase 1 built and tested: 283 tests pass (243 before), typecheck and lint clean, built app opens every Studio tab with no page errors. 300 mock Hollow episodes take 3.3 MB including the plain `.json` ready copies.
+- Phase 2 built and tested: 299 tests pass. Show Writer (one module, per brand bible), Script QC, Math Checker (runs code, no model arithmetic), Hollow Safety Checker (code screen then model check), repetition guard (embeddings or keyword plus text agent), holidays seeded 18 months, ideas bank, Bible screen. Decisions: a write task that is flagged or stopped is parked until the owner acts (the Director never re-asks for that date), and the "package not ready" alert waits until the Writer has actually given up.

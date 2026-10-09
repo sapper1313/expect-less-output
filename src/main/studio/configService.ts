@@ -24,8 +24,10 @@ const KEY = 'studio.config'
 export const HOLLOW_NAME = 'Wonder Hollow Workshop'
 
 /** Brand name prefixes that get studio defaults on first run. After that everything is by id. */
-const SEED_FORMATS: Array<{ prefix: string; format: BrandFormat }> = [
+const SEED_FORMATS: Array<{ prefix: string; format: BrandFormat; patch?: Partial<StudioBrandConfig> }> = [
   { prefix: 'wonder hollow', format: 'long' },
+  { prefix: 'the math of it', format: 'short', patch: { mathCheck: true } },
+  { prefix: 'teach your parents tech', format: 'short', patch: { mathCheck: true, stepsCheck: true } },
 ]
 
 export function expandHome(p: string): string {
@@ -107,9 +109,19 @@ export class StudioConfigService {
     const has = this.db.prepare('SELECT 1 FROM studio_brands WHERE brand_id = ?')
     const ins = this.db.prepare('INSERT INTO studio_brands (brand_id, config_json) VALUES (?, ?)')
     for (const b of brands) {
-      if (has.get(b.id)) continue
+      if (has.get(b.id)) {
+        // A row from before the checker flags existed gets the seed choices for its brand once.
+        const row = this.db.prepare('SELECT config_json FROM studio_brands WHERE brand_id = ?').get(b.id) as { config_json: string }
+        const stored = JSON.parse(row.config_json) as Partial<StudioBrandConfig>
+        if (stored.mathCheck === undefined) {
+          const sd = SEED_FORMATS.find((x) => b.name.toLowerCase().startsWith(x.prefix))
+          const patch = { mathCheck: false, stepsCheck: false, ...(stored.format === 'long' ? { mathCheck: true } : {}), ...(sd?.patch ?? {}) }
+          this.db.prepare('UPDATE studio_brands SET config_json = ? WHERE brand_id = ?').run(JSON.stringify({ ...stored, ...patch }), b.id)
+        }
+        continue
+      }
       const seed = SEED_FORMATS.find((s) => b.name.toLowerCase().startsWith(s.prefix))
-      ins.run(b.id, JSON.stringify(defaultBrandConfig(seed?.format ?? 'short', today)))
+      ins.run(b.id, JSON.stringify({ ...defaultBrandConfig(seed?.format ?? 'short', today), ...(seed?.patch ?? {}) }))
     }
   }
 

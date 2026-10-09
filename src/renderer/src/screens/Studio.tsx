@@ -3,14 +3,16 @@ import { formatEastern } from '@shared/time'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { BrandDot, Button, Card, Empty, PageHeader, Select, useBusy } from '../ui'
+import { StudioBible } from './StudioBible'
 import { StudioLibrary } from './StudioLibrary'
 import { StudioSpend } from './StudioSpend'
 import { StudioSettings } from './StudioSettings'
 import { StudioLocalAi } from './StudioLocalAi'
 
-type Tab = 'overview' | 'library' | 'spend' | 'log' | 'flagged' | 'settings' | 'local'
+type Tab = 'overview' | 'bible' | 'library' | 'spend' | 'log' | 'flagged' | 'settings' | 'local'
 const TABS: Array<[Tab, string]> = [
   ['overview', 'Overview'],
+  ['bible', 'Bible'],
   ['library', 'Library'],
   ['spend', 'Spend'],
   ['log', "Director's Log"],
@@ -45,6 +47,7 @@ export function Studio({ initialTab = 'overview' }: { initialTab?: Tab }) {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-8">
         {tab === 'overview' && <Overview />}
+        {tab === 'bible' && <StudioBible />}
         {tab === 'library' && <StudioLibrary />}
         {tab === 'spend' && <StudioSpend />}
         {tab === 'log' && <DirectorLog />}

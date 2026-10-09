@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
 import type { Db } from '../../db'
-import { addDays, dueDates, slotToUtc, todayEastern, windowOpensOn } from '@shared/studio/cadence'
+import { addDays, dueDates, productionDays, slotToUtc, todayEastern, windowOpensOn } from '@shared/studio/cadence'
 import type { AgentTask, StudioBrandConfig } from '@shared/studio/types'
 import type { StudioConfigService } from '../configService'
 import type { AuditLog, TaskStore } from './framework'
@@ -98,6 +98,11 @@ const runwayPlanner: Planner = (ctx, d, notes) => {
   for (const date of dueDates(ctx.config, ctx.today, horizon)) {
     const covered = episodesOn(d.db, ctx.brandId, date).some((e) => !GONE.includes(e.status))
     if (covered) continue
+    // A write task that was flagged or stopped waits for the owner. Asking again every tick would only repeat the failure.
+    const parked = d.tasks
+      .list({ brandId: ctx.brandId, type: 'write_episode', status: ['flagged', 'stopped'] })
+      .some((t) => (t.payload as { slotDate?: string }).slotDate === date)
+    if (parked) continue
     const key = `write:${ctx.brandId}:${date}`
     const before = d.tasks.list({ brandId: ctx.brandId, type: 'write_episode', status: ['queued', 'running', 'waiting'] })
     const had = before.some((t) => (t.payload as { slotDate?: string }).slotDate === date)
@@ -116,19 +121,26 @@ const runwayPlanner: Planner = (ctx, d, notes) => {
   return created
 }
 
-/** Tells the owner when a posting slot will be missed, or when a package is not READY as its window opens. */
+/** Tells the owner when a posting slot will be missed, or when a package is still not READY after its window opened. */
 const missedSlotWatcher: Planner = (ctx, d, notes) => {
   const isPackage = ctx.config.path === 'package'
-  const lookahead = isPackage ? 1 : 0
-  for (const date of dueDates(ctx.config, ctx.today, addDays(ctx.today, lookahead))) {
+  const tomorrow = addDays(ctx.today, 1)
+  const etHour = DateTime.fromMillis(ctx.nowMs, { zone: 'America/New_York' }).hour
+  for (const date of dueDates(ctx.config, ctx.today, tomorrow)) {
     const eps = episodesOn(d.db, ctx.brandId, date).filter((e) => !GONE.includes(e.status))
     if (eps.some((e) => DELIVERED.includes(e.status))) continue
-    // A short is made well ahead, so it only counts as missed once its posting time is close.
-    if (!isPackage && ctx.nowMs < firstSlotMs(d.db, ctx.brandId, date) - 30 * 60_000) continue
+    if (isPackage) {
+      // A package brand is produced elsewhere. It is late once the date is here, or on the last production day in the evening.
+      const days = productionDays(ctx.config, date)
+      const lastDay = days[days.length - 1]
+      const lateTomorrow = date === tomorrow && lastDay === ctx.today && etHour >= 17
+      if (date > ctx.today && !lateTomorrow) continue
+    } else if (ctx.nowMs < firstSlotMs(d.db, ctx.brandId, date) - 30 * 60_000) {
+      // A short is made well ahead, so it only counts as missed once its posting time is close.
+      continue
+    }
     if (alerted(d.db, ctx.brandId, 'missed_slot_alert', date)) continue
-    const why = eps.length
-      ? `its episode is "${eps[0].status}"`
-      : 'there is no episode for it'
+    const why = eps.length ? `its episode is "${eps[0].status}"` : 'there is no episode for it'
     d.alert('A posting slot will be missed.', `${ctx.name} is due ${date} but ${why}.`)
     d.audit.write({ agent: AGENT, action: 'missed_slot_alert', brandId: ctx.brandId, detail: { date } })
     notes.push(`${ctx.name}: alerted that the ${date} slot will be missed.`)
@@ -136,13 +148,16 @@ const missedSlotWatcher: Planner = (ctx, d, notes) => {
   if (isPackage) {
     for (const date of dueDates(ctx.config, ctx.today, addDays(ctx.today, 8))) {
       const opens = windowOpensOn(ctx.config, date)
-      if (!opens || opens > addDays(ctx.today, 1)) continue
+      if (!opens || opens > ctx.today) continue
       const eps = episodesOn(d.db, ctx.brandId, date).filter((e) => !GONE.includes(e.status))
-      const ready = eps.some((e) =>
-        ['Ready for production', 'In production', 'Awaiting video', ...DELIVERED].includes(e.status),
-      )
+      const ready = eps.some((e) => ['Ready for production', 'In production', 'Awaiting video', ...DELIVERED].includes(e.status))
       if (ready || alerted(d.db, ctx.brandId, 'not_ready_alert', date)) continue
-      d.alert('An episode package is not ready.', `${ctx.name} for ${date}: the production window opens ${opens} and the package is not READY.`)
+      // The Writer is still on it: that is the Director's job, not a reason to bother the owner.
+      const active = d.tasks
+        .list({ brandId: ctx.brandId, type: 'write_episode', status: ['queued', 'running', 'waiting'] })
+        .some((t) => (t.payload as { slotDate?: string }).slotDate === date)
+      if (active) continue
+      d.alert('An episode package is not ready.', `${ctx.name} for ${date}: the production window opened ${opens} and the package is not READY.`)
       d.audit.write({ agent: AGENT, action: 'not_ready_alert', brandId: ctx.brandId, detail: { date } })
     }
   }

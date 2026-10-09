@@ -58,6 +58,10 @@ export interface StudioBrandConfig {
   hollowViaApi: boolean
   /** Which production path this brand uses. */
   path: 'auto' | 'package'
+  /** Run the Math Checker on every script. */
+  mathCheck: boolean
+  /** Check numbered steps for consistency and menus likely to be outdated. */
+  stepsCheck: boolean
 }
 
 export interface Prices {

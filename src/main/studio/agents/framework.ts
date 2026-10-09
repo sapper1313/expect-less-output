@@ -245,6 +245,10 @@ export class TaskStore {
       .run(id)
   }
 
+  setEpisode(id: number, episodeId: string): void {
+    this.db.prepare('UPDATE agent_tasks SET episode_id = ? WHERE id = ?').run(episodeId, id)
+  }
+
   setPayload(id: number, payload: Record<string, unknown>): void {
     this.db.prepare('UPDATE agent_tasks SET payload_json = ? WHERE id = ?').run(JSON.stringify(payload), id)
   }
@@ -380,7 +384,7 @@ export class AgentRunner {
     if (e instanceof FlagNow) {
       this.d.tasks.setStatus(task.id, 'flagged', { error: msg, attempts: task.attempts + 1 })
       audit('flagged', { reason: msg })
-      this.d.onFlag?.(task, msg)
+      this.d.onFlag?.(this.d.tasks.get(task.id) ?? task, msg)
       return
     }
     const cfg = this.d.config.get()
@@ -388,7 +392,7 @@ export class AgentRunner {
     if (attempts >= cfg.retryCap) {
       this.d.tasks.setStatus(task.id, 'flagged', { error: msg, attempts })
       audit('flagged', { reason: msg, attempts })
-      this.d.onFlag?.(task, msg)
+      this.d.onFlag?.(this.d.tasks.get(task.id) ?? task, msg)
       return
     }
     const wait =

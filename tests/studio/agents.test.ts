@@ -165,9 +165,13 @@ describe('Director and agent framework', () => {
     s.director.tick()
     s.director.tick()
     const missed = e.alerts.filter(([h]) => h === 'A posting slot will be missed.')
-    // Hollow is a package brand, so it alerts a day ahead. Shorts post at 08:00, so 06:00 is too early to worry.
+    // Hollow is due today with no episode. Shorts post at 08:00, so 06:00 is too early to worry.
     expect(missed).toHaveLength(1)
     expect(missed[0][1]).toMatch(/Wonder Hollow/)
+    // The Writer has been asked and is still on it, so no "package not ready" alert yet.
+    expect(e.alerts.filter(([h]) => h === 'An episode package is not ready.')).toHaveLength(0)
+    for (const t of s.tasks.list({ type: 'write_episode' })) s.tasks.setStatus(t.id, 'flagged', { error: 'x' })
+    s.director.tick()
     expect(e.alerts.filter(([h]) => h === 'An episode package is not ready.').length).toBeGreaterThan(0)
     e.clock.ms = Date.UTC(2026, 5, 2, 11, 45) // 07:45 Eastern, within 30 minutes of the 08:00 slot
     s.director.tick()

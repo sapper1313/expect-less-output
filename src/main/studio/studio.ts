@@ -34,6 +34,12 @@ import { LocalAi } from './localAi'
 import { MockVideoClient, XaiClient, type VideoClient } from './xai'
 import { makeIngestHooks, type IngestHooks } from './ingest'
 import { probe } from './ffmpeg'
+import { BibleService } from './bible'
+import { Holidays } from './holidays'
+import { RepetitionGuard } from './repetition'
+import { HollowSafetyChecker, MathChecker, ScriptQc } from './agents/checkers'
+import { makeWriterAgent } from './agents/writer'
+import { registerMockResponders } from './agents/mockResponders'
 
 export interface StudioDeps {
   db: Db
@@ -75,6 +81,12 @@ export class Studio implements StudioApi {
   readonly archivist: Archivist
   readonly localAi: LocalAi
   readonly ingest: IngestHooks
+  readonly bibles: BibleService
+  readonly holidayList: Holidays
+  readonly repetition: RepetitionGuard
+  readonly scriptQc: ScriptQc
+  readonly math: MathChecker
+  readonly safety: HollowSafetyChecker
   private timers: NodeJS.Timeout[] = []
   private pulls = new Map<string, { pct: number; status: string }>()
   private ticking = false
@@ -115,6 +127,30 @@ export class Studio implements StudioApi {
         d.emit()
       },
     })
+    registerMockResponders(this.mockLlm)
+    this.bibles = new BibleService(d.db, this.cfg, brandName, now)
+    this.bibles.ensureSeeded()
+    this.holidayList = new Holidays(d.db, now)
+    this.holidayList.ensureSeeded()
+    this.repetition = new RepetitionGuard({ db: d.db, cfg: this.cfg, localAi: this.localAi, gateway: this.gateway })
+    this.scriptQc = new ScriptQc({ cfg: this.cfg, gateway: this.gateway })
+    this.math = new MathChecker({ gateway: this.gateway })
+    this.safety = new HollowSafetyChecker({ gateway: this.gateway })
+    this.runner.register(
+      makeWriterAgent({
+        db: d.db,
+        cfg: this.cfg,
+        bible: this.bibles,
+        library: this.episodes,
+        holidays: this.holidayList,
+        gateway: this.gateway,
+        repetition: this.repetition,
+        scriptQc: this.scriptQc,
+        math: this.math,
+        safety: this.safety,
+        brandName,
+      }),
+    )
     this.director = new Director({ db: d.db, config: this.cfg, tasks: this.tasks, audit: this.audit, alert: d.alert, now })
     this.ingest = makeIngestHooks({ db: d.db, cfg: this.cfg, episodes: this.episodes, posts: d.posts, now })
   }
@@ -190,6 +226,83 @@ export class Studio implements StudioApi {
     this.archivist.purge(false)
     this.calendarFeed.backfillPostedFolders()
     this.d.emit()
+  }
+
+  // ---------- bible, ideas, holidays, agents ----------
+
+  async bible(brandId: number) {
+    const b = this.bibles.get(brandId)
+    return { ...b, markdown: this.bibles.markdown(brandId) }
+  }
+  async setBible(brandId: number, patch: Parameters<StudioApi['setBible']>[1]) {
+    const r = this.bibles.set(brandId, patch)
+    this.d.emit()
+    return r
+  }
+  async importSkill(brandId: number, name: string, text: string) {
+    this.bibles.addSkill(brandId, name, text)
+    this.d.emit()
+    return this.bibles.skills(brandId)
+  }
+  async updateSkill(brandId: number, id: number, text: string) {
+    this.bibles.updateSkill(id, text)
+    return this.bibles.skills(brandId)
+  }
+  async removeSkill(brandId: number, id: number) {
+    this.bibles.removeSkill(id)
+    this.d.emit()
+    return this.bibles.skills(brandId)
+  }
+  async exportBible(brandId: number) {
+    return this.bibles.markdown(brandId)
+  }
+  async ideas(brandId: number) {
+    return this.bibles.ideas(brandId).map(({ id, text, used }) => ({ id, text, used }))
+  }
+  async addIdeas(brandId: number, texts: string[]) {
+    this.bibles.addIdeas(brandId, texts)
+    return this.ideas(brandId)
+  }
+  async removeIdea(brandId: number, id: number) {
+    this.bibles.removeIdea(id)
+    return this.ideas(brandId)
+  }
+  async holidays(fromIso?: string, toIso?: string) {
+    return this.holidayList.list(fromIso, toIso)
+  }
+  async addHoliday(date: string, name: string, kind?: string) {
+    this.holidayList.add(date, name, kind)
+    return this.holidayList.list()
+  }
+  async setHolidayEnabled(id: number, enabled: boolean) {
+    this.holidayList.setEnabled(id, enabled)
+  }
+  async removeHoliday(id: number) {
+    this.holidayList.remove(id)
+  }
+  async agents() {
+    const c = this.cfg.get()
+    const defs = [
+      ['Director', 'Wakes on a timer, plans every brand, and never writes content.'],
+      ['Show Writer', 'Writes the idea, script and video prompts, one instance per brand.'],
+      [this.scriptQc.name, this.scriptQc.role],
+      [this.math.name, this.math.role],
+      [this.safety.name, this.safety.role],
+      ['Repetition Guard', 'Compares a new idea with every earlier episode.'],
+    ]
+    return defs.map(([name, role]) => ({ name, role, model: c.agentModels[name] || c.defaultAgentModel, isDefault: !c.agentModels[name] }))
+  }
+  async setAgentModel(name: string, model: string) {
+    this.cfg.set({ agentModels: { ...this.cfg.get().agentModels, [name]: model.trim() } })
+    return this.agents()
+  }
+  /** Asks the Writer for an episode right now, for a date (default: the next free posting date). */
+  async writeNow(brandId: number, slotDate?: string) {
+    const b = this.cfg.getBrand(brandId)
+    const date = slotDate ?? nextDue(b, todayEastern(this.now())) ?? addDays(todayEastern(this.now()), 1)
+    const t = this.tasks.create({ type: 'write_episode', brandId, payload: { slotDate: date }, dedupeKey: `write:${brandId}:${date}` })
+    void this.runner.runUntilIdle().then(() => this.d.emit())
+    return { taskId: t.id }
   }
 
   // ---------- config ----------

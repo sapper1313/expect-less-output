@@ -1,3 +1,4 @@
+import type { SeriesBibleData, Skill } from './bible'
 import type {
   AgentTask,
   AuditEntry,
@@ -76,7 +77,46 @@ export interface StudioOverview {
   libraryBytes: number
 }
 
+export interface IdeaView {
+  id: number
+  text: string
+  used: boolean
+}
+
+export interface HolidayView {
+  id: number
+  date: string
+  name: string
+  kind: string
+  enabled: boolean
+  custom: boolean
+}
+
+export interface AgentInfo {
+  name: string
+  role: string
+  model: string
+  isDefault: boolean
+}
+
 export interface StudioApi {
+  bible(brandId: number): Promise<{ bible: SeriesBibleData; skills: Skill[]; markdown: string }>
+  setBible(brandId: number, patch: Partial<SeriesBibleData>): Promise<SeriesBibleData>
+  importSkill(brandId: number, name: string, text: string): Promise<Skill[]>
+  updateSkill(brandId: number, id: number, text: string): Promise<Skill[]>
+  removeSkill(brandId: number, id: number): Promise<Skill[]>
+  exportBible(brandId: number): Promise<string>
+  ideas(brandId: number): Promise<IdeaView[]>
+  addIdeas(brandId: number, texts: string[]): Promise<IdeaView[]>
+  removeIdea(brandId: number, id: number): Promise<IdeaView[]>
+  holidays(fromIso?: string, toIso?: string): Promise<HolidayView[]>
+  addHoliday(date: string, name: string, kind?: string): Promise<HolidayView[]>
+  setHolidayEnabled(id: number, enabled: boolean): Promise<void>
+  removeHoliday(id: number): Promise<void>
+  agents(): Promise<AgentInfo[]>
+  setAgentModel(name: string, model: string): Promise<AgentInfo[]>
+  writeNow(brandId: number, slotDate?: string): Promise<{ taskId: number }>
+
   overview(): Promise<StudioOverview>
   getConfig(): Promise<StudioConfig>
   setConfig(patch: Partial<StudioConfig>): Promise<StudioConfig>
