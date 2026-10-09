@@ -3,7 +3,7 @@ import { join } from 'path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { InboxWatcher } from '../../src/main/agent/inbox'
 import type { AgentServices } from '../../src/main/agent/core'
-import { makePlaceholderVideo } from '../../src/main/studio/ffmpeg'
+import { makePlaceholderVideo, probe } from '../../src/main/studio/ffmpeg'
 import { hollowId, makeStudioEnv, minimalPackage } from './helpers'
 
 const SEC = 1000
@@ -127,6 +127,32 @@ describe('ingest with episode_id', () => {
     await t.settle() // then picks it up with its sidecar
     expect(t.e.studio.episodes.get(ep.id).status).toBe('Scheduled')
     expect(existsSync(join(t.inbox, 'remote.mp4'))).toBe(false)
+  })
+})
+
+describe('shared opening on ingest', () => {
+  it('puts the shared opening before a video that arrives without one, keeps the original, and is off by default', async () => {
+    const t = setup()
+    await t.e.studio.generateSlot(t.hid, 'opening', 'A warm logo sting')
+    // off by default for Wonder Hollow: the video is left exactly as Muse made it
+    const off = t.episode()
+    writeFileSync(join(t.inbox, 'plain.mp4'), readFileSync(wide))
+    writeFileSync(join(t.inbox, 'plain.json'), JSON.stringify({ episode_id: off.id }))
+    await t.settle()
+    const p1 = t.e.posts.get(t.e.studio.episodes.get(off.id).postId!)!
+    const d1 = (await probe(t.e.library.resolve(p1.videoPath))).durationSeconds
+    expect(d1).toBeGreaterThan(11)
+    expect(d1).toBeLessThan(13)
+    // on: five seconds of opening are added
+    await t.e.studio.setBrand(t.hid, { addOpeningOutroOnIngest: true })
+    const on = t.episode()
+    writeFileSync(join(t.inbox, 'with.mp4'), readFileSync(wide))
+    writeFileSync(join(t.inbox, 'with.json'), JSON.stringify({ episode_id: on.id }))
+    await t.settle()
+    const p2 = t.e.posts.get(t.e.studio.episodes.get(on.id).postId!)!
+    const d2 = (await probe(t.e.library.resolve(p2.videoPath))).durationSeconds
+    expect(d2).toBeGreaterThan(d1 + 4)
+    expect(existsSync(join(t.e.studio.workDir(on.id), 'received-original.mp4'))).toBe(true)
   })
 })
 

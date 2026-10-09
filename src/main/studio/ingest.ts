@@ -5,6 +5,10 @@ import type { StudioConfigService } from './configService'
 import type { EpisodeLibrary } from './library'
 import { probe } from './ffmpeg'
 import type { VideoQc } from './qc'
+import type { BrandAssets } from './assets'
+import { assemble } from './assemble'
+import { copyFileSync, mkdirSync, renameSync } from 'fs'
+import { join } from 'path'
 
 /** What the Inbox watcher calls when a sidecar names an episode. Without episode_id none of this runs. */
 export interface IngestHooks {
@@ -24,6 +28,9 @@ export interface IngestDeps {
   now?: () => number
   /** Light QC (black or frozen picture, sound) for videos that arrive from Muse. */
   qc?: VideoQc
+  /** The shared opening and outro, used when a brand asks for them on ingest. */
+  assets?: BrandAssets
+  workDir?: (episodeId: string) => string
   /** Further steps after a video is attached (Compliance, Thumbnail, Publisher). Added in Phase 4. */
   pipeline?: (episodeId: string, postId: number) => Promise<void>
 }
@@ -53,6 +60,20 @@ export function makeIngestHooks(d: IngestDeps): IngestHooks {
       } catch (e) {
         d.episodes.setStatus(episodeId, 'Flagged', 'Video check failed.', { flaggedReason: (e as Error).message })
         throw e
+      }
+      // Optional: put the shared opening and outro around a video that arrives without them (off for Wonder Hollow by default).
+      if (brand.addOpeningOutroOnIngest && d.assets && d.workDir) {
+        const opening = d.assets.slot(ep.brandId, 'opening')
+        const outro = d.assets.slot(ep.brandId, 'outro')
+        if (opening || outro) {
+          const work = d.workDir(episodeId)
+          mkdirSync(work, { recursive: true })
+          copyFileSync(videoPath, join(work, 'received-original.mp4')) // the video as it arrived is kept
+          const info = await probe(videoPath)
+          const out = join(work, 'with-opening-outro.mp4')
+          await assemble({ segments: [...(opening ? [{ path: opening.path }] : []), { path: videoPath }, ...(outro ? [{ path: outro.path }] : [])], out, width: info.width, height: info.height, crossfade: 0, lufs: brand.format === 'short' ? -14 : -16 })
+          renameSync(out, videoPath)
+        }
       }
       const fill: Record<string, unknown> = {}
       if (sidecar.title === undefined) fill.title = sidecar.title ?? pkg?.youtube.title ?? ep.title

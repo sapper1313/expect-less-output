@@ -308,7 +308,7 @@ export class Studio implements StudioApi {
     })
     this.runner.setDisabled(this.cfg.get().disabledAgents)
     this.director = new Director({ db: d.db, config: this.cfg, tasks: this.tasks, audit: this.audit, alert: d.alert, now, onTick: () => this.heartbeat() })
-    this.ingest = makeIngestHooks({ db: d.db, cfg: this.cfg, episodes: this.episodes, posts: d.posts, now, qc: this.qc, pipeline: (episodeId, postId) => this.publisher.run({ episodeId, postId }).then(() => undefined) })
+    this.ingest = makeIngestHooks({ db: d.db, cfg: this.cfg, episodes: this.episodes, posts: d.posts, now, qc: this.qc, assets: this.assets, workDir: (id) => this.workDir(id), pipeline: (episodeId, postId) => this.publisher.run({ episodeId, postId }).then(() => undefined) })
   }
 
   private now() {
@@ -877,7 +877,14 @@ export class Studio implements StudioApi {
     return this.cfg.get()
   }
   async setConfig(patch: Parameters<StudioApi['setConfig']>[0]) {
+    const before = this.cfg.get().local
     const c = this.cfg.set(patch)
+    // A new host address or model name means the speeds and the checklist may have changed, so the self test runs again by itself.
+    const l = c.local
+    if (patch.local && (l.ollamaHost !== before.ollamaHost || l.visionModel !== before.visionModel || l.embedModel !== before.embedModel || l.whisperMode !== before.whisperMode || l.whisperHost !== before.whisperHost || l.whisperCommand !== before.whisperCommand)) {
+      this.audit.write({ agent: 'Local AI', action: 'self_test_auto', detail: { host: l.ollamaHost, vision: l.visionModel, embed: l.embedModel } })
+      void this.localAi.selfTest().then(() => this.d.emit()).catch(() => {})
+    }
     this.d.emit()
     return c
   }
@@ -967,17 +974,23 @@ export class Studio implements StudioApi {
         has: !!v,
         masked: v ? mask(v) : '',
         account: accounts[id] ?? '',
-        state: !v ? 'not_set' : !t ? 'untested' : t.ok ? 'connected' : 'failed',
+        state: !v ? 'not_set' : id === 'threads' && this.threadsExpiringSoon() ? 'expiring' : !t ? 'untested' : t.ok ? 'connected' : 'failed',
         lastTestAt: t?.at ?? null,
         lastMessage: t?.message ?? '',
       }
     })
   }
 
+  private threadsExpiringSoon(): boolean {
+    const t = this.accountOf('threadsExpiry')
+    return !!t && Date.parse(t) - this.now() <= 7 * 86_400_000
+  }
+
   async setKey(id: KeyId, value: string, account?: string) {
     const clean = value.trim()
     if (!clean) throw new Error('Paste the key first.')
     this.d.secrets.set(KEY_NAMES[id].secret, clean)
+    if (id === 'threads') this.setAccountOf('threadsExpiry', new Date(this.now() + 60 * 86_400_000).toISOString())
     if (account !== undefined) this.writeJson(ACCOUNTS_KEY, { ...this.readJson<Record<string, string>>(ACCOUNTS_KEY, {}), [id]: account.trim() })
     const tests = this.readJson<Record<string, unknown>>(TESTS_KEY, {})
     delete tests[id]

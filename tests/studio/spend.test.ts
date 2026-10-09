@@ -159,3 +159,13 @@ describe('spend caps', () => {
     expect(w.proposed).toBeLessThan(w.current)
   })
 })
+
+describe('Threads token chip', () => {
+  it('shows Expiring soon when the token is within 7 days of running out', async () => {
+    const e = makeStudioEnv({ startMs: Date.UTC(2026, 5, 3, 12) })
+    await e.studio.setKey('threads', 'tok-123456')
+    expect((await e.studio.keyStatus()).find((k) => k.id === 'threads')!.state).toBe('untested')
+    e.clock.ms += 55 * 86_400_000
+    expect((await e.studio.keyStatus()).find((k) => k.id === 'threads')!.state).toBe('expiring')
+  })
+})

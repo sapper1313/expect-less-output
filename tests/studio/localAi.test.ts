@@ -145,4 +145,20 @@ describe('Local AI (remote Ollama host)', () => {
     expect(steps.linux.join(' ')).toMatch(/11434/)
     expect(steps.warning).toMatch(/NEVER forward/)
   })
+
+  it('runs the self test again by itself when a host address or a model name changes', async () => {
+    const f = await fakeOllama(['moondream:latest', 'nomic-embed-text:latest'])
+    const e = makeStudioEnv()
+    expect(e.studio.cfg.get().local.measured).toEqual({})
+    await e.studio.setConfig({ local: { ...e.studio.cfg.get().local, whisperCommand: 'echo {audio}', ollamaHost: f.url } })
+    for (let i = 0; i < 40 && e.studio.cfg.get().local.measured.vision === undefined; i++) await new Promise((r) => setTimeout(r, 50))
+    expect(e.studio.audit.list({ agent: 'Local AI' }).some((a) => a.action === 'self_test_auto')).toBe(true)
+    expect(e.studio.cfg.get().local.measured.vision).toBeGreaterThanOrEqual(0)
+    expect(f.state.chats).toBeGreaterThan(0)
+    // a change that does not touch the host or models does not start another test
+    const before = f.state.chats
+    await e.studio.setConfig({ local: { ...e.studio.cfg.get().local, concurrency: 1 } })
+    await new Promise((r) => setTimeout(r, 200))
+    expect(f.state.chats).toBe(before)
+  })
 })
