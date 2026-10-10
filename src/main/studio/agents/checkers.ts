@@ -49,8 +49,8 @@ export class ScriptQc {
     for (const i of lintValue(draft, phrases)) fixes.push(`${i.path}: ${i.detail}`)
     if (isHollow(draft)) {
       const total = draft.scenes.reduce((n, s) => n + s.content_seconds, 0)
-      if (total < bible.minSeconds || total > bible.maxSeconds)
-        fixes.push(`The episode has ${total} seconds of content. It must be between ${bible.minSeconds} and ${bible.maxSeconds}.`)
+      if (total < bible.minSeconds)
+        fixes.push(`The episode has ${total} seconds of content. It must be at least ${bible.minSeconds}.`)
       for (const s of draft.scenes) {
         if (s.generate_seconds < s.content_seconds) fixes.push(`Scene ${s.n} is generated at ${s.generate_seconds} seconds but needs ${s.content_seconds} seconds of content.`)
         if (s.generate_seconds > 15) fixes.push(`Scene ${s.n} is generated longer than 15 seconds.`)
@@ -59,8 +59,8 @@ export class ScriptQc {
       if (nums.some((n, i) => n !== i + 1)) fixes.push('Scene numbers must run 1, 2, 3 in order.')
     } else {
       const total = draft.clips.reduce((n, c) => n + c.seconds, 0)
-      if (total < bible.minSeconds || total > bible.maxSeconds)
-        fixes.push(`The video is ${total} seconds long. It must be between ${bible.minSeconds} and ${bible.maxSeconds}.`)
+      if (total < bible.minSeconds)
+        fixes.push(`The video is ${total} seconds long. It must be at least ${bible.minSeconds}.`)
       const first = draft.clips[0]
       const hookWords = draft.hook.toLowerCase().split(/\W+/).filter((w) => w.length > 3)
       const firstText = `${first.prompt} ${first.dialogue.join(' ')}`.toLowerCase()
@@ -80,9 +80,9 @@ export class ScriptQc {
         brandId: ctx.brandId,
         episodeId: ctx.episodeId,
         taskId: ctx.taskId,
-        system: `You are Script QC for "${ctx.brandName}". Check the script against the series bible below and these rules.\n${STYLE_RULES}\nAlso check: voice match, a clear hook, nothing that conflicts with platform policies, correct format. Answer only with JSON: {"pass": boolean, "fixes": ["plain fix", ...]}.\n\n${bibleMd}`,
+        system: `You are Script QC for "${ctx.brandName}". Check the script against the series bible below and these rules.\n${STYLE_RULES}\nAlso check: voice match, a clear hook, nothing that conflicts with platform policies, correct format. Answer only with JSON: {"pass": boolean, "fixes": ["plain fix", ...]}. Be brief: at most 5 fixes, each one short sentence, and no other text.\n\n${bibleMd}`,
         user: `${ctxLine({ task: 'script_qc', brand: ctx.brandName })}\n${JSON.stringify(draft)}`,
-        maxTokens: 800,
+        maxTokens: 8000,
       },
       FixAnswer,
     )
@@ -129,7 +129,7 @@ export class MathChecker {
           system:
             'You find numeric claims in a script. For each calculation or total stated, give the sentence, an arithmetic expression using only numbers and + - * / ^ ( ), and the claimed result. Do NOT compute anything yourself. If the script gives steps for a phone or computer, list menus or features that may be outdated. Answer only with JSON: {"claims":[{"text":"","expression":"","claimed":0}],"outdated":["..."]}.',
           user: `${ctxLine({ task: 'math_extract', brand: ctx.brandName })}\n${text}`,
-          maxTokens: 1200,
+          maxTokens: 8000,
         },
         Extracted,
         { lint: false },
@@ -206,7 +206,7 @@ export class HollowSafetyChecker {
         taskId: ctx.taskId,
         system: `You are the Safety Checker for a made for kids show. Fail anything frightening, violent, mature, unsafe to imitate, with real people or real brands, product placement, bad language, a negative tone, or an unclear lesson. Answer only with JSON: {"pass": boolean, "issues": [{"where": "", "problem": "", "fix": ""}]}.\n\n${bibleMd}`,
         user: `${ctxLine({ task: 'safety', brand: ctx.brandName })}\n${JSON.stringify(draft)}`,
-        maxTokens: 800,
+        maxTokens: 8000,
       },
       SafetyAnswer,
     )

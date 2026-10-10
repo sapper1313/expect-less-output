@@ -74,7 +74,7 @@ export class AnthropicClient implements LlmClient {
             ? { tools: [{ name: 'submit_answer', description: 'Submit the answer in exactly this shape.', input_schema: req.jsonSchema }], tool_choice: { type: 'auto' } }
             : {}),
         }),
-        signal: AbortSignal.timeout(180_000),
+        signal: AbortSignal.timeout(Math.max(180_000, req.maxTokens * 40)),
       })
     let res = await send(!!req.jsonSchema)
     if (res.status === 400 && req.jsonSchema) {

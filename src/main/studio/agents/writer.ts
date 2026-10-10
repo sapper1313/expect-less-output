@@ -15,7 +15,7 @@ const SHORT_SHAPE = `{"title":"","idea":"","hook":"the line said or shown in the
 Every clip is 15 seconds or less. Several clips make a longer video.`
 
 const HOLLOW_SHAPE = `{"title":"","idea":"","logline":"","life_lesson":"","math_lesson":"","runtime_target_seconds":180,"counted_objects":[{"name":"acorns","quantity":5,"scenes":[4,5,6]}],"scenes":[{"n":1,"content_seconds":10,"generate_seconds":10,"setting":"","characters":[""],"action":"","dialogue":[{"speaker":"","line":""}],"objects_in_frame":[""],"camera":"","transition_in":"","transition_out":"","grok_prompt":"a complete prompt for the video model","extension_note":""}],"youtube":{"title":"","description":"","tags":[""]},"thumbnail_brief":"","summary":"","tags":[""],"key_lines":[""]}
-Scenes are numbered 1, 2, 3 in order. Each has 10 seconds of content. Use generate_seconds 15 only where a transition handle helps the next scene start smoothly. Counted objects must be written into the scene as natural props and kept in frame for the whole counting beat, with the exact quantity stated in the scene prompt, and counted aloud one number at a time in order.`
+Scenes are numbered 1, 2, 3 in order. Each has 10 seconds of content. Use generate_seconds 15 only where a transition handle helps the next scene start smoothly. Counted objects must be written into the scene as natural props and kept in frame for the whole counting beat, with the exact quantity stated in the scene prompt, and counted aloud one number at a time in order. Keep every field short. Each grok_prompt is at most 90 words, every other scene field is one short sentence, and the whole answer must stay well under 15000 tokens.`
 
 const Ideas = z.object({ ideas: z.array(z.string()).default([]) })
 
@@ -86,7 +86,7 @@ export function makeWriterAgent(d: WriterDeps): AgentDef<z.infer<typeof Input>, 
               taskId: ctx.task.id,
               system: `You are the Show Writer for "${brandName}". Give ten fresh episode ideas as one line each. ${STYLE_RULES}\nAnswer only with JSON: {"ideas":["..."]}\n\n${bibleMd}`,
               user: `${ctxLine({ task: 'ideas', brand: brandName, round: d.bible.ideas(brandId, true).length })}\nRecent titles: ${d.library.list({ brandId, limit: 30 }).map((e) => e.title).join('; ')}`,
-              maxTokens: 800,
+              maxTokens: 3000,
             },
             Ideas,
           )
@@ -110,7 +110,7 @@ export function makeWriterAgent(d: WriterDeps): AgentDef<z.infer<typeof Input>, 
             brandId,
             episodeId,
             taskId: ctx.task.id,
-            system: `You are the Show Writer for "${brandName}". Follow the series bible exactly. Write the whole episode.\n${STYLE_RULES}\n${long ? 'Answer only with JSON in this shape:\n' + HOLLOW_SHAPE : 'Answer only with JSON in this shape:\n' + SHORT_SHAPE}\n\n${bibleMd}`,
+            system: `You are the Show Writer for "${brandName}". Follow the series bible exactly. Write the whole episode.\n${STYLE_RULES}\n${long ? 'Answer only with JSON in this shape:\n' + HOLLOW_SHAPE + `\nWrite at least ${Math.ceil(bible.minSeconds / 10) + 1} scenes so the content adds up to more than ${bible.minSeconds} seconds. Count them before you answer.` : 'Answer only with JSON in this shape:\n' + SHORT_SHAPE}\n\n${bibleMd}`,
             user: [
               ctxLine({ task: 'write', brand: brandName, format: brand.format, slotDate: input.slotDate, attempt, feedback, minSeconds: bible.minSeconds, maxSeconds: bible.maxSeconds, catchphrases, checks }),
               `Posting date: ${input.slotDate}.`,
@@ -122,7 +122,7 @@ export function makeWriterAgent(d: WriterDeps): AgentDef<z.infer<typeof Input>, 
             ]
               .filter(Boolean)
               .join('\n'),
-            maxTokens: long ? 24000 : 10000,
+            maxTokens: long ? 32000 : 10000,
           },
           (long ? HollowDraft : ShortDraft) as ZodType<ShortDraftData | HollowDraftData>,
         )

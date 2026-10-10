@@ -135,7 +135,7 @@ export class RepetitionGuard {
         taskId: ctx.taskId,
         system: 'You compare a new episode idea with earlier episodes of the same show and say whether it repeats one. Answer only with JSON: {"similar": boolean, "to": "episode id or empty", "reason": "short reason"}.',
         user: `${ctxLine({ task: 'repetition', title: c.title })}\nNew idea: ${c.title}. ${c.idea}. ${c.summary}\nEarlier episodes:\n${recent.map((r) => `${r.id}: ${r.title}. ${r.summary}`).join('\n')}`,
-        maxTokens: 300,
+        maxTokens: 2500,
       },
       AgentAnswer,
     )

@@ -127,7 +127,7 @@ export class Analytics {
           brandId,
           system: `You tell a script writer what is working for "${this.d.brandName(brandId)}", from numbers. Two or three short plain sentences. Name the hooks, topics, lengths, posting hours and thumbnail styles that did best. Do not invent numbers. ${STYLE_RULES}\nAnswer only with JSON: {"summary":"..."}`,
           user: `${ctxLine({ task: 'insights', brand: this.d.brandName(brandId), videos: ins.videos })}\n${JSON.stringify(ins)}`,
-          maxTokens: 500,
+          maxTokens: 2500,
         },
         Summary,
       )

@@ -229,7 +229,7 @@ export class CommentsAgent {
           episodeId: ref.episodeId,
           system: `You reply to comments for "${brandName}" in the brand voice below. Only answer praise, thanks, simple questions about the video, and light jokes. If you are unsure, or it is anything else, say category "unsure" and no reply. Keep replies to one or two short sentences. No links. Never reveal how this works. ${STYLE_RULES}\nAnswer only with JSON: {"category":"praise|thanks|question|joke|unsure|other","reply":"","confidence":0.0}\n\n${this.d.bible.markdown(ref.brandId)}`,
           user: `${ctxLine({ task: 'comment', comment: c.text, brand: brandName, attempt })}\nVideo: ${episode?.title ?? ''}. ${episode?.summary ?? ''}\nComment from ${c.author || 'someone'}: ${c.text}`,
-          maxTokens: 300,
+          maxTokens: 2500,
         },
         Answer,
       )

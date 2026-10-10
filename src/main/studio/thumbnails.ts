@@ -152,7 +152,7 @@ export class Thumbnailer {
         episodeId,
         system: `You design thumbnails for "${pkg.series}". Follow the guidelines. Give ${count} different concepts. Each has a headline of 3 to 5 words, an image prompt for the background, and whether to use a frame from the video instead. Never overpromise. Never use an em dash. Answer only with JSON: {"concepts":[{"headline":"","image_prompt":"","use_video_frame":false}]}\n\n${guide.text}`,
         user: `${ctxLine({ task: 'thumbnail_plan', title: pkg.title, hook: pkg.logline, count })}\nTitle: ${pkg.title}\nSummary: ${pkg.summary}\nLesson: ${pkg.life_lesson ?? ''}`,
-        maxTokens: 800,
+        maxTokens: 2500,
       },
       Concepts,
     )

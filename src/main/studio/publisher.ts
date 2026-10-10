@@ -112,7 +112,7 @@ export class Publisher {
           ]
             .filter(Boolean)
             .join('\n'),
-          maxTokens: 1500,
+          maxTokens: 2500,
         },
         PlatformTextsSchema,
       )

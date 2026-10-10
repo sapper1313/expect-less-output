@@ -191,7 +191,7 @@ export function makeProducerAgent(d: ProducerDeps): AgentDef<z.infer<typeof Inpu
                     taskId: ctx.task.id,
                     system: 'You fix prompts for an AI video model. Given a prompt and why the clip failed checks, write an improved prompt that fixes the problem. Keep the same scene. Answer only with JSON: {"prompt": "..."}.',
                     user: `${ctxLine({ task: 'fix_prompt', prompt: job.prompt })}\nPrompt: ${job.prompt}\nProblem: ${job.error}`,
-                    maxTokens: 600,
+                    maxTokens: 2500,
                   },
                   FixedPrompt,
                 )
