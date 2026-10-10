@@ -64,7 +64,7 @@ export const DEFAULT_STUDIO_CONFIG: StudioConfig = {
   digestEnabled: true,
   watchdog: { enabled: true, runStart: '07:00', runEnd: '22:00', thresholdMinutes: 30 },
   platformCaps: {},
-  threadsRedirectUri: 'https://expectlessmedia.com/oauth/threads/',
+  threadsRedirectUri: 'https://expectlessmedia.com/oauth/tiktok/',
   publicHost: { endpoint: '', bucket: '', publicBase: '', region: 'auto' },
   thumbnailEngine: { generateImages: true, candidates: 3, abDelayHours: 48, abMinImpressions: 500, font: '' },
   qcClipRetryCap: 2,

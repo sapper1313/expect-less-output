@@ -26,7 +26,7 @@ For each one: paste, press **Save**, then **Test connection**. The key is kept i
 
 Settings, **Threads and Bluesky accounts** has a row for every brand.
 
-- **Threads:** add this address under Redirect Callback URLs in your Threads app settings: `https://expectlessmedia.com/oauth/threads/` (the box shows the exact address and has a Copy button). Then press **Connect Threads** for a brand, sign in as that brand's Threads account in the browser, and approve. If the page does not hand you back to the app, copy the whole address from the browser bar and paste it into the box that appears. The 60 day token is kept per brand and renewed when 7 days are left.
+- **Threads:** add this address under Redirect Callback URLs in your Threads app settings: `https://expectlessmedia.com/oauth/tiktok/` (your existing return page, no website change needed; the box shows the exact address and has a Copy button). Then press **Connect Threads** for a brand, sign in as that brand's Threads account in the browser, and approve. If the page does not hand you back to the app, copy the whole address from the browser bar and paste it into the box that appears. The 60 day token is kept per brand and renewed when 7 days are left.
 - **Bluesky:** type that brand's handle and an **app password** (Bluesky, Settings, Privacy and security, App passwords), press **Save**, then **Test connection**. Never your real password.
 
 ## 3. Set your limits before you turn mock mode off

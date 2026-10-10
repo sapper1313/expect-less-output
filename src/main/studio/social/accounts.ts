@@ -213,11 +213,13 @@ export class SocialAccounts {
 
   /** The expectless://oauth/threads link from the website bounce page. */
   handleOpenUrl(raw: string): boolean {
-    if (!raw.startsWith(THREADS_CALLBACK_PREFIX)) return false
+    // The existing website return page sends people back as expectless://oauth/tiktok. While a Threads sign in is waiting, that link is ours.
+    const ours = raw.startsWith(THREADS_CALLBACK_PREFIX) || (raw.startsWith('expectless://oauth/tiktok') && this.pending !== null)
+    if (!ours) return false
     const u = new URL(raw)
     if (!this.pending) return true
     if (u.searchParams.get('error')) this.pending.cancel()
-    else if (u.searchParams.get('code')) this.pending.deliver(u.searchParams.get('code') as string, u.searchParams.get('state'))
+    else if (u.searchParams.get('code')) this.pending.deliver((u.searchParams.get('code') as string).replace(/#_$/, ''), u.searchParams.get('state'))
     return true
   }
 
