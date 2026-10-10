@@ -67,12 +67,23 @@ body {
   font-family: var(--font-sans);
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
+  user-select: text;
+  -webkit-user-select: text;
+}
+/* Everything can be highlighted and copied, except the controls you press. */
+button,
+nav,
+[role='tab'],
+[role='button'],
+.drag {
   user-select: none;
+  -webkit-user-select: none;
 }
 input,
 textarea,
 select {
   user-select: text;
+  -webkit-user-select: text;
 }
 .drag {
   -webkit-app-region: drag;

@@ -68,9 +68,15 @@ export interface ApiDeps {
   emit: () => void
 }
 
-function llmProvider(c: Settings): OpenAICompatibleProvider {
+async function llmProvider(c: Settings, studio: Studio): Promise<OpenAICompatibleProvider> {
   if (c.llmProvider === 'none')
     throw new Error('Text assist is turned off. Turn it on in Settings, under Text assist.')
+  if (c.llmProvider === 'studio-local') {
+    const l = (await studio.getConfig()).local
+    if (!l.ollamaHost) throw new Error('Set the Ollama host on the Studio Local AI page first.')
+    if (!l.textModel) throw new Error('Pick a text model in Settings, under Text assist.')
+    return new OpenAICompatibleProvider({ baseUrl: l.ollamaHost.replace(/\/+$/, '') + '/v1', model: l.textModel })
+  }
   if (!c.llmModel.trim()) throw new Error('Type the model name in Settings, under Text assist.')
   const check = checkLlmUrl(c.llmBaseUrl, c.llmAllowLan)
   if (!check.ok) throw new Error(check.message)
@@ -296,6 +302,10 @@ export function buildApi(d: ApiDeps): Api {
       available: async () => d.settings.get().llmProvider !== 'none',
       status: async () => {
         const c = d.settings.get()
+        if (c.llmProvider === 'studio-local') {
+          const l = (await d.studio.getConfig()).local
+          return { provider: c.llmProvider, available: !!l.ollamaHost && !!l.textModel, model: l.textModel, baseUrl: l.ollamaHost }
+        }
         return {
           provider: c.llmProvider,
           available: c.llmProvider !== 'none' && !!c.llmModel,
@@ -303,8 +313,21 @@ export function buildApi(d: ApiDeps): Api {
           baseUrl: c.llmBaseUrl,
         }
       },
+      autoSetup: async () => {
+        const host = (await d.studio.getConfig()).local.ollamaHost
+        if (!host) return { ok: false, message: 'Set the Ollama host on the Studio Local AI page first.' }
+        const { options, localOnline } = await d.studio.modelOptions()
+        if (!localOnline) return { ok: false, message: `Could not reach Ollama at ${host}. Check that it is running.` }
+        const text = options.filter((o) => o.kind === 'local' && !/embed|llava|vision|-vl/i.test(o.id))
+        const pick = text.find((o) => /\b(7|8|9)b\b/i.test(o.id)) ?? text[0]
+        if (!pick) return { ok: false, message: 'Ollama has no text model yet. On the Ollama machine run: ollama pull llama3.1:8b' }
+        const name = pick.id.replace(/^ollama:/, '')
+        await d.studio.setConfig({ local: { textModel: name } } as never)
+        d.settings.set({ llmProvider: 'studio-local' })
+        return { ok: true, message: `Suggest buttons now use ${name} on your Ollama machine.` }
+      },
       suggest: async (kind, brandId, title, caption) => {
-        const p = llmProvider(d.settings.get())
+        const p = await llmProvider(d.settings.get(), d.studio)
         const input = { brand: d.brands.get(brandId).name, title, caption }
         const r =
           kind === 'title'
@@ -316,7 +339,7 @@ export function buildApi(d: ApiDeps): Api {
       },
       test: async () => {
         try {
-          const said = await llmProvider(d.settings.get()).test()
+          const said = await (await llmProvider(d.settings.get(), d.studio)).test()
           return { ok: true, message: `The model answered: ${said}` }
         } catch (e) {
           return { ok: false, message: (e as Error).message }

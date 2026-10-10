@@ -15,6 +15,7 @@ import type {
   StudioConfig,
 } from './types'
 
+import type { ModelOption } from './modelCatalog'
 import type { DirectorActionView } from '../../main/studio/directorChat'
 import type { BrandSocialView } from '../../main/studio/social/accounts'
 export type { BrandSocialView }
@@ -247,6 +248,8 @@ export interface StudioApi {
   removeHoliday(id: number): Promise<void>
   agents(): Promise<AgentInfo[]>
   setAgentModel(name: string, model: string): Promise<AgentInfo[]>
+  modelOptions(): Promise<{ options: ModelOption[]; localOnline: boolean; localError: string | null }>
+  setModelPrice(model: string, inPerM: number, outPerM: number): Promise<void>
   writeNow(brandId: number, slotDate?: string): Promise<{ taskId: number }>
 
   overview(): Promise<StudioOverview>

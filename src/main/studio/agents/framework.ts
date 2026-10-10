@@ -9,6 +9,8 @@ export class RetryableError extends Error {
   constructor(
     message: string,
     public retryAfterSeconds?: number,
+    /** Tokens a failed call still used, so the spend ledger stays honest. */
+    public usage?: { inputTokens: number; outputTokens: number },
   ) {
     super(message)
     this.name = 'RetryableError'

@@ -1,20 +1,5 @@
-import {
-  app,
-  BrowserWindow,
-  clipboard,
-  dialog,
-  ipcMain,
-  nativeImage,
-  nativeTheme,
-  net,
-  Notification,
-  powerMonitor,
-  powerSaveBlocker,
-  protocol,
-  safeStorage,
-  shell,
-} from 'electron'
-import { appendFileSync, existsSync, mkdirSync } from 'fs'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, nativeTheme, net, Notification, powerMonitor, powerSaveBlocker, protocol, safeStorage, shell, Menu } from 'electron'
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'fs'
 import { join, normalize } from 'path'
 import { pathToFileURL } from 'url'
 import { latestSchemaVersion, openDb } from './db'
@@ -122,6 +107,14 @@ function createWindow(): void {
     },
   })
   mainWindow.once('ready-to-show', () => mainWindow?.show())
+  // Right click: Copy for highlighted text, Cut, Copy and Paste in a text box.
+  mainWindow.webContents.on('context-menu', (_e, p) => {
+    if (!p.selectionText && !p.isEditable) return
+    const items: Electron.MenuItemConstructorOptions[] = p.isEditable
+      ? [{ role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { type: 'separator' }, { role: 'selectAll' }]
+      : [{ role: 'copy' }, { role: 'selectAll' }]
+    Menu.buildFromTemplate(items).popup()
+  })
   // Closing the window keeps the scheduler running from the menu bar.
   mainWindow.on('close', (e) => {
     if (!quitting) {
@@ -586,6 +579,18 @@ async function boot(): Promise<void> {
     host,
     emit,
   })
+
+  // Once, the first time the app starts with an Ollama machine set up: turn the Suggest buttons on with it.
+  const textAssistMark = join(dataDir, 'text-assist-autosetup.done')
+  if (!existsSync(textAssistMark) && settings.get().llmProvider === 'none') {
+    void api.textAssist
+      .autoSetup()
+      .then((r) => {
+        if (r.ok) writeFileSync(textAssistMark, new Date().toISOString())
+        log.log('info', `Text assist setup: ${r.message}`)
+      })
+      .catch(() => undefined)
+  }
 
   ipcMain.handle('elo:invoke', async (event, name: string, ...args: unknown[]) => {
     if (!mainWindow || event.sender !== mainWindow.webContents) throw new Error('Blocked.')

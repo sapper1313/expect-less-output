@@ -193,6 +193,8 @@ export interface Api {
   textAssist: {
     available(): Promise<boolean>
     status(): Promise<TextAssistStatus>
+    /** Uses the Ollama machine from the Local AI page: picks a text model and turns Suggest on. Returns what it did. */
+    autoSetup(): Promise<{ ok: boolean; message: string }>
     suggest(
       kind: 'title' | 'caption' | 'hashtags',
       brandId: number,

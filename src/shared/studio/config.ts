@@ -35,6 +35,11 @@ export const DEFAULT_STUDIO_CONFIG: StudioConfig = {
     referenceImage: 0.01,
     anthropicInPerM: 3,
     anthropicOutPerM: 15,
+    anthropicModels: {
+      'claude-haiku-5-5': { inPerM: 1, outPerM: 5 },
+      'claude-sonnet-5-5': { inPerM: 3, outPerM: 15 },
+      'claude-opus-5-5': { inPerM: 5, outPerM: 25 },
+    },
   },
   retakeMultiplier: 2.5,
   retentionDays: 60,

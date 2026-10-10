@@ -78,6 +78,8 @@ export interface Prices {
   /** Anthropic dollars per million tokens. Edit to match the current price list. */
   anthropicInPerM: number
   anthropicOutPerM: number
+  /** Dollars per million tokens for each Claude model. A model missing here uses the two numbers above. Local (ollama:) models are free. */
+  anthropicModels: Record<string, { inPerM: number; outPerM: number }>
 }
 
 export interface LocalAiConfig {

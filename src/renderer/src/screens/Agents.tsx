@@ -192,10 +192,12 @@ export function TextAssistCard({
             onChange={(e) => save({ llmProvider: e.target.value as Settings['llmProvider'] })}
           >
             <option value="none">Off</option>
-            <option value="openai-compatible">Local model (OpenAI compatible)</option>
+            <option value="studio-local">My Local AI machine (Ollama from the Studio Local AI page)</option>
+            <option value="openai-compatible">Another local model (OpenAI compatible)</option>
           </Select>
         </Field>
-        {s.llmProvider !== 'none' && (
+        {s.llmProvider === 'studio-local' && <StudioLocalText />}
+        {s.llmProvider === 'openai-compatible' && (
           <>
             <Field
               label="Server address"
@@ -266,5 +268,42 @@ export function TextAssistCard({
         )}
       </div>
     </Card>
+  )
+}
+
+/** Text assist through the Ollama machine set up on the Studio Local AI page. */
+function StudioLocalText() {
+  const [busy, run] = useBusy()
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const { data: cfg, reload: reloadCfg } = useLoad(() => api.studio.getConfig())
+  const { data: models, reload: reloadModels } = useLoad(() => api.studio.modelOptions())
+  const local = (models?.options ?? []).filter((o) => o.kind === 'local' && !/embed|llava|vision|-vl/i.test(o.id))
+  return (
+    <>
+      <p className="text-[12px] text-muted">
+        Uses the Ollama machine you set on the Studio Local AI page{cfg?.local.ollamaHost ? ` (${cfg.local.ollamaHost})` : ''}. Only the brand name, title and caption are sent to it.
+      </p>
+      <Field label="Text model" hint="A 7B or 8B model is a good fit for suggestions. The list comes from your Ollama machine.">
+        <div className="flex gap-2">
+          <Select
+            className="w-80"
+            value={cfg?.local.textModel ?? ''}
+            onChange={(e) => run(async () => { await api.studio.setConfig({ local: { textModel: e.target.value } } as never); reloadCfg() })}
+          >
+            <option value="">Pick a model</option>
+            {local.map((o) => (
+              <option key={o.id} value={o.id.replace(/^ollama:/, '')}>{o.label}</option>
+            ))}
+          </Select>
+          <Button onClick={() => reloadModels()}>Refresh list</Button>
+        </div>
+      </Field>
+      {models && !models.localOnline && <div className="text-[12px] text-warn">{models.localError ?? 'Set the Ollama host on the Local AI page.'}</div>}
+      <div className="flex items-center gap-3">
+        <Button disabled={busy} onClick={async () => { const r = await run(() => api.textAssist.autoSetup()); if (r) { setResult(r); reloadCfg() } }}>Pick a model for me</Button>
+        <Button disabled={busy} onClick={async () => { setResult(null); const r = await run(() => api.textAssist.test()); if (r) setResult(r) }}>Test the model</Button>
+        {result && <span className={`text-[12px] font-semibold ${result.ok ? 'text-ok' : 'text-bad'}`}>{result.message}</span>}
+      </div>
+    </>
   )
 }

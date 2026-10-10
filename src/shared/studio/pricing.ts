@@ -45,6 +45,17 @@ export function typicalEpisodeEstimate(cfg: StudioConfig, brand: StudioBrandConf
   return estimateClips(cfg, tier, brand.resolution, clips)
 }
 
+/** Models whose id starts with this run on the owner's own Ollama machine and cost nothing. */
+export const LOCAL_MODEL_PREFIX = 'ollama:'
+export const isLocalModel = (model: string | undefined | null) => !!model && model.startsWith(LOCAL_MODEL_PREFIX)
+
+/** Dollars for one text call, using the price of the model that answered. */
+export function llmDollars(cfg: StudioConfig, model: string, inputTokens: number, outputTokens: number): number {
+  if (isLocalModel(model)) return 0
+  const p = cfg.prices.anthropicModels?.[model] ?? { inPerM: cfg.prices.anthropicInPerM, outPerM: cfg.prices.anthropicOutPerM }
+  return round((inputTokens * p.inPerM + outputTokens * p.outPerM) / 1_000_000)
+}
+
 export function anthropicDollars(cfg: StudioConfig, inputTokens: number, outputTokens: number): number {
   return round(
     (inputTokens * cfg.prices.anthropicInPerM + outputTokens * cfg.prices.anthropicOutPerM) / 1_000_000,

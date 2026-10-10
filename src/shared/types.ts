@@ -43,7 +43,7 @@ export interface Settings {
   /** Brands whose Inbox videos go to the next open slot instead of waiting as drafts. Needs agentMaySchedule. */
   inboxAutoScheduleBrandIds: number[]
   // Text assist (local AI)
-  llmProvider: 'none' | 'openai-compatible'
+  llmProvider: 'none' | 'openai-compatible' | 'studio-local'
   llmBaseUrl: string
   llmModel: string
   /** Allow a model on another computer on the local network. */
@@ -442,7 +442,7 @@ export interface McpConfig {
 }
 
 export interface TextAssistStatus {
-  provider: 'none' | 'openai-compatible'
+  provider: 'none' | 'openai-compatible' | 'studio-local'
   available: boolean
   model: string
   baseUrl: string

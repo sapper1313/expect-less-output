@@ -1,7 +1,7 @@
 import { createHash } from 'crypto'
 import { z, type ZodType } from 'zod'
 import type { Db } from '../../db'
-import { anthropicDollars } from '@shared/studio/pricing'
+import { isLocalModel, llmDollars } from '@shared/studio/pricing'
 import { lintFeedback, lintValue } from '@shared/studio/lint'
 import type { StudioConfigService } from '../configService'
 import type { SpendService } from '../spend'
@@ -94,7 +94,7 @@ export class AnthropicClient implements LlmClient {
     }
     const tool = (data.content ?? []).find((c) => c.type === 'tool_use')
     if (req.jsonSchema && data.stop_reason === 'max_tokens')
-      throw new RetryableError('The answer was cut off because it was too long. It will be tried again.')
+      throw new RetryableError('The answer was cut off because it was too long. It will be tried again.', undefined, { inputTokens: data.usage?.input_tokens ?? 0, outputTokens: data.usage?.output_tokens ?? 0 })
     const text = tool ? JSON.stringify(tool.input ?? {}) : (data.content ?? []).filter((c) => c.type === 'text').map((c) => c.text ?? '').join('')
     return { text, inputTokens: data.usage?.input_tokens ?? 0, outputTokens: data.usage?.output_tokens ?? 0 }
   }
@@ -198,7 +198,7 @@ export class LlmGateway {
       brandId: req.brandId,
       episodeId: req.episodeId,
       vendor: 'anthropic',
-      dollars: anthropicDollars(cfg, estIn, maxTokens),
+      dollars: llmDollars(cfg, model, estIn, maxTokens),
       mock,
     })
     const started = Date.now()
@@ -206,11 +206,16 @@ export class LlmGateway {
     try {
       res = await this.d.client().complete({ ...req, model, maxTokens })
     } catch (e) {
-      this.logRun(req, model, 0, 0, 0, started, 'error', mock)
+      // A call that was cut off was still billed, so it goes in the ledger.
+      const used = e instanceof RetryableError ? e.usage : undefined
+      const wasted = used ? llmDollars(cfg, model, used.inputTokens, used.outputTokens) : 0
+      if (used && wasted > 0 && !isLocalModel(model))
+        this.d.spend.record({ brandId: req.brandId, episodeId: req.episodeId, taskId: req.taskId, vendor: 'anthropic', model, units: used.inputTokens + used.outputTokens, unitKind: 'tokens', unitPrice: 0, dollars: wasted, purpose: 'text', mock })
+      this.logRun(req, model, used?.inputTokens ?? 0, used?.outputTokens ?? 0, wasted, started, 'error', mock)
       throw e
     }
-    const dollars = anthropicDollars(cfg, res.inputTokens, res.outputTokens)
-    this.d.spend.record({
+    const dollars = llmDollars(cfg, model, res.inputTokens, res.outputTokens)
+    if (!isLocalModel(model)) this.d.spend.record({
       brandId: req.brandId,
       episodeId: req.episodeId,
       taskId: req.taskId,

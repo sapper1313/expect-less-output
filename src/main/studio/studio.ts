@@ -62,6 +62,8 @@ import type { AlertItem } from '../alerts/format'
 import type { ImageClient } from './xai'
 import { makeProducerAgent } from './agents/producer'
 import { expandHome } from './configService'
+import { OllamaTextClient, RoutingClient } from './agents/ollamaClient'
+import { buildModelOptions } from '@shared/studio/modelCatalog'
 import { DirectorReply, directorSystem, type DirectorActionView } from './directorChat'
 
 const REBUILDABLE: EpisodeStatus[] = ['Idea', 'Written', 'Checking', 'Ready for production', 'Flagged']
@@ -123,6 +125,7 @@ export class Studio implements StudioApi {
   readonly xai: XaiClient
   readonly anthropic: AnthropicClient
   readonly gateway: LlmGateway
+  private readonly routedLlm: RoutingClient
   readonly runner: AgentRunner
   readonly director: Director
   readonly episodes: EpisodeLibrary
@@ -172,11 +175,12 @@ export class Studio implements StudioApi {
     this.mockVideo = new MockVideoClient(now)
     this.xai = new XaiClient(() => d.secrets.get(KEY_NAMES.xai.secret), d.fetchImpl)
     this.anthropic = new AnthropicClient(() => d.secrets.get(KEY_NAMES.anthropic.secret), d.fetchImpl)
+    this.routedLlm = new RoutingClient(this.anthropic, new OllamaTextClient(() => this.cfg.get().local.ollamaHost, d.fetchImpl))
     this.gateway = new LlmGateway({
       db: d.db,
       config: this.cfg,
       spend: this.spend,
-      client: () => (this.cfg.get().mockMode ? this.mockLlm : this.anthropic),
+      client: () => (this.cfg.get().mockMode ? this.mockLlm : this.routedLlm),
       now,
     })
     this.episodes = new EpisodeLibrary(d.db, this.cfg, brandName, now)
@@ -677,6 +681,29 @@ export class Studio implements StudioApi {
     this.audit.write({ agent: 'Owner', action: enabled ? 'agent_on' : 'agent_off', detail: { name } })
     this.d.emit()
     return this.agents()
+  }
+  async modelOptions() {
+    const c = this.cfg.get()
+    let names: string[] = []
+    let localError: string | null = null
+    if (c.local.ollamaHost) {
+      try {
+        names = await this.localAi.ollama.models()
+      } catch (e) {
+        localError = `Could not reach Ollama at ${c.local.ollamaHost}.`
+        void e
+      }
+    }
+    return {
+      options: buildModelOptions(c.prices.anthropicModels, { inPerM: c.prices.anthropicInPerM, outPerM: c.prices.anthropicOutPerM }, names),
+      localOnline: !localError && !!c.local.ollamaHost,
+      localError,
+    }
+  }
+  async setModelPrice(model: string, inPerM: number, outPerM: number) {
+    if (!(inPerM >= 0) || !(outPerM >= 0)) throw new Error('A price cannot be negative.')
+    this.cfg.set({ prices: { anthropicModels: { ...this.cfg.get().prices.anthropicModels, [model]: { inPerM, outPerM } } } } as never)
+    this.d.emit()
   }
   async setAgentModel(name: string, model: string) {
     this.cfg.set({ agentModels: { ...this.cfg.get().agentModels, [name]: model.trim() } })
