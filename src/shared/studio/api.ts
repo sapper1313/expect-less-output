@@ -15,7 +15,10 @@ import type {
   StudioConfig,
 } from './types'
 
-export type KeyId = 'xai' | 'anthropic' | 'threads' | 'bluesky' | 'r2id' | 'r2secret'
+import type { BrandSocialView } from '../../main/studio/social/accounts'
+export type { BrandSocialView }
+
+export type KeyId = 'xai' | 'anthropic' | 'threadsAppId' | 'threadsAppSecret' | 'r2id' | 'r2secret'
 
 export interface KeyStatus {
   id: KeyId
@@ -214,7 +217,17 @@ export interface StudioApi {
   runThumbTests(): Promise<void>
   platformCaps(): Promise<Record<string, unknown>>
   publicHostStatus(): Promise<{ configured: boolean }>
-  threadsRefresh(): Promise<TestResult>
+  socialAccountList(): Promise<BrandSocialView[]>
+  connectThreads(brandId: number): Promise<{ username: string }>
+  submitThreadsCode(code: string): Promise<void>
+  cancelThreadsConnect(): Promise<void>
+  disconnectThreads(brandId: number): Promise<void>
+  setThreadsToken(brandId: number, token: string): Promise<void>
+  testThreads(brandId: number): Promise<TestResult>
+  refreshThreadsToken(brandId: number): Promise<TestResult>
+  saveBluesky(brandId: number, handle: string, password: string): Promise<void>
+  removeBluesky(brandId: number): Promise<void>
+  testBluesky(brandId: number): Promise<TestResult>
 
   assetList(brandId: number): Promise<AssetView[]>
   addAsset(brandId: number, kind: 'opening' | 'outro' | 'reference_image' | 'voice_reference', path: string): Promise<AssetView[]>

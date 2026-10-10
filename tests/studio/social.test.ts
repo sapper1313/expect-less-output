@@ -183,10 +183,10 @@ describe('Social publisher (Threads and Bluesky)', () => {
     const pub = new SocialPublisher({
       db: e.db,
       cfg: e.studio.cfg,
-      threads,
-      bluesky,
+      threads: () => threads,
+      bluesky: () => bluesky,
       host,
-      userId: { get: () => uid, set: (v) => (uid = v) },
+      userId: { get: () => uid, set: (_b, v) => (uid = v) },
       alert: (i) => alerts.push(i),
       log: () => {},
       brandName: () => 'Trash Panda',
@@ -260,37 +260,39 @@ describe('Social publisher (Threads and Bluesky)', () => {
   })
 })
 
-describe('Threads token and monthly guideline refresh', () => {
-  it('refreshes the Threads token when it is inside 7 days of expiry, and warns if it cannot', async () => {
+describe('Threads accounts per brand, and monthly guideline refresh', () => {
+  const setExpiry = (s: unknown, brandId: number, iso: string) => (s as { socialAccounts: { setThreadsExpiry: (b: number, i: string) => void } }).socialAccounts.setThreadsExpiry(brandId, iso)
+
+  it('refreshes a brand token when it is inside 7 days of expiry, leaves the others alone', async () => {
     const f = (async (url: string) => {
       if (String(url).includes('refresh_access_token')) return json({ access_token: 'fresh', expires_in: 5184000 })
       return json({})
     }) as unknown as typeof fetch
     const e = makeStudioEnv({ fetchImpl: f, startMs: Date.UTC(2026, 5, 3, 12) })
     const s = e.studio
-    await s.setKey('threads', 'old')
+    s.socialAccounts.setThreadsToken(1, 'old-one')
+    s.socialAccounts.setThreadsToken(2, 'old-two')
     await s.setConfig({ mockMode: false })
-    // not close to expiry: nothing happens
-    ;(s as unknown as { setAccountOf: (k: string, v: string) => void }).setAccountOf('threadsExpiry', new Date(e.clock.ms + 30 * 86_400_000).toISOString())
+    setExpiry(s, 1, new Date(e.clock.ms + 30 * 86_400_000).toISOString())
+    setExpiry(s, 2, new Date(e.clock.ms + 3 * 86_400_000).toISOString())
     await s.checkThreadsToken()
-    expect(e.secrets.get('threads.token')).toBe('old')
-    // inside 7 days: refreshed
-    ;(s as unknown as { setAccountOf: (k: string, v: string) => void }).setAccountOf('threadsExpiry', new Date(e.clock.ms + 3 * 86_400_000).toISOString())
-    await s.checkThreadsToken()
-    expect(e.secrets.get('threads.token')).toBe('fresh')
+    expect(e.secrets.get('threads.token.1')).toBe('old-one')
+    expect(e.secrets.get('threads.token.2')).toBe('fresh')
     expect(e.alerts).toEqual([])
   })
 
-  it('warns with an alert when the refresh fails', async () => {
+  it('warns once a day, naming the brand, when the refresh fails', async () => {
     const f = (async () => new Response('no', { status: 400 })) as unknown as typeof fetch
     const e = makeStudioEnv({ fetchImpl: f, startMs: Date.UTC(2026, 5, 3, 12) })
     const s = e.studio
-    await s.setKey('threads', 'old')
+    s.socialAccounts.setThreadsToken(1, 'old')
     await s.setConfig({ mockMode: false })
-    ;(s as unknown as { setAccountOf: (k: string, v: string) => void }).setAccountOf('threadsExpiry', new Date(e.clock.ms + 2 * 86_400_000).toISOString())
+    setExpiry(s, 1, new Date(e.clock.ms + 2 * 86_400_000).toISOString())
     await s.checkThreadsToken()
     await s.checkThreadsToken()
-    expect(e.alerts.filter(([h]) => h === 'Threads sign in runs out soon.')).toHaveLength(1)
+    const w = e.alerts.filter(([h]) => h === 'Threads sign in runs out soon.')
+    expect(w).toHaveLength(1)
+    expect(w[0][1]).toMatch(/^Trash Panda:/)
   })
 
   it('skips the guideline refresh in mock mode, applies small edits with a logged diff, and parks big ones as a proposal', async () => {
@@ -321,5 +323,68 @@ describe('Threads token and monthly guideline refresh', () => {
     const e2 = makeStudioEnv({ fetchImpl: (async () => new Response('x', { status: 503 })) as unknown as typeof fetch })
     await e2.studio.setConfig({ mockMode: false })
     expect((await e2.studio.refreshGuidelines(true)).note).toMatch(/could not be reached/)
+  })
+})
+
+describe('Threads sign in (OAuth) per brand', () => {
+  function rig() {
+    const calls: string[] = []
+    const f = (async (url: string, init?: RequestInit) => {
+      const u = new URL(url)
+      calls.push(`${init?.method ?? 'GET'} ${u.host}${u.pathname}`)
+      if (u.pathname === '/oauth/access_token') {
+        const b = Object.fromEntries(init!.body as URLSearchParams)
+        expect(b).toMatchObject({ client_id: 'APPID', client_secret: 'APPSECRET', grant_type: 'authorization_code', code: 'THE_CODE' })
+        return json({ access_token: 'short', user_id: 777 })
+      }
+      if (u.pathname === '/access_token') {
+        expect(u.searchParams.get('grant_type')).toBe('th_exchange_token')
+        return json({ access_token: 'longtoken', expires_in: 5184000 })
+      }
+      if (u.pathname.endsWith('/me')) return json({ id: '777', username: 'pandaposts' })
+      return json({}, 404)
+    }) as unknown as typeof fetch
+    const opened: string[] = []
+    const e = makeStudioEnv({ fetchImpl: f, startMs: Date.UTC(2026, 5, 3, 12) })
+    return { e, calls, opened, f }
+  }
+
+  it('signs a brand in when the return link arrives, and keeps the 60 day token under that brand only', async () => {
+    const { e, opened } = rig()
+    await e.studio.setKey('threadsAppId', 'APPID')
+    await e.studio.setKey('threadsAppSecret', 'APPSECRET')
+    const { SocialAccounts } = await import('../../src/main/studio/social/accounts')
+    const acc = new SocialAccounts({ db: e.db, secrets: e.secrets, cfg: e.studio.cfg, brandName: () => 'B', brandIds: () => [1, 2], fetchImpl: (e.studio.d as { fetchImpl: typeof fetch }).fetchImpl, now: () => e.clock.ms, openBrowser: async (url) => { opened.push(url); setTimeout(() => acc.handleOpenUrl('expectless://oauth/threads?code=THE_CODE&state=' + new URL(url).searchParams.get('state')), 5) } })
+    const r = await acc.connectThreads(2)
+    expect(r.username).toBe('pandaposts')
+    const u = new URL(opened[0])
+    expect(u.host).toBe('threads.net')
+    expect(u.searchParams.get('client_id')).toBe('APPID')
+    expect(u.searchParams.get('redirect_uri')).toBe('https://expectlessmedia.com/oauth/threads/')
+    expect(u.searchParams.get('scope')).toContain('threads_content_publish')
+    expect(e.secrets.get('threads.token.2')).toBe('longtoken')
+    expect(e.secrets.has('threads.token.1')).toBe(false)
+    expect(acc.threadsUserId(2)).toBe('777')
+    expect(acc.threadsExpiry(2)).toBe(new Date(e.clock.ms + 5184000_000).toISOString())
+    expect(JSON.stringify(e.db.prepare('SELECT * FROM settings').all())).not.toContain('longtoken')
+  })
+
+  it('also works by pasting the whole address after approving, and refuses a wrong state or a missing secret', async () => {
+    const { e, opened } = rig()
+    const { SocialAccounts } = await import('../../src/main/studio/social/accounts')
+    const mk = () => new SocialAccounts({ db: e.db, secrets: e.secrets, cfg: e.studio.cfg, brandName: () => 'B', brandIds: () => [1], fetchImpl: (e.studio.d as { fetchImpl: typeof fetch }).fetchImpl, now: () => e.clock.ms, openBrowser: async (url) => void opened.push(url) })
+    await expect(mk().connectThreads(1)).rejects.toThrow(/app ID and app secret/)
+    await e.studio.setKey('threadsAppId', 'APPID')
+    await e.studio.setKey('threadsAppSecret', 'APPSECRET')
+    const acc = mk()
+    const p = acc.connectThreads(1)
+    await new Promise((r) => setTimeout(r, 20))
+    expect(() => mk().submitCode('x')).toThrow(/No Threads sign in is waiting/)
+    acc.submitCode('https://expectlessmedia.com/oauth/threads/?code=THE_CODE%23_')
+    expect((await p).username).toBe('pandaposts')
+    const p2 = acc.connectThreads(1)
+    await new Promise((r) => setTimeout(r, 20))
+    acc.handleOpenUrl('expectless://oauth/threads?code=THE_CODE&state=wrong')
+    await expect(p2).rejects.toThrow(/did not start here/)
   })
 })

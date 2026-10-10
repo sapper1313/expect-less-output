@@ -16,6 +16,7 @@ export function StudioSettings() {
     <div className="space-y-4">
       <ModeCard cfg={cfg} reload={reload} />
       <KeysCard />
+      <SocialAccountsCard cfg={cfg} reload={reload} />
       <CapsCard cfg={cfg} reload={reload} />
       <GenerateCard cfg={cfg} reload={reload} />
       <ProductionCard cfg={cfg} reload={reload} />
@@ -71,10 +72,9 @@ function KeysCard() {
   const [busy, run] = useBusy()
   const { data: keys, reload } = useLoad(() => api.studio.keyStatus())
   const [vals, setVals] = useState<Partial<Record<KeyId, string>>>({})
-  const [acct, setAcct] = useState<Partial<Record<KeyId, string>>>({})
   return (
     <Card title="Keys and connections">
-      <p className="mb-3 text-[12px] text-muted">Keys are stored in the macOS Keychain. They are never shown again after you save them.</p>
+      <p className="mb-3 text-[12px] text-muted">Keys are stored in the macOS Keychain. They are never shown again after you save them. Threads and Bluesky accounts are per brand, in the next card.</p>
       <div className="space-y-4">
         {keys?.map((k) => (
           <div key={k.id} className="rounded-md border border-line p-3">
@@ -84,11 +84,8 @@ function KeysCard() {
             </div>
             {k.has && <div className="mt-1 text-[12px] text-muted">{k.masked}{k.account ? `  (${k.account})` : ''}{k.lastTestAt ? `  Last test ${k.lastTestAt.slice(0, 16).replace('T', ' ')} UTC: ${k.lastMessage}` : ''}</div>}
             <div className="mt-2 flex gap-2">
-              {k.id === 'bluesky' && (
-                <Input className="w-56" placeholder="handle.bsky.social" value={acct.bluesky ?? k.account} onChange={(e) => setAcct({ ...acct, bluesky: e.target.value })} />
-              )}
               <Input type="password" autoComplete="off" placeholder={k.has ? 'Paste a new value to replace' : 'Paste here'} value={vals[k.id] ?? ''} onChange={(e) => setVals({ ...vals, [k.id]: e.target.value })} />
-              <Button disabled={busy || (!vals[k.id] && !(k.id === 'bluesky' && acct.bluesky))} onClick={() => run(async () => { if (vals[k.id]) await api.studio.setKey(k.id, vals[k.id] as string, acct[k.id]); setVals({ ...vals, [k.id]: '' }); reload() })}>
+              <Button disabled={busy || !vals[k.id]} onClick={() => run(async () => { await api.studio.setKey(k.id, vals[k.id] as string); setVals({ ...vals, [k.id]: '' }); reload() })}>
                 {k.has ? 'Replace' : 'Save'}
               </Button>
               <Button disabled={busy || !k.has} onClick={() => run(async () => { const r = await api.studio.testKey(k.id); toast({ kind: r.ok ? 'success' : 'error', headline: r.ok ? 'Test passed.' : 'Test failed.', detail: r.message }); reload() })}>Test connection</Button>
@@ -444,7 +441,6 @@ function CapsTableCard({ cfg, reload }: { cfg: StudioConfig; reload: () => void 
 }
 
 function PublicHostCard({ cfg, reload }: { cfg: StudioConfig; reload: () => void }) {
-  const { toast } = useApp()
   const [, run] = useBusy()
   const h = cfg.publicHost
   const save = (patch: Partial<typeof h>) => run(async () => { await api.studio.setConfig({ publicHost: { ...h, ...patch } } as never); reload() })
@@ -456,7 +452,74 @@ function PublicHostCard({ cfg, reload }: { cfg: StudioConfig; reload: () => void
         <Field label="Bucket name"><Input defaultValue={h.bucket} onBlur={(e) => e.target.value !== h.bucket && save({ bucket: e.target.value.trim() })} /></Field>
         <Field label="Public address of the bucket"><Input defaultValue={h.publicBase} onBlur={(e) => e.target.value !== h.publicBase && save({ publicBase: e.target.value.trim() })} /></Field>
       </div>
-      <div className="mt-3"><Button onClick={() => run(async () => { const r = await api.studio.threadsRefresh(); toast({ kind: r.ok ? 'success' : 'error', headline: r.ok ? 'Threads token refreshed.' : 'Could not refresh.', detail: r.message }) })}>Refresh the Threads token now</Button></div>
+    </Card>
+  )
+}
+
+function SocialAccountsCard({ cfg, reload }: { cfg: StudioConfig; reload: () => void }) {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
+  const { data, reload: reloadAccts } = useLoad(() => api.studio.socialAccountList())
+  const [waiting, setWaiting] = useState<number | null>(null)
+  const [code, setCode] = useState('')
+  const [bsky, setBsky] = useState<Record<number, { handle?: string; pw?: string }>>({})
+  const [tok, setTok] = useState<Record<number, string>>({})
+  const redirect = cfg.threadsRedirectUri
+  return (
+    <Card title="Threads and Bluesky accounts (one set per brand)">
+      <p className="mb-3 text-[12px] text-muted">
+        Each brand signs in to its own Threads and Bluesky accounts. For Threads, first save the Threads app ID and secret above (from Meta for Developers, your Threads use case, Settings), and add this exact address under Redirect Callback URLs:
+      </p>
+      <div className="mb-1 flex gap-2">
+        <Input defaultValue={redirect} onBlur={(e) => e.target.value !== redirect && run(async () => { await api.studio.setConfig({ threadsRedirectUri: e.target.value.trim() } as never); reload() })} />
+        <Button onClick={() => void navigator.clipboard.writeText(redirect).then(() => toast({ kind: 'success', headline: 'Copied.' }))}>Copy</Button>
+      </div>
+      <p className="mb-3 text-[12px] text-muted">
+        Press Connect Threads for a brand. Your browser opens the Threads sign in. Sign in as that brand's account and approve. If the page you land on does not hand the code back to the app, copy the whole address from the browser bar and paste it into the box that appears.
+      </p>
+      <div className="space-y-3">
+        {data?.map((b) => (
+          <div key={b.brandId} className="rounded-md border border-line p-3">
+            <b className="text-[13px]">{b.brandName}</b>
+            <div className="mt-2 grid gap-3 md:grid-cols-2">
+              <div>
+                <div className="text-[11px] font-semibold uppercase text-muted">Threads: {b.threads.state === 'not_set' ? 'not connected' : b.threads.state === 'expiring' ? 'expiring soon' : b.threads.state}</div>
+                {b.threads.connected && <div className="text-[12px] text-muted">{b.threads.username ? `@${b.threads.username}. ` : ''}{b.threads.expiresAt ? `Token runs to ${b.threads.expiresAt.slice(0, 10)}. ` : ''}{b.threads.message}</div>}
+                <div className="mt-1 flex flex-wrap gap-2">
+                  <Button disabled={busy || waiting !== null} onClick={() => { setWaiting(b.brandId); void api.studio.connectThreads(b.brandId).then((r) => { toast({ kind: 'success', headline: 'Threads connected.', detail: `@${r.username}` }); reloadAccts() }).catch((e) => toast({ kind: 'error', headline: 'Threads did not connect.', detail: String(e.message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '') })).finally(() => { setWaiting(null); setCode('') }) }}>{b.threads.connected ? 'Reconnect Threads' : 'Connect Threads'}</Button>
+                  {b.threads.connected && <Button disabled={busy} onClick={() => run(async () => { const r = await api.studio.testThreads(b.brandId); toast({ kind: r.ok ? 'success' : 'error', headline: r.ok ? 'Test passed.' : 'Test failed.', detail: r.message }); reloadAccts() })}>Test</Button>}
+                  {b.threads.connected && <Button disabled={busy} onClick={() => run(async () => { const r = await api.studio.refreshThreadsToken(b.brandId); toast({ kind: r.ok ? 'success' : 'error', headline: r.ok ? 'Refreshed.' : 'Could not refresh.', detail: r.message }); reloadAccts() })}>Refresh token</Button>}
+                  {b.threads.connected && <Button variant="danger" disabled={busy} onClick={() => run(async () => { await api.studio.disconnectThreads(b.brandId); reloadAccts() })}>Disconnect</Button>}
+                </div>
+                {waiting === b.brandId && (
+                  <div className="mt-2 rounded-md border border-warn p-2 text-[12px]">
+                    Waiting for you to approve in the browser. If the app does not continue by itself, paste the code or the whole address here:
+                    <div className="mt-1 flex gap-2"><Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Paste here" /><Button onClick={() => run(async () => { await api.studio.submitThreadsCode(code) })}>Continue</Button><Button variant="ghost" onClick={() => void api.studio.cancelThreadsConnect()}>Cancel</Button></div>
+                  </div>
+                )}
+                {!b.threads.connected && (
+                  <details className="mt-2 text-[12px] text-muted"><summary className="cursor-pointer">Or paste a token by hand</summary>
+                    <div className="mt-1 flex gap-2"><Input type="password" value={tok[b.brandId] ?? ''} onChange={(e) => setTok({ ...tok, [b.brandId]: e.target.value })} placeholder="Long lived Threads token" /><Button disabled={!tok[b.brandId]} onClick={() => run(async () => { await api.studio.setThreadsToken(b.brandId, tok[b.brandId]); setTok({ ...tok, [b.brandId]: '' }); reloadAccts() })}>Save</Button></div>
+                  </details>
+                )}
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold uppercase text-muted">Bluesky: {b.bluesky.state === 'not_set' ? 'not set' : b.bluesky.state}</div>
+                {b.bluesky.hasPassword && <div className="text-[12px] text-muted">{b.bluesky.handle}, {b.bluesky.passwordMasked}. {b.bluesky.message}</div>}
+                <div className="mt-1 grid gap-2">
+                  <Input placeholder="handle.bsky.social" value={bsky[b.brandId]?.handle ?? b.bluesky.handle} onChange={(e) => setBsky({ ...bsky, [b.brandId]: { ...bsky[b.brandId], handle: e.target.value } })} />
+                  <Input type="password" autoComplete="off" placeholder={b.bluesky.hasPassword ? 'Paste a new app password to replace' : 'App password'} value={bsky[b.brandId]?.pw ?? ''} onChange={(e) => setBsky({ ...bsky, [b.brandId]: { ...bsky[b.brandId], pw: e.target.value } })} />
+                  <div className="flex gap-2">
+                    <Button disabled={busy || !(bsky[b.brandId]?.handle ?? b.bluesky.handle)} onClick={() => run(async () => { await api.studio.saveBluesky(b.brandId, bsky[b.brandId]?.handle ?? b.bluesky.handle, bsky[b.brandId]?.pw ?? ''); setBsky({ ...bsky, [b.brandId]: {} }); reloadAccts() })}>Save</Button>
+                    <Button disabled={busy || !b.bluesky.hasPassword} onClick={() => run(async () => { const r = await api.studio.testBluesky(b.brandId); toast({ kind: r.ok ? 'success' : 'error', headline: r.ok ? 'Test passed.' : 'Test failed.', detail: r.message }); reloadAccts() })}>Test connection</Button>
+                    <Button variant="danger" disabled={busy || !b.bluesky.hasPassword} onClick={() => run(async () => { await api.studio.removeBluesky(b.brandId); reloadAccts() })}>Remove</Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </Card>
   )
 }

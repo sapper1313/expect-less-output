@@ -27,8 +27,8 @@ export interface AnalyticsDeps {
   cfg: StudioConfigService
   gateway: LlmGateway
   audit: AuditLog
-  threads: ThreadsClient
-  bluesky: BlueskyClient
+  threads: (brandId: number) => ThreadsClient
+  bluesky: (brandId: number) => BlueskyClient
   tester: ThumbnailTester
   /** The existing stats pass for YouTube, Facebook, Instagram and TikTok. */
   refreshStats: () => Promise<{ fetched: number; unavailable: number }>
@@ -65,10 +65,10 @@ export class Analytics {
           const base = ((r.id * 7919) % 400) + 50
           ins.run(r.id, stamp, base * 10, base, Math.round(base / 12), Math.round(base / 20))
         } else if (r.platform === 'threads') {
-          const i = await this.d.threads.insights(r.external_id)
+          const i = await this.d.threads(r.brand_id).insights(r.external_id)
           ins.run(r.id, stamp, i.views, i.likes, i.replies, i.reposts + i.quotes)
         } else {
-          const c = await this.d.bluesky.counts(r.external_id)
+          const c = await this.d.bluesky(r.brand_id).counts(r.external_id)
           ins.run(r.id, stamp, null, c.likes, c.replies, c.reposts)
         }
         n++

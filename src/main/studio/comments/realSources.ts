@@ -61,30 +61,31 @@ export class MetaCommentSource implements CommentSource {
 export class ThreadsCommentSource implements CommentSource {
   readonly platform = 'threads'
   constructor(
-    private client: ThreadsClient,
-    private userId: () => string | null,
+    private clientFor: (brandId: number) => ThreadsClient,
+    private userId: (brandId: number) => string | null,
   ) {}
   async list(ref: PostedRef): Promise<RawComment[]> {
-    return (await this.client.listReplies(ref.externalId)).map((r) => ({ id: r.id, text: r.text, author: r.username, createdUtc: r.at }))
+    return (await this.clientFor(ref.brandId).listReplies(ref.externalId)).map((r) => ({ id: r.id, text: r.text, author: r.username, createdUtc: r.at }))
   }
-  async reply(_ref: PostedRef, c: RawComment, text: string): Promise<string> {
-    const uid = this.userId() ?? (await this.client.me()).id
-    return this.client.reply(uid, c.id, text)
+  async reply(ref: PostedRef, c: RawComment, text: string): Promise<string> {
+    const client = this.clientFor(ref.brandId)
+    const uid = this.userId(ref.brandId) ?? (await client.me()).id
+    return client.reply(uid, c.id, text)
   }
-  async hide(_ref: PostedRef, c: RawComment): Promise<void> {
-    await this.client.hideReply(c.id, true)
+  async hide(ref: PostedRef, c: RawComment): Promise<void> {
+    await this.clientFor(ref.brandId).hideReply(c.id, true)
   }
 }
 
 export class BlueskyCommentSource implements CommentSource {
   readonly platform = 'bluesky'
-  constructor(private client: BlueskyClient) {}
+  constructor(private clientFor: (brandId: number) => BlueskyClient) {}
   async list(ref: PostedRef): Promise<RawComment[]> {
-    return (await this.client.listReplies(ref.externalId)).map((r) => ({ id: r.uri, text: r.text, author: r.username, createdUtc: r.at, meta: { cid: r.cid } }))
+    return (await this.clientFor(ref.brandId).listReplies(ref.externalId)).map((r) => ({ id: r.uri, text: r.text, author: r.username, createdUtc: r.at, meta: { cid: r.cid } }))
   }
   async reply(ref: PostedRef, c: RawComment, text: string): Promise<string> {
     const root = { uri: ref.externalId, cid: ref.state.bskyCid ?? '' }
     const parent = { uri: c.id, cid: c.meta?.cid ?? '' }
-    return (await this.client.replyText(text, root, parent)).uri
+    return (await this.clientFor(ref.brandId).replyText(text, root, parent)).uri
   }
 }

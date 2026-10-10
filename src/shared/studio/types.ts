@@ -129,6 +129,8 @@ export interface StudioConfig {
   /** Editable per platform limits. Missing keys use the built in table. */
   platformCaps: Record<string, unknown>
   /** Temporary public host for files a platform must fetch (Threads video, Instagram cover). */
+  /** The https address registered as the Threads redirect callback (a page on your website that hands the code back). */
+  threadsRedirectUri: string
   publicHost: { endpoint: string; bucket: string; publicBase: string; region: string }
   thumbnailEngine: { generateImages: boolean; candidates: number; abDelayHours: number; abMinImpressions: number; font: string }
   qcClipRetryCap: number

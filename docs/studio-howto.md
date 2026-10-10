@@ -17,11 +17,17 @@ Everything starts **paused and in mock mode**. Mock mode makes placeholder video
 | --- | --- |
 | Grok / xAI API key | console.x.ai, API keys |
 | Anthropic API key | console.anthropic.com, API keys |
-| Threads token | A long lived token from your Threads developer app. Valid 60 days. The app refreshes it when 7 days are left. |
-| Bluesky | Your handle (for example name.bsky.social) and an **app password** (Bluesky, Settings, Privacy and security, App passwords). Never your real password. |
+| Threads app ID and app secret | Meta for Developers, your app, the Threads use case, Settings. One pair serves every brand. |
 | Cloudflare R2 (2 keys) | Needed only for Threads video, see `docs/SETUP_E_CLOUDFLARE_R2_IF_NEEDED.md`. Then fill in the public host card. |
 
 For each one: paste, press **Save**, then **Test connection**. The key is kept in the macOS Keychain and is never shown again. Testing in mock mode makes no network call, so turn mock mode off to test for real.
+
+## 2b. Threads and Bluesky: one set of accounts per brand
+
+Settings, **Threads and Bluesky accounts** has a row for every brand.
+
+- **Threads:** add this address under Redirect Callback URLs in your Threads app settings: `https://expectlessmedia.com/oauth/threads/` (the box shows the exact address and has a Copy button). Then press **Connect Threads** for a brand, sign in as that brand's Threads account in the browser, and approve. If the page does not hand you back to the app, copy the whole address from the browser bar and paste it into the box that appears. The 60 day token is kept per brand and renewed when 7 days are left.
+- **Bluesky:** type that brand's handle and an **app password** (Bluesky, Settings, Privacy and security, App passwords), press **Save**, then **Test connection**. Never your real password.
 
 ## 3. Set your limits before you turn mock mode off
 

@@ -235,7 +235,7 @@ export function makeProducerAgent(d: ProducerDeps): AgentDef<z.infer<typeof Inpu
           try {
             const wav = join(work, 'final.wav')
             await extractWav(finalPath, wav)
-            const heard = parseSegments((await d.localAi.whisper.transcribe(wav)).text)
+            const heard = parseSegments((await d.localAi.whisper.transcribe(wav)).raw)
             if (heard.length) segs = heard
           } catch {
             // No Whisper: the scripted lines are used for the caption timing.

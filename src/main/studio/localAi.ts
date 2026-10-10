@@ -1,6 +1,6 @@
 import { execFile } from 'child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'fs'
-import { tmpdir } from 'os'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'fs'
+import { homedir, tmpdir } from 'os'
 import { join } from 'path'
 import { promisify } from 'util'
 import { ffmpeg, ffmpegBin, makePlaceholderImage } from './ffmpeg'
@@ -111,6 +111,50 @@ export class OllamaClient {
 export interface WhisperResult {
   text: string
   seconds: number
+  /** The tool's own output, with the [start --> end] timing lines when it prints them. */
+  raw: string
+}
+
+/** A Mac app does not get Homebrew's folders in its PATH, so they are added here. */
+const EXTRA_BIN = ['/opt/homebrew/bin', '/usr/local/bin', join(homedir(), '.local', 'bin'), join(homedir(), 'bin')]
+export const toolEnv = (): NodeJS.ProcessEnv => ({ ...process.env, PATH: [...EXTRA_BIN, process.env.PATH ?? ''].join(':') })
+
+function findBinary(name: string): string | null {
+  if (name.includes('/')) return existsSync(name) ? name : null
+  for (const dir of [...EXTRA_BIN, ...(process.env.PATH ?? '').split(':')]) {
+    const p = join(dir, name)
+    if (dir && existsSync(p)) return p
+  }
+  return null
+}
+
+/** The first whisper.cpp model file found in the usual places, or null. */
+export function findWhisperModel(): string | null {
+  const dirs = [join(homedir(), 'whisper-models'), join(homedir(), 'ELO', 'models'), join(homedir(), '.cache', 'whisper'), '/opt/homebrew/share/whisper-cpp', '/opt/homebrew/share/whisper-cpp/models', '/usr/local/share/whisper-cpp']
+  for (const d of dirs) {
+    try {
+      const f = readdirSync(d).filter((x) => /^ggml-.*\.bin$/.test(x)).sort((a, b) => (/base\.en/.test(a) ? -1 : /base\.en/.test(b) ? 1 : a.localeCompare(b)))[0]
+      if (f) return join(d, f)
+    } catch {
+      // folder not there
+    }
+  }
+  return null
+}
+
+/** Turns the owner's command into a program and arguments: finds the program, and adds a model when whisper.cpp is used without one. */
+export function resolveWhisperCommand(command: string, audio: string): { bin: string; args: string[] } | { error: string } {
+  const parts = command.trim().split(/\s+/).filter(Boolean)
+  const bin = findBinary(parts[0])
+  if (!bin) return { error: `Could not find "${parts[0]}" on this Mac. In Terminal run: brew install whisper-cpp` }
+  let args = parts.slice(1).map((p) => p.replace('{audio}', audio))
+  if (!command.includes('{audio}')) args.push('-f', audio)
+  if (/whisper-cli|whisper-cpp/.test(bin) && !args.includes('-m') && !args.includes('--model')) {
+    const model = findWhisperModel()
+    if (!model) return { error: 'whisper.cpp needs a model file such as ggml-base.en.bin. Put one in ~/whisper-models, or add "-m /path/to/model" to the Whisper command.' }
+    args = ['-m', model, ...args]
+  }
+  return { bin, args }
 }
 
 /** Whisper runs on this Mac (a command line tool) or on a remote service that speaks the OpenAI transcription format. */
@@ -131,13 +175,9 @@ export class Whisper {
         return { ok: false, detail: `Remote Whisper did not answer: ${(e as Error).message}` }
       }
     }
-    const bin = l.whisperCommand.trim().split(/\s+/)[0]
-    try {
-      await run('/usr/bin/env', ['which', bin])
-      return { ok: true, detail: `Found ${bin} on this Mac.` }
-    } catch {
-      return { ok: false, detail: `Could not find "${bin}" on this Mac.` }
-    }
+    const r = resolveWhisperCommand(l.whisperCommand, '/tmp/x.wav')
+    if ('error' in r) return { ok: false, detail: r.error }
+    return { ok: true, detail: `Found ${r.bin}${r.args.includes('-m') ? ` with model ${r.args[r.args.indexOf('-m') + 1]}` : ''}.` }
   }
 
   async transcribe(audioPath: string): Promise<WhisperResult> {
@@ -154,12 +194,13 @@ export class Whisper {
       })
       if (!res.ok) throw new Error(`Remote Whisper answered HTTP ${res.status}.`)
       const d = (await res.json()) as { text?: string }
-      return { text: (d.text ?? '').trim(), seconds: (Date.now() - t0) / 1000 }
+      const text = (d.text ?? '').trim()
+      return { text, raw: text, seconds: (Date.now() - t0) / 1000 }
     }
-    const parts = l.whisperCommand.trim().split(/\s+/).map((p) => p.replace('{audio}', audioPath))
-    if (!l.whisperCommand.includes('{audio}')) parts.push(audioPath)
-    const { stdout } = await run(parts[0], parts.slice(1), { timeout: 10 * 60_000, maxBuffer: 10 * 1024 * 1024 })
-    return { text: stdout.replace(/\[[^\]]*\]/g, '').trim(), seconds: (Date.now() - t0) / 1000 }
+    const r = resolveWhisperCommand(l.whisperCommand, audioPath)
+    if ('error' in r) throw new Error(r.error)
+    const { stdout } = await run(r.bin, r.args, { timeout: 10 * 60_000, maxBuffer: 10 * 1024 * 1024, env: toolEnv() })
+    return { text: stdout.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim(), raw: stdout, seconds: (Date.now() - t0) / 1000 }
   }
 }
 

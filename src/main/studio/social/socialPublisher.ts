@@ -47,10 +47,10 @@ const map = (r: any): SocialRow => ({
 export interface SocialDeps {
   db: Db
   cfg: StudioConfigService
-  threads: ThreadsClient
-  bluesky: BlueskyClient
+  threads: (brandId: number) => ThreadsClient
+  bluesky: (brandId: number) => BlueskyClient
   host: PublicHost
-  userId: { get: () => string | null; set: (id: string) => void }
+  userId: { get: (brandId: number) => string | null; set: (brandId: number, id: string) => void }
   alert: (item: AlertItem) => void
   log: (level: 'info' | 'warn' | 'error', message: string) => void
   brandName: (id: number) => string
@@ -156,18 +156,19 @@ export class SocialPublisher {
       this.d.db.prepare('UPDATE social_posts SET state_json = ? WHERE id = ?').run(JSON.stringify(state), row.id)
     }
     if (row.platform === 'bluesky') {
-      const limits = await this.d.bluesky.uploadLimits().catch(() => null)
+      const limits = await this.d.bluesky(row.brandId).uploadLimits().catch(() => null)
       if (limits && limits.canUpload === false) throw new SocialError(`Bluesky will not take a video right now. ${limits.message ?? ''}`.trim(), 'transient', 60 * 60_000)
       const info = await probe(row.videoPath)
-      const r = await this.d.bluesky.postVideo({ text: row.text, file: row.videoPath, width: info.width, height: info.height, alt: row.title, state, setState })
+      const r = await this.d.bluesky(row.brandId).postVideo({ text: row.text, file: row.videoPath, width: info.width, height: info.height, alt: row.title, state, setState })
       setState({ bskyCid: r.cid })
       return { id: r.uri, url: r.url }
     }
     // Threads: the video has to be at a public address while Threads fetches it.
-    let userId = this.d.userId.get()
+    const threads = this.d.threads(row.brandId)
+    let userId = this.d.userId.get(row.brandId)
     if (!userId) {
-      userId = (await this.d.threads.me()).id
-      this.d.userId.set(userId)
+      userId = (await threads.me()).id
+      this.d.userId.set(row.brandId, userId)
     }
     if (!this.d.host.configured()) throw new SocialError('Threads needs the video at a public address. Set up the public host (Cloudflare R2) in Studio Settings.', 'permanent')
     let url = typeof state.publicUrl === 'string' ? state.publicUrl : null
@@ -179,7 +180,7 @@ export class SocialPublisher {
       setState({ publicUrl: url, publicKey: key })
     }
     try {
-      const r = await this.d.threads.publishVideo({ userId, text: row.text, videoUrl: url, state, setState })
+      const r = await threads.publishVideo({ userId, text: row.text, videoUrl: url, state, setState })
       return { id: r.id, url: r.url }
     } finally {
       if (state.threadsPostId && key) await this.d.host.remove(key)

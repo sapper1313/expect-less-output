@@ -36,6 +36,8 @@ export interface PublishDeps {
   tester: ThumbnailTester
   social: SocialPublisher
   host: PublicHost
+  /** Why a brand cannot post to Threads or Bluesky yet (no account saved), or null. */
+  socialReady: (brandId: number, platform: 'threads' | 'bluesky') => string | null
   workDir: (episodeId: string) => string
   now?: () => number
 }
@@ -168,6 +170,13 @@ export class Publisher {
     const skipped = Object.entries(report.platforms).filter(([, v]) => v.skipped).map(([platform, v]) => ({ platform, reason: v.reason ?? '' }))
 
     // 3. real world gaps that skip one platform
+    for (const p of ['threads', 'bluesky'] as const) {
+      const why = !mock && ok(p) ? this.d.socialReady(ep.brandId, p) : null
+      if (why) {
+        skipped.push({ platform: p, reason: why })
+        report.platforms[p] = { ...report.platforms[p], ok: false, skipped: true, reason: why }
+      }
+    }
     if (!mock && ok('threads') && !this.d.host.configured()) {
       skipped.push({ platform: 'threads', reason: 'Threads needs a public address for the video. Set up the public host in Studio Settings.' })
       report.platforms.threads = { ...report.platforms.threads, ok: false, skipped: true, reason: skipped[skipped.length - 1].reason }

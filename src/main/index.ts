@@ -85,6 +85,7 @@ let mainWindow: BrowserWindow | null = null
 // The expectless:// link can arrive before the app has finished starting.
 let pendingOpenUrl: string | null = null
 let tiktokRef: { handleOpenUrl: (url: string) => boolean } | null = null
+let studioRef: { handleOpenUrl: (url: string) => boolean } | null = null
 let quitting = false
 
 if (!app.requestSingleInstanceLock()) {
@@ -404,6 +405,9 @@ async function boot(): Promise<void> {
     alertItem: (item) => void alerts.alert(item),
     emit,
     startPaused: true,
+    openBrowser: async (url) => {
+      await shell.openExternal(url)
+    },
     dataDir,
     postersDir,
     appVersion: app.getVersion(),
@@ -467,6 +471,7 @@ async function boot(): Promise<void> {
         : join(app.getAppPath(), 'mcp', 'dist', 'elo-mcp.mjs'),
     },
   )
+  studioRef = studio
   const inbox = new InboxWatcher({
     s: {
       settings,
@@ -679,6 +684,10 @@ app.on('second-instance', showWindow)
 app.on('activate', showWindow)
 app.on('open-url', (e, url) => {
   e.preventDefault()
+  if (studioRef?.handleOpenUrl(url)) {
+    if (mainWindow) showWindow()
+    return
+  }
   if (tiktokRef) tiktokRef.handleOpenUrl(url)
   else pendingOpenUrl = url
   if (mainWindow) showWindow()
