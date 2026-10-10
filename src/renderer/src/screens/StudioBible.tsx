@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { SeriesBibleData } from '@shared/studio/bible'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
@@ -16,7 +16,17 @@ export function StudioBible() {
   const { data: ideas, reload: reloadIdeas } = useLoad(() => (id ? api.studio.ideas(id) : Promise.resolve([])), [id])
   const [draft, setDraft] = useState<SeriesBibleData | null>(null)
   const [newIdeas, setNewIdeas] = useState('')
-  useEffect(() => setDraft(data?.bible ?? null), [data])
+  // The app reloads data in the background all the time. Only replace what you are typing when the saved
+  // bible really changed and you have no unsaved edits, or when you switch to another brand.
+  const loaded = useRef<{ id: number | null; json: string }>({ id: null, json: '' })
+  useEffect(() => {
+    const json = data ? JSON.stringify(data.bible) : ''
+    setDraft((cur) => {
+      const untouched = !cur || JSON.stringify(cur) === loaded.current.json
+      return loaded.current.id !== id || untouched ? (data?.bible ?? null) : cur
+    })
+    loaded.current = { id, json }
+  }, [data, id])
   if (!brands || !id || !data || !draft) return null
   const set = <K extends keyof SeriesBibleData>(k: K, v: SeriesBibleData[K]) => setDraft({ ...draft, [k]: v })
   const save = () => run(async () => { await api.studio.setBible(id, draft); toast({ kind: 'success', headline: 'Bible saved.' }); reload() })
