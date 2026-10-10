@@ -181,3 +181,29 @@ describe('Bluesky accounts', () => {
     expect((await s.socialAccountList())[1].bluesky.state).toBe('not_set')
   })
 })
+
+describe('structured model answers', () => {
+  it('asks for the answer as a filled in form (tool use), so it is always valid JSON, and treats a cut off answer as a retry', async () => {
+    const { z } = await import('zod')
+    const bodies: Array<Record<string, any>> = []
+    let cut = false
+    const f = (async (_u: string, init?: RequestInit) => {
+      bodies.push(JSON.parse(init!.body as string))
+      return json({
+        content: [{ type: 'tool_use', name: 'submit_answer', input: { line: 'He said "hi", then left' } }],
+        stop_reason: cut ? 'max_tokens' : 'tool_use',
+        usage: { input_tokens: 5, output_tokens: 5 },
+      })
+    }) as unknown as typeof fetch
+    const e = makeStudioEnv({ fetchImpl: f })
+    await e.studio.setKey('anthropic', 'sk-ant-key-00000')
+    await e.studio.setConfig({ mockMode: false })
+    const out = await e.studio.gateway.json({ agent: 'Test', system: 's', user: 'u' }, z.object({ line: z.string(), n: z.number().default(1) }))
+    expect(out).toEqual({ line: 'He said "hi", then left', n: 1 })
+    expect(bodies[0].tool_choice).toEqual({ type: 'tool', name: 'submit_answer' })
+    expect(bodies[0].tools[0].input_schema).toMatchObject({ type: 'object', properties: { line: { type: 'string' } } })
+    expect(bodies[0].tools[0].input_schema.$schema).toBeUndefined()
+    cut = true
+    await expect(e.studio.gateway.json({ agent: 'Test', system: 's', user: 'u' }, z.object({ line: z.string() }))).rejects.toThrow(/cut off/)
+  })
+})

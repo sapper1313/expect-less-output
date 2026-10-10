@@ -1,5 +1,5 @@
 import { createHash } from 'crypto'
-import type { ZodType } from 'zod'
+import { z, type ZodType } from 'zod'
 import type { Db } from '../../db'
 import { anthropicDollars } from '@shared/studio/pricing'
 import { lintFeedback, lintValue } from '@shared/studio/lint'
@@ -18,6 +18,8 @@ export interface LlmRequest {
   taskId?: number | null
   /** Base64 JPEG frames for vision calls through Claude. */
   images?: string[]
+  /** When set, the model must answer by filling this JSON schema (tool use), so the answer is always valid JSON. */
+  jsonSchema?: Record<string, unknown>
 }
 
 export interface LlmResponse {
@@ -66,6 +68,12 @@ export class AnthropicClient implements LlmClient {
         max_tokens: req.maxTokens,
         system: req.system,
         messages: [{ role: 'user', content }],
+        ...(req.jsonSchema
+          ? {
+              tools: [{ name: 'submit_answer', description: 'Submit the answer in exactly this shape.', input_schema: req.jsonSchema }],
+              tool_choice: { type: 'tool', name: 'submit_answer' },
+            }
+          : {}),
       }),
       signal: AbortSignal.timeout(180_000),
     })
@@ -75,10 +83,14 @@ export class AnthropicClient implements LlmClient {
     }
     if (!res.ok) throw new Error(await explainHttp('Anthropic', res))
     const data = (await res.json()) as {
-      content?: Array<{ type: string; text?: string }>
+      content?: Array<{ type: string; text?: string; input?: unknown }>
+      stop_reason?: string
       usage?: { input_tokens?: number; output_tokens?: number }
     }
-    const text = (data.content ?? []).filter((c) => c.type === 'text').map((c) => c.text ?? '').join('')
+    const tool = (data.content ?? []).find((c) => c.type === 'tool_use')
+    if (req.jsonSchema && data.stop_reason === 'max_tokens')
+      throw new RetryableError('The answer was cut off because it was too long. It will be tried again.')
+    const text = tool ? JSON.stringify(tool.input ?? {}) : (data.content ?? []).filter((c) => c.type === 'text').map((c) => c.text ?? '').join('')
     return { text, inputTokens: data.usage?.input_tokens ?? 0, outputTokens: data.usage?.output_tokens ?? 0 }
   }
 }
@@ -119,6 +131,17 @@ export class MockLlm implements LlmClient {
     const out = fn ? fn(req) : { ok: true }
     const text = typeof out === 'string' ? out : JSON.stringify(out)
     return { text, inputTokens: approxTokens(req.system + req.user), outputTokens: approxTokens(text) }
+  }
+}
+
+/** The schema as plain JSON Schema for the model's tool, or undefined when it cannot be made (the text answer is used then). */
+export function toJsonSchema(schema: ZodType): Record<string, unknown> | undefined {
+  try {
+    const j = z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }) as Record<string, unknown>
+    delete j.$schema
+    return j.type === 'object' ? j : undefined
+  } catch {
+    return undefined
   }
 }
 
@@ -205,7 +228,7 @@ export class LlmGateway {
     let user = req.user
     let lastProblem = ''
     for (let attempt = 0; attempt < 4; attempt++) {
-      const res = await this.call({ ...req, user })
+      const res = await this.call({ ...req, user, jsonSchema: req.jsonSchema ?? toJsonSchema(schema) })
       let value: T
       try {
         const parsed = schema.safeParse(extractJson(res.text))
