@@ -17,6 +17,7 @@ import type { StatsService } from './stats/service'
 import type { ImportService } from './stats/imported'
 import { buildHomeSummary } from './homeSummary'
 import { searchAll } from './search'
+import type { PlatformEditor } from './studio/platformEdit'
 import { OpenAICompatibleProvider, checkLlmUrl } from './services/textAssist'
 import type { RestorePreview } from '@shared/types'
 import { healthRows } from './services/health'
@@ -59,6 +60,7 @@ export interface ApiDeps {
   alerts: AlertService
   agent: AgentRuntime
   studio: Studio
+  editor: PlatformEditor
   stats: StatsService
   imported: ImportService
   db: Db
@@ -301,6 +303,7 @@ export function buildApi(d: ApiDeps): Api {
     },
     studio: d.studio,
     search: { query: async (q) => searchAll(d.db, q) },
+    platform: { edit: async (postId, platform, patch) => d.editor.edit(postId, platform, patch) },
     home: {
       summary: async () =>
         buildHomeSummary({

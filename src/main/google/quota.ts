@@ -20,6 +20,7 @@ export const COST = {
   playlistItemsList: { bucket: 'other', units: 1 },
   videosList: { bucket: 'other', units: 1 },
   videoCategoriesList: { bucket: 'other', units: 1 },
+  searchList: { bucket: 'other', units: 100 },
 } as const
 
 export type CostKey = keyof typeof COST

@@ -46,6 +46,7 @@ import type {
 } from './types'
 import type { HomeSummary } from './home'
 import type { SearchHit } from './search'
+import type { EditPatch } from './platformEdit'
 import type { StudioApi } from './studio/api'
 
 export interface Api {
@@ -197,6 +198,10 @@ export interface Api {
   }
   search: {
     query(q: string): Promise<SearchHit[]>
+  }
+  platform: {
+    /** Changes the text of a video that is already live. */
+    edit(postId: number, platform: string, patch: EditPatch): Promise<string>
   }
   textAssist: {
     available(): Promise<boolean>

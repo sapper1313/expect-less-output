@@ -22,6 +22,7 @@ import {
 import { applyPendingRestore, finishRestore } from './services/backup'
 import { seedIfEmpty } from './db/seed'
 import { buildApi, type Host } from './api'
+import { PlatformEditor } from './studio/platformEdit'
 import { ActivityLog } from './services/activity'
 import { BrandService } from './services/brands'
 import { Library } from './services/library'
@@ -554,7 +555,19 @@ async function boot(): Promise<void> {
     },
   }
 
+  const editor = new PlatformEditor({
+    db,
+    youtubeUpdate: (accountId, videoId, patch) => ytClient.updateVideo(accountId, videoId, patch),
+    facebookUpdate: async (brandId, accountId, videoId, patch) => {
+      const acct = brands.listAccounts(brandId).find((a) => a.id === accountId) ?? null
+      await graph.post(`/${videoId}`, { title: patch.title, description: patch.description }, meta.tokenForAccount(acct))
+    },
+    mock: () => studio.cfg.get().mockMode,
+    log: (m) => log.log('info', m),
+  })
+
   const api = buildApi({
+    editor,
     settings,
     brands,
     posts,

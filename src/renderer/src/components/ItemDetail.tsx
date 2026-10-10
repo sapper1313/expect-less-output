@@ -1,10 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { EDIT_CAPABILITY } from '@shared/platformEdit'
 import { PLATFORM_LABELS } from '@shared/platformLimits'
 import { formatEastern } from '@shared/time'
 import type { CalendarItem, CalendarKind } from '@shared/studio/types'
 import { api } from '../api'
-import { useLoad } from '../hooks'
-import { Button, StatusBadge, TargetChip } from '../ui'
+import { useApp, useLoad } from '../hooks'
+import { Button, Dialog, Field, Input, StatusBadge, TargetChip, Textarea, useBusy } from '../ui'
 import { PostStatsPanel } from './StatsPanel'
 import { VideoPlayer } from './VideoPlayer'
 
@@ -40,8 +41,50 @@ function Big({ onClose, color, children }: { onClose: () => void; color?: string
   )
 }
 
+function EditLive({ postId, platform, title, description, onClose, onDone }: { postId: number; platform: string; title: string; description: string; onClose: () => void; onDone: () => void }) {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
+  const cap = EDIT_CAPABILITY[platform]
+  const [t, setT] = useState(title)
+  const [d, setD] = useState(description)
+  const [tags, setTags] = useState('')
+  return (
+    <Dialog title={`Edit on ${PLATFORM_LABELS[platform as keyof typeof PLATFORM_LABELS] ?? platform}`} onClose={onClose}>
+      <p className="mb-3 text-[12px] text-muted">{cap.note} The change goes to the live video right away.</p>
+      <div className="space-y-3">
+        {cap.fields.includes('title') && <Field label="Title"><Input value={t} onChange={(e) => setT(e.target.value)} /></Field>}
+        {cap.fields.includes('description') && <Field label="Description"><Textarea rows={7} value={d} onChange={(e) => setD(e.target.value)} /></Field>}
+        {cap.fields.includes('tags') && <Field label="Tags" hint="Leave empty to keep the tags as they are. Separate with commas."><Input value={tags} onChange={(e) => setTags(e.target.value)} /></Field>}
+      </div>
+      <div className="mt-4 flex gap-2">
+        <Button
+          variant="primary"
+          disabled={busy}
+          onClick={async () => {
+            const msg = await run(() =>
+              api.platform.edit(postId, platform, {
+                ...(cap.fields.includes('title') ? { title: t } : {}),
+                ...(cap.fields.includes('description') ? { description: d } : {}),
+                ...(cap.fields.includes('tags') && tags.trim() ? { tags: tags.split(',') } : {}),
+              }),
+            )
+            if (msg) {
+              toast({ kind: 'success', headline: msg })
+              onDone()
+            }
+          }}
+        >
+          Save to the platform
+        </Button>
+        <Button onClick={onClose}>Cancel</Button>
+      </div>
+    </Dialog>
+  )
+}
+
 export function PostDetail({ postId, onClose, onEdit }: { postId: number; onClose: () => void; onEdit: () => void }) {
-  const { data: post } = useLoad(() => api.posts.get(postId), [postId])
+  const { data: post, reload } = useLoad(() => api.posts.get(postId), [postId])
+  const [editing, setEditing] = useState<string | null>(null)
   if (!post) return null
   const bad = post.targets.filter((t) => t.status === 'failed' || t.status === 'needs_action')
   return (
@@ -78,6 +121,11 @@ export function PostDetail({ postId, onClose, onEdit }: { postId: number; onClos
               {t.externalUrl && (
                 <a className="text-[12px] font-semibold underline" href={t.externalUrl} target="_blank" rel="noreferrer">Open</a>
               )}
+              {t.status === 'posted' && t.externalId && (EDIT_CAPABILITY[t.platform]?.canEdit ? (
+                <button className="text-[12px] font-semibold underline" onClick={() => setEditing(t.platform)}>Edit live</button>
+              ) : (
+                <span title={EDIT_CAPABILITY[t.platform]?.note} className="cursor-help text-[11px] glass-dim">No edits</span>
+              ))}
             </div>
           ))}
         </div>
@@ -102,6 +150,16 @@ export function PostDetail({ postId, onClose, onEdit }: { postId: number; onClos
         </div>
       )}
 
+      {editing && (
+        <EditLive
+          postId={post.id}
+          platform={editing}
+          title={post.title}
+          description={post.targets.find((x) => x.platform === editing)?.captionOverride ?? post.caption}
+          onClose={() => setEditing(null)}
+          onDone={() => { setEditing(null); reload() }}
+        />
+      )}
       <div className="mt-6 flex gap-2">
         <Button variant="primary" onClick={onEdit}>{post.status === 'posted' ? 'Open details and edit' : 'Edit this post'}</Button>
         <Button onClick={onClose}>Close</Button>
