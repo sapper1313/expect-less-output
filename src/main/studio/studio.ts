@@ -62,6 +62,7 @@ import type { AlertItem } from '../alerts/format'
 import type { ImageClient } from './xai'
 import { makeProducerAgent } from './agents/producer'
 import { expandHome } from './configService'
+import { DirectorReply, directorSystem, type DirectorActionView } from './directorChat'
 
 export interface StudioDeps {
   db: Db
@@ -1076,6 +1077,59 @@ export class Studio implements StudioApi {
       episode: task.episodeId ? this.episodes.find(task.episodeId) : null,
     }))
   }
+  async directorChat(message: string) {
+    const text = message.trim().slice(0, 1500)
+    if (!text) throw new Error('Type a message first.')
+    const ov = await this.overview()
+    const flagged = (await this.flagged()).slice(0, 12)
+    const recent = this.audit.list({}).slice(0, 10)
+    const brandName = (id: number | null) => ov.brands.find((b) => b.brandId === id)?.name ?? 'none'
+    const snapshot = [
+      `Mock mode: ${ov.mockMode ? 'on' : 'off'}. Whole studio paused: ${ov.paused ? 'yes' : 'no'}. Open flags: ${ov.openFlags}. Queued: ${ov.queued}. Running: ${ov.running}.`,
+      'Channels:',
+      ...ov.brands.map((b) => `- id ${b.brandId}: ${b.name}, ${b.config.paused ? 'paused' : 'active'}, next due ${b.nextDue ?? 'none'}, runway ${b.runwayCovered} days`),
+      'Flagged tasks:',
+      ...(flagged.length ? flagged.map(({ task }) => `- ${task.type} for ${brandName(task.brandId)}: ${(task.error ?? '').slice(0, 140)}`) : ['- none']),
+      'Recent Director log:',
+      ...recent.map((a) => `- ${a.agent} ${a.action}`),
+    ].join('\n')
+    const r = await this.gateway.json(
+      { agent: 'Director', system: directorSystem(snapshot), user: text, maxTokens: 2000 },
+      DirectorReply,
+    )
+    const ids = new Set(ov.brands.map((b) => b.brandId))
+    return {
+      reply: r.reply,
+      actions: r.actions.filter((a) => (a.kind === 'pause_all' || a.kind === 'resume_all' || a.kind === 'retry_flagged' || (a.brandId != null && ids.has(a.brandId)))).slice(0, 5),
+    }
+  }
+
+  async directorApply(action: DirectorActionView) {
+    const { kind, brandId, text } = action
+    if (kind === 'pause_all' || kind === 'resume_all') {
+      await this.pauseAll(kind === 'pause_all')
+      return kind === 'pause_all' ? 'Everything is paused.' : 'Everything is running.'
+    }
+    if (kind === 'retry_flagged') {
+      const list = await this.flagged()
+      for (const { task } of list) await this.resolveFlag(task.id, 'retry')
+      return `Retrying ${list.length} flagged task(s).`
+    }
+    if (brandId == null || !this.cfg.listBrandConfigs().some((b) => b.brandId === brandId)) throw new Error('That channel was not found.')
+    this.audit.write({ agent: 'Director', action: `owner_${kind}`, brandId })
+    if (kind === 'pause_brand' || kind === 'resume_brand') {
+      await this.setBrand(brandId, { paused: kind === 'pause_brand' })
+      return kind === 'pause_brand' ? 'That channel is paused.' : 'That channel is running.'
+    }
+    if (kind === 'add_idea') {
+      if (!text.trim()) throw new Error('There is no idea text.')
+      await this.addIdeas(brandId, [text.trim().slice(0, 300)])
+      return 'Idea added to the bank.'
+    }
+    await this.writeNow(brandId)
+    return 'Writing started.'
+  }
+
   async resolveFlag(taskId: number, action: 'retry' | 'discard' | 'approve') {
     const t = this.tasks.get(taskId)
     if (!t) throw new Error('Task not found.')

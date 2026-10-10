@@ -192,6 +192,7 @@ export function registerMockResponders(mock: MockLlm): void {
     if (t.includes('?')) return { category: 'question', reply: 'Good question. It is in the steps near the start of the video.', confidence: 0.8 }
     return { category: 'unsure', reply: '', confidence: 0.2 }
   })
+  mock.respond('Director', () => ({ reply: 'Mock mode is on, so I only pretend to think. In real mode I will answer from the live studio state.', actions: [] }))
   mock.respond('Script QC', () => ({ pass: true, fixes: [] }))
   mock.respond('Hollow Safety Checker', () => ({ pass: true, issues: [] }))
   mock.respond('Math Checker', () => ({ claims: [], outdated: [] }))

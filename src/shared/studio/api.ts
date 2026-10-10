@@ -15,6 +15,7 @@ import type {
   StudioConfig,
 } from './types'
 
+import type { DirectorActionView } from '../../main/studio/directorChat'
 import type { BrandSocialView } from '../../main/studio/social/accounts'
 export type { BrandSocialView }
 
@@ -283,6 +284,8 @@ export interface StudioApi {
   auditLog(filter?: { brandId?: number | null; agent?: string; fromUtc?: string; toUtc?: string }): Promise<AuditEntry[]>
   flagged(): Promise<Array<{ task: AgentTask; episode: EpisodeRow | null }>>
   resolveFlag(taskId: number, action: 'retry' | 'discard' | 'approve'): Promise<void>
+  directorChat(message: string): Promise<{ reply: string; actions: DirectorActionView[] }>
+  directorApply(action: DirectorActionView): Promise<string>
   dryRunDay(): Promise<string[]>
   cheapTest(): Promise<TestResult & { dollars: number; mock: boolean }>
 

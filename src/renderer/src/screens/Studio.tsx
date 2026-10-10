@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { formatEastern } from '@shared/time'
+import { describeFlag } from '@shared/studio/flagText'
+import type { DirectorActionView } from '../../../main/studio/directorChat'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { BrandDot, Button, Card, Empty, PageHeader, Select, Textarea, useBusy } from '../ui'
@@ -116,6 +118,7 @@ function Overview() {
           <pre className="mt-3 max-h-64 overflow-auto rounded-md bg-bg p-3 text-[12px] leading-relaxed">{report.join('\n')}</pre>
         )}
       </Card>
+      <DirectorChat onChanged={reload} />
       <div className="grid gap-4 md:grid-cols-2">
         {ov.brands.map((b) => (
           <Card key={b.brandId} title={b.name} actions={<BrandDot color={b.color} />}>
@@ -181,6 +184,7 @@ function DirectorLog() {
 function Flagged() {
   const [, run] = useBusy()
   const { data, reload } = useLoad(() => api.studio.flagged())
+  const { data: brands } = useLoad(() => api.studio.brands())
   if (!data) return null
   if (!data.length) return <Empty>Nothing is flagged. Everything is going fine.</Empty>
   return (
@@ -188,23 +192,92 @@ function Flagged() {
       {data.length > 1 && (
         <Button onClick={() => run(async () => { for (const { task } of data) await api.studio.resolveFlag(task.id, 'retry'); reload() })}>Retry all ({data.length})</Button>
       )}
-      {data.map(({ task, episode }) => (
-        <Card key={task.id} title={`${task.type.replaceAll('_', ' ')} ${episode ? `: ${episode.title || episode.id}` : ''}`}>
-          <div className="text-[13px]">
-            <b>{task.status === 'stopped' ? 'Stopped' : 'Flagged'}.</b> {task.error}
-          </div>
-          {task.type === 'produce_episode' && episode ? (
-            <ClipActions episodeId={episode.id} onDone={reload} />
-          ) : (
-            <div className="mt-3 flex gap-2">
-              <Button onClick={() => run(async () => { await api.studio.resolveFlag(task.id, 'retry'); reload() })}>Retry</Button>
-              <Button onClick={() => run(async () => { await api.studio.resolveFlag(task.id, 'approve'); reload() })}>Approve as is</Button>
-              <Button variant="danger" onClick={() => run(async () => { await api.studio.resolveFlag(task.id, 'discard'); reload() })}>Discard</Button>
+      {data.map(({ task, episode }) => {
+        const brandId = task.brandId ?? episode?.brandId ?? null
+        const brand = brands?.find((b) => b.brandId === brandId)
+        const f = describeFlag(task, episode, brand?.name ?? null)
+        return (
+          <Card key={task.id} title={`${f.channel ? f.channel + ': ' : ''}${f.doing}`}>
+            <div className="space-y-1 text-[13px]">
+              {f.episode && <div className="text-muted">{f.episode}</div>}
+              <div>
+                <b>{task.status === 'stopped' ? 'Stopped.' : 'Needs a look.'}</b> {f.why}
+              </div>
+              <div className="text-muted">{f.next}</div>
             </div>
-          )}
-        </Card>
-      ))}
+            {task.type === 'produce_episode' && episode ? (
+              <ClipActions episodeId={episode.id} onDone={reload} />
+            ) : (
+              <div className="mt-3 flex gap-2">
+                <Button onClick={() => run(async () => { await api.studio.resolveFlag(task.id, 'retry'); reload() })}>Retry</Button>
+                <Button onClick={() => run(async () => { await api.studio.resolveFlag(task.id, 'approve'); reload() })}>Approve as is</Button>
+                <Button variant="danger" onClick={() => run(async () => { await api.studio.resolveFlag(task.id, 'discard'); reload() })}>Discard</Button>
+              </div>
+            )}
+          </Card>
+        )
+      })}
     </div>
+  )
+}
+
+/** A small chat with the Director. It proposes actions and the owner presses a button to run one. */
+function DirectorChat({ onChanged }: { onChanged: () => void }) {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
+  const [text, setText] = useState('')
+  const [log, setLog] = useState<Array<{ who: 'you' | 'director'; text: string; actions?: DirectorActionView[] }>>([])
+  const send = () => {
+    const message = text.trim()
+    if (!message || busy) return
+    setText('')
+    setLog((l) => [...l, { who: 'you', text: message }])
+    void run(async () => {
+      const r = await api.studio.directorChat(message)
+      setLog((l) => [...l, { who: 'director', text: r.reply, actions: r.actions }])
+    })
+  }
+  return (
+    <Card title="Talk to the Director">
+      <div className="max-h-72 space-y-2 overflow-y-auto text-[13px]">
+        {!log.length && <div className="text-muted">Ask what is going on, or say what you want, like "pause Trash Panda" or "add an idea about spam texts to Clock Out Early". I will suggest buttons. Nothing runs until you press one.</div>}
+        {log.map((m, i) => (
+          <div key={i} className={m.who === 'you' ? 'text-right' : ''}>
+            <div className={m.who === 'you' ? 'inline-block rounded-md bg-surface-2 px-3 py-2' : 'inline-block px-1 py-1'}>{m.text}</div>
+            {m.actions?.length ? (
+              <div className="mt-1 flex flex-wrap gap-2">
+                {m.actions.map((a, j) => (
+                  <Button
+                    key={j}
+                    onClick={() =>
+                      run(async () => {
+                        const done = await api.studio.directorApply(a)
+                        toast({ kind: 'info', headline: done })
+                        setLog((l) => [...l, { who: 'director', text: done }])
+                        onChanged()
+                      })
+                    }
+                  >
+                    {a.label}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ))}
+        {busy && <div className="text-muted">Thinking...</div>}
+      </div>
+      <div className="mt-3 flex gap-2">
+        <input
+          className="min-w-0 flex-1 rounded-md border border-line bg-bg px-3 py-2 text-[13px]"
+          value={text}
+          placeholder="Tell the Director something..."
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') send() }}
+        />
+        <Button disabled={busy || !text.trim()} onClick={send}>Send</Button>
+      </div>
+    </Card>
   )
 }
 
