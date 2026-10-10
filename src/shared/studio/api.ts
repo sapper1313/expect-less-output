@@ -16,6 +16,7 @@ import type {
 } from './types'
 
 import type { ModelOption } from './modelCatalog'
+import type { CompetitorView, TitleLabResult, TrendVideo } from './research'
 import type { DirectorActionView } from '../../main/studio/directorChat'
 import type { BrandSocialView } from '../../main/studio/social/accounts'
 export type { BrandSocialView }
@@ -248,6 +249,14 @@ export interface StudioApi {
   removeHoliday(id: number): Promise<void>
   agents(): Promise<AgentInfo[]>
   setAgentModel(name: string, model: string): Promise<AgentInfo[]>
+  titleLab(brandId: number, topic: string, includeTop: boolean): Promise<TitleLabResult>
+  competitors(brandId: number): Promise<CompetitorView[]>
+  addCompetitor(brandId: number, input: string): Promise<CompetitorView[]>
+  removeCompetitor(brandId: number, id: number): Promise<CompetitorView[]>
+  refreshCompetitors(brandId: number): Promise<CompetitorView[]>
+  trends(brandId: number): Promise<{ videos: TrendVideo[]; fetchedUtc: string | null }>
+  refreshTrends(brandId: number): Promise<{ videos: TrendVideo[]; fetchedUtc: string | null }>
+  ideasFromResearch(brandId: number): Promise<string[]>
   assistantAsk(system: string, user: string): Promise<string>
   modelOptions(): Promise<{ options: ModelOption[]; localOnline: boolean; localError: string | null }>
   setModelPrice(model: string, inPerM: number, outPerM: number): Promise<void>

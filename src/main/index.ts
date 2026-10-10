@@ -407,6 +407,12 @@ async function boot(): Promise<void> {
     appVersion: app.getVersion(),
     mediaRoot: () => settings.get().mediaRoot,
     openPath: async (p) => void (await shell.openPath(p)),
+    youtube: ytClient,
+    youtubeAccountFor: (brandId) => {
+      const q = (where: string, ...a: unknown[]) => (db.prepare(`SELECT id FROM accounts WHERE platform = 'youtube' AND mode != 'dry_run' AND status = 'connected' ${where} ORDER BY id LIMIT 1`).get(...a) as { id: number } | undefined)?.id ?? null
+      return q('AND brand_id = ?', brandId) ?? q('')
+    },
+    youtubeCategoryFor: (brandId) => brands.getDefaults(brandId).youtubeCategoryId,
     refreshStats: () => stats.refresh({ force: true }),
     broadcast: async (text) => {
       await alerts.broadcast(text)

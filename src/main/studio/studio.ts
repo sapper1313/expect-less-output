@@ -63,6 +63,7 @@ import type { ImageClient } from './xai'
 import { makeProducerAgent } from './agents/producer'
 import { expandHome } from './configService'
 import { OllamaTextClient, RoutingClient } from './agents/ollamaClient'
+import { Research, type ResearchYoutube } from './research'
 import { buildModelOptions } from '@shared/studio/modelCatalog'
 import { DirectorReply, directorSystem, type DirectorActionView } from './directorChat'
 
@@ -87,6 +88,10 @@ export interface StudioDeps {
   postersDir?: string
   appVersion?: string
   mediaRoot?: () => string
+  /** YouTube calls for the research tools. */
+  youtube?: ResearchYoutube
+  youtubeAccountFor?: (brandId: number) => number | null
+  youtubeCategoryFor?: (brandId: number) => string
   /** Opens a folder in Finder. */
   openPath?: (path: string) => Promise<void>
   /** The existing stats pass for the four platforms the scheduler posts to. */
@@ -127,6 +132,7 @@ export class Studio implements StudioApi {
   readonly anthropic: AnthropicClient
   readonly gateway: LlmGateway
   private readonly routedLlm: RoutingClient
+  readonly research: Research
   readonly runner: AgentRunner
   readonly director: Director
   readonly episodes: EpisodeLibrary
@@ -182,6 +188,19 @@ export class Studio implements StudioApi {
       config: this.cfg,
       spend: this.spend,
       client: () => (this.cfg.get().mockMode ? this.mockLlm : this.routedLlm),
+      now,
+    })
+    this.research = new Research({
+      db: d.db,
+      gateway: this.gateway,
+      youtube: () => d.youtube ?? null,
+      accountFor: (id) => d.youtubeAccountFor?.(id) ?? null,
+      categoryFor: (id) => d.youtubeCategoryFor?.(id) ?? '',
+      mock: () => this.cfg.get().mockMode,
+      brandName,
+      bibleText: (id) => this.bibles.markdown(id),
+      addIdeas: (id, texts) => this.bibles.addIdeas(id, texts),
+      fetchImpl: d.fetchImpl,
       now,
     })
     this.episodes = new EpisodeLibrary(d.db, this.cfg, brandName, now)
@@ -685,6 +704,33 @@ export class Studio implements StudioApi {
     return this.agents()
   }
   /** One chat answer for the phone assistant, from the owner's local text model when there is one. */
+  async titleLab(brandId: number, topic: string, includeTop: boolean) {
+    return this.research.titleLab(brandId, topic, includeTop)
+  }
+  async competitors(brandId: number) {
+    return this.research.competitors(brandId)
+  }
+  async addCompetitor(brandId: number, input: string) {
+    return this.research.addCompetitor(brandId, input)
+  }
+  async removeCompetitor(brandId: number, id: number) {
+    this.research.removeCompetitor(id)
+    return this.research.competitors(brandId)
+  }
+  async refreshCompetitors(brandId: number) {
+    return this.research.refreshCompetitors(brandId)
+  }
+  async trends(brandId: number) {
+    return this.research.trends(brandId)
+  }
+  async refreshTrends(brandId: number) {
+    return this.research.refreshTrends(brandId)
+  }
+  async ideasFromResearch(brandId: number) {
+    const ideas = await this.research.ideasFromResearch(brandId)
+    this.d.emit()
+    return ideas
+  }
   async assistantAsk(system: string, user: string): Promise<string> {
     const c = this.cfg.get()
     const model = !c.agentModels['Assistant'] && c.local.textModel ? `ollama:${c.local.textModel}` : undefined

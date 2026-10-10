@@ -9,9 +9,10 @@ import { StudioBible } from './StudioBible'
 import { StudioPublishing } from './StudioPublishing'
 import { StudioComments, StudioInsights } from './StudioOperations'
 import { StudioLibrary } from './StudioLibrary'
+import { StudioResearch } from './StudioResearch'
 import { StudioSpend } from './StudioSpend'
 
-export type Tab = 'overview' | 'bible' | 'library' | 'publishing' | 'comments' | 'insights' | 'spend' | 'log' | 'flagged'
+export type Tab = 'overview' | 'bible' | 'library' | 'publishing' | 'comments' | 'insights' | 'research' | 'spend' | 'log' | 'flagged'
 const TABS: Array<[Tab, string]> = [
   ['overview', 'Overview'],
   ['bible', 'Bible'],
@@ -19,6 +20,7 @@ const TABS: Array<[Tab, string]> = [
   ['publishing', 'Publishing'],
   ['comments', 'Comments'],
   ['insights', 'Insights'],
+  ['research', 'Research'],
   ['spend', 'Spend'],
   ['log', "Director's Log"],
   ['flagged', 'Flagged'],
@@ -57,6 +59,7 @@ export function Studio({ initialTab = 'overview' }: { initialTab?: Tab }) {
         {tab === 'publishing' && <StudioPublishing />}
         {tab === 'comments' && <StudioComments />}
         {tab === 'insights' && <StudioInsights />}
+        {tab === 'research' && <StudioResearch />}
         {tab === 'spend' && <StudioSpend />}
         {tab === 'log' && <DirectorLog />}
         {tab === 'flagged' && <Flagged />}

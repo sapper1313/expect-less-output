@@ -27,6 +27,7 @@ export const PAGES: Array<{ title: string; words: string; target: SearchTarget }
   { title: 'Studio: Spend', words: 'spend money cost budget cap', target: { screen: 'studio', studioTab: 'spend' } },
   { title: 'Studio: Comments', words: 'comments replies', target: { screen: 'studio', studioTab: 'comments' } },
   { title: 'Studio: Insights', words: 'insights analytics retention watch time', target: { screen: 'studio', studioTab: 'insights' } },
+  { title: 'Studio: Research (Title Lab, competitors, trends)', words: 'research title lab keywords tags competitors trends ideas', target: { screen: 'studio', studioTab: 'research' } },
   { title: 'Studio: Publishing', words: 'publishing thumbnails platforms titles', target: { screen: 'studio', studioTab: 'publishing' } },
   { title: "Studio: Director's Log", words: 'log director history agents', target: { screen: 'studio', studioTab: 'log' } },
   { title: 'Channel setup', words: 'channel brand setup colors slots hashtags defaults', target: { screen: 'channels', channelsTab: 'setup' } },

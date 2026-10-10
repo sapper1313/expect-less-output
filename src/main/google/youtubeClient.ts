@@ -184,6 +184,13 @@ export class YoutubeClient implements YoutubeClientLike {
     return { id: ch.id, title: ch.snippet?.title ?? '', subscribers: subs, videos }
   }
 
+  /** The most popular videos right now in a category. Costs 1 quota unit. */
+  async trending(accountId: number, categoryId: string, max = 12): Promise<Array<{ id: string; title: string; channel: string; views: number | null }>> {
+    const res = await this.call(accountId, (yt) => yt.videos.list({ part: ['snippet', 'statistics'], chart: 'mostPopular', videoCategoryId: categoryId || undefined, regionCode: 'US', maxResults: max }))
+    this.quota.record('videosList')
+    return (res.data.items ?? []).map((v) => ({ id: v.id ?? '', title: v.snippet?.title ?? '', channel: v.snippet?.channelTitle ?? '', views: v.statistics?.viewCount ? Number(v.statistics.viewCount) : null }))
+  }
+
   /** thumbnails.set costs 50 quota units. The channel must be verified; otherwise YouTube answers 403. */
   async setThumbnail(accountId: number, videoId: string, filePath: string): Promise<void> {
     const mime = filePath.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg'

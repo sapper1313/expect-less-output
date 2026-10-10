@@ -194,6 +194,11 @@ export function registerMockResponders(mock: MockLlm): void {
   })
   mock.respond('Director', () => ({ reply: 'Mock mode is on, so I only pretend to think. In real mode I will answer from the live studio state.', actions: [] }))
   mock.respond('Assistant', () => 'Mock mode is on, so this is a pretend answer. Turn mock mode off to get real answers.')
+  mock.respond('Title Lab', (req) =>
+    req.user.startsWith('Topic:')
+      ? { titles: [{ title: 'The one trick that saves an hour', why: 'A clear promise in few words.' }, { title: 'Stop doing this every morning', why: 'A mild warning makes people curious.' }], tags: ['tips', 'shortcuts', 'productivity'] }
+      : { ideas: ['A mock idea learned from rivals', 'Another mock angle from the trends'] },
+  )
   mock.respond('Script QC', () => ({ pass: true, fixes: [] }))
   mock.respond('Hollow Safety Checker', () => ({ pass: true, issues: [] }))
   mock.respond('Math Checker', () => ({ claims: [], outdated: [] }))
