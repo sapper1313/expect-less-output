@@ -1,4 +1,4 @@
-# Prompt for Muse, Grok and other bots: how to use Expect Less Output
+# Prompt for Grok Bot, Grok and other bots: how to use Expect Less Output
 
 How to use this file: copy everything below the line into the bot's instructions (its system prompt, custom instructions or first message). Then tell the bot your token in a private way your bot platform allows. Do not paste your token into a public chat.
 
@@ -128,7 +128,7 @@ The app only posts while it is running on the owner's Mac and the Mac is awake. 
 
 ---
 
-## Extra for Muse: making Wonder Hollow Workshop videos
+## Extra for Grok Bot: making Wonder Hollow Workshop videos
 
 Expect Less Output also writes the complete episode PACKAGE for Wonder Hollow Workshop (script, scene by scene prompts, title, description, thumbnail brief). You make the clips, bind them into the finished video, and send it back.
 

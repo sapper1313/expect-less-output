@@ -47,7 +47,7 @@ export interface EpisodeFilter {
   limit?: number
 }
 
-/** Statuses from which a video is allowed to start. Used by the Muse readable "ready" folder. */
+/** Statuses from which a video is allowed to start. Used by the Grok Bot readable "ready" folder. */
 export const READY_STATUSES: EpisodeStatus[] = ['Ready for production', 'In production', 'Awaiting video']
 
 export class EpisodeLibrary {
@@ -164,7 +164,7 @@ export class EpisodeLibrary {
     return this.get(id)
   }
 
-  /** Changes the status, records it in the package history, and keeps the Muse ready folder in step. */
+  /** Changes the status, records it in the package history, and keeps the Grok Bot ready folder in step. */
   setStatus(
     id: string,
     status: EpisodeStatus,
@@ -270,7 +270,7 @@ export class EpisodeLibrary {
     return JSON.stringify(pkg, null, 2)
   }
 
-  /** Keeps a plain .json copy of READY package episodes where Muse can read it. Removed when the episode moves on. */
+  /** Keeps a plain .json copy of READY package episodes where Grok Bot can read it. Removed when the episode moves on. */
   private syncReadyCopy(id: string): void {
     const row = this.find(id)
     if (!row) return

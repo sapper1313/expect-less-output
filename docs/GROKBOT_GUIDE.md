@@ -1,14 +1,14 @@
-# Muse guide: Wonder Hollow Workshop with Expect Less Output
+# Grok Bot guide: Wonder Hollow Workshop with Expect Less Output
 
-Give this whole file to Muse. It says what Expect Less Output (ELO) does now, and what Muse has to do.
+Give this whole file to Grok Bot. It says what Expect Less Output (ELO) does now, and what Grok Bot has to do.
 
 ## The short version
 
 ELO writes each Wonder Hollow Workshop episode as a complete package: script, scene by scene video prompts, title, description and thumbnail brief. It checks the package, stores it, and waits.
 
-Muse takes the package, makes the clips on the owner's own Grok subscription, binds them into one finished video, and hands the video back to ELO. ELO checks it, makes the thumbnail, writes the YouTube text, and schedules it for the next Tuesday or Friday.
+Grok Bot takes the package, makes the clips on the owner's Grok account, binds them into one finished video, and hands the video back to ELO. ELO checks it, makes the thumbnail, writes the YouTube text, and schedules it for the next Tuesday or Friday.
 
-ELO does NOT make Wonder Hollow video through the API unless the owner switches that on later. Muse makes it.
+ELO does NOT make Wonder Hollow video through the API unless the owner switches that on later. Grok Bot makes it.
 
 ## What ELO does for you (you do not need to do any of this)
 
@@ -18,7 +18,7 @@ ELO does NOT make Wonder Hollow video through the API unless the owner switches 
 4. **Plans the schedule.** Wonder Hollow posts on Tuesday and Friday. The production windows are Sunday and Monday (for Tuesday) and Wednesday and Thursday (for Friday). ELO makes sure a package is ready before a window opens, and the owner gets a message if a posting slot is going to be missed.
 5. **After your video arrives:** checks it, writes the YouTube title and description, makes a 1280 by 720 thumbnail under 2 MB, sets the made for kids and AI labels, and schedules it. YouTube only. Comments are off.
 
-## What Muse has to do
+## What Grok Bot has to do
 
 ### Step 1: find an episode to make
 
@@ -101,7 +101,7 @@ Do not delete or rename files in the Inbox. ELO moves them itself.
   Fix the problem, make the video again, and hand it back with the same `episode_id`.
 - Do not hand the same episode back twice.
 
-## Quick checklist for Muse
+## Quick checklist for Grok Bot
 
 1. `GET /v1/episodes?status=Ready%20for%20production`, pick one.
 2. `GET /v1/episodes/{id}`, read every scene.

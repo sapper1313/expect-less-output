@@ -19,7 +19,7 @@ export interface QcInput {
   aspect: '9:16' | '16:9'
   scriptedLines: string[]
   scene: string
-  /** Full runs every step. Light runs only the ffmpeg checks (used for videos that arrive from Muse). */
+  /** Full runs every step. Light runs only the ffmpeg checks (used for videos that arrive from Grok Bot). */
   mode: 'full' | 'light'
 }
 

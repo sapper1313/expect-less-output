@@ -46,7 +46,7 @@ const FOUR: Platform[] = ['youtube', 'facebook', 'instagram', 'tiktok']
 
 export interface PublishRun {
   episodeId: string
-  /** The finished video from the Producer. Omit when a post already exists (Hollow from Muse). */
+  /** The finished video from the Producer. Omit when a post already exists (Hollow from Grok Bot). */
   videoPath?: string
   srt?: string
   postId?: number

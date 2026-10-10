@@ -359,7 +359,7 @@ export const BrandStatsOut = z.object({
   totals: StatNumbersOut,
 })
 
-// ---------- studio library (read only, for Muse and other agents) ----------
+// ---------- studio library (read only, for Grok Bot and other agents) ----------
 
 export const EpisodeStatusEnum = z.enum([
   'Idea',

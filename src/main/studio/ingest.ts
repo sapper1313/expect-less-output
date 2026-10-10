@@ -26,7 +26,7 @@ export interface IngestDeps {
   episodes: EpisodeLibrary
   posts: PostService
   now?: () => number
-  /** Light QC (black or frozen picture, sound) for videos that arrive from Muse. */
+  /** Light QC (black or frozen picture, sound) for videos that arrive from Grok Bot. */
   qc?: VideoQc
   /** The shared opening and outro, used when a brand asks for them on ingest. */
   assets?: BrandAssets
