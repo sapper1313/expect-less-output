@@ -200,10 +200,27 @@ describe('structured model answers', () => {
     await e.studio.setConfig({ mockMode: false })
     const out = await e.studio.gateway.json({ agent: 'Test', system: 's', user: 'u' }, z.object({ line: z.string(), n: z.number().default(1) }))
     expect(out).toEqual({ line: 'He said "hi", then left', n: 1 })
-    expect(bodies[0].tool_choice).toEqual({ type: 'tool', name: 'submit_answer' })
+    expect(bodies[0].tool_choice).toEqual({ type: 'auto' })
+    expect(bodies[0].system).toContain('submit_answer')
     expect(bodies[0].tools[0].input_schema).toMatchObject({ type: 'object', properties: { line: { type: 'string' } } })
     expect(bodies[0].tools[0].input_schema.$schema).toBeUndefined()
     cut = true
     await expect(e.studio.gateway.json({ agent: 'Test', system: 's', user: 'u' }, z.object({ line: z.string() }))).rejects.toThrow(/cut off/)
+  })
+
+  it('falls back to plain JSON text when a model refuses tools', async () => {
+    const { z } = await import('zod')
+    let n = 0
+    const f = (async (_u: string, init?: RequestInit) => {
+      n++
+      const b = JSON.parse(init!.body as string)
+      if (b.tools) return json({ type: 'error', error: { type: 'invalid_request_error', message: 'tools are not supported for this model.' } }, 400)
+      return json({ content: [{ type: 'text', text: '{"line":"ok"}' }], stop_reason: 'end_turn', usage: { input_tokens: 5, output_tokens: 5 } })
+    }) as unknown as typeof fetch
+    const e = makeStudioEnv({ fetchImpl: f })
+    await e.studio.setKey('anthropic', 'sk-ant-key-00000')
+    await e.studio.setConfig({ mockMode: false })
+    expect(await e.studio.gateway.json({ agent: 'Test', system: 's', user: 'u' }, z.object({ line: z.string() }))).toEqual({ line: 'ok' })
+    expect(n).toBe(2)
   })
 })

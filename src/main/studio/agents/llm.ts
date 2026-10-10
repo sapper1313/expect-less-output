@@ -60,23 +60,28 @@ export class AnthropicClient implements LlmClient {
     for (const img of req.images ?? [])
       content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: img } })
     content.push({ type: 'text', text: req.user })
-    const res = await this.fetchImpl(`${this.base}/v1/messages`, {
-      method: 'POST',
-      headers: this.headers(),
-      body: JSON.stringify({
-        model: req.model,
-        max_tokens: req.maxTokens,
-        system: req.system,
-        messages: [{ role: 'user', content }],
-        ...(req.jsonSchema
-          ? {
-              tools: [{ name: 'submit_answer', description: 'Submit the answer in exactly this shape.', input_schema: req.jsonSchema }],
-              tool_choice: { type: 'tool', name: 'submit_answer' },
-            }
-          : {}),
-      }),
-      signal: AbortSignal.timeout(180_000),
-    })
+    const send = (withTool: boolean) =>
+      this.fetchImpl(`${this.base}/v1/messages`, {
+        method: 'POST',
+        headers: this.headers(),
+        body: JSON.stringify({
+          model: req.model,
+          max_tokens: req.maxTokens,
+          system: withTool ? `${req.system}\n\nGive your answer by calling the submit_answer tool.` : req.system,
+          messages: [{ role: 'user', content }],
+          // Some models only accept "auto", not a forced tool, so the tool is offered and asked for.
+          ...(withTool && req.jsonSchema
+            ? { tools: [{ name: 'submit_answer', description: 'Submit the answer in exactly this shape.', input_schema: req.jsonSchema }], tool_choice: { type: 'auto' } }
+            : {}),
+        }),
+        signal: AbortSignal.timeout(180_000),
+      })
+    let res = await send(!!req.jsonSchema)
+    if (res.status === 400 && req.jsonSchema) {
+      // A model that refuses tools altogether answers in plain JSON text instead.
+      const t = await res.clone().text()
+      if (/tool/i.test(t)) res = await send(false)
+    }
     if (res.status === 429 || res.status >= 500) {
       const ra = Number(res.headers.get('retry-after'))
       throw new RetryableError(await explainHttp('Anthropic', res), ra > 0 ? ra : undefined)

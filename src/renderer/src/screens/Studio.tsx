@@ -185,6 +185,9 @@ function Flagged() {
   if (!data.length) return <Empty>Nothing is flagged. Everything is going fine.</Empty>
   return (
     <div className="space-y-3">
+      {data.length > 1 && (
+        <Button onClick={() => run(async () => { for (const { task } of data) await api.studio.resolveFlag(task.id, 'retry'); reload() })}>Retry all ({data.length})</Button>
+      )}
       {data.map(({ task, episode }) => (
         <Card key={task.id} title={`${task.type.replaceAll('_', ' ')} ${episode ? `: ${episode.title || episode.id}` : ''}`}>
           <div className="text-[13px]">
