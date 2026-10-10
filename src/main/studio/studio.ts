@@ -800,8 +800,18 @@ export class Studio implements StudioApi {
     this.d.emit()
   }
   async setThreadsToken(brandId: number, token: string) {
-    if (!token.trim()) throw new Error('Paste the token first.')
-    this.socialAccounts.setThreadsToken(brandId, token)
+    const t = token.trim().replace(/^["']|["']$/g, '')
+    if (!t) throw new Error('Paste the token first.')
+    this.socialAccounts.setThreadsToken(brandId, t)
+    if (!this.cfg.get().mockMode) {
+      // Check it right now, so a wrong paste (the code, the app secret) is refused instead of saved.
+      const r = await this.socialAccounts.testThreads(brandId)
+      if (!r.ok) {
+        this.socialAccounts.disconnectThreads(brandId)
+        this.d.emit()
+        throw new Error('Threads did not accept that token, so it was not saved. Use Connect Threads instead, or paste a long lived token made in Meta for Developers (Threads use case, User Token Generator). It is not the app secret and not the sign in code.')
+      }
+    }
     this.d.emit()
   }
   async testThreads(brandId: number): Promise<TestResult> {
