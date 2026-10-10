@@ -46,3 +46,15 @@ Read `docs/01_PROJECT_SPEC.md`. Fetch the current Model Context Protocol TypeScr
 - [ ] MCP server works from Claude Code (list brands, create a draft).
 - [ ] USER_GUIDE.md updated with API, watched folder, MCP, and local LLM setup steps.
 - [ ] Committed to git.
+
+
+
+## Muse AI Concerns?
+Muse will be one of the agents of multiple running automated tasks, so I asked it if these instructions for the build would work, here are it's notes...
+
+- Yeah, this will work. The architecture is the proven pattern — localhost API with bearer auth, MCP server as a thin stdio wrapper over it, everything through the same service layer the UI uses. Nothing exotic, no reason it shouldn't hold together.
+Three nits worth fixing before someone builds it:
+Draft-only gate needs explicit rejection. The spec says the setting is "enforced" but doesn't say how. If drafts-only is on and an agent sends status: scheduled or next_slot: true, that should come back 403 with a clear error — not silently downgrade to draft. Silent downgrades cause "why didn't my post go out" mysteries.
+OpenAPI must be generated from shared schemas, not hand-written. "Generated at docs/openapi.json" — generated from what? If the agent hand-writes it, it drifts from the real routes within a month. Define request/response shapes once (Zod schemas are the natural pick in TS) and generate both validation and the spec from them.
+One-line caveat for the guide: scheduled posts only fire while the Electron app is running. Obvious to you, not to whoever reads USER_GUIDE.md later.
+The safety boundaries are right — agents never touching credentials or deletes is the correct hard line. And defaulting agents to drafts-only is the right default.

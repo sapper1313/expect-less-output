@@ -775,10 +775,16 @@ export class Studio implements StudioApi {
     return this.socialAccounts.status()
   }
   async connectThreads(brandId: number) {
-    const r = await this.socialAccounts.connectThreads(brandId)
-    this.audit.write({ agent: 'Settings', action: 'threads_connected', brandId })
-    this.d.emit()
-    return r
+    try {
+      const r = await this.socialAccounts.connectThreads(brandId)
+      this.audit.write({ agent: 'Settings', action: 'threads_connected', brandId })
+      this.d.emit()
+      return r
+    } catch (e) {
+      // Kept in the Activity Log so the exact words can be read later. No token or secret is in these messages.
+      this.d.log.log('error', `Threads sign in failed: ${(e as Error).message}`)
+      throw e
+    }
   }
   async submitThreadsCode(code: string) {
     this.socialAccounts.submitCode(code)
