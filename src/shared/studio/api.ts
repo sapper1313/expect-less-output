@@ -20,7 +20,7 @@ import type { DirectorActionView } from '../../main/studio/directorChat'
 import type { BrandSocialView } from '../../main/studio/social/accounts'
 export type { BrandSocialView }
 
-export type KeyId = 'xai' | 'anthropic' | 'r2id' | 'r2secret'
+export type KeyId = 'xai' | 'anthropic' | 'r2id' | 'r2secret' | 'telegram'
 
 export interface KeyStatus {
   id: KeyId
@@ -248,6 +248,7 @@ export interface StudioApi {
   removeHoliday(id: number): Promise<void>
   agents(): Promise<AgentInfo[]>
   setAgentModel(name: string, model: string): Promise<AgentInfo[]>
+  assistantAsk(system: string, user: string): Promise<string>
   modelOptions(): Promise<{ options: ModelOption[]; localOnline: boolean; localError: string | null }>
   setModelPrice(model: string, inPerM: number, outPerM: number): Promise<void>
   writeNow(brandId: number, slotDate?: string): Promise<{ taskId: number }>

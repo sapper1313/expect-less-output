@@ -23,6 +23,8 @@ import { applyPendingRestore, finishRestore } from './services/backup'
 import { seedIfEmpty } from './db/seed'
 import { buildApi, type Host } from './api'
 import { PlatformEditor } from './studio/platformEdit'
+import { EMPTY_STATE as EMPTY_TG_STATE, TelegramAssistant } from './studio/telegram'
+import { homeSnapshotText, latestLines } from './homeSnapshot'
 import { ActivityLog } from './services/activity'
 import { BrandService } from './services/brands'
 import { Library } from './services/library'
@@ -388,6 +390,8 @@ async function boot(): Promise<void> {
     emit,
   })
 
+  let telegramRef: TelegramAssistant | null = null
+  let apiRef: ReturnType<typeof buildApi> | null = null
   const studio = new Studio({
     db,
     secrets,
@@ -404,7 +408,10 @@ async function boot(): Promise<void> {
     mediaRoot: () => settings.get().mediaRoot,
     openPath: async (p) => void (await shell.openPath(p)),
     refreshStats: () => stats.refresh({ force: true }),
-    broadcast: (text) => alerts.broadcast(text),
+    broadcast: async (text) => {
+      await alerts.broadcast(text)
+      await telegramRef?.notify(text).catch(() => undefined)
+    },
     watchdogDir: () => (app.isPackaged ? join(process.resourcesPath, 'watchdog') : join(app.getAppPath(), 'scripts', 'watchdog')),
     expiring: () => {
       const lines: string[] = []
@@ -566,7 +573,31 @@ async function boot(): Promise<void> {
     log: (m) => log.log('info', m),
   })
 
+  const TG_KEY = 'studio.telegram'
+  const telegram = new TelegramAssistant({
+    token: () => (secrets.has('telegram.botToken') ? secrets.get('telegram.botToken') : null),
+    load: () => {
+      const r = db.prepare('SELECT value_json FROM settings WHERE key = ?').get(TG_KEY) as { value_json: string } | undefined
+      try {
+        return r ? { ...EMPTY_TG_STATE, ...(JSON.parse(r.value_json) as object) } : { ...EMPTY_TG_STATE }
+      } catch {
+        return { ...EMPTY_TG_STATE }
+      }
+    },
+    save: (st) => void db.prepare('INSERT INTO settings (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json').run(TG_KEY, JSON.stringify(st)),
+    snapshot: async () => {
+      const sum = await apiRef!.home.summary()
+      const text = homeSnapshotText(sum)
+      return { text, status: text.split('\n').slice(0, 14).join('\n'), latest: latestLines(sum) }
+    },
+    ask: (system, user) => studio.assistantAsk(system, user),
+    setPaused: (p) => studio.pauseAll(p),
+    log: (m) => log.log('info', m),
+  })
+  telegramRef = telegram
+
   const api = buildApi({
+    telegram,
     editor,
     settings,
     brands,
@@ -592,6 +623,9 @@ async function boot(): Promise<void> {
     host,
     emit,
   })
+
+  apiRef = api
+  telegram.start()
 
   // Once, the first time the app starts with an Ollama machine set up: turn the Suggest buttons on with it.
   const textAssistMark = join(dataDir, 'text-assist-autosetup.done')

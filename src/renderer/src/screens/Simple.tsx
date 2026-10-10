@@ -10,6 +10,7 @@ import logoStacked from '../assets/logo-stacked.jpg'
 import { AlertsCard, BackupCard } from './AlertsBackup'
 import { AgentsCard, TextAssistCard } from './Agents'
 import { StudioSettings } from './StudioSettings'
+import { TelegramCard } from './TelegramCard'
 import { StudioLocalAi } from './StudioLocalAi'
 import { AgentModelsCard, ModelGuideCard } from './StudioModels'
 
@@ -269,6 +270,7 @@ export function SettingsScreen({ initialTab = 'general' }: { initialTab?: Settin
         {tab === 'alerts' && (
           <>
             <AlertsCard s={s} save={save} />
+            <TelegramCard />
             <BackupCard />
           </>
         )}

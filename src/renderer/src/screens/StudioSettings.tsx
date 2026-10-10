@@ -84,7 +84,7 @@ function KeysCard() {
     <Card title="Keys and connections">
       <p className="mb-3 text-[12px] text-muted">Keys are stored in the macOS Keychain. They are never shown again after you save them. Bluesky accounts are per brand, in the next card.</p>
       <div className="space-y-4">
-        {keys?.map((k) => (
+        {keys?.filter((k) => k.id !== 'telegram').map((k) => (
           <div key={k.id} className="rounded-md border border-line p-3">
             <div className="flex items-center justify-between">
               <b className="text-[13px]">{k.label}</b>

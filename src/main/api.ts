@@ -18,6 +18,7 @@ import type { ImportService } from './stats/imported'
 import { buildHomeSummary } from './homeSummary'
 import { searchAll } from './search'
 import type { PlatformEditor } from './studio/platformEdit'
+import type { TelegramAssistant } from './studio/telegram'
 import { OpenAICompatibleProvider, checkLlmUrl } from './services/textAssist'
 import type { RestorePreview } from '@shared/types'
 import { healthRows } from './services/health'
@@ -61,6 +62,7 @@ export interface ApiDeps {
   agent: AgentRuntime
   studio: Studio
   editor: PlatformEditor
+  telegram: TelegramAssistant
   stats: StatsService
   imported: ImportService
   db: Db
@@ -303,6 +305,13 @@ export function buildApi(d: ApiDeps): Api {
     },
     studio: d.studio,
     search: { query: async (q) => searchAll(d.db, q) },
+    telegram: {
+      status: async () => d.telegram.status(),
+      newCode: async () => d.telegram.newCode(),
+      unpair: async () => d.telegram.unpairAll(),
+      setEnabled: async (on) => d.telegram.setEnabled(on),
+      test: async () => d.telegram.test(),
+    },
     platform: { edit: async (postId, platform, patch) => d.editor.edit(postId, platform, patch) },
     home: {
       summary: async () =>

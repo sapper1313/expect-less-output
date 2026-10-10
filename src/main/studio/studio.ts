@@ -110,6 +110,7 @@ const KEY_NAMES: Record<KeyId, { secret: string; label: string }> = {
   anthropic: { secret: 'anthropic.apiKey', label: 'Anthropic API key' },
   r2id: { secret: R2_KEY_ID, label: 'Cloudflare R2 access key id' },
   r2secret: { secret: R2_SECRET, label: 'Cloudflare R2 secret access key' },
+  telegram: { secret: 'telegram.botToken', label: 'Telegram bot token (phone chat)' },
 }
 const TESTS_KEY = 'studio.keyTests'
 const ACCOUNTS_KEY = 'studio.keyAccounts'
@@ -668,6 +669,7 @@ export class Studio implements StudioApi {
       ['Publisher', 'Writes the text for every platform and schedules everywhere.', true],
       [this.comments.name, this.comments.role, true],
       [this.analytics.name, this.analytics.role, true],
+      ['Assistant', 'Answers your questions from your phone (Telegram). Uses your local text model when one is set.', false],
       ['Archivist', 'Removes old videos and keeps packages and stats forever.', false],
     ]
     return defs.map(([name, role, toggleable]) => ({ name, role, model: c.agentModels[name] || c.defaultAgentModel, isDefault: !c.agentModels[name], enabled: !c.disabledAgents.includes(name), toggleable }))
@@ -682,6 +684,14 @@ export class Studio implements StudioApi {
     this.d.emit()
     return this.agents()
   }
+  /** One chat answer for the phone assistant, from the owner's local text model when there is one. */
+  async assistantAsk(system: string, user: string): Promise<string> {
+    const c = this.cfg.get()
+    const model = !c.agentModels['Assistant'] && c.local.textModel ? `ollama:${c.local.textModel}` : undefined
+    const r = await this.gateway.call({ agent: 'Assistant', system, user, maxTokens: 800, model })
+    return r.text
+  }
+
   async modelOptions() {
     const c = this.cfg.get()
     let names: string[] = []
@@ -1017,6 +1027,7 @@ export class Studio implements StudioApi {
     try {
       if (id === 'xai') result = { ok: true, message: await this.xai.test() }
       else if (id === 'anthropic') result = { ok: true, message: await this.anthropic.test() }
+      else if (id === 'telegram') result = { ok: true, message: 'Saved. Press Test the bot in Settings, Alerts and backup.' }
       else result = { ok: true, message: 'Saved. The two R2 keys are used when a cover picture is uploaded.' }
     } catch (e) {
       result = { ok: false, message: (e as Error).message }

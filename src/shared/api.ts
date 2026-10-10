@@ -199,6 +199,13 @@ export interface Api {
   search: {
     query(q: string): Promise<SearchHit[]>
   }
+  telegram: {
+    status(): Promise<{ enabled: boolean; hasToken: boolean; paired: number; code: string | null }>
+    newCode(): Promise<string>
+    unpair(): Promise<void>
+    setEnabled(on: boolean): Promise<void>
+    test(): Promise<string>
+  }
   platform: {
     /** Changes the text of a video that is already live. */
     edit(postId: number, platform: string, patch: EditPatch): Promise<string>
