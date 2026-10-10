@@ -16,7 +16,7 @@ import type {
 } from './types'
 
 import type { ModelOption } from './modelCatalog'
-import type { CompetitorView, TitleLabResult, TrendVideo } from './research'
+import type { CompetitorView, RetentionView, TitleLabResult, TrendVideo } from './research'
 import type { DirectorActionView } from '../../main/studio/directorChat'
 import type { BrandSocialView } from '../../main/studio/social/accounts'
 export type { BrandSocialView }
@@ -249,6 +249,8 @@ export interface StudioApi {
   removeHoliday(id: number): Promise<void>
   agents(): Promise<AgentInfo[]>
   setAgentModel(name: string, model: string): Promise<AgentInfo[]>
+  retentionFor(postId: number): Promise<RetentionView | null>
+  refreshRetention(postId: number): Promise<RetentionView>
   titleLab(brandId: number, topic: string, includeTop: boolean): Promise<TitleLabResult>
   competitors(brandId: number): Promise<CompetitorView[]>
   addCompetitor(brandId: number, input: string): Promise<CompetitorView[]>

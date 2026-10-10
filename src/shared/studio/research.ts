@@ -37,3 +37,15 @@ export interface TrendVideo {
   channel: string
   views: number | null
 }
+
+export interface RetentionView {
+  postId: number
+  platform: string
+  videoId: string
+  fetchedUtc: string
+  minutesWatched: number | null
+  avgViewSeconds: number | null
+  avgViewPercent: number | null
+  /** Share of viewers still watching, at each point of the video (t from 0 to 1, watch around 0 to 1). */
+  curve: Array<{ t: number; watch: number }>
+}

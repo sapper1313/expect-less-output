@@ -8,6 +8,7 @@ import { useApp, useLoad } from '../hooks'
 import { Button, Dialog, Field, Input, StatusBadge, TargetChip, Textarea, useBusy } from '../ui'
 import { PostStatsPanel } from './StatsPanel'
 import { VideoPlayer } from './VideoPlayer'
+import { RetentionPanel } from './RetentionPanel'
 
 const KIND_LABEL: Record<CalendarKind, string> = {
   posted: 'Posted',
@@ -145,8 +146,9 @@ export function PostDetail({ postId, onClose, onEdit }: { postId: number; onClos
       )}
 
       {post.status === 'posted' && (
-        <div className="mt-6">
+        <div className="mt-6 space-y-4">
           <PostStatsPanel postId={post.id} />
+          {post.targets.some((t) => t.platform === 'youtube' && t.status === 'posted' && t.externalId) && <RetentionPanel postId={post.id} />}
         </div>
       )}
 

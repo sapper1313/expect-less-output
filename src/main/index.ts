@@ -7,7 +7,7 @@ import { AlertService } from './alerts/service'
 import { AgentRuntime } from './agent/runtime'
 import { InboxWatcher } from './agent/inbox'
 import { Studio } from './studio/studio'
-import { YoutubeAnalyticsReader } from './studio/youtubeAnalytics'
+import { YoutubeAnalyticsReader, YoutubeRetentionReader } from './studio/youtubeAnalytics'
 import { MetaCommentSource, YoutubeCommentSource } from './studio/comments/realSources'
 import { healthRows } from './services/health'
 import { buildHealth } from './agent/health'
@@ -407,6 +407,7 @@ async function boot(): Promise<void> {
     appVersion: app.getVersion(),
     mediaRoot: () => settings.get().mediaRoot,
     openPath: async (p) => void (await shell.openPath(p)),
+    retention: (a, v, f, t) => new YoutubeRetentionReader((id) => tokens.getAccessToken(id)).read(a, v, f, t),
     youtube: ytClient,
     youtubeAccountFor: (brandId) => {
       const q = (where: string, ...a: unknown[]) => (db.prepare(`SELECT id FROM accounts WHERE platform = 'youtube' AND mode != 'dry_run' AND status = 'connected' ${where} ORDER BY id LIMIT 1`).get(...a) as { id: number } | undefined)?.id ?? null

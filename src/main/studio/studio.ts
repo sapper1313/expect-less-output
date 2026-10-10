@@ -64,6 +64,8 @@ import { makeProducerAgent } from './agents/producer'
 import { expandHome } from './configService'
 import { OllamaTextClient, RoutingClient } from './agents/ollamaClient'
 import { Research, type ResearchYoutube } from './research'
+import { RetentionService } from './watchTime'
+import type { RetentionData } from './youtubeAnalytics'
 import { buildModelOptions } from '@shared/studio/modelCatalog'
 import { DirectorReply, directorSystem, type DirectorActionView } from './directorChat'
 
@@ -88,6 +90,8 @@ export interface StudioDeps {
   postersDir?: string
   appVersion?: string
   mediaRoot?: () => string
+  /** Reads watch time and retention from YouTube Analytics. */
+  retention?: (accountId: number, videoId: string, fromDate: string, toDate: string) => Promise<RetentionData>
   /** YouTube calls for the research tools. */
   youtube?: ResearchYoutube
   youtubeAccountFor?: (brandId: number) => number | null
@@ -133,6 +137,7 @@ export class Studio implements StudioApi {
   readonly gateway: LlmGateway
   private readonly routedLlm: RoutingClient
   readonly research: Research
+  readonly retention: RetentionService
   readonly runner: AgentRunner
   readonly director: Director
   readonly episodes: EpisodeLibrary
@@ -203,6 +208,7 @@ export class Studio implements StudioApi {
       fetchImpl: d.fetchImpl,
       now,
     })
+    this.retention = new RetentionService({ db: d.db, read: (a, v, f, t) => (d.retention ? d.retention(a, v, f, t) : Promise.reject(new Error('YouTube Analytics is not available.'))), mock: () => this.cfg.get().mockMode, now })
     this.episodes = new EpisodeLibrary(d.db, this.cfg, brandName, now)
     this.calendarFeed = new CalendarFeed(d.db, this.cfg, this.episodes, d.media, now)
     this.archivist = new Archivist({ db: d.db, cfg: this.cfg, media: d.media, episodes: this.episodes, audit: this.audit, now, workDir: (id) => this.workDir(id) })
@@ -525,6 +531,7 @@ export class Studio implements StudioApi {
     return { summary: st.summary, updatedUtc: st.updatedUtc, insights: st.insights }
   }
   async refreshInsights() {
+    await this.retention.refreshRecent()
     const r = await this.analytics.daily((id) => this.episodeDetails(id))
     this.d.emit()
     return r
@@ -704,6 +711,12 @@ export class Studio implements StudioApi {
     return this.agents()
   }
   /** One chat answer for the phone assistant, from the owner's local text model when there is one. */
+  async retentionFor(postId: number) {
+    return this.retention.get(postId)
+  }
+  async refreshRetention(postId: number) {
+    return this.retention.refresh(postId)
+  }
   async titleLab(brandId: number, topic: string, includeTop: boolean) {
     return this.research.titleLab(brandId, topic, includeTop)
   }
