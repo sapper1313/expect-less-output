@@ -90,3 +90,18 @@ Studio, Settings, **Watchdog** shows two Terminal commands. Paste the install co
 ## 13. If something looks wrong
 
 Studio, **Director's Log** shows every agent action with filters. **Activity Log** (the existing screen) still shows posting and alerts. Nothing is ever paid for twice after a quit or a crash: every paid request is written to the ledger the moment it is made.
+
+## 14. What is new in round two
+
+- **Home** shows everything at a glance. Click any tile or card to jump there. Red numbers in the left menu mean something needs a look.
+- **Search everything:** press Command K and type. It finds episodes, posts, ideas, comments, the bible, log lines and pages of the app, such as "spend caps".
+- **Channels** is where you set up a channel, connect its logins and set how often the studio writes for it.
+- **Settings** has tabs. Keys, spend caps and production are under Studio. Models, prices and Local AI are under AI models and Local AI.
+- **Models and prices:** pick a cheaper model for simple agents. Fix a price if Anthropic changes it. A model that starts with ollama runs on your own machine and is free.
+- **Talk to the Director:** on the Studio Overview. Say "I updated the bible for Trash Panda, make the changes" and press the button it suggests. Nothing runs until you press a button.
+- **Calendar:** click anything to see it large. For a posted YouTube or Facebook video, press Edit live to change the title or text on the platform. Instagram, TikTok and Bluesky do not allow edits after posting.
+- **Library episode:** watch the video, see what it cost, make chapters and captions, and cut shorts. Shorts are always drafts.
+- **Research tab:** find titles and tags for a topic, watch competitor channels, see what is trending, and turn it into ideas.
+- **Insights:** the re-post queue lists your best older videos. YouTube is off by default because the same video twice can look like spam.
+- **Telegram:** set it up under Settings, Alerts and backup. Then ask "how is the last post doing?" from your phone.
+

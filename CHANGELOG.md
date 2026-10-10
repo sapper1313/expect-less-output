@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.0 Studio round two
+
+- **Home** is the new first screen: a Liquid Glass dashboard with the whole pipeline, one card per channel (connection health, latest post numbers, days of episodes ahead), spend with a monthly projection, what is coming up and what just posted.
+- **Left menu:** red counts next to Studio (flagged items), Queue (failed or missed posts) and Channels (logins that need attention). **Search everything** with Command K.
+- **Channels** holds channel setup, Connections and the studio settings per channel. **Settings** is grouped in tabs: General, Studio, AI models and Local AI, Alerts and backup, Agent API, Testing tools.
+- **Models:** an editable price for each Claude model, free local Ollama models for any text agent, a model picker that shows cost and what each model is good for, and cut-off calls are now billed into the ledger. Text suggestions use the Ollama machine from the Local AI settings and set themselves up once.
+- **Director chat** on the Studio Overview: ask questions and get buttons for pause, resume, add an idea, retry flagged, write now, rebuild one episode, or rebuild every episode of a channel that has no video yet.
+- **Calendar and Home pop-ups** are large and show the title, where it is posting, the video, the numbers and any error. Posted YouTube and Facebook videos can be edited live from the pop-up.
+- **Library:** a video player, what each episode cost, chapters for the YouTube description, captions in other languages (English plus the ones you choose), and cut vertical shorts from long videos as drafts.
+- **Research tab:** Title Lab, competitor watching, trends and ideas from research. **Insights** has a re-post queue. Posts show watch time and the retention curve.
+- **Telegram:** chat with the studio from your phone. It answers from a plain snapshot of the studio with your own model, and pause or resume need a YES.
+- Text can be highlighted and copied everywhere, with a right-click menu.
+- Fixes: Bible edits are no longer wiped by background refreshes, switching channels in the Bible shows that channel, the writer and checkers have room to finish, Wonder Hollow scripts get the scene count they need, and a script that runs longer than the target is no longer rejected.
+
 ## 0.8.0 Autonomous Studio
 
 - New **Studio** screen: a Director, Show Writers, Script QC, Math Checker, Hollow Safety Checker, Producer (xAI Grok Imagine), Video QC, Compliance, Thumbnail, Publisher, Comments and Analytics agents. Starts paused and in mock mode.
