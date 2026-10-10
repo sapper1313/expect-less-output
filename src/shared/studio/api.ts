@@ -16,7 +16,7 @@ import type {
 } from './types'
 
 import type { ModelOption } from './modelCatalog'
-import type { CompetitorView, RetentionView, TitleLabResult, TrendVideo } from './research'
+import type { CompetitorView, RepostCandidate, RetentionView, TitleLabResult, TrendVideo } from './research'
 import type { DirectorActionView } from '../../main/studio/directorChat'
 import type { BrandSocialView } from '../../main/studio/social/accounts'
 export type { BrandSocialView }
@@ -249,6 +249,10 @@ export interface StudioApi {
   removeHoliday(id: number): Promise<void>
   agents(): Promise<AgentInfo[]>
   setAgentModel(name: string, model: string): Promise<AgentInfo[]>
+  makeClips(episodeId: string, count: number): Promise<Array<{ postId: number; title: string; start: number; seconds: number }>>
+  repostCandidates(brandId?: number | null): Promise<RepostCandidate[]>
+  queueRepost(postId: number, platforms: string[]): Promise<{ newPostId: number; whenUtc: string | null }>
+  skipRepost(postId: number): Promise<void>
   makeChapters(episodeId: string): Promise<{ chapters: Array<{ start: number; title: string }>; text: string }>
   chaptersFor(episodeId: string): Promise<string | null>
   makeCaptions(episodeId: string, languages: string[]): Promise<Array<{ lang: string; name: string; cues: number }>>

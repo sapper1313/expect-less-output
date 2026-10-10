@@ -46,6 +46,6 @@ describe('caption service in mock mode', () => {
     const { readFileSync } = await import('fs')
     expect(readFileSync(`${dir}/${ep.id}.es.srt`, 'utf8')).toContain('[translated] One.')
     await expect(e.studio.makeChapters('nope')).rejects.toThrow(/not found/)
-    expect((await e.studio.uploadCaptions(ep.id).catch((x) => x as Error)).message).toMatch(/not been posted/)
+    await expect(e.studio.uploadCaptions(ep.id)).rejects.toThrow(/not been posted/)
   })
 })

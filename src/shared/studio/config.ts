@@ -62,6 +62,7 @@ export const DEFAULT_STUDIO_CONFIG: StudioConfig = {
   agentModels: {},
   captionLanguages: [],
   autoChapters: false,
+  repostAfterDays: 30,
   defaultAgentModel: 'claude-sonnet-5-5',
   libraryDir: '~/ELO/Library',
   repetitionThreshold: 0.86,

@@ -66,6 +66,8 @@ import { OllamaTextClient, RoutingClient } from './agents/ollamaClient'
 import { Research, type ResearchYoutube } from './research'
 import { RetentionService } from './watchTime'
 import { CaptionService } from './captions'
+import { ClipCutter } from './clips'
+import { RepostQueue } from './repost'
 import { chaptersText } from '@shared/studio/captions'
 import type { RetentionData } from './youtubeAnalytics'
 import { buildModelOptions } from '@shared/studio/modelCatalog'
@@ -92,6 +94,8 @@ export interface StudioDeps {
   postersDir?: string
   appVersion?: string
   mediaRoot?: () => string
+  /** Views for a posted video, for ranking re-posts. */
+  postViews?: (postId: number) => number | null
   /** Adds a caption track to a YouTube video. */
   uploadCaption?: (accountId: number, videoId: string, lang: string, name: string, srt: string) => Promise<void>
   /** Reads watch time and retention from YouTube Analytics. */
@@ -143,6 +147,8 @@ export class Studio implements StudioApi {
   readonly research: Research
   readonly retention: RetentionService
   readonly captionSvc: CaptionService
+  readonly clipCutter: ClipCutter
+  readonly reposts: RepostQueue
   readonly runner: AgentRunner
   readonly director: Director
   readonly episodes: EpisodeLibrary
@@ -215,6 +221,8 @@ export class Studio implements StudioApi {
     })
     this.retention = new RetentionService({ db: d.db, read: (a, v, f, t) => (d.retention ? d.retention(a, v, f, t) : Promise.reject(new Error('YouTube Analytics is not available.'))), mock: () => this.cfg.get().mockMode, now })
     this.episodes = new EpisodeLibrary(d.db, this.cfg, brandName, now)
+    this.clipCutter = new ClipCutter({ db: d.db, gateway: this.gateway, episodes: this.episodes, resolve: (rel) => d.media.resolve(rel), createPost: (i) => d.posts.create(i), brandName, aiDisclosure: (b) => this.cfg.getBrand(b).aiDisclosure, workDir: (id) => this.workDir(id) })
+    this.reposts = new RepostQueue({ db: d.db, resolve: (rel) => d.media.resolve(rel), createPost: (i) => d.posts.create(i), nextSlot: (b) => d.posts.nextSlots(b, 1)[0] ?? null, views: (id) => d.postViews?.(id) ?? null, brandName, minAgeDays: () => this.cfg.get().repostAfterDays, now })
     this.captionSvc = new CaptionService({ db: d.db, gateway: this.gateway, episodes: this.episodes, brandName, root: () => this.episodes.root(), now })
     this.calendarFeed = new CalendarFeed(d.db, this.cfg, this.episodes, d.media, now)
     this.archivist = new Archivist({ db: d.db, cfg: this.cfg, media: d.media, episodes: this.episodes, audit: this.audit, now, workDir: (id) => this.workDir(id) })
@@ -717,6 +725,22 @@ export class Studio implements StudioApi {
     return this.agents()
   }
   /** One chat answer for the phone assistant, from the owner's local text model when there is one. */
+  async makeClips(episodeId: string, count: number) {
+    const made = await this.clipCutter.make(episodeId, count)
+    this.d.emit()
+    return made
+  }
+  async repostCandidates(brandId?: number | null) {
+    return this.reposts.candidates(brandId)
+  }
+  async queueRepost(postId: number, platforms: string[]) {
+    const r = await this.reposts.queue(postId, platforms)
+    this.d.emit()
+    return r
+  }
+  async skipRepost(postId: number) {
+    this.reposts.skip(postId)
+  }
   async makeChapters(episodeId: string) {
     return this.captionSvc.makeChapters(episodeId)
   }

@@ -122,6 +122,8 @@ export interface StudioConfig {
   captionLanguages: string[]
   /** Add chapters to the YouTube description of long videos when they are published. */
   autoChapters: boolean
+  /** A posted video is a re-post candidate after this many days. */
+  repostAfterDays: number
   defaultAgentModel: string
   libraryDir: string
   repetitionThreshold: number

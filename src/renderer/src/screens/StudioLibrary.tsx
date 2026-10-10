@@ -105,7 +105,7 @@ function EpisodeView({ id, onClose }: { id: string; onClose: () => void }) {
           </div>
         )}
         {row.videoPath && <VideoPlayer path={row.videoPath} />}
-        {pkg && pkg.scenes.length > 0 && <EpisodeExtras episodeId={id} live={row.status === 'Posted' || row.status === 'Scheduled'} />}
+        {pkg && pkg.scenes.length > 0 && <EpisodeExtras episodeId={id} live={row.status === 'Posted' || row.status === 'Scheduled'} hasVideo={!!row.videoPath} />}
         {row.flaggedReason && <div className="rounded-md border border-bad p-2 text-bad">Flagged: {row.flaggedReason}</div>}
         {pkg ? (
           <>

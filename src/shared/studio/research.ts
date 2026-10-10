@@ -49,3 +49,15 @@ export interface RetentionView {
   /** Share of viewers still watching, at each point of the video (t from 0 to 1, watch around 0 to 1). */
   curve: Array<{ t: number; watch: number }>
 }
+
+export interface RepostCandidate {
+  postId: number
+  brandId: number
+  brandName: string
+  title: string
+  postedUtc: string | null
+  views: number | null
+  /** Where it was posted the first time. */
+  platforms: string[]
+  note: string | null
+}

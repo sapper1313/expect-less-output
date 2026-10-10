@@ -201,6 +201,7 @@ export function registerMockResponders(mock: MockLlm): void {
   )
   mock.respond('Chapters', () => ({ titles: ['The setup', 'The problem shows up', 'Trying the fix', 'It starts to work', 'The big finish', 'Goodbye song', 'Extra one', 'Extra two', 'Extra three', 'Extra four'] }))
   mock.respond('Translator', (req) => ({ cues: (JSON.parse(req.user) as string[]).map((t) => `[translated] ${t}`) }))
+  mock.respond('Clip Scout', () => ({ clips: [{ title: 'The best moment, in short', caption: 'A quick clip from the full episode.' }, { title: 'Watch this part', caption: 'Another favorite bit.' }, { title: 'Do not miss this', caption: 'The third short.' }] }))
   mock.respond('Script QC', () => ({ pass: true, fixes: [] }))
   mock.respond('Hollow Safety Checker', () => ({ pass: true, issues: [] }))
   mock.respond('Math Checker', () => ({ claims: [], outdated: [] }))

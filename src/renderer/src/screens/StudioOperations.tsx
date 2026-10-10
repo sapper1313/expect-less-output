@@ -75,6 +75,7 @@ export function StudioInsights() {
         {data?.summary ? <p className="text-[14px]">{data.summary}</p> : <Empty>Not enough posted videos yet. At least three are needed.</Empty>}
         {data?.updatedUtc && <div className="mt-2 text-[11px] text-muted">Updated {data.updatedUtc.slice(0, 16).replace('T', ' ')} UTC. The Writer and the Thumbnail agent read this.</div>}
       </Card>
+      <RepostCard brandId={id} />
       {i && i.videos > 0 && (
         <div className="grid gap-4 md:grid-cols-2">
           <Card title="Best videos">{i.topEpisodes.map((e) => <div key={e.id} className="text-[13px]"><b>{e.title}</b>: {e.views} views. {e.hook}</div>)}</Card>
@@ -85,6 +86,39 @@ export function StudioInsights() {
         </div>
       )}
     </div>
+  )
+}
+
+/** The best older videos, ready to go out again on the platforms where a repeat is fine. */
+function RepostCard({ brandId }: { brandId: number }) {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
+  const { data, reload } = useLoad(() => api.studio.repostCandidates(brandId), [brandId])
+  const [picked, setPicked] = useState<Record<number, string[]>>({})
+  const fail = (e: unknown) => toast({ kind: 'error', headline: 'That did not work.', detail: (e as Error).message })
+  return (
+    <Card title="Re-post queue: your best older videos">
+      <p className="mb-2 text-[12px] text-muted">Videos that did well, are older than a month, and still have their file. A repeat goes out at the next open slot. YouTube is off by default because the same video twice can look like spam.</p>
+      {!data?.length && <Empty>Nothing is ready to re-post yet.</Empty>}
+      {data?.map((c) => {
+        const chosen = picked[c.postId] ?? c.platforms.filter((p) => p !== 'youtube')
+        return (
+          <div key={c.postId} className="border-t border-line py-2 text-[13px]">
+            <div className="flex items-start justify-between gap-2">
+              <div><b>{c.title}</b> <span className="text-muted">{c.views === null ? '' : `${c.views} views`} · posted {c.postedUtc?.slice(0, 10)}</span></div>
+              <div className="flex shrink-0 gap-2">
+                <Button disabled={busy || !chosen.length} onClick={() => run(async () => { try { const r = await api.studio.queueRepost(c.postId, chosen); toast({ kind: 'success', headline: 'Queued to go out again.', detail: r.whenUtc ? `Scheduled for ${r.whenUtc.slice(0, 16).replace('T', ' ')} UTC.` : 'Saved as a draft: no open slot was found.' }); reload() } catch (e) { fail(e) } })}>Post it again</Button>
+                <Button variant="ghost" onClick={() => run(async () => { await api.studio.skipRepost(c.postId); reload() })}>Not this one</Button>
+              </div>
+            </div>
+            <div className="mt-1 flex flex-wrap gap-x-4">
+              {c.platforms.map((p) => <Check key={p} checked={chosen.includes(p)} onChange={(v) => setPicked({ ...picked, [c.postId]: v ? [...chosen, p] : chosen.filter((x) => x !== p) })}>{p}</Check>)}
+            </div>
+            {c.note && <div className="text-[11px] text-muted">{c.note}</div>}
+          </div>
+        )
+      })}
+    </Card>
   )
 }
 

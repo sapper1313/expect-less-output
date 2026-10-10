@@ -408,6 +408,7 @@ async function boot(): Promise<void> {
     mediaRoot: () => settings.get().mediaRoot,
     openPath: async (p) => void (await shell.openPath(p)),
     retention: (a, v, f, t) => new YoutubeRetentionReader((id) => tokens.getAccessToken(id)).read(a, v, f, t),
+    postViews: (id) => stats.postStats(id).totals.views,
     uploadCaption: (a, v, l, n, srt) => ytClient.uploadCaption(a, v, l, n, srt),
     youtube: ytClient,
     youtubeAccountFor: (brandId) => {
