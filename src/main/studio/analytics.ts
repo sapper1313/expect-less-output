@@ -6,7 +6,6 @@ import type { AuditLog } from './agents/framework'
 import type { LlmGateway } from './agents/llm'
 import { ctxLine, STYLE_RULES } from './agents/prompts'
 import type { BlueskyClient } from './social/bluesky'
-import type { ThreadsClient } from './social/threads'
 import type { ThumbnailTester } from './thumbTest'
 
 export interface Insights {
@@ -27,7 +26,6 @@ export interface AnalyticsDeps {
   cfg: StudioConfigService
   gateway: LlmGateway
   audit: AuditLog
-  threads: (brandId: number) => ThreadsClient
   bluesky: (brandId: number) => BlueskyClient
   tester: ThumbnailTester
   /** The existing stats pass for YouTube, Facebook, Instagram and TikTok. */
@@ -53,7 +51,7 @@ export class Analytics {
     return this.d.now ? this.d.now() : Date.now()
   }
 
-  /** Stats for Threads and Bluesky posts. Mock posts get simulated numbers so insights work in mock mode. */
+  /** Stats for Bluesky posts. Mock posts get simulated numbers so insights work in mock mode. */
   async socialStats(): Promise<number> {
     const rows = this.d.db.prepare("SELECT * FROM social_posts WHERE status = 'posted' AND external_id IS NOT NULL").all() as any[]
     const ins = this.d.db.prepare('INSERT INTO social_stats (social_post_id, fetched_utc, views, likes, comments, shares) VALUES (?, ?, ?, ?, ?, ?)')
@@ -64,9 +62,6 @@ export class Analytics {
         if (r.mock) {
           const base = ((r.id * 7919) % 400) + 50
           ins.run(r.id, stamp, base * 10, base, Math.round(base / 12), Math.round(base / 20))
-        } else if (r.platform === 'threads') {
-          const i = await this.d.threads(r.brand_id).insights(r.external_id)
-          ins.run(r.id, stamp, i.views, i.likes, i.replies, i.reposts + i.quotes)
         } else {
           const c = await this.d.bluesky(r.brand_id).counts(r.external_id)
           ins.run(r.id, stamp, null, c.likes, c.replies, c.reposts)

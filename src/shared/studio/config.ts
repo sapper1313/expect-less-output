@@ -64,7 +64,6 @@ export const DEFAULT_STUDIO_CONFIG: StudioConfig = {
   digestEnabled: true,
   watchdog: { enabled: true, runStart: '07:00', runEnd: '22:00', thresholdMinutes: 30 },
   platformCaps: {},
-  threadsRedirectUri: 'https://expectlessmedia.com/oauth/tiktok/',
   publicHost: { endpoint: '', bucket: '', publicBase: '', region: 'auto' },
   thumbnailEngine: { generateImages: true, candidates: 3, abDelayHours: 48, abMinImpressions: 500, font: '' },
   qcClipRetryCap: 2,
@@ -92,7 +91,6 @@ const allPlatforms = (on: StudioPlatform[]): Record<StudioPlatform, boolean> => 
   facebook: on.includes('facebook'),
   instagram: on.includes('instagram'),
   tiktok: on.includes('tiktok'),
-  threads: on.includes('threads'),
   bluesky: on.includes('bluesky'),
 })
 
@@ -107,7 +105,7 @@ export function defaultBrandConfig(format: BrandFormat, startDate: string): Stud
     postDays: [],
     windows: [],
     runTime: '09:00',
-    // Threads and Bluesky default OFF. The owner turns them on.
+    // Bluesky defaults OFF. The owner turns them on.
     platforms: allPlatforms(['youtube', 'facebook', 'instagram', 'tiktok']),
     aiDisclosure: true,
     madeForKids: false,

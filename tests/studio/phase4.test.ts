@@ -62,9 +62,9 @@ describe('AWS Signature Version 4 (public host)', () => {
 })
 
 describe('Publisher pipeline for shorts', () => {
-  it('writes per platform text with no em dashes, handles disclosure per platform, and posts Threads and Bluesky only when toggled on', async () => {
+  it('writes per platform text with no em dashes, handles disclosure per platform, and posts Bluesky only when toggled on', async () => {
     const { e, id } = await shortsSetup(async (e, id) => {
-      await e.studio.setBrand(id, { platforms: { threads: true, bluesky: true } as never })
+      await e.studio.setBrand(id, { platforms: { bluesky: true } as never })
     })
     await step(e)
     await step(e)
@@ -83,21 +83,20 @@ describe('Publisher pipeline for shorts', () => {
     const comp = (pkg.extra as { compliance: { platforms: Record<string, { disclosure: string }> } }).compliance
     expect(comp.platforms.youtube.disclosure).toBe('api')
     expect(comp.platforms.tiktok.disclosure).toBe('text')
-    expect(comp.platforms.threads.disclosure).toBe('text')
+    expect(comp.platforms.bluesky.disclosure).toBe('text')
     // no em dashes anywhere in anything written
     expect(lintValue([post.title, post.caption, post.targets.map((t) => t.captionOverride)], DEFAULT_STUDIO_CONFIG.roboticPhrases)).toEqual([])
     // Threads and Bluesky are in their own list, with the disclosure line, and post (mock) at their time
     const social = e.studio.social.list({ episodeId: ep.id })
-    expect(social.map((s) => s.platform).sort()).toEqual(['bluesky', 'threads'])
+    expect(social.map((s) => s.platform)).toEqual(['bluesky'])
     expect(social.every((s) => s.text.includes('Made with AI.') && s.mock)).toBe(true)
-    expect(social.find((s) => s.platform === 'threads')!.text.length).toBeLessThanOrEqual(500)
     expect(social.find((s) => s.platform === 'bluesky')!.text.length).toBeLessThanOrEqual(300)
     e.clock.ms = Date.parse(post.scheduledAtUtc!) + 60_000
     await e.studio.social.tick()
     expect(e.studio.social.list({ episodeId: ep.id }).every((s) => s.status === 'posted' && s.externalId?.startsWith('mock-'))).toBe(true)
   })
 
-  it('Threads and Bluesky are skipped when toggled off (the default)', async () => {
+  it('Bluesky is skipped when toggled off (the default)', async () => {
     const { e, id } = await shortsSetup()
     await step(e)
     await step(e)

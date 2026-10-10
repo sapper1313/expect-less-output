@@ -52,7 +52,7 @@ export function signV4(i: SignInput): { authorization: string; signedHeaders: st
 const amz = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
 
 /**
- * A temporary public home for files a platform must download (a Threads video, an Instagram cover). Uses any S3 compatible
+ * A temporary public home for files a platform must download (an Instagram cover). Uses any S3 compatible
  * bucket, Cloudflare R2 in the setup guide. Files are deleted by the caller as soon as the platform has them.
  */
 export class PublicHost {

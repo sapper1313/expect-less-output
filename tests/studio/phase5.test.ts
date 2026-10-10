@@ -152,7 +152,7 @@ describe('Analytics and insights', () => {
       s.episodes.setFields(ep.id, { postId: post.id })
     }
     // a mock social post with simulated numbers
-    s.social.add({ episodeId: null, brandId: id, platform: 'threads', text: 't', videoPath: '/x', title: 'T', scheduledAtUtc: new Date(e.clock.ms - 1000).toISOString(), mock: true })
+    s.social.add({ episodeId: null, brandId: id, platform: 'bluesky', text: 't', videoPath: '/x', title: 'T', scheduledAtUtc: new Date(e.clock.ms - 1000).toISOString(), mock: true })
     await s.social.tick()
     const r = await s.analytics.daily((eid) => ({ hook: String(s.episodes.getPackage(eid)?.extra?.hook ?? ''), seconds: s.episodes.getPackage(eid)?.runtime_target_seconds ?? 0 }))
     expect(r.social).toBe(1)

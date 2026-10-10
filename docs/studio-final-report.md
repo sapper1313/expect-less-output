@@ -21,7 +21,7 @@ The Desktop `OUTPUT` folder you started Claude Code in was empty. The real proje
 
 **Phase 3, production.** Producer with a persisted job table so a quit or crash never pays twice, Video QC (ffmpeg checks, Whisper, vision, character match, with the fallbacks), retries with a prompt the text agent fixes, ffmpeg assembly with loudness and optional crossfade, captions (sidecar or burned), shared opening and outro generated once, optional Hollow through the API with last frame chaining.
 
-**Phase 4, publishing.** Editable platform capability table, Compliance agent, Thumbnail agent with versioned guidelines, Revert and a monthly refresh, covers for every platform, Publisher, Threads and Bluesky clients, a public host (Cloudflare R2, SigV4 verified against the AWS test vector), a thumbnail A/B swap test, adapter support for YouTube `thumbnails.set`, Instagram `cover_url` and TikTok `video_cover_timestamp_ms`.
+**Phase 4, publishing.** Editable platform capability table, Compliance agent, Thumbnail agent with versioned guidelines, Revert and a monthly refresh, covers for every platform, Publisher, a Bluesky client, a public host (Cloudflare R2, SigV4 verified against the AWS test vector), a thumbnail A/B swap test, adapter support for YouTube `thumbnails.set`, Instagram `cover_url` and TikTok `video_cover_timestamp_ms`.
 
 **Phase 5, operations.** Analytics and insights, Comments agent (Auto, Draft only, Off), morning digest, launchd watchdog with install and uninstall scripts, nightly backups with a restore check, per agent switches, a real read only Dry run day.
 
@@ -39,7 +39,6 @@ The Desktop `OUTPUT` folder you started Claude Code in was empty. The real proje
 | xAI image models | $0.02 to $0.08 | `grok-imagine-image` $0.02, `-2.0` $0.04 (recommended), `-quality` $0.05 |
 | xAI video models | 1.5 and 1.5-lite | also `grok-imagine-video` at $0.05 per second (editing). 1.5 is $0.080, Lite $0.020 |
 | xAI reference to video | 14 images, 3 voice references | confirmed for 1.5, but the voice reference field name, the extension endpoint, first and last frame fields, and the allowed values for `aspect_ratio` and `resolution` are not in the pages I could read |
-| Threads video | local file | Threads only fetches a PUBLIC `video_url`, so a public host is required |
 | Bluesky video limits | not known | raised in 2026 (reported 10 minutes, 300 MB). The app reads `getUploadLimits` live and the table is editable |
 | YouTube thumbnails.set | 2 MB, verified channel | the API reference says 50 MB and does not mention verification (YouTube Help says 2 MB). 2 MB is used |
 | Instagram | `cover_url`, `thumb_offset` | the page I read did not list them. They stay as the existing adapter already uses them |
@@ -50,7 +49,7 @@ The Desktop `OUTPUT` folder you started Claude Code in was empty. The real proje
 
 - **No real service was called.** I have none of your keys or accounts. xAI, Anthropic, Threads, Bluesky, R2, YouTube Analytics, and the YouTube, Facebook and Instagram comment calls are built to the documented shapes and tested against in process fakes. Your first real check is **Test connection** and **Cheap test**.
 - **Video extension and voice references are not used.** xAI's pages do not give their fields. Hollow through the API chains scenes with documented image to video from the last frame instead. Voice references are not sent.
-- **Threads uses a pasted long lived token**, not an OAuth sign in. The app refreshes it when 7 days are left and warns if that fails.
+- **Threads was built and then removed** at your request. Bluesky is the only extra platform.
 - **Instagram custom cover** is only used when the public host is set up (and the bucket keeps files about 10 days). Otherwise a frame is chosen with `thumb_offset`.
 - **Analytics** stores views, likes, comments and shares for all platforms and click rate plus average view duration for thumbnail tests. Retention curves and watch time for every video are not collected.
 - **No video player** in the Library episode view yet. The finished video is in the Queue and Posted folders.

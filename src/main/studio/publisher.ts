@@ -36,8 +36,8 @@ export interface PublishDeps {
   tester: ThumbnailTester
   social: SocialPublisher
   host: PublicHost
-  /** Why a brand cannot post to Threads or Bluesky yet (no account saved), or null. */
-  socialReady: (brandId: number, platform: 'threads' | 'bluesky') => string | null
+  /** Why a brand cannot post to Bluesky yet (no account saved), or null. */
+  socialReady: (brandId: number) => string | null
   workDir: (episodeId: string) => string
   now?: () => number
 }
@@ -63,8 +63,8 @@ export interface PublishResult {
 
 /**
  * Everything between "the video exists" and "it is scheduled": the thumbnail for every platform, the text for every
- * platform in the brand voice, Compliance, then the scheduler queue (YouTube, Facebook, Instagram, TikTok) and the Threads
- * and Bluesky list. A platform that cannot take the video is skipped alone, never the whole post.
+ * platform in the brand voice, Compliance, then the scheduler queue (YouTube, Facebook, Instagram, TikTok) and the Bluesky
+ * list. A platform that cannot take the video is skipped alone, never the whole post.
  */
 export class Publisher {
   constructor(private d: PublishDeps) {}
@@ -104,7 +104,7 @@ export class Publisher {
           agent: 'Publisher',
           brandId,
           episodeId,
-          system: `You write the title, caption or post text for each platform for "${brandName}", in the voice of the series bible. Short, human, specific. ${STYLE_RULES}\nOnly include the platforms asked for. Answer only with JSON using these keys: youtube {title, description, tags[]}, instagram {caption}, facebook {caption}, tiktok {caption}, threads {text}, bluesky {text}.\nLimits:\n${this.limitsText(platforms, isShort)}\n\n${bibleMd}`,
+          system: `You write the title, caption or post text for each platform for "${brandName}", in the voice of the series bible. Short, human, specific. ${STYLE_RULES}\nOnly include the platforms asked for. Answer only with JSON using these keys: youtube {title, description, tags[]}, instagram {caption}, facebook {caption}, tiktok {caption}, bluesky {text}.\nLimits:\n${this.limitsText(platforms, isShort)}\n\n${bibleMd}`,
           user: [
             ctxLine({ task: 'publish_text', brand: brandName, title: pkg.youtube.title || pkg.title, summary: pkg.summary, description: pkg.youtube.description, hashtags: (pkg.extra?.hashtags as string[]) ?? pkg.youtube.tags, caption: (pkg.extra?.caption as string) ?? '', platforms, attempt }),
             `Episode: ${pkg.title}\nSummary: ${pkg.summary}\nHook: ${(pkg.extra?.hook as string) ?? pkg.logline}\nTags: ${pkg.youtube.tags.join(', ')}`,
@@ -170,16 +170,10 @@ export class Publisher {
     const skipped = Object.entries(report.platforms).filter(([, v]) => v.skipped).map(([platform, v]) => ({ platform, reason: v.reason ?? '' }))
 
     // 3. real world gaps that skip one platform
-    for (const p of ['threads', 'bluesky'] as const) {
-      const why = !mock && ok(p) ? this.d.socialReady(ep.brandId, p) : null
-      if (why) {
-        skipped.push({ platform: p, reason: why })
-        report.platforms[p] = { ...report.platforms[p], ok: false, skipped: true, reason: why }
-      }
-    }
-    if (!mock && ok('threads') && !this.d.host.configured()) {
-      skipped.push({ platform: 'threads', reason: 'Threads needs a public address for the video. Set up the public host in Studio Settings.' })
-      report.platforms.threads = { ...report.platforms.threads, ok: false, skipped: true, reason: skipped[skipped.length - 1].reason }
+    const notReady = !mock && ok('bluesky') ? this.d.socialReady(ep.brandId) : null
+    if (notReady) {
+      skipped.push({ platform: 'bluesky', reason: notReady })
+      report.platforms.bluesky = { ...report.platforms.bluesky, ok: false, skipped: true, reason: notReady }
     }
 
     // 4. per platform covers
@@ -222,9 +216,9 @@ export class Publisher {
       videoAbs = queued
       if (r.srt && existsSync(r.srt)) copyFileSync(r.srt, queued.slice(0, queued.length - extname(queued).length) + '.srt')
     }
-    // Threads and Bluesky
+    // Bluesky
     let social = 0
-    for (const p of ['threads', 'bluesky'] as const) {
+    for (const p of ['bluesky'] as const) {
       if (!ok(p) || !when) continue
       const text = (report.texts[p] as { text: string }).text
       this.d.social.add({ episodeId: r.episodeId, brandId: ep.brandId, platform: p, text, videoPath: videoAbs, title, scheduledAtUtc: when, mock: mock || mockVideo })
@@ -251,7 +245,7 @@ export function makePublisherAgent(p: Publisher): AgentDef<z.infer<typeof Input>
     role: 'Writes the title and text for every platform, attaches the thumbnail or cover, runs Compliance, and schedules the video everywhere it is allowed.',
     input: Input,
     output: Output,
-    tools: ['thumbnail', 'compliance', 'scheduler', 'threads', 'bluesky'],
+    tools: ['thumbnail', 'compliance', 'scheduler', 'bluesky'],
     paid: true,
     async run(_ctx, input) {
       return p.run(input)

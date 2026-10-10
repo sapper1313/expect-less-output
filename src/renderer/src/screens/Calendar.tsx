@@ -124,7 +124,7 @@ export function Calendar() {
       <PageHeader title={COPY.nav.calendar}>
         <Select className="w-40" value={platform} onChange={(e) => setPlatform(e.target.value)} aria-label="Platform">
           <option value="">All platforms</option>
-          {['youtube', 'facebook', 'instagram', 'tiktok', 'threads', 'bluesky'].map((p) => (
+          {['youtube', 'facebook', 'instagram', 'tiktok', 'bluesky'].map((p) => (
             <option key={p} value={p}>{p}</option>
           ))}
         </Select>

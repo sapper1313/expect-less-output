@@ -1,12 +1,11 @@
 // Shared studio types. No imports from main or renderer so tests and the UI can both use this.
 
-export type StudioPlatform = 'youtube' | 'facebook' | 'instagram' | 'tiktok' | 'threads' | 'bluesky'
+export type StudioPlatform = 'youtube' | 'facebook' | 'instagram' | 'tiktok' | 'bluesky'
 export const STUDIO_PLATFORMS: StudioPlatform[] = [
   'youtube',
   'facebook',
   'instagram',
   'tiktok',
-  'threads',
   'bluesky',
 ]
 
@@ -128,9 +127,7 @@ export interface StudioConfig {
   watchdog: { enabled: boolean; runStart: string; runEnd: string; thresholdMinutes: number }
   /** Editable per platform limits. Missing keys use the built in table. */
   platformCaps: Record<string, unknown>
-  /** Temporary public host for files a platform must fetch (Threads video, Instagram cover). */
-  /** The https address registered as the Threads redirect callback (a page on your website that hands the code back). */
-  threadsRedirectUri: string
+  /** Temporary public host for files a platform must fetch (an Instagram cover picture). */
   publicHost: { endpoint: string; bucket: string; publicBase: string; region: string }
   thumbnailEngine: { generateImages: boolean; candidates: number; abDelayHours: number; abMinImpressions: number; font: string }
   qcClipRetryCap: number

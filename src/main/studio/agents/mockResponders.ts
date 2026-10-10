@@ -177,7 +177,6 @@ export function registerMockResponders(mock: MockLlm): void {
     if (platforms.includes('instagram')) out.instagram = { caption: `${base} ${tags.join(' ')}`.trim() }
     if (platforms.includes('facebook')) out.facebook = { caption: `${base} ${tags.slice(0, 2).join(' ')}`.trim() }
     if (platforms.includes('tiktok')) out.tiktok = { caption: `${base} ${tags.join(' ')}`.trim() }
-    if (platforms.includes('threads')) out.threads = { text: `${title}. ${String(c.summary ?? '')}`.slice(0, 380) }
     if (platforms.includes('bluesky')) out.bluesky = { text: `${title}. ${String(c.summary ?? '')}`.slice(0, 240) }
     return out
   })

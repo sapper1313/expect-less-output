@@ -3,7 +3,7 @@ import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { Button, Card, Empty, useBusy } from '../ui'
 
-/** Threads and Bluesky posts, and the thumbnail A/B tests. */
+/** Bluesky posts, and the thumbnail A/B tests. */
 export function StudioPublishing() {
   const { toast } = useApp()
   const [busy, run] = useBusy()
@@ -11,10 +11,10 @@ export function StudioPublishing() {
   const { data: tests, reload: reloadTests } = useLoad(() => api.studio.thumbTests())
   return (
     <div className="space-y-4">
-      <Card title="Threads and Bluesky">
+      <Card title="Bluesky">
         <p className="mb-2 text-[12px] text-muted">These two are sent from here at the same time as the other platforms. A failed post is retried after 2, 10 and 30 minutes, then you get the usual alert.</p>
         {!social?.length ? (
-          <Empty>Nothing yet. Turn Threads or Bluesky on for a brand in Settings.</Empty>
+          <Empty>Nothing yet. Turn Bluesky on for a brand in Settings.</Empty>
         ) : (
           <table className="w-full text-left text-[12px]">
             <thead className="text-muted"><tr><th>When</th><th>Platform</th><th>Post</th><th>Status</th><th></th></tr></thead>

@@ -4,15 +4,13 @@ import type { AlertItem } from '../../alerts/format'
 import { probe } from '../ffmpeg'
 import type { StudioConfigService } from '../configService'
 import type { BlueskyClient } from './bluesky'
-import type { PublicHost } from './publicHost'
 import { SocialError } from './errors'
-import type { ThreadsClient } from './threads'
 
 export interface SocialRow {
   id: number
   episodeId: string | null
   brandId: number
-  platform: 'threads' | 'bluesky'
+  platform: 'bluesky'
   status: 'scheduled' | 'posting' | 'posted' | 'failed' | 'skipped'
   text: string
   videoPath: string
@@ -47,10 +45,7 @@ const map = (r: any): SocialRow => ({
 export interface SocialDeps {
   db: Db
   cfg: StudioConfigService
-  threads: (brandId: number) => ThreadsClient
   bluesky: (brandId: number) => BlueskyClient
-  host: PublicHost
-  userId: { get: (brandId: number) => string | null; set: (brandId: number, id: string) => void }
   alert: (item: AlertItem) => void
   log: (level: 'info' | 'warn' | 'error', message: string) => void
   brandName: (id: number) => string
@@ -58,9 +53,8 @@ export interface SocialDeps {
 }
 
 /**
- * Threads and Bluesky posts. The scheduler only knows four platforms, so these two are sent from here, at the same time
- * as the others, with retries (2, 10, 30 minutes) and the usual failure alert. Rate limits: Threads 250 posts per 24 hours,
- * Bluesky has a daily video allowance that is read before every upload.
+ * Bluesky posts. The scheduler only knows four platforms, so Bluesky is sent from here, at the same time as the others,
+ * with retries (2, 10, 30 minutes) and the usual failure alert. Bluesky has a daily video allowance that is read before every upload.
  */
 export class SocialPublisher {
   constructor(private d: SocialDeps) {}
@@ -69,7 +63,7 @@ export class SocialPublisher {
     return this.d.now ? this.d.now() : Date.now()
   }
 
-  add(p: { episodeId: string | null; brandId: number; platform: 'threads' | 'bluesky'; text: string; videoPath: string; title: string; scheduledAtUtc: string; mock: boolean }): SocialRow {
+  add(p: { episodeId: string | null; brandId: number; platform: 'bluesky'; text: string; videoPath: string; title: string; scheduledAtUtc: string; mock: boolean }): SocialRow {
     const id = Number(
       this.d.db
         .prepare('INSERT INTO social_posts (episode_id, brand_id, platform, text, video_path, title, scheduled_at_utc, mock, created_utc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
@@ -97,7 +91,7 @@ export class SocialPublisher {
     return (this.d.db.prepare(`SELECT * FROM social_posts ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT 300`).all(...args) as unknown[]).map(map)
   }
 
-  /** Posts every Threads and Bluesky item that is due. Returns how many were handled. */
+  /** Posts every Bluesky item that is due. Returns how many were handled. */
   async tick(): Promise<number> {
     const nowIso = new Date(this.now()).toISOString()
     const due = this.d.db
@@ -135,7 +129,7 @@ export class SocialPublisher {
       kind: 'failure',
       headline: COPY.failureHeadline,
       detail: `${row.platform}, ${this.d.brandName(row.brandId)}, "${row.title}": ${err.message}`,
-      platform: row.platform === 'threads' ? 'Threads' : 'Bluesky',
+      platform: 'Bluesky',
       brand: this.d.brandName(row.brandId),
       title: row.title,
       whenUtc: row.scheduledAtUtc,
@@ -155,35 +149,11 @@ export class SocialPublisher {
       Object.assign(state, p)
       this.d.db.prepare('UPDATE social_posts SET state_json = ? WHERE id = ?').run(JSON.stringify(state), row.id)
     }
-    if (row.platform === 'bluesky') {
-      const limits = await this.d.bluesky(row.brandId).uploadLimits().catch(() => null)
-      if (limits && limits.canUpload === false) throw new SocialError(`Bluesky will not take a video right now. ${limits.message ?? ''}`.trim(), 'transient', 60 * 60_000)
-      const info = await probe(row.videoPath)
-      const r = await this.d.bluesky(row.brandId).postVideo({ text: row.text, file: row.videoPath, width: info.width, height: info.height, alt: row.title, state, setState })
-      setState({ bskyCid: r.cid })
-      return { id: r.uri, url: r.url }
-    }
-    // Threads: the video has to be at a public address while Threads fetches it.
-    const threads = this.d.threads(row.brandId)
-    let userId = this.d.userId.get(row.brandId)
-    if (!userId) {
-      userId = (await threads.me()).id
-      this.d.userId.set(row.brandId, userId)
-    }
-    if (!this.d.host.configured()) throw new SocialError('Threads needs the video at a public address. Set up the public host (Cloudflare R2) in Studio Settings.', 'permanent')
-    let url = typeof state.publicUrl === 'string' ? state.publicUrl : null
-    let key = typeof state.publicKey === 'string' ? state.publicKey : null
-    if (!url) {
-      const up = await this.d.host.upload(row.videoPath)
-      url = up.url
-      key = up.key
-      setState({ publicUrl: url, publicKey: key })
-    }
-    try {
-      const r = await threads.publishVideo({ userId, text: row.text, videoUrl: url, state, setState })
-      return { id: r.id, url: r.url }
-    } finally {
-      if (state.threadsPostId && key) await this.d.host.remove(key)
-    }
+    const limits = await this.d.bluesky(row.brandId).uploadLimits().catch(() => null)
+    if (limits && limits.canUpload === false) throw new SocialError(`Bluesky will not take a video right now. ${limits.message ?? ''}`.trim(), 'transient', 60 * 60_000)
+    const info = await probe(row.videoPath)
+    const r = await this.d.bluesky(row.brandId).postVideo({ text: row.text, file: row.videoPath, width: info.width, height: info.height, alt: row.title, state, setState })
+    setState({ bskyCid: r.cid })
+    return { id: r.uri, url: r.url }
   }
 }

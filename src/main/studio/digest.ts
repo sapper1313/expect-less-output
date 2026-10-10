@@ -8,7 +8,7 @@ export interface DigestDeps {
   db: Db
   cfg: StudioConfigService
   spend: SpendService
-  /** Plain lines about logins that need attention: Meta, TikTok, Threads, YouTube. */
+  /** Plain lines about logins that need attention: Meta, TikTok, YouTube. */
   expiring: () => string[]
   now?: () => number
 }

@@ -2,7 +2,12 @@ import { createReadStream, statSync } from 'fs'
 import { basename } from 'path'
 import { Readable } from 'stream'
 import { SocialError, httpError } from './errors'
-import type { Reply } from './threads'
+export interface Reply {
+  id: string
+  text: string
+  username: string
+  at: string
+}
 
 interface Session {
   accessJwt: string

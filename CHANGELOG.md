@@ -6,7 +6,7 @@
 - Spend ledger and hard caps (global, per brand, per episode, AI text), checked before every paid call. Mock spend never counts.
 - Episode Library (small gzip packages, kept forever), a calendar that shows posted, scheduled, in production, awaiting video, flagged, failed and planned items, and a retention purge that never deletes packages or stats.
 - Wonder Hollow Workshop: ELO writes the full package for Muse (read only `GET /v1/episodes` and a ready folder), and a video sent back with an `episode_id` is attached, checked and scheduled for Tuesday or Friday.
-- Threads and Bluesky publishing, a public host (Cloudflare R2) for Threads video, custom thumbnails for long YouTube videos, Instagram cover support, TikTok cover timestamp, a thumbnail A/B swap test.
+- Bluesky publishing (one account per brand), a public host (Cloudflare R2) for Instagram covers, custom thumbnails for long YouTube videos, Instagram cover support, TikTok cover timestamp, a thumbnail A/B swap test.
 - Morning digest, a launchd watchdog, nightly backups, per agent switches, and a real Dry run day.
 - A post made from a mock mode placeholder video always uses the dry run adapter and is never published for real.
 

@@ -17,17 +17,13 @@ Everything starts **paused and in mock mode**. Mock mode makes placeholder video
 | --- | --- |
 | Grok / xAI API key | console.x.ai, API keys |
 | Anthropic API key | console.anthropic.com, API keys |
-| Threads app ID and app secret | Meta for Developers, your app, the Threads use case, Settings. One pair serves every brand. |
-| Cloudflare R2 (2 keys) | Needed only for Threads video, see `docs/SETUP_E_CLOUDFLARE_R2_IF_NEEDED.md`. Then fill in the public host card. |
+| Cloudflare R2 (2 keys) | Needed only for custom Instagram cover pictures, see `docs/SETUP_E_CLOUDFLARE_R2_IF_NEEDED.md`. Then fill in the public host card. |
 
 For each one: paste, press **Save**, then **Test connection**. The key is kept in the macOS Keychain and is never shown again. Testing in mock mode makes no network call, so turn mock mode off to test for real.
 
-## 2b. Threads and Bluesky: one set of accounts per brand
+## 2b. Bluesky: one account per brand
 
-Settings, **Threads and Bluesky accounts** has a row for every brand.
-
-- **Threads:** add this address under Redirect Callback URLs in your Threads app settings: `https://expectlessmedia.com/oauth/tiktok/` (your existing return page, no website change needed; the box shows the exact address and has a Copy button). Then press **Connect Threads** for a brand, sign in as that brand's Threads account in the browser, and approve. If the page does not hand you back to the app, copy the whole address from the browser bar and paste it into the box that appears. The 60 day token is kept per brand and renewed when 7 days are left.
-- **Bluesky:** type that brand's handle and an **app password** (Bluesky, Settings, Privacy and security, App passwords), press **Save**, then **Test connection**. Never your real password.
+Settings, **Bluesky accounts** has a row for every brand. Type that brand's handle and an **app password** (Bluesky, Settings, Privacy and security, App passwords), press **Save**, then **Test connection**. Never your real password.
 
 ## 3. Set your limits before you turn mock mode off
 
@@ -41,7 +37,7 @@ Estimate before you go live: each brand shows about what one episode costs (firs
 - Changing N applies from the next due date. Dates already planned never move.
 - **Production run time** (default 9:00 AM Eastern): work starts after this time.
 - **Script runway days** (default 7): the Director keeps that many days of approved scripts ready, without bothering you.
-- Platform ticks. Threads and Bluesky are off until you tick them. Wonder Hollow Workshop is YouTube only.
+- Platform ticks. Bluesky is off until you tick it. Wonder Hollow Workshop is YouTube only.
 - **AI disclosure** (on) and **Made for kids** (on for Wonder Hollow only).
 - Model per format: shorts use **Lite**, long videos use **1.5**. One box is always ticked.
 - Resolution: 480p for shorts, 720p for long. 1080p costs much more.
@@ -67,9 +63,9 @@ To let ELO make Hollow videos itself through the API instead, tick **Make this b
 
 Studio, **Local AI**: type the Ollama address of the Dell, press **Test**, press **Download recommended models**, then **Run self test**. The screen has the exact steps for the Dell (Windows and Linux) and a Copy button. Never forward that port from the router. If the Dell is off, checks fall back (ffmpeg and Whisper only, or Claude vision if you tick it). Moving to a bigger machine later is changing the address and picking larger models.
 
-## 9. Threads, Bluesky, thumbnails
+## 9. Bluesky, thumbnails
 
-- Threads and Bluesky are sent from the Studio, at the same time as the other platforms, retried after 2, 10 and 30 minutes, then you get the usual alert. They show on **Studio, Publishing**.
+- Bluesky is sent from the Studio, at the same time as the other platforms, retried after 2, 10 and 30 minutes, then you get the usual alert. They show on **Studio, Publishing**.
 - YouTube Shorts cannot take a custom thumbnail through the API, so the winning thumbnail is shown for the first quarter second of the video instead. Long videos get a custom thumbnail and an A/B swap test (after about 48 hours the second best is tried, the click rate is compared, the winner stays). The test needs YouTube Analytics permission: reconnect YouTube once on Connections.
 - The thumbnail guidelines are in Settings, with history and a Revert button. They refresh from the platforms' help pages once a month.
 

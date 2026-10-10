@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { Analytics } from './analytics'
 import { CommentsAgent } from './comments/agent'
 import { MockCommentSource, type CommentSource, type PostedRef } from './comments/sources'
-import { BlueskyCommentSource, ThreadsCommentSource } from './comments/realSources'
+import { BlueskyCommentSource } from './comments/realSources'
 import { buildDigest } from './digest'
 import { Watchdog } from './watchdog'
 import { StudioBackup } from './backup'
@@ -57,7 +57,7 @@ import { Guidelines, Thumbnailer, lineDiff } from './thumbnails'
 import { MockAnalytics, ThumbnailTester, type AnalyticsReader } from './thumbTest'
 import { SocialPublisher } from './social/socialPublisher'
 import { PublicHost, R2_KEY_ID, R2_SECRET } from './social/publicHost'
-import { SocialAccounts, THREADS_APP_ID, THREADS_APP_SECRET, type BrandSocialView } from './social/accounts'
+import { SocialAccounts, type BrandSocialView } from './social/accounts'
 import type { AlertItem } from '../alerts/format'
 import type { ImageClient } from './xai'
 import { makeProducerAgent } from './agents/producer'
@@ -92,8 +92,6 @@ export interface StudioDeps {
   watchdogDir?: () => string
   /** YouTube, Facebook and Instagram comment sources built from the existing connections. */
   commentSources?: () => Record<string, CommentSource>
-  /** Opens a web address in the owner's browser (the Threads sign in). */
-  openBrowser?: (url: string) => Promise<void>
   /** Sets a YouTube thumbnail. Mock mode records the choice only. */
   setYoutubeThumbnail?: (accountId: number | null, videoId: string, file: string) => Promise<void>
   now?: () => number
@@ -103,8 +101,6 @@ export interface StudioDeps {
 const KEY_NAMES: Record<KeyId, { secret: string; label: string }> = {
   xai: { secret: 'xai.apiKey', label: 'Grok / xAI API key' },
   anthropic: { secret: 'anthropic.apiKey', label: 'Anthropic API key' },
-  threadsAppId: { secret: THREADS_APP_ID, label: 'Threads app ID' },
-  threadsAppSecret: { secret: THREADS_APP_SECRET, label: 'Threads app secret' },
   r2id: { secret: R2_KEY_ID, label: 'Cloudflare R2 access key id' },
   r2secret: { secret: R2_SECRET, label: 'Cloudflare R2 secret access key' },
 }
@@ -224,14 +220,11 @@ export class Studio implements StudioApi {
     this.jobs = new VideoJobs(d.db, now)
     this.qc = new VideoQc({ cfg: this.cfg, localAi: this.localAi, audit: this.audit, assets: this.assets })
     this.host = new PublicHost(this.cfg, d.secrets, d.fetchImpl, now)
-    this.socialAccounts = new SocialAccounts({ db: d.db, secrets: d.secrets, cfg: this.cfg, brandName, brandIds: () => this.cfg.listBrandConfigs().map((b) => b.brandId), fetchImpl: d.fetchImpl, openBrowser: d.openBrowser, now })
+    this.socialAccounts = new SocialAccounts({ db: d.db, secrets: d.secrets, brandName, brandIds: () => this.cfg.listBrandConfigs().map((b) => b.brandId), fetchImpl: d.fetchImpl, now })
     this.social = new SocialPublisher({
       db: d.db,
       cfg: this.cfg,
-      threads: (b) => this.socialAccounts.threadsFor(b),
       bluesky: (b) => this.socialAccounts.blueskyFor(b),
-      host: this.host,
-      userId: { get: (b) => this.socialAccounts.threadsUserId(b), set: (b, id) => this.socialAccounts.setThreadsUserId(b, id) },
       alert: (item) => (d.alertItem ? d.alertItem(item) : d.alert(item.headline, item.detail)),
       log: (level, message) => d.log.log(level, message),
       brandName,
@@ -250,7 +243,7 @@ export class Studio implements StudioApi {
       onShow: (v) => this.mockAnalytics.setCurrent(v),
       now,
     })
-    this.publisher = new Publisher({ db: d.db, cfg: this.cfg, episodes: this.episodes, posts: d.posts, media: d.media, gateway: this.gateway, bible: this.bibles, compliance: this.compliance, thumbnailer: this.thumbnailer, tester: this.tester, social: this.social, host: this.host, socialReady: (b, p) => this.socialAccounts.notReady(b, p), workDir: (id) => this.workDir(id), now })
+    this.publisher = new Publisher({ db: d.db, cfg: this.cfg, episodes: this.episodes, posts: d.posts, media: d.media, gateway: this.gateway, bible: this.bibles, compliance: this.compliance, thumbnailer: this.thumbnailer, tester: this.tester, social: this.social, host: this.host, socialReady: (b) => this.socialAccounts.notReady(b), workDir: (id) => this.workDir(id), now })
     this.runner.register(makePublisherAgent(this.publisher))
     this.runner.register(
       makeProducerAgent({
@@ -272,7 +265,6 @@ export class Studio implements StudioApi {
       cfg: this.cfg,
       gateway: this.gateway,
       audit: this.audit,
-      threads: (b) => this.socialAccounts.threadsFor(b),
       bluesky: (b) => this.socialAccounts.blueskyFor(b),
       tester: this.tester,
       refreshStats: d.refreshStats ?? (async () => ({ fetched: 0, unavailable: 0 })),
@@ -288,7 +280,7 @@ export class Studio implements StudioApi {
       role: this.analytics.role,
       input: z.object({ day: z.string().optional() }),
       output: z.object({ fetched: z.number(), social: z.number(), brands: z.number() }),
-      tools: ['stats', 'threads', 'bluesky'],
+      tools: ['stats', 'bluesky'],
       paid: true,
       run: () => this.analytics.daily((id) => this.episodeDetails(id)),
     })
@@ -298,7 +290,7 @@ export class Studio implements StudioApi {
       role: this.comments.role,
       input: z.object({}).passthrough(),
       output: z.object({ checked: z.number(), replied: z.number(), drafted: z.number(), flagged: z.number(), spam: z.number(), waiting: z.number() }),
-      tools: ['youtube', 'facebook', 'instagram', 'threads', 'bluesky'],
+      tools: ['youtube', 'facebook', 'instagram', 'bluesky'],
       paid: true,
       run: async (ctx) => {
         if (!ctx.task.brandId) throw new Error('A comment pass needs a brand.')
@@ -355,7 +347,6 @@ export class Studio implements StudioApi {
       await this.runner.runUntilIdle()
       await this.social.tick()
       await this.tester.tick()
-      await this.checkThreadsToken().catch(() => {})
       await this.refreshGuidelines().catch(() => {})
       await this.maybeDigest().catch(() => {})
       await this.maybeBackup().catch(() => {})
@@ -446,10 +437,10 @@ export class Studio implements StudioApi {
 
   private commentSources(): Record<string, CommentSource> {
     if (this.cfg.get().mockMode) {
-      for (const p of ['youtube', 'facebook', 'instagram', 'threads', 'bluesky']) if (!this.mockComments.has(p)) this.mockComments.set(p, new MockCommentSource(p))
+      for (const p of ['youtube', 'facebook', 'instagram', 'bluesky']) if (!this.mockComments.has(p)) this.mockComments.set(p, new MockCommentSource(p))
       return Object.fromEntries(this.mockComments)
     }
-    return { ...(this.d.commentSources?.() ?? {}), threads: new ThreadsCommentSource((b) => this.socialAccounts.threadsFor(b), (b) => this.socialAccounts.threadsUserId(b)), bluesky: new BlueskyCommentSource((b) => this.socialAccounts.blueskyFor(b)) }
+    return { ...(this.d.commentSources?.() ?? {}), bluesky: new BlueskyCommentSource((b) => this.socialAccounts.blueskyFor(b)) }
   }
 
   /** Videos posted in the last 14 days that can have comments. Mock mode includes the dry run ones. */
@@ -512,13 +503,6 @@ export class Studio implements StudioApi {
 
   private expiringLines(): string[] {
     const lines = [...(this.d.expiring?.() ?? [])]
-    for (const b of this.cfg.listBrandConfigs()) {
-      const t = this.socialAccounts.threadsExpiry(b.brandId)
-      if (t && this.socialAccounts.hasThreads(b.brandId)) {
-        const days = Math.ceil((Date.parse(t) - this.now()) / 86_400_000)
-        if (days <= 7) lines.push(`The Threads token for ${b.name} expires in ${Math.max(0, days)} day(s).`)
-      }
-    }
     return lines
   }
   async digestPreview() {
@@ -751,77 +735,10 @@ export class Studio implements StudioApi {
   async publicHostStatus() {
     return { configured: this.host.configured() }
   }
-  /** Daily: refresh each brand's Threads token when it is within 7 days of expiring, and warn if that does not work. */
-  async checkThreadsToken(): Promise<void> {
-    if (this.cfg.get().mockMode) return
-    for (const b of this.cfg.listBrandConfigs()) {
-      const exp = this.socialAccounts.threadsExpiry(b.brandId)
-      if (!exp || !this.socialAccounts.hasThreads(b.brandId)) continue
-      const days = (Date.parse(exp) - this.now()) / 86_400_000
-      if (days > 7) continue
-      const r = await this.socialAccounts.refreshThreads(b.brandId)
-      if (!r.ok) {
-        const today = todayEastern(this.now())
-        if (this.socialAccounts.warnedToday(b.brandId, today)) continue
-        this.socialAccounts.markWarned(b.brandId, today)
-        this.d.alert('Threads sign in runs out soon.', `${b.name}: the Threads token expires in ${Math.max(0, Math.round(days))} day(s) and could not be refreshed: ${r.message}`)
-      }
-    }
-  }
-
-  // ---------- Threads and Bluesky accounts, one set per brand ----------
+  // ---------- Bluesky accounts, one per brand ----------
 
   async socialAccountList(): Promise<BrandSocialView[]> {
     return this.socialAccounts.status()
-  }
-  async connectThreads(brandId: number) {
-    try {
-      const r = await this.socialAccounts.connectThreads(brandId)
-      this.audit.write({ agent: 'Settings', action: 'threads_connected', brandId })
-      this.d.emit()
-      return r
-    } catch (e) {
-      // Kept in the Activity Log so the exact words can be read later. No token or secret is in these messages.
-      this.d.log.log('error', `Threads sign in failed: ${(e as Error).message}`)
-      throw e
-    }
-  }
-  async submitThreadsCode(code: string) {
-    this.socialAccounts.submitCode(code)
-  }
-  async cancelThreadsConnect() {
-    this.socialAccounts.cancelConnect()
-  }
-  handleOpenUrl(url: string): boolean {
-    return this.socialAccounts.handleOpenUrl(url)
-  }
-  async disconnectThreads(brandId: number) {
-    this.socialAccounts.disconnectThreads(brandId)
-    this.d.emit()
-  }
-  async setThreadsToken(brandId: number, token: string) {
-    const t = token.trim().replace(/^["']|["']$/g, '')
-    if (!t) throw new Error('Paste the token first.')
-    this.socialAccounts.setThreadsToken(brandId, t)
-    if (!this.cfg.get().mockMode) {
-      // Check it right now, so a wrong paste (the code, the app secret) is refused instead of saved.
-      const r = await this.socialAccounts.testThreads(brandId)
-      if (!r.ok) {
-        this.socialAccounts.disconnectThreads(brandId)
-        this.d.emit()
-        throw new Error('Threads did not accept that token, so it was not saved. Use Connect Threads instead, or paste a long lived token made in Meta for Developers (Threads use case, User Token Generator). It is not the app secret and not the sign in code.')
-      }
-    }
-    this.d.emit()
-  }
-  async testThreads(brandId: number): Promise<TestResult> {
-    if (this.cfg.get().mockMode) return { ok: true, message: 'Mock mode is on, so no network call was made. Turn mock mode off to test for real.' }
-    const r = await this.socialAccounts.testThreads(brandId)
-    this.d.emit()
-    return r
-  }
-  async refreshThreadsToken(brandId: number): Promise<TestResult> {
-    return this.socialAccounts.refreshThreads(brandId)
   }
   async saveBluesky(brandId: number, handle: string, password: string) {
     this.socialAccounts.saveBluesky(brandId, handle, password)
@@ -1068,7 +985,7 @@ export class Studio implements StudioApi {
     try {
       if (id === 'xai') result = { ok: true, message: await this.xai.test() }
       else if (id === 'anthropic') result = { ok: true, message: await this.anthropic.test() }
-      else result = { ok: true, message: 'Saved. The Threads app ID and secret are used when you press Connect Threads for a brand.' }
+      else result = { ok: true, message: 'Saved. The two R2 keys are used when a cover picture is uploaded.' }
     } catch (e) {
       result = { ok: false, message: (e as Error).message }
     }

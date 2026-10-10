@@ -80,7 +80,7 @@ export function makeIngestHooks(d: IngestDeps): IngestHooks {
       const description = (sidecar.description as string | undefined) ?? pkg?.youtube.description
       if (sidecar.caption === undefined && description) fill.caption = description
       if (sidecar.platforms === undefined) {
-        // Only the four platforms the scheduler posts to. Threads and Bluesky are handled by the Publisher.
+        // Only the four platforms the scheduler posts to. Bluesky is handled by the Publisher.
         const four = (['youtube', 'facebook', 'instagram', 'tiktok'] as const).filter((p) => brand.platforms[p])
         if (four.length) fill.platforms = four
       }

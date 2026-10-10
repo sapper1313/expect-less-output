@@ -2,68 +2,14 @@ import { writeFileSync } from 'fs'
 import { join } from 'path'
 import { describe, expect, it, vi } from 'vitest'
 import { BlueskyClient } from '../../src/main/studio/social/bluesky'
-import { ThreadsClient } from '../../src/main/studio/social/threads'
 import { PublicHost } from '../../src/main/studio/social/publicHost'
 import { SocialPublisher } from '../../src/main/studio/social/socialPublisher'
-import { SocialError } from '../../src/main/studio/social/errors'
 import { makePlaceholderVideo } from '../../src/main/studio/ffmpeg'
 import { makeStudioEnv } from './helpers'
 
 vi.setConfig({ testTimeout: 60_000 })
 const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { 'content-type': 'application/json' } })
 const noSleep = async () => {}
-
-describe('Threads client', () => {
-  function fake() {
-    const calls: Array<{ method: string; path: string; params: Record<string, string> }> = []
-    let polls = 0
-    const f = (async (url: string, init?: RequestInit) => {
-      const u = new URL(url)
-      const params = Object.fromEntries(u.searchParams)
-      const body = init?.body instanceof URLSearchParams ? Object.fromEntries(init.body) : {}
-      calls.push({ method: init?.method ?? 'GET', path: u.pathname, params: { ...params, ...body } })
-      if (u.pathname.endsWith('/me')) return json({ id: 'U1', username: 'elo' })
-      if (u.pathname === '/v1.0/U1/threads' && init?.method === 'POST') return json({ id: 'C1' })
-      if (u.pathname === '/v1.0/C1') return json({ status: ++polls < 3 ? 'IN_PROGRESS' : 'FINISHED' })
-      if (u.pathname === '/v1.0/U1/threads_publish') return json({ id: 'P1' })
-      if (u.pathname === '/v1.0/P1') return json({ permalink: 'https://www.threads.net/@elo/post/P1' })
-      if (u.pathname === '/v1.0/P1/replies') return json({ data: [{ id: 'R1', text: 'Nice', username: 'fan', timestamp: '2026-06-01T00:00:00Z' }] })
-      if (u.pathname === '/refresh_access_token') return json({ access_token: 'newtoken', expires_in: 5184000 })
-      return json({ error: 'nope' }, 404)
-    }) as unknown as typeof fetch
-    return { f, calls }
-  }
-
-  it('publishes a video as container, wait, publish, and never repeats a container', async () => {
-    const { f, calls } = fake()
-    const c = new ThreadsClient(() => 'tok', f, undefined, noSleep)
-    const state: Record<string, unknown> = {}
-    const r = await c.publishVideo({ userId: 'U1', text: 'Hello', videoUrl: 'https://cdn.example.com/v.mp4', state, setState: (p) => Object.assign(state, p) })
-    expect(r).toEqual({ id: 'P1', url: 'https://www.threads.net/@elo/post/P1' })
-    const create = calls.find((x) => x.method === 'POST' && x.path === '/v1.0/U1/threads')!
-    expect(create.params).toMatchObject({ media_type: 'VIDEO', video_url: 'https://cdn.example.com/v.mp4', text: 'Hello', access_token: 'tok' })
-    expect(calls.filter((x) => x.path === '/v1.0/C1').length).toBeGreaterThanOrEqual(3)
-    // a retry after a crash reuses the remembered container
-    await c.publishVideo({ userId: 'U1', text: 'Hello', videoUrl: 'https://cdn.example.com/v.mp4', state, setState: (p) => Object.assign(state, p) })
-    expect(calls.filter((x) => x.method === 'POST' && x.path === '/v1.0/U1/threads')).toHaveLength(1)
-  })
-
-  it('lists and posts replies, hides a reply, and refreshes the token', async () => {
-    const { f, calls } = fake()
-    const c = new ThreadsClient(() => 'tok', f, undefined, noSleep)
-    expect(await c.listReplies('P1')).toEqual([{ id: 'R1', text: 'Nice', username: 'fan', at: '2026-06-01T00:00:00Z' }])
-    expect(await c.reply('U1', 'R1', 'Thanks')).toBe('P1')
-    expect(calls.find((x) => x.params.reply_to_id === 'R1')!.params).toMatchObject({ media_type: 'TEXT', text: 'Thanks' })
-    expect(await c.refresh()).toEqual({ token: 'newtoken', expiresInSeconds: 5184000 })
-    expect(calls.find((x) => x.path === '/refresh_access_token')!.params).toMatchObject({ grant_type: 'th_refresh_token' })
-  })
-
-  it('classifies a 429 as transient and a 401 as permanent', async () => {
-    const mk = (status: number) => new ThreadsClient(() => 'tok', (async () => new Response('x', { status })) as unknown as typeof fetch)
-    await expect(mk(429).me()).rejects.toMatchObject({ kind: 'transient' })
-    await expect(mk(401).me()).rejects.toMatchObject({ kind: 'permanent' })
-  })
-})
 
 describe('Bluesky client', () => {
   function fake(opts: { expireFirst?: boolean } = {}) {
@@ -177,16 +123,12 @@ describe('Public host (S3 compatible, Cloudflare R2)', () => {
 })
 
 describe('Social publisher (Threads and Bluesky)', () => {
-  function build(e: ReturnType<typeof makeStudioEnv>, threads: ThreadsClient, bluesky: BlueskyClient, host: PublicHost) {
+  function build(e: ReturnType<typeof makeStudioEnv>, bluesky: BlueskyClient) {
     const alerts: unknown[] = []
-    let uid: string | null = null
     const pub = new SocialPublisher({
       db: e.db,
       cfg: e.studio.cfg,
-      threads: () => threads,
       bluesky: () => bluesky,
-      host,
-      userId: { get: () => uid, set: (_b, v) => (uid = v) },
       alert: (i) => alerts.push(i),
       log: () => {},
       brandName: () => 'Trash Panda',
@@ -194,13 +136,13 @@ describe('Social publisher (Threads and Bluesky)', () => {
     })
     return { pub, alerts }
   }
-  const row = (e: ReturnType<typeof makeStudioEnv>, platform: 'threads' | 'bluesky', video: string) => ({ episodeId: null, brandId: 1, platform, text: 'Hi', videoPath: video, title: 'A clip', scheduledAtUtc: new Date(e.clock.ms).toISOString(), mock: false })
+  const row = (e: ReturnType<typeof makeStudioEnv>, platform: 'bluesky', video: string) => ({ episodeId: null, brandId: 1, platform, text: 'Hi', videoPath: video, title: 'A clip', scheduledAtUtc: new Date(e.clock.ms).toISOString(), mock: false })
 
   it('retries a busy platform after 2, 10 and 30 minutes, then fails once with the failure alert', async () => {
     const e = makeStudioEnv({ startMs: Date.UTC(2026, 5, 3, 12) })
     const busy = (async () => new Response('slow down', { status: 503 })) as unknown as typeof fetch
     const bs = new BlueskyClient({ handle: () => 'a.bsky.social', password: () => 'p' }, busy, undefined, noSleep)
-    const { pub, alerts } = build(e, new ThreadsClient(() => 't', busy), bs, new PublicHost(e.studio.cfg, e.secrets, busy))
+    const { pub, alerts } = build(e, bs)
     const r = pub.add(row(e, 'bluesky', '/nonexistent.mp4'))
     await pub.tick()
     expect(pub.get(r.id)).toMatchObject({ status: 'scheduled', attempts: 1 })
@@ -219,82 +161,9 @@ describe('Social publisher (Threads and Bluesky)', () => {
     pub.retry(r.id)
     expect(pub.get(r.id)).toMatchObject({ status: 'scheduled', attempts: 0 })
   })
-
-  it('Threads without a public host fails at once with a plain reason', async () => {
-    const e = makeStudioEnv({ startMs: Date.UTC(2026, 5, 3, 12) })
-    const ok = (async () => json({ id: 'U1', username: 'elo' })) as unknown as typeof fetch
-    const { pub, alerts } = build(e, new ThreadsClient(() => 't', ok), new BlueskyClient({ handle: () => null, password: () => null }), new PublicHost(e.studio.cfg, e.secrets, ok))
-    const r = pub.add(row(e, 'threads', '/x.mp4'))
-    await pub.tick()
-    expect(pub.get(r.id)!.status).toBe('failed')
-    expect(pub.get(r.id)!.error).toMatch(/public address/)
-    expect(alerts).toHaveLength(1)
-    void SocialError
-  })
-
-  it('posts a Threads video through the public host and removes the file afterwards', async () => {
-    const e = makeStudioEnv({ startMs: Date.UTC(2026, 5, 3, 12) })
-    const log: string[] = []
-    const f = (async (url: string, init?: RequestInit) => {
-      const u = new URL(url)
-      log.push(`${init?.method ?? 'GET'} ${u.host}${u.pathname}`)
-      if (u.host.includes('r2.cloudflarestorage')) return new Response('', { status: 200 })
-      if (u.pathname === '/v1.0/me') return json({ id: 'U1', username: 'elo' })
-      if (u.pathname === '/v1.0/U1/threads') return json({ id: 'C1' })
-      if (u.pathname === '/v1.0/C1') return json({ status: 'FINISHED' })
-      if (u.pathname === '/v1.0/U1/threads_publish') return json({ id: 'P1' })
-      return json({ permalink: 'https://www.threads.net/@elo/post/P1' })
-    }) as unknown as typeof fetch
-    e.studio.cfg.set({ publicHost: { endpoint: 'https://a.r2.cloudflarestorage.com', bucket: 'b', publicBase: 'https://pub.example.com', region: 'auto' } })
-    await e.studio.setKey('r2id', 'k')
-    await e.studio.setKey('r2secret', 's')
-    const file = join(e.dir, 't.mp4')
-    await makePlaceholderVideo({ out: file, seconds: 2, width: 270, height: 480 })
-    const { pub } = build(e, new ThreadsClient(() => 't', f, undefined, noSleep), new BlueskyClient({ handle: () => null, password: () => null }), new PublicHost(e.studio.cfg, e.secrets, f))
-    const r = pub.add(row(e, 'threads', file))
-    await pub.tick()
-    expect(pub.get(r.id)).toMatchObject({ status: 'posted', externalId: 'P1', externalUrl: 'https://www.threads.net/@elo/post/P1' })
-    expect(log.filter((l) => l.startsWith('PUT')).length).toBe(1)
-    expect(log.filter((l) => l.startsWith('DELETE')).length).toBe(1)
-    expect(log.indexOf(log.find((l) => l.startsWith('PUT'))!)).toBeLessThan(log.findIndex((l) => l.includes('/U1/threads') && l.startsWith('POST')))
-  })
 })
 
-describe('Threads accounts per brand, and monthly guideline refresh', () => {
-  const setExpiry = (s: unknown, brandId: number, iso: string) => (s as { socialAccounts: { setThreadsExpiry: (b: number, i: string) => void } }).socialAccounts.setThreadsExpiry(brandId, iso)
-
-  it('refreshes a brand token when it is inside 7 days of expiry, leaves the others alone', async () => {
-    const f = (async (url: string) => {
-      if (String(url).includes('refresh_access_token')) return json({ access_token: 'fresh', expires_in: 5184000 })
-      return json({})
-    }) as unknown as typeof fetch
-    const e = makeStudioEnv({ fetchImpl: f, startMs: Date.UTC(2026, 5, 3, 12) })
-    const s = e.studio
-    s.socialAccounts.setThreadsToken(1, 'old-one')
-    s.socialAccounts.setThreadsToken(2, 'old-two')
-    await s.setConfig({ mockMode: false })
-    setExpiry(s, 1, new Date(e.clock.ms + 30 * 86_400_000).toISOString())
-    setExpiry(s, 2, new Date(e.clock.ms + 3 * 86_400_000).toISOString())
-    await s.checkThreadsToken()
-    expect(e.secrets.get('threads.token.1')).toBe('old-one')
-    expect(e.secrets.get('threads.token.2')).toBe('fresh')
-    expect(e.alerts).toEqual([])
-  })
-
-  it('warns once a day, naming the brand, when the refresh fails', async () => {
-    const f = (async () => new Response('no', { status: 400 })) as unknown as typeof fetch
-    const e = makeStudioEnv({ fetchImpl: f, startMs: Date.UTC(2026, 5, 3, 12) })
-    const s = e.studio
-    s.socialAccounts.setThreadsToken(1, 'old')
-    await s.setConfig({ mockMode: false })
-    setExpiry(s, 1, new Date(e.clock.ms + 2 * 86_400_000).toISOString())
-    await s.checkThreadsToken()
-    await s.checkThreadsToken()
-    const w = e.alerts.filter(([h]) => h === 'Threads sign in runs out soon.')
-    expect(w).toHaveLength(1)
-    expect(w[0][1]).toMatch(/^Trash Panda:/)
-  })
-
+describe('Monthly guideline refresh', () => {
   it('skips the guideline refresh in mock mode, applies small edits with a logged diff, and parks big ones as a proposal', async () => {
     const seed = (await import('../../src/shared/studio/thumbnailGuidelines')).SEED_GUIDELINES
     let reply = seed + '\n- Test the thumbnail on a phone.\n'
@@ -323,69 +192,5 @@ describe('Threads accounts per brand, and monthly guideline refresh', () => {
     const e2 = makeStudioEnv({ fetchImpl: (async () => new Response('x', { status: 503 })) as unknown as typeof fetch })
     await e2.studio.setConfig({ mockMode: false })
     expect((await e2.studio.refreshGuidelines(true)).note).toMatch(/could not be reached/)
-  })
-})
-
-describe('Threads sign in (OAuth) per brand', () => {
-  function rig() {
-    const calls: string[] = []
-    const f = (async (url: string, init?: RequestInit) => {
-      const u = new URL(url)
-      calls.push(`${init?.method ?? 'GET'} ${u.host}${u.pathname}`)
-      if (u.pathname === '/oauth/access_token') {
-        const b = Object.fromEntries(init!.body as URLSearchParams)
-        expect(b).toMatchObject({ client_id: 'APPID', client_secret: 'APPSECRET', grant_type: 'authorization_code', code: 'THE_CODE' })
-        return json({ access_token: 'short', user_id: 777 })
-      }
-      if (u.pathname === '/access_token') {
-        expect(u.searchParams.get('grant_type')).toBe('th_exchange_token')
-        return json({ access_token: 'longtoken', expires_in: 5184000 })
-      }
-      if (u.pathname.endsWith('/me')) return json({ id: '777', username: 'pandaposts' })
-      return json({}, 404)
-    }) as unknown as typeof fetch
-    const opened: string[] = []
-    const e = makeStudioEnv({ fetchImpl: f, startMs: Date.UTC(2026, 5, 3, 12) })
-    return { e, calls, opened, f }
-  }
-
-  it('signs a brand in when the return link arrives, and keeps the 60 day token under that brand only', async () => {
-    const { e, opened } = rig()
-    await e.studio.setKey('threadsAppId', 'APPID')
-    await e.studio.setKey('threadsAppSecret', 'APPSECRET')
-    const { SocialAccounts } = await import('../../src/main/studio/social/accounts')
-    const acc = new SocialAccounts({ db: e.db, secrets: e.secrets, cfg: e.studio.cfg, brandName: () => 'B', brandIds: () => [1, 2], fetchImpl: (e.studio.d as { fetchImpl: typeof fetch }).fetchImpl, now: () => e.clock.ms, openBrowser: async (url) => { opened.push(url); setTimeout(() => acc.handleOpenUrl('expectless://oauth/tiktok?code=THE_CODE&state=' + new URL(url).searchParams.get('state')), 5) } })
-    expect(acc.handleOpenUrl('expectless://oauth/tiktok?code=X')).toBe(false) // not ours while no Threads sign in waits
-    const r = await acc.connectThreads(2)
-    expect(r.username).toBe('pandaposts')
-    const u = new URL(opened[0])
-    expect(u.host).toBe('threads.net')
-    expect(u.searchParams.get('client_id')).toBe('APPID')
-    expect(u.searchParams.get('redirect_uri')).toBe('https://expectlessmedia.com/oauth/tiktok/')
-    expect(u.searchParams.get('scope')).toContain('threads_content_publish')
-    expect(e.secrets.get('threads.token.2')).toBe('longtoken')
-    expect(e.secrets.has('threads.token.1')).toBe(false)
-    expect(acc.threadsUserId(2)).toBe('777')
-    expect(acc.threadsExpiry(2)).toBe(new Date(e.clock.ms + 5184000_000).toISOString())
-    expect(JSON.stringify(e.db.prepare('SELECT * FROM settings').all())).not.toContain('longtoken')
-  })
-
-  it('also works by pasting the whole address after approving, and refuses a wrong state or a missing secret', async () => {
-    const { e, opened } = rig()
-    const { SocialAccounts } = await import('../../src/main/studio/social/accounts')
-    const mk = () => new SocialAccounts({ db: e.db, secrets: e.secrets, cfg: e.studio.cfg, brandName: () => 'B', brandIds: () => [1], fetchImpl: (e.studio.d as { fetchImpl: typeof fetch }).fetchImpl, now: () => e.clock.ms, openBrowser: async (url) => void opened.push(url) })
-    await expect(mk().connectThreads(1)).rejects.toThrow(/app ID and app secret/)
-    await e.studio.setKey('threadsAppId', 'APPID')
-    await e.studio.setKey('threadsAppSecret', 'APPSECRET')
-    const acc = mk()
-    const p = acc.connectThreads(1)
-    await new Promise((r) => setTimeout(r, 20))
-    expect(() => mk().submitCode('x')).toThrow(/No Threads sign in is waiting/)
-    acc.submitCode('https://expectlessmedia.com/oauth/threads/?code=THE_CODE%23_')
-    expect((await p).username).toBe('pandaposts')
-    const p2 = acc.connectThreads(1)
-    await new Promise((r) => setTimeout(r, 20))
-    acc.handleOpenUrl('expectless://oauth/threads?code=THE_CODE&state=wrong')
-    await expect(p2).rejects.toThrow(/did not start here/)
   })
 })

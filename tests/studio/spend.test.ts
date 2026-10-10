@@ -160,31 +160,23 @@ describe('spend caps', () => {
   })
 })
 
-describe('Threads and Bluesky accounts', () => {
-  it('each brand has its own accounts, with their own state and Expiring soon chip', async () => {
+describe('Bluesky accounts', () => {
+  it('each brand has its own account, with its own state and its own secret', async () => {
     const e = makeStudioEnv({ startMs: Date.UTC(2026, 5, 3, 12) })
     const s = e.studio
     const before = await s.socialAccountList()
     expect(before.length).toBe(5)
-    expect(before.every((b) => b.threads.state === 'not_set' && b.bluesky.state === 'not_set')).toBe(true)
-    s.socialAccounts.setThreadsToken(1, 'tok-123456')
+    expect(before.every((b) => b.bluesky.state === 'not_set')).toBe(true)
     await s.saveBluesky(2, '@panda.bsky.social', 'app-pass-1')
     await s.saveBluesky(3, 'sarah.bsky.social', 'app-pass-2')
-    let list = await s.socialAccountList()
-    expect(list[0].threads.state).toBe('connected')
+    const list = await s.socialAccountList()
     expect(list[1].bluesky).toMatchObject({ handle: 'panda.bsky.social', hasPassword: true, state: 'untested' })
     expect(list[2].bluesky.handle).toBe('sarah.bsky.social')
-    expect(list[1].threads.connected).toBe(false)
-    // separate secrets, never in the database
     expect(e.secrets.get('bluesky.appPassword.2')).toBe('app-pass-1')
     expect(e.secrets.get('bluesky.appPassword.3')).toBe('app-pass-2')
     expect(JSON.stringify(e.db.prepare('SELECT * FROM settings').all())).not.toContain('app-pass')
-    e.clock.ms += 55 * 86_400_000
-    list = await s.socialAccountList()
-    expect(list[0].threads.state).toBe('expiring')
-    expect(s.socialAccounts.notReady(2, 'bluesky')).toBeNull()
-    expect(s.socialAccounts.notReady(4, 'bluesky')).toMatch(/no Bluesky handle/)
-    expect(s.socialAccounts.notReady(4, 'threads')).toMatch(/no Threads account/)
+    expect(s.socialAccounts.notReady(2)).toBeNull()
+    expect(s.socialAccounts.notReady(4)).toMatch(/no Bluesky handle/)
     await s.removeBluesky(2)
     expect((await s.socialAccountList())[1].bluesky.state).toBe('not_set')
   })

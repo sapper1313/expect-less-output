@@ -18,14 +18,14 @@ import type {
 import type { BrandSocialView } from '../../main/studio/social/accounts'
 export type { BrandSocialView }
 
-export type KeyId = 'xai' | 'anthropic' | 'threadsAppId' | 'threadsAppSecret' | 'r2id' | 'r2secret'
+export type KeyId = 'xai' | 'anthropic' | 'r2id' | 'r2secret'
 
 export interface KeyStatus {
   id: KeyId
   label: string
   has: boolean
   masked: string
-  /** Not secret. Bluesky handle, Threads account name. */
+  /** Not secret. Bluesky handle. */
   account: string
   state: 'connected' | 'not_set' | 'failed' | 'expiring' | 'untested'
   lastTestAt: string | null
@@ -218,13 +218,6 @@ export interface StudioApi {
   platformCaps(): Promise<Record<string, unknown>>
   publicHostStatus(): Promise<{ configured: boolean }>
   socialAccountList(): Promise<BrandSocialView[]>
-  connectThreads(brandId: number): Promise<{ username: string }>
-  submitThreadsCode(code: string): Promise<void>
-  cancelThreadsConnect(): Promise<void>
-  disconnectThreads(brandId: number): Promise<void>
-  setThreadsToken(brandId: number, token: string): Promise<void>
-  testThreads(brandId: number): Promise<TestResult>
-  refreshThreadsToken(brandId: number): Promise<TestResult>
   saveBluesky(brandId: number, handle: string, password: string): Promise<void>
   removeBluesky(brandId: number): Promise<void>
   testBluesky(brandId: number): Promise<TestResult>

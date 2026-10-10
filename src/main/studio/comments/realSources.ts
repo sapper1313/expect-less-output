@@ -1,7 +1,6 @@
 import type { Account } from '@shared/types'
 import type { GraphClient } from '../../meta/graph'
 import type { BlueskyClient } from '../social/bluesky'
-import type { ThreadsClient } from '../social/threads'
 import type { CommentSource, PostedRef, RawComment } from './sources'
 
 /** YouTube comments through the Data API (commentThreads.list and comments.insert). */
@@ -55,25 +54,6 @@ export class MetaCommentSource implements CommentSource {
   async hide(ref: PostedRef, c: RawComment): Promise<void> {
     const token = this.tokenFor(this.account(ref))
     await this.graph.post(`/${c.id}`, this.platform === 'facebook' ? { is_hidden: true } : { hide: true }, token)
-  }
-}
-
-export class ThreadsCommentSource implements CommentSource {
-  readonly platform = 'threads'
-  constructor(
-    private clientFor: (brandId: number) => ThreadsClient,
-    private userId: (brandId: number) => string | null,
-  ) {}
-  async list(ref: PostedRef): Promise<RawComment[]> {
-    return (await this.clientFor(ref.brandId).listReplies(ref.externalId)).map((r) => ({ id: r.id, text: r.text, author: r.username, createdUtc: r.at }))
-  }
-  async reply(ref: PostedRef, c: RawComment, text: string): Promise<string> {
-    const client = this.clientFor(ref.brandId)
-    const uid = this.userId(ref.brandId) ?? (await client.me()).id
-    return client.reply(uid, c.id, text)
-  }
-  async hide(ref: PostedRef, c: RawComment): Promise<void> {
-    await this.clientFor(ref.brandId).hideReply(c.id, true)
   }
 }
 

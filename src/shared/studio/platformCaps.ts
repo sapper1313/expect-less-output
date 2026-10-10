@@ -3,7 +3,7 @@
  * Where a number could not be confirmed it is marked in `notes` and the Publisher also checks live where an API
  * exists (Bluesky getUploadLimits, TikTok creator_info).
  */
-export type CapKey = 'youtube_long' | 'youtube_shorts' | 'instagram_reels' | 'facebook_reels' | 'tiktok' | 'threads' | 'bluesky'
+export type CapKey = 'youtube_long' | 'youtube_shorts' | 'instagram_reels' | 'facebook_reels' | 'tiktok' | 'bluesky'
 
 export type CoverSupport = 'custom_upload' | 'frame_select' | 'auto_frame' | 'cover_url_or_frame' | 'none'
 
@@ -109,22 +109,6 @@ export const DEFAULT_PLATFORM_CAPS: Record<CapKey, PlatformCap> = {
     comments: false,
     notes: 'Cover is a frame only, video_cover_timestamp_ms, Direct Post only. The real maximum length comes from creator_info at post time. The Content Posting API has no comment endpoints.',
   },
-  threads: {
-    label: 'Threads',
-    formats: ['mp4', 'mov'],
-    aspect: [0.01, 10],
-    maxDurationSeconds: 300,
-    minDurationSeconds: 1,
-    maxFileMB: 1024,
-    titleMax: null,
-    textMax: 500,
-    hashtagsMax: 1,
-    hashtagNote: 'One topic tag per post.',
-    cover: 'none',
-    thumbSize: null,
-    comments: true,
-    notes: 'The video must be at a public https address when Threads fetches it. H.264 or HEVC, AAC, 23 to 60 fps, 250 posts per 24 hours.',
-  },
   bluesky: {
     label: 'Bluesky',
     formats: ['mp4'],
@@ -153,7 +137,7 @@ export function capKeyFor(platform: string, isShort: boolean): CapKey | null {
   if (platform === 'youtube') return isShort ? 'youtube_shorts' : 'youtube_long'
   if (platform === 'instagram') return 'instagram_reels'
   if (platform === 'facebook') return 'facebook_reels'
-  if (platform === 'tiktok' || platform === 'threads' || platform === 'bluesky') return platform
+  if (platform === 'tiktok' || platform === 'bluesky') return platform
   return null
 }
 

@@ -19,6 +19,6 @@ export const SEED_GUIDELINES = `# Thumbnail guidelines
 - TikTok: choose the best frame with the cover timestamp.
 - Instagram: make a custom cover that also survives the center crop to a 1080x1080 square. Keep the text in the middle.
 
-## Threads and Bluesky
-- A strong first frame, or an image card, that fits their layouts.
+## Bluesky
+- A strong first frame, or an image card, that fits its layout.
 `

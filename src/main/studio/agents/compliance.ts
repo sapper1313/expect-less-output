@@ -10,7 +10,6 @@ export const PlatformTextsSchema = z.object({
   instagram: z.object({ caption: z.string() }).optional(),
   facebook: z.object({ caption: z.string() }).optional(),
   tiktok: z.object({ caption: z.string() }).optional(),
-  threads: z.object({ text: z.string() }).optional(),
   bluesky: z.object({ text: z.string() }).optional(),
 })
 export type PlatformTexts = z.infer<typeof PlatformTextsSchema>
