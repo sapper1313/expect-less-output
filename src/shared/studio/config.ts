@@ -60,6 +60,8 @@ export const DEFAULT_STUDIO_CONFIG: StudioConfig = {
     'harness the power',
   ],
   agentModels: {},
+  captionLanguages: [],
+  autoChapters: false,
   defaultAgentModel: 'claude-sonnet-5-5',
   libraryDir: '~/ELO/Library',
   repetitionThreshold: 0.86,

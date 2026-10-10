@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { EPISODE_STATUSES, type EpisodeStatus } from '@shared/studio/types'
 import { api } from '../api'
 import { VideoPlayer } from '../components/VideoPlayer'
+import { EpisodeExtras } from '../components/EpisodeExtras'
 import { useApp, useLoad } from '../hooks'
 import { Button, Card, Dialog, Empty, Input, Select, useBusy } from '../ui'
 import { ClipActions } from './Studio'
@@ -104,6 +105,7 @@ function EpisodeView({ id, onClose }: { id: string; onClose: () => void }) {
           </div>
         )}
         {row.videoPath && <VideoPlayer path={row.videoPath} />}
+        {pkg && pkg.scenes.length > 0 && <EpisodeExtras episodeId={id} live={row.status === 'Posted' || row.status === 'Scheduled'} />}
         {row.flaggedReason && <div className="rounded-md border border-bad p-2 text-bad">Flagged: {row.flaggedReason}</div>}
         {pkg ? (
           <>

@@ -21,6 +21,7 @@ export const COST = {
   videosList: { bucket: 'other', units: 1 },
   videoCategoriesList: { bucket: 'other', units: 1 },
   searchList: { bucket: 'other', units: 100 },
+  captionInsert: { bucket: 'other', units: 400 },
 } as const
 
 export type CostKey = keyof typeof COST

@@ -39,6 +39,8 @@ export interface PublishDeps {
   /** Why a brand cannot post to Bluesky yet (no account saved), or null. */
   socialReady: (brandId: number) => string | null
   workDir: (episodeId: string) => string
+  /** Chapter lines to add to a YouTube description, or null. Only called when chapters are switched on. */
+  chapters?: (episodeId: string) => Promise<string | null>
   now?: () => number
 }
 
@@ -193,7 +195,11 @@ export class Publisher {
     for (const p of FOUR) {
       if (!ok(p)) continue
       const t = report.texts[p]
-      const text = p === 'youtube' ? report.texts.youtube?.description : (t as { caption?: string } | undefined)?.caption
+      let text = p === 'youtube' ? report.texts.youtube?.description : (t as { caption?: string } | undefined)?.caption
+      if (p === 'youtube' && text && this.d.cfg.get().autoChapters && this.d.chapters) {
+        const lines = await this.d.chapters(r.episodeId).catch(() => null)
+        if (lines && !/^0:00 /m.test(text)) text = `${text}\n\n${lines}`
+      }
       const cover = await settingsFor(p)
       targets.push({ platform: p, aiFlag: brand.aiDisclosure, captionOverride: text ?? null, settings: mockVideo ? { ...(cover ?? {}), mock: true } : cover })
     }

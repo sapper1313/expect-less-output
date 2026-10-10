@@ -1,4 +1,5 @@
 import { createReadStream, statSync } from 'fs'
+import { Readable } from 'stream'
 import { OAuth2Client } from 'google-auth-library'
 import { youtube, type youtube_v3 } from '@googleapis/youtube'
 import { AdapterError } from '../adapters/types'
@@ -182,6 +183,12 @@ export class YoutubeClient implements YoutubeClientLike {
     }
     const subs = ch.statistics?.hiddenSubscriberCount ? null : ch.statistics?.subscriberCount ? Number(ch.statistics.subscriberCount) : null
     return { id: ch.id, title: ch.snippet?.title ?? '', subscribers: subs, videos }
+  }
+
+  /** Adds a caption track to a video. Costs 400 quota units per language. */
+  async uploadCaption(accountId: number, videoId: string, lang: string, name: string, srt: string): Promise<void> {
+    await this.call(accountId, (yt) => yt.captions.insert({ part: ['snippet'], requestBody: { snippet: { videoId, language: lang, name, isDraft: false } }, media: { mimeType: 'application/octet-stream', body: Readable.from([srt]) } }))
+    this.quota.record('captionInsert')
   }
 
   /** The most popular videos right now in a category. Costs 1 quota unit. */

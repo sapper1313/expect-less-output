@@ -65,6 +65,8 @@ import { expandHome } from './configService'
 import { OllamaTextClient, RoutingClient } from './agents/ollamaClient'
 import { Research, type ResearchYoutube } from './research'
 import { RetentionService } from './watchTime'
+import { CaptionService } from './captions'
+import { chaptersText } from '@shared/studio/captions'
 import type { RetentionData } from './youtubeAnalytics'
 import { buildModelOptions } from '@shared/studio/modelCatalog'
 import { DirectorReply, directorSystem, type DirectorActionView } from './directorChat'
@@ -90,6 +92,8 @@ export interface StudioDeps {
   postersDir?: string
   appVersion?: string
   mediaRoot?: () => string
+  /** Adds a caption track to a YouTube video. */
+  uploadCaption?: (accountId: number, videoId: string, lang: string, name: string, srt: string) => Promise<void>
   /** Reads watch time and retention from YouTube Analytics. */
   retention?: (accountId: number, videoId: string, fromDate: string, toDate: string) => Promise<RetentionData>
   /** YouTube calls for the research tools. */
@@ -138,6 +142,7 @@ export class Studio implements StudioApi {
   private readonly routedLlm: RoutingClient
   readonly research: Research
   readonly retention: RetentionService
+  readonly captionSvc: CaptionService
   readonly runner: AgentRunner
   readonly director: Director
   readonly episodes: EpisodeLibrary
@@ -210,6 +215,7 @@ export class Studio implements StudioApi {
     })
     this.retention = new RetentionService({ db: d.db, read: (a, v, f, t) => (d.retention ? d.retention(a, v, f, t) : Promise.reject(new Error('YouTube Analytics is not available.'))), mock: () => this.cfg.get().mockMode, now })
     this.episodes = new EpisodeLibrary(d.db, this.cfg, brandName, now)
+    this.captionSvc = new CaptionService({ db: d.db, gateway: this.gateway, episodes: this.episodes, brandName, root: () => this.episodes.root(), now })
     this.calendarFeed = new CalendarFeed(d.db, this.cfg, this.episodes, d.media, now)
     this.archivist = new Archivist({ db: d.db, cfg: this.cfg, media: d.media, episodes: this.episodes, audit: this.audit, now, workDir: (id) => this.workDir(id) })
     this.localAi = new LocalAi({ cfg: this.cfg, audit: this.audit, gateway: this.gateway, fetchImpl: d.fetchImpl, now })
@@ -278,7 +284,7 @@ export class Studio implements StudioApi {
       onShow: (v) => this.mockAnalytics.setCurrent(v),
       now,
     })
-    this.publisher = new Publisher({ db: d.db, cfg: this.cfg, episodes: this.episodes, posts: d.posts, media: d.media, gateway: this.gateway, bible: this.bibles, compliance: this.compliance, thumbnailer: this.thumbnailer, tester: this.tester, social: this.social, host: this.host, socialReady: (b) => this.socialAccounts.notReady(b), workDir: (id) => this.workDir(id), now })
+    this.publisher = new Publisher({ db: d.db, cfg: this.cfg, episodes: this.episodes, posts: d.posts, media: d.media, gateway: this.gateway, bible: this.bibles, compliance: this.compliance, thumbnailer: this.thumbnailer, tester: this.tester, social: this.social, host: this.host, socialReady: (b) => this.socialAccounts.notReady(b), workDir: (id) => this.workDir(id), chapters: async (id) => { const c = this.captionSvc.chapters(id).length ? this.captionSvc.chapters(id) : (await this.captionSvc.makeChapters(id)).chapters; return c.length ? chaptersText(c) : null }, now })
     this.runner.register(makePublisherAgent(this.publisher))
     this.runner.register(
       makeProducerAgent({
@@ -711,6 +717,37 @@ export class Studio implements StudioApi {
     return this.agents()
   }
   /** One chat answer for the phone assistant, from the owner's local text model when there is one. */
+  async makeChapters(episodeId: string) {
+    return this.captionSvc.makeChapters(episodeId)
+  }
+  async chaptersFor(episodeId: string) {
+    const c = this.captionSvc.chapters(episodeId)
+    return c.length ? chaptersText(c) : null
+  }
+  async makeCaptions(episodeId: string, languages: string[]) {
+    return this.captionSvc.makeCaptions(episodeId, languages)
+  }
+  async captionList(episodeId: string) {
+    return this.captionSvc.captions(episodeId)
+  }
+  async exportCaptions(episodeId: string) {
+    const dir = this.captionSvc.exportFiles(episodeId)
+    await this.d.openPath?.(dir)
+    return dir
+  }
+  /** Adds the caption tracks to the live YouTube video. 400 YouTube points per language. */
+  async uploadCaptions(episodeId: string) {
+    const ep = this.episodes.find(episodeId)
+    if (!ep?.postId) throw new Error('This episode has not been posted yet.')
+    const t = this.d.db.prepare("SELECT t.external_id, t.account_id, t.settings_json, a.mode FROM post_targets t LEFT JOIN accounts a ON a.id = t.account_id WHERE t.post_id = ? AND t.platform = 'youtube' AND t.status = 'posted'").get(ep.postId) as { external_id: string | null; account_id: number | null; settings_json: string | null; mode: string | null } | undefined
+    if (!t?.external_id) throw new Error('This episode is not live on YouTube yet.')
+    const tracks = this.captionSvc.captions(episodeId)
+    if (!tracks.length) throw new Error('Make the captions first.')
+    const fake = (() => { try { return (JSON.parse(t.settings_json ?? '{}') as { mock?: boolean }).mock === true } catch { return false } })()
+    if (this.cfg.get().mockMode || fake || t.mode === 'dry_run' || t.account_id === null || !this.d.uploadCaption) return { uploaded: 0, note: 'This is a test or mock video, so nothing was sent to YouTube.' }
+    for (const c of tracks) await this.d.uploadCaption(t.account_id, t.external_id, c.lang, c.name, this.captionSvc.srt(episodeId, c.lang) ?? '')
+    return { uploaded: tracks.length, note: `Added ${tracks.length} caption track${tracks.length === 1 ? '' : 's'} to the video.` }
+  }
   async retentionFor(postId: number) {
     return this.retention.get(postId)
   }

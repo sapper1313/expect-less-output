@@ -408,6 +408,7 @@ async function boot(): Promise<void> {
     mediaRoot: () => settings.get().mediaRoot,
     openPath: async (p) => void (await shell.openPath(p)),
     retention: (a, v, f, t) => new YoutubeRetentionReader((id) => tokens.getAccessToken(id)).read(a, v, f, t),
+    uploadCaption: (a, v, l, n, srt) => ytClient.uploadCaption(a, v, l, n, srt),
     youtube: ytClient,
     youtubeAccountFor: (brandId) => {
       const q = (where: string, ...a: unknown[]) => (db.prepare(`SELECT id FROM accounts WHERE platform = 'youtube' AND mode != 'dry_run' AND status = 'connected' ${where} ORDER BY id LIMIT 1`).get(...a) as { id: number } | undefined)?.id ?? null

@@ -199,6 +199,8 @@ export function registerMockResponders(mock: MockLlm): void {
       ? { titles: [{ title: 'The one trick that saves an hour', why: 'A clear promise in few words.' }, { title: 'Stop doing this every morning', why: 'A mild warning makes people curious.' }], tags: ['tips', 'shortcuts', 'productivity'] }
       : { ideas: ['A mock idea learned from rivals', 'Another mock angle from the trends'] },
   )
+  mock.respond('Chapters', () => ({ titles: ['The setup', 'The problem shows up', 'Trying the fix', 'It starts to work', 'The big finish', 'Goodbye song', 'Extra one', 'Extra two', 'Extra three', 'Extra four'] }))
+  mock.respond('Translator', (req) => ({ cues: (JSON.parse(req.user) as string[]).map((t) => `[translated] ${t}`) }))
   mock.respond('Script QC', () => ({ pass: true, fixes: [] }))
   mock.respond('Hollow Safety Checker', () => ({ pass: true, issues: [] }))
   mock.respond('Math Checker', () => ({ claims: [], outdated: [] }))

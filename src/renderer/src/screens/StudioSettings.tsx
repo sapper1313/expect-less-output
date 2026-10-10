@@ -25,6 +25,10 @@ export function StudioSettings() {
       <RetentionCard cfg={cfg} reload={reload} />
       <OperationsCards cfg={cfg} reload={reload} />
       <WritingCard cfg={cfg} reload={reload} />
+      <Card title="Chapters">
+        <Check checked={cfg.autoChapters} onChange={(v) => api.studio.setConfig({ autoChapters: v }).then(reload)}>Add chapters to the YouTube description of long videos when they are published</Check>
+        <p className="mt-1 text-[12px] text-muted">Chapters are timed from the script. Leave this off if a video has an intro or outro that moves the timing.</p>
+      </Card>
     </div>
   )
 }

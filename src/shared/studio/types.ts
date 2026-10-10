@@ -118,6 +118,10 @@ export interface StudioConfig {
   backoffBaseSeconds: number
   roboticPhrases: string[]
   agentModels: Record<string, string>
+  /** Language codes to make captions in, for example es and fr. */
+  captionLanguages: string[]
+  /** Add chapters to the YouTube description of long videos when they are published. */
+  autoChapters: boolean
   defaultAgentModel: string
   libraryDir: string
   repetitionThreshold: number

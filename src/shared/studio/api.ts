@@ -249,6 +249,12 @@ export interface StudioApi {
   removeHoliday(id: number): Promise<void>
   agents(): Promise<AgentInfo[]>
   setAgentModel(name: string, model: string): Promise<AgentInfo[]>
+  makeChapters(episodeId: string): Promise<{ chapters: Array<{ start: number; title: string }>; text: string }>
+  chaptersFor(episodeId: string): Promise<string | null>
+  makeCaptions(episodeId: string, languages: string[]): Promise<Array<{ lang: string; name: string; cues: number }>>
+  captionList(episodeId: string): Promise<Array<{ lang: string; name: string; cues: number }>>
+  exportCaptions(episodeId: string): Promise<string>
+  uploadCaptions(episodeId: string): Promise<{ uploaded: number; note: string }>
   retentionFor(postId: number): Promise<RetentionView | null>
   refreshRetention(postId: number): Promise<RetentionView>
   titleLab(brandId: number, topic: string, includeTop: boolean): Promise<TitleLabResult>
