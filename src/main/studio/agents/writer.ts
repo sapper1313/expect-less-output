@@ -122,7 +122,7 @@ export function makeWriterAgent(d: WriterDeps): AgentDef<z.infer<typeof Input>, 
             ]
               .filter(Boolean)
               .join('\n'),
-            maxTokens: long ? 16000 : 5000,
+            maxTokens: long ? 24000 : 10000,
           },
           (long ? HollowDraft : ShortDraft) as ZodType<ShortDraftData | HollowDraftData>,
         )
