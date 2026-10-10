@@ -75,7 +75,7 @@ export function ModelGuideCard() {
     <Card title="Models and prices">
       <p className="mb-3 text-[12px] text-muted">
         Prices are dollars per million tokens. Check Anthropic's price page now and then and fix a number here if it changed. Your own Ollama models cost nothing.
-        {data && !data.localOnline && ` ${data.localError ?? 'Set the Ollama host on the Local AI page to see your local models.'}`}
+        {data && !data.localOnline && ` ${data.localError ?? 'Set the Ollama host on the Local AI section in Settings, under AI models and Local AI to see your local models.'}`}
         {data?.localOnline && ' Your Ollama machine is online.'}
       </p>
       <div className="space-y-3">

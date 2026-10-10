@@ -422,7 +422,7 @@ export class Studio implements StudioApi {
     this.audit.write({ agent: 'Thumbnail', action: small ? 'guideline_refresh_applied' : 'guideline_refresh_proposed', detail: { added: diff.added.slice(0, 20), removed: diff.removed.slice(0, 20), changes: out.changes } })
     if (!small) {
       this.writeJson('studio.guidelineProposal', { text: out.text, changes: out.changes, at: new Date(this.now()).toISOString() })
-      return { applied: false, note: 'The proposed change is large, so it is waiting for you in Studio Settings.' }
+      return { applied: false, note: 'The proposed change is large, so it is waiting for you in Settings, under the Studio tab.' }
     }
     this.guidelines.save(out.text, `Monthly refresh: ${out.changes.join('; ') || 'small edits'}`, 'refresh')
     return { applied: true, note: `Applied ${diff.added.length} added and ${diff.removed.length} removed lines.` }

@@ -9,6 +9,9 @@ import { Button, Card, Check, Empty, Field, Input, PageHeader, Select } from '..
 import logoStacked from '../assets/logo-stacked.jpg'
 import { AlertsCard, BackupCard } from './AlertsBackup'
 import { AgentsCard, TextAssistCard } from './Agents'
+import { StudioSettings } from './StudioSettings'
+import { StudioLocalAi } from './StudioLocalAi'
+import { AgentModelsCard, ModelGuideCard } from './StudioModels'
 
 const LEVEL_STYLE = { info: 'text-muted', warn: 'text-warn', error: 'text-bad' }
 
@@ -87,11 +90,21 @@ export function About() {
   )
 }
 
+const TABS = [
+  ['general', 'General'],
+  ['studio', 'Studio'],
+  ['ai', 'AI models and Local AI'],
+  ['alerts', 'Alerts and backup'],
+  ['api', 'Agent API'],
+  ['testing', 'Testing tools'],
+] as const
+
 export function SettingsScreen() {
   const { toast } = useApp()
   const { data: s } = useLoad(() => api.settings.get())
   const { data: info } = useLoad(() => api.app.info())
   const { data: status } = useLoad(() => api.scheduler.status())
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>('general')
   const save = async (patch: Partial<Settings>) => {
     try {
       await api.settings.set(patch)
@@ -104,6 +117,13 @@ export function SettingsScreen() {
     <div className="h-full overflow-auto pb-10">
       <PageHeader title={COPY.nav.settings} />
       <div className="max-w-4xl space-y-4 px-8">
+        <div className="flex flex-wrap gap-1">
+          {TABS.map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)} className={`rounded-md px-3 py-1.5 text-[13px] font-semibold ${tab === id ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}>{label}</button>
+          ))}
+        </div>
+        {tab === 'general' && (
+          <>
         <Card title="Media library">
           <Field
             label="Media Root folder"
@@ -227,11 +247,32 @@ export function SettingsScreen() {
             {info?.encryptionAvailable ? 'available' : 'NOT available'} on this Mac.
           </p>
         </Card>
-        <AlertsCard s={s} save={save} />
-        <AgentsCard s={s} save={save} />
-        <TextAssistCard s={s} save={save} />
-        <BackupCard />
-
+        <Card title="Where things live">
+          <div className="space-y-1 text-[12px] text-muted">
+            <div>Database: {info?.dbPath}</div>
+            <div>App data: {info?.dataDir}</div>
+          </div>
+        </Card>
+          </>
+        )}
+        {tab === 'studio' && <StudioSettings />}
+        {tab === 'ai' && (
+          <>
+            <AgentModelsCard />
+            <ModelGuideCard />
+            <TextAssistCard s={s} save={save} />
+            <StudioLocalAi />
+          </>
+        )}
+        {tab === 'alerts' && (
+          <>
+            <AlertsCard s={s} save={save} />
+            <BackupCard />
+          </>
+        )}
+        {tab === 'api' && <AgentsCard s={s} save={save} />}
+        {tab === 'testing' && (
+          <>
         <Card title="Testing tools (dry run)">
           <div className="grid gap-4 md:grid-cols-3">
             <Field label="Force a failure on">
@@ -270,12 +311,8 @@ export function SettingsScreen() {
           </div>
         </Card>
 
-        <Card title="Where things live">
-          <div className="space-y-1 text-[12px] text-muted">
-            <div>Database: {info?.dbPath}</div>
-            <div>App data: {info?.dataDir}</div>
-          </div>
-        </Card>
+          </>
+        )}
       </div>
     </div>
   )

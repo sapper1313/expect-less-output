@@ -53,7 +53,7 @@ export class BlueskyClient {
     if (this.session && !force) return this.session
     const handle = this.creds.handle()
     const password = this.creds.password()
-    if (!handle || !password) throw new SocialError('The Bluesky handle or app password is not set. Add them in Studio Settings.', 'permanent')
+    if (!handle || !password) throw new SocialError('The Bluesky handle or app password is not set. Add them in Settings, under the Studio tab.', 'permanent')
     const res = await this.raw(`${this.urls.pds}/xrpc/com.atproto.server.createSession`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

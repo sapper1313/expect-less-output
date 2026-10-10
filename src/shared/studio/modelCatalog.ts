@@ -36,7 +36,7 @@ export function localGuide(name: string): { bestFor: string; avoid: string } | n
   const n = name.toLowerCase()
   if (/embed|nomic|bge|minilm|e5-|gte-/.test(n)) return null
   if (/llava|vision|-vl|moondream|minicpm-v|bakllava/.test(n))
-    return { bestFor: 'Looking at pictures (video frame checks). Used by the video checker on the Local AI page.', avoid: 'Writing text for the agents.' }
+    return { bestFor: 'Looking at pictures (video frame checks). Used by the video checker on the Local AI section in Settings, under AI models and Local AI.', avoid: 'Writing text for the agents.' }
   const size = Number(/(\d+(?:\.\d+)?)b\b/.exec(n)?.[1] ?? '0')
   if (size && size <= 4)
     return { bestFor: 'Very small jobs: title and caption suggestions, hashtags.', avoid: 'Checks and writing. It misses too much.' }

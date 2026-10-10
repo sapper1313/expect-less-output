@@ -81,7 +81,7 @@ export class SocialAccounts {
 
   /** Why a brand cannot post to Bluesky yet, or null when it can. */
   notReady(brandId: number): string | null {
-    return this.blueskyHandle(brandId) && this.d.secrets.has(this.pwKey(brandId)) ? null : `${this.d.brandName(brandId)} has no Bluesky handle and app password saved. Add them in Studio, Settings, Bluesky accounts.`
+    return this.blueskyHandle(brandId) && this.d.secrets.has(this.pwKey(brandId)) ? null : `${this.d.brandName(brandId)} has no Bluesky handle and app password saved. Add them in Settings, under the Studio tab, Bluesky accounts.`
   }
 
   async testBluesky(brandId: number): Promise<{ ok: boolean; message: string }> {

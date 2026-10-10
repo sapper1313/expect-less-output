@@ -16,17 +16,25 @@ export function StudioSettings() {
     <div className="space-y-4">
       <ModeCard cfg={cfg} reload={reload} />
       <KeysCard />
-      <SocialAccountsCard />
       <CapsCard cfg={cfg} reload={reload} />
       <GenerateCard cfg={cfg} reload={reload} />
       <ProductionCard cfg={cfg} reload={reload} />
-      <BrandsCard />
       <GuidelinesCard />
       <CapsTableCard cfg={cfg} reload={reload} />
       <PublicHostCard cfg={cfg} reload={reload} />
       <RetentionCard cfg={cfg} reload={reload} />
       <OperationsCards cfg={cfg} reload={reload} />
       <WritingCard cfg={cfg} reload={reload} />
+    </div>
+  )
+}
+
+/** Per channel studio settings: cadence, platforms, flags and the Bluesky account. Shown on the Channels screen. */
+export function StudioChannelSettings() {
+  return (
+    <div className="space-y-4">
+      <BrandsCard />
+      <SocialAccountsCard />
     </div>
   )
 }

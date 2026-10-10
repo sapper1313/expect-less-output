@@ -25,6 +25,8 @@ export const COPY = {
   failureDetail: (platform: string, brand: string, title: string, reason: string) =>
     `${platform}, ${brand}, "${title}": ${reason}`,
   nav: {
+    home: 'Home',
+    channels: 'Channels',
     calendar: 'Calendar',
     queue: 'Queue',
     stats: 'Stats',

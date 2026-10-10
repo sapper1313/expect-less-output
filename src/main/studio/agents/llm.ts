@@ -44,7 +44,7 @@ export class AnthropicClient implements LlmClient {
 
   private headers(): Record<string, string> {
     const key = this.apiKey()
-    if (!key) throw new Error('The Anthropic API key is not set. Add it in Studio Settings.')
+    if (!key) throw new Error('The Anthropic API key is not set. Add it in Settings, under the Studio tab.')
     return { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }
   }
 
@@ -108,7 +108,7 @@ export async function explainHttp(vendor: string, res: Response): Promise<string
     // ignore
   }
   if (res.status === 401 || res.status === 403)
-    return `${vendor} refused the key (HTTP ${res.status}). Check the key in Studio Settings.`
+    return `${vendor} refused the key (HTTP ${res.status}). Check the key in Settings, under the Studio tab.`
   if (res.status === 429) return `${vendor} says slow down (HTTP 429).`
   return `${vendor} answered HTTP ${res.status}. ${body}`.trim()
 }

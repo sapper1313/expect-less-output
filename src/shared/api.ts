@@ -44,6 +44,7 @@ import type {
   SecretStatus,
   Settings,
 } from './types'
+import type { HomeSummary } from './home'
 import type { StudioApi } from './studio/api'
 
 export interface Api {
@@ -190,10 +191,13 @@ export interface Api {
     mcpConfig(): Promise<McpConfig>
   }
   studio: StudioApi
+  home: {
+    summary(): Promise<HomeSummary>
+  }
   textAssist: {
     available(): Promise<boolean>
     status(): Promise<TextAssistStatus>
-    /** Uses the Ollama machine from the Local AI page: picks a text model and turns Suggest on. Returns what it did. */
+    /** Uses the Ollama machine from the Local AI section in Settings, under AI models and Local AI: picks a text model and turns Suggest on. Returns what it did. */
     autoSetup(): Promise<{ ok: boolean; message: string }>
     suggest(
       kind: 'title' | 'caption' | 'hashtags',

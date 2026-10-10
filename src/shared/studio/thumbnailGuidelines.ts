@@ -1,4 +1,4 @@
-/** The seed for thumbnail_guidelines.md. Versioned and editable in Studio Settings. Read on every thumbnail run. */
+/** The seed for thumbnail_guidelines.md. Versioned and editable in Settings, under the Studio tab. Read on every thumbnail run. */
 export const SEED_GUIDELINES = `# Thumbnail guidelines
 
 ## YouTube long form

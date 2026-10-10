@@ -60,7 +60,7 @@ export class XaiClient implements VideoClient, ImageClient {
 
   private headers(): Record<string, string> {
     const key = this.apiKey()
-    if (!key) throw new Error('The xAI API key is not set. Add it in Studio Settings.')
+    if (!key) throw new Error('The xAI API key is not set. Add it in Settings, under the Studio tab.')
     return { Authorization: `Bearer ${key}`, 'content-type': 'application/json' }
   }
 

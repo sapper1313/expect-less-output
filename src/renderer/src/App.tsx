@@ -6,16 +6,20 @@ import { Toasts } from './ui'
 import { Calendar } from './screens/Calendar'
 import { Queue } from './screens/Queue'
 import { Stats } from './screens/Stats'
-import { Studio } from './screens/Studio'
+import { Studio, type Tab as StudioTab } from './screens/Studio'
+import { Home, type GoTarget } from './screens/Home'
+import { Channels, type ChannelsTab } from './screens/Channels'
+import { PostDetail } from './components/ItemDetail'
+import { PostEditor } from './components/PostEditor'
 import { NewPost } from './screens/NewPost'
 import { Bulk } from './screens/Bulk'
-import { Brands } from './screens/Brands'
 import { About, Activity, SettingsScreen } from './screens/Simple'
-import { Connections } from './screens/Connections'
 import { TikTokDemo } from './screens/TikTokDemo'
 import logoWide from './assets/logo-wide.png'
 
 type Screen =
+  | 'home'
+  | 'channels'
   | 'tiktokDemo'
   | 'calendar'
   | 'queue'
@@ -23,42 +27,60 @@ type Screen =
   | 'studio'
   | 'newPost'
   | 'bulk'
-  | 'brands'
-  | 'connections'
   | 'activity'
   | 'settings'
   | 'about'
 const SHORTCUTS: Partial<Record<Screen, string>> = {
   newPost: '⌘N',
   bulk: '⇧⌘N',
+  home: '⌘0',
   calendar: '⌘1',
   queue: '⌘2',
 }
 const NAV: Screen[] = [
+  'home',
   'calendar',
   'queue',
-  'stats',
   'studio',
+  'stats',
   'newPost',
   'bulk',
-  'brands',
-  'connections',
+  'channels',
   'activity',
   'settings',
 ]
 
 function Shell() {
-  const [screen, setScreenRaw] = useState<Screen>('calendar')
+  const [screen, setScreenRaw] = useState<Screen>('home')
+  const [studioTab, setStudioTab] = useState<StudioTab>('overview')
+  const [channelsTab, setChannelsTab] = useState<ChannelsTab>('setup')
+  const [studioKey, setStudioKey] = useState(0)
+  const [detailPost, setDetailPost] = useState<number | null>(null)
+  const [editPost, setEditPost] = useState<number | null>(null)
   const [newPostKey, setNewPostKey] = useState(0)
-  const setScreen = (s: Screen) => {
+  const setScreen = (s: Screen | 'connections' | 'brands') => {
+    if (s === 'connections' || s === 'brands') {
+      setChannelsTab(s === 'connections' ? 'connections' : 'setup')
+      setScreenRaw('channels')
+      return
+    }
     if (s === 'newPost' && screen !== 'newPost') setNewPostKey((k) => k + 1)
     setScreenRaw(s)
+  }
+  const go = (t: GoTarget) => {
+    if (t.screen === 'studio') {
+      setStudioTab((t.studioTab as StudioTab) ?? 'overview')
+      setStudioKey((k) => k + 1)
+    }
+    setScreen(t.screen)
   }
   const { data: settings } = useLoad(() => api.settings.get())
   const { data: status } = useLoad(() => api.scheduler.status())
   const { data: meta } = useLoad(() => api.meta.status())
   const { data: report } = useLoad(() => api.backup.report())
   const { data: studio } = useLoad(() => api.studio.overview())
+  const { data: home } = useLoad(() => api.home.summary())
+  const badge: Partial<Record<Screen, number>> = { studio: home?.badges.studio, queue: home?.badges.queue, channels: home?.badges.channels }
 
   useEffect(() => {
     const root = document.documentElement
@@ -89,6 +111,9 @@ function Shell() {
       } else if (k === 'n' && e.shiftKey) {
         e.preventDefault()
         setScreenRaw('bulk')
+      } else if (k === '0' && !e.shiftKey) {
+        e.preventDefault()
+        setScreenRaw('home')
       } else if (k === '1' && !e.shiftKey) {
         e.preventDefault()
         setScreenRaw('calendar')
@@ -131,9 +156,16 @@ function Shell() {
             >
               <span className="flex items-center justify-between">
                 {COPY.nav[s]}
-                {SHORTCUTS[s] && (
-                  <span className="text-[11px] font-normal opacity-60">{SHORTCUTS[s]}</span>
-                )}
+                <span className="flex items-center gap-2">
+                  {!!badge[s] && (
+                    <span title="Needs a look" className="dot-pulse flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                      {badge[s]}
+                    </span>
+                  )}
+                  {SHORTCUTS[s] && (
+                    <span className="text-[11px] font-normal opacity-60">{SHORTCUTS[s]}</span>
+                  )}
+                </span>
               </span>
             </button>
           ))}
@@ -193,19 +225,21 @@ function Shell() {
             </div>
           </div>
         )}
+        {screen === 'home' && <Home go={go} openPost={setDetailPost} />}
         {screen === 'calendar' && <Calendar />}
         {screen === 'queue' && <Queue />}
         {screen === 'stats' && <Stats />}
-        {screen === 'studio' && <Studio />}
+        {screen === 'studio' && <Studio key={studioKey} initialTab={studioTab} />}
         {screen === 'newPost' && <NewPost key={newPostKey} onDone={() => setScreen('calendar')} />}
         {screen === 'bulk' && <Bulk onDone={() => setScreen('calendar')} />}
-        {screen === 'brands' && <Brands />}
-        {screen === 'connections' && <Connections />}
+        {screen === 'channels' && <Channels key={channelsTab} initialTab={channelsTab} />}
         {screen === 'activity' && <Activity />}
         {screen === 'settings' && <SettingsScreen />}
         {screen === 'about' && <About />}
-        {screen === 'tiktokDemo' && <TikTokDemo onExit={() => setScreenRaw('connections')} />}
+        {screen === 'tiktokDemo' && <TikTokDemo onExit={() => setScreen('connections')} />}
       </main>
+      {detailPost !== null && <PostDetail postId={detailPost} onClose={() => setDetailPost(null)} onEdit={() => { setEditPost(detailPost); setDetailPost(null) }} />}
+      {editPost !== null && <PostEditor postId={editPost} onClose={() => setEditPost(null)} />}
       <Toasts />
     </div>
   )

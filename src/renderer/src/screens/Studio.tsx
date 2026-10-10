@@ -10,10 +10,8 @@ import { StudioPublishing } from './StudioPublishing'
 import { StudioComments, StudioInsights } from './StudioOperations'
 import { StudioLibrary } from './StudioLibrary'
 import { StudioSpend } from './StudioSpend'
-import { StudioSettings } from './StudioSettings'
-import { StudioLocalAi } from './StudioLocalAi'
 
-type Tab = 'overview' | 'bible' | 'library' | 'publishing' | 'comments' | 'insights' | 'spend' | 'log' | 'flagged' | 'settings' | 'local'
+export type Tab = 'overview' | 'bible' | 'library' | 'publishing' | 'comments' | 'insights' | 'spend' | 'log' | 'flagged'
 const TABS: Array<[Tab, string]> = [
   ['overview', 'Overview'],
   ['bible', 'Bible'],
@@ -24,8 +22,6 @@ const TABS: Array<[Tab, string]> = [
   ['spend', 'Spend'],
   ['log', "Director's Log"],
   ['flagged', 'Flagged'],
-  ['settings', 'Settings'],
-  ['local', 'Local AI'],
 ]
 
 export function Studio({ initialTab = 'overview' }: { initialTab?: Tab }) {
@@ -48,7 +44,9 @@ export function Studio({ initialTab = 'overview' }: { initialTab?: Tab }) {
             className={`rounded-md px-3 py-1.5 text-[13px] font-semibold ${tab === id ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}
           >
             {label}
-            {id === 'flagged' && ov && ov.openFlags > 0 ? ` (${ov.openFlags})` : ''}
+            {id === 'flagged' && ov && ov.openFlags > 0 && (
+              <span className="dot-pulse ml-2 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{ov.openFlags}</span>
+            )}
           </button>
         ))}
       </div>
@@ -62,8 +60,6 @@ export function Studio({ initialTab = 'overview' }: { initialTab?: Tab }) {
         {tab === 'spend' && <StudioSpend />}
         {tab === 'log' && <DirectorLog />}
         {tab === 'flagged' && <Flagged />}
-        {tab === 'settings' && <StudioSettings />}
-        {tab === 'local' && <StudioLocalAi />}
       </div>
     </div>
   )

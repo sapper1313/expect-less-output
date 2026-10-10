@@ -12,6 +12,7 @@ import { ZONE, formatEastern } from '@shared/time'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { PostEditor } from '../components/PostEditor'
+import { ItemDetail, PostDetail } from '../components/ItemDetail'
 import { PLATFORM_SHORT, PageHeader, Select, Confirm, useBusy } from '../ui'
 import { EpisodePeek } from './StudioLibrary'
 
@@ -68,6 +69,8 @@ export function Calendar() {
   const [items, setItems] = useState<CalendarItem[]>([])
   const [openEpisode, setOpenEpisode] = useState<string | null>(null)
   const [editing, setEditing] = useState<number | null>(null)
+  const [viewing, setViewing] = useState<number | null>(null)
+  const [viewItem, setViewItem] = useState<CalendarItem | null>(null)
   useEffect(() => {
     if (!range) return
     let alive = true
@@ -178,10 +181,10 @@ export function Calendar() {
           eventClick={(i) => {
             const item = i.event.extendedProps.item as CalendarItem | undefined
             if (item) {
-              if (item.episodeId) setOpenEpisode(item.episodeId)
+              setViewItem(item)
               return
             }
-            setEditing(Number(i.event.id))
+            setViewing(Number(i.event.id))
           }}
           eventDrop={(info) => {
             if (!info.event.start) return info.revert()
@@ -224,6 +227,8 @@ export function Calendar() {
           }}
         />
       </div>
+      {viewing !== null && <PostDetail postId={viewing} onClose={() => setViewing(null)} onEdit={() => { setEditing(viewing); setViewing(null) }} />}
+      {viewItem && <ItemDetail item={viewItem} onClose={() => setViewItem(null)} onOpenEpisode={() => { setOpenEpisode(viewItem.episodeId); setViewItem(null) }} />}
       {editing !== null && <PostEditor postId={editing} onClose={() => setEditing(null)} />}
       {openEpisode && <EpisodePeek id={openEpisode} onClose={() => setOpenEpisode(null)} />}
       {drop && (

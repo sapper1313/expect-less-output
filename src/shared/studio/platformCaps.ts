@@ -1,5 +1,5 @@
 /**
- * What each platform allows. Filled from the official docs read on 2026-10-09 and editable in Studio Settings.
+ * What each platform allows. Filled from the official docs read on 2026-10-09 and editable in Settings, under the Studio tab.
  * Where a number could not be confirmed it is marked in `notes` and the Publisher also checks live where an API
  * exists (Bluesky getUploadLimits, TikTok creator_info).
  */

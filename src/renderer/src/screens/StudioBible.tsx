@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import { nextDraft, type DraftMemory } from '@shared/draftSync'
 import type { SeriesBibleData } from '@shared/studio/bible'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
-import { AgentModelsCard, ModelGuideCard } from './StudioModels'
 import { Button, Card, Check, Field, Input, Select, Textarea, useBusy } from '../ui'
 
 const lines = (v: string) => v.split('\n').map((s) => s.trim()).filter(Boolean)
@@ -19,14 +19,11 @@ export function StudioBible() {
   const [newIdeas, setNewIdeas] = useState('')
   // The app reloads data in the background all the time. Only replace what you are typing when the saved
   // bible really changed and you have no unsaved edits, or when you switch to another brand.
-  const loaded = useRef<{ id: number | null; json: string }>({ id: null, json: '' })
+  const loaded = useRef<DraftMemory>({ id: null, json: '' })
   useEffect(() => {
-    const json = data ? JSON.stringify(data.bible) : ''
-    setDraft((cur) => {
-      const untouched = !cur || JSON.stringify(cur) === loaded.current.json
-      return loaded.current.id !== id || untouched ? (data?.bible ?? null) : cur
-    })
-    loaded.current = { id, json }
+    const prev = loaded.current // read now: the updater below runs later, after this is overwritten
+    loaded.current = nextDraft(prev, id, data?.bible ?? null, null).memory
+    setDraft((cur) => nextDraft(prev, id, data?.bible ?? null, cur).draft)
   }, [data, id])
   if (!brands || !id || !data || !draft) return null
   const set = <K extends keyof SeriesBibleData>(k: K, v: SeriesBibleData[K]) => setDraft({ ...draft, [k]: v })
@@ -121,8 +118,7 @@ export function StudioBible() {
         </div>
       </Card>
       <HolidayCard />
-      <AgentModelsCard />
-      <ModelGuideCard />
+      
     </div>
   )
 }

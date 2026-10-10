@@ -94,7 +94,7 @@ export class PublicHost {
 
   /** Uploads a file and returns its public address. */
   async upload(file: string, key?: string): Promise<{ url: string; key: string }> {
-    if (!this.configured()) throw new Error('The public host is not set up. Add the Cloudflare R2 details in Studio Settings.')
+    if (!this.configured()) throw new Error('The public host is not set up. Add the Cloudflare R2 details in Settings, under the Studio tab.')
     const k = key ?? `elo/${this.now()}-${basename(file)}`
     const size = statSync(file).size
     if (size > 1024 * 1024 * 1024) throw new Error('The file is bigger than 1 GB.')
