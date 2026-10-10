@@ -123,6 +123,10 @@ function Overview() {
         {ov.brands.map((b) => (
           <Card key={b.brandId} title={b.name} actions={<BrandDot color={b.color} />}>
             <div className="space-y-1 text-[13px]">
+              <div className="flex gap-3 pb-1">
+                <button className="text-accent underline" onClick={() => void api.studio.openBrandFolder(b.brandId, 'scripts')}>Open episode scripts folder</button>
+                <button className="text-accent underline" onClick={() => void api.studio.openBrandFolder(b.brandId, 'videos')}>Open videos folder</button>
+              </div>
               <div>
                 {b.config.format === 'long' ? 'Long form, 16:9' : 'Short form, 9:16'}.{' '}
                 {b.config.cadenceMode === 'every_n' ? `Every ${b.config.everyN} day(s)` : 'Weekly schedule'}
@@ -233,14 +237,14 @@ function DirectorChat({ onChanged }: { onChanged: () => void }) {
     setText('')
     setLog((l) => [...l, { who: 'you', text: message }])
     void run(async () => {
-      const r = await api.studio.directorChat(message)
+      const r = await api.studio.directorChat(message, log.map((m) => ({ who: m.who, text: m.text })))
       setLog((l) => [...l, { who: 'director', text: r.reply, actions: r.actions }])
     })
   }
   return (
     <Card title="Talk to the Director">
       <div className="max-h-72 space-y-2 overflow-y-auto text-[13px]">
-        {!log.length && <div className="text-muted">Ask what is going on, or say what you want, like "pause Trash Panda" or "add an idea about spam texts to Clock Out Early". I will suggest buttons. Nothing runs until you press one.</div>}
+        {!log.length && <div className="text-muted">Ask what is going on, or say what you want. For example: "I updated the bible for Trash Panda, make the changes", "rebuild Clock Out Early episode 3, make the hook shorter", "pause Trash Panda", or "add an idea about spam texts". I suggest buttons. Nothing runs until you press one. Episodes that already have a video are never rebuilt.</div>}
         {log.map((m, i) => (
           <div key={i} className={m.who === 'you' ? 'text-right' : ''}>
             <div className={m.who === 'you' ? 'inline-block rounded-md bg-surface-2 px-3 py-2' : 'inline-block px-1 py-1'}>{m.text}</div>
@@ -271,7 +275,7 @@ function DirectorChat({ onChanged }: { onChanged: () => void }) {
         <input
           className="min-w-0 flex-1 rounded-md border border-line bg-bg px-3 py-2 text-[13px]"
           value={text}
-          placeholder="Tell the Director something..."
+          placeholder="Tell the Director something, like: I updated the bible for Trash Panda, rebuild the waiting episodes"
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') send() }}
         />

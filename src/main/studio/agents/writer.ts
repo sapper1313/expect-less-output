@@ -118,6 +118,7 @@ export function makeWriterAgent(d: WriterDeps): AgentDef<z.infer<typeof Input>, 
               events.length ? `Upcoming days you may tie in if it fits the bible: ${events.join('; ')}` : '',
               recent.length ? `Recent episodes (do not repeat them):\n${recent.map((e) => `- ${e.title}: ${e.summary}`).join('\n')}` : '',
               hints.length ? `What is working lately: ${hints.join(' ')}` : '',
+              ctx.task.payload.note ? `The owner asked for this change: ${String(ctx.task.payload.note)}` : '',
               feedback.length ? `Fix these problems from the last try:\n${feedback.map((f) => `- ${f}`).join('\n')}` : '',
             ]
               .filter(Boolean)

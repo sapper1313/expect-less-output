@@ -284,7 +284,9 @@ export interface StudioApi {
   auditLog(filter?: { brandId?: number | null; agent?: string; fromUtc?: string; toUtc?: string }): Promise<AuditEntry[]>
   flagged(): Promise<Array<{ task: AgentTask; episode: EpisodeRow | null }>>
   resolveFlag(taskId: number, action: 'retry' | 'discard' | 'approve'): Promise<void>
-  directorChat(message: string): Promise<{ reply: string; actions: DirectorActionView[] }>
+  openBrandFolder(brandId: number, kind: 'scripts' | 'videos'): Promise<string>
+  rebuildEpisode(id: string, note?: string): Promise<{ taskId: number }>
+  directorChat(message: string, history?: Array<{ who: 'you' | 'director'; text: string }>): Promise<{ reply: string; actions: DirectorActionView[] }>
   directorApply(action: DirectorActionView): Promise<string>
   dryRunDay(): Promise<string[]>
   cheapTest(): Promise<TestResult & { dollars: number; mock: boolean }>

@@ -29,13 +29,13 @@ import type {
   StudioOverview,
   TestResult,
 } from '@shared/studio/api'
-import type { StudioBrandConfig } from '@shared/studio/types'
+import type { EpisodeStatus, StudioBrandConfig } from '@shared/studio/types'
 import { StudioConfigService } from './configService'
 import { SpendService } from './spend'
 import { AgentRunner, AuditLog, TaskStore, FlagNow } from './agents/framework'
 import { AnthropicClient, LlmGateway, MockLlm } from './agents/llm'
 import { Director } from './agents/director'
-import { EpisodeLibrary } from './library'
+import { EpisodeLibrary, slug } from './library'
 import { CalendarFeed } from './calendarFeed'
 import { Archivist } from './retention'
 import { LocalAi } from './localAi'
@@ -64,6 +64,8 @@ import { makeProducerAgent } from './agents/producer'
 import { expandHome } from './configService'
 import { DirectorReply, directorSystem, type DirectorActionView } from './directorChat'
 
+const REBUILDABLE: EpisodeStatus[] = ['Idea', 'Written', 'Checking', 'Ready for production', 'Flagged']
+
 export interface StudioDeps {
   db: Db
   secrets: SecretStore
@@ -83,6 +85,8 @@ export interface StudioDeps {
   postersDir?: string
   appVersion?: string
   mediaRoot?: () => string
+  /** Opens a folder in Finder. */
+  openPath?: (path: string) => Promise<void>
   /** The existing stats pass for the four platforms the scheduler posts to. */
   refreshStats?: () => Promise<{ fetched: number; unavailable: number }>
   /** Sends one plain message to the owner (iMessage and email). */
@@ -1077,7 +1081,41 @@ export class Studio implements StudioApi {
       episode: task.episodeId ? this.episodes.find(task.episodeId) : null,
     }))
   }
-  async directorChat(message: string) {
+  /** Throws the old script away and writes it again from the current bible. Episodes with a video are never rebuilt. */
+  async rebuildEpisode(id: string, note = '') {
+    const ep = this.episodes.find(id)
+    if (!ep) throw new Error('That episode was not found.')
+    if (!REBUILDABLE.includes(ep.status) || ep.videoPath)
+      throw new Error('That episode already has a video or is on its way to posting, so it will not be rebuilt. Make a new episode instead.')
+    const open = this.tasks.list({ status: ['queued', 'running', 'waiting', 'flagged', 'stopped'] }).filter((t) => t.episodeId === id)
+    if (open.some((t) => t.status === 'running')) throw new Error('That episode is being worked on right now. Try again in a minute.')
+    for (const t of open) this.tasks.setStatus(t.id, 'failed', { error: 'Replaced by a rebuild.' })
+    this.episodes.setStatus(id, 'Idea', 'Rebuilt at the owner\'s request.')
+    this.audit.write({ agent: 'Director', action: 'owner_rebuild_episode', brandId: ep.brandId, episodeId: id, detail: { note } })
+    const t = this.tasks.create({
+      type: 'write_episode',
+      brandId: ep.brandId,
+      episodeId: id,
+      payload: { slotDate: ep.slotDate ?? undefined, episodeId: id, note: note.slice(0, 600) },
+      dedupeKey: `rebuild:${id}:${this.now()}`,
+    })
+    void this.runner.runUntilIdle().then(() => this.d.emit())
+    this.d.emit()
+    return { taskId: t.id }
+  }
+
+  /** Opens the folder holding a brand's episode scripts or finished videos in Finder. */
+  async openBrandFolder(brandId: number, kind: 'scripts' | 'videos') {
+    if (!this.d.openPath) throw new Error('Opening folders is not available here.')
+    const name = this.cfg.listBrandConfigs().find((b) => b.brandId === brandId) ? (await this.brands()).find((b) => b.brandId === brandId)?.name : null
+    if (!name) throw new Error('That channel was not found.')
+    const dir = kind === 'scripts' ? join(this.episodes.root(), slug(name)) : join(this.d.mediaRoot?.() ?? '', name)
+    mkdirSync(dir, { recursive: true })
+    await this.d.openPath(dir)
+    return dir
+  }
+
+  async directorChat(message: string, history: Array<{ who: 'you' | 'director'; text: string }> = []) {
     const text = message.trim().slice(0, 1500)
     if (!text) throw new Error('Type a message first.')
     const ov = await this.overview()
@@ -1090,17 +1128,25 @@ export class Studio implements StudioApi {
       ...ov.brands.map((b) => `- id ${b.brandId}: ${b.name}, ${b.config.paused ? 'paused' : 'active'}, next due ${b.nextDue ?? 'none'}, runway ${b.runwayCovered} days`),
       'Flagged tasks:',
       ...(flagged.length ? flagged.map(({ task }) => `- ${task.type} for ${brandName(task.brandId)}: ${(task.error ?? '').slice(0, 140)}`) : ['- none']),
+      'Episodes that can still be rebuilt (no video yet), newest first:',
+      ...ov.brands.flatMap((b) =>
+        this.episodes
+          .list({ brandId: b.brandId, limit: 40 })
+          .filter((e) => REBUILDABLE.includes(e.status) && !e.videoPath)
+          .slice(0, 12)
+          .map((e) => `- ${e.id}: ${b.name} episode ${e.number}, "${e.title}", ${e.status}${e.slotDate ? ', due ' + e.slotDate : ''}`),
+      ),
       'Recent Director log:',
       ...recent.map((a) => `- ${a.agent} ${a.action}`),
     ].join('\n')
     const r = await this.gateway.json(
-      { agent: 'Director', system: directorSystem(snapshot), user: text, maxTokens: 2000 },
+      { agent: 'Director', system: directorSystem(snapshot), user: [...history.slice(-6).map((m) => `${m.who === 'you' ? 'Owner' : 'Director'}: ${m.text.slice(0, 600)}`), `Owner: ${text}`].join('\n'), maxTokens: 2000 },
       DirectorReply,
     )
     const ids = new Set(ov.brands.map((b) => b.brandId))
     return {
       reply: r.reply,
-      actions: r.actions.filter((a) => (a.kind === 'pause_all' || a.kind === 'resume_all' || a.kind === 'retry_flagged' || (a.brandId != null && ids.has(a.brandId)))).slice(0, 5),
+      actions: r.actions.filter((a) => (['pause_all', 'resume_all', 'retry_flagged'].includes(a.kind) || (a.kind === 'rebuild_episode' ? !!a.episodeId && !!this.episodes.find(a.episodeId) : a.brandId != null && ids.has(a.brandId)))).slice(0, 5),
     }
   }
 
@@ -1115,6 +1161,11 @@ export class Studio implements StudioApi {
       for (const { task } of list) await this.resolveFlag(task.id, 'retry')
       return `Retrying ${list.length} flagged task(s).`
     }
+    if (kind === 'rebuild_episode') {
+      if (!action.episodeId) throw new Error('There is no episode to rebuild.')
+      await this.rebuildEpisode(action.episodeId, text)
+      return 'Rebuilding that episode now.'
+    }
     if (brandId == null || !this.cfg.listBrandConfigs().some((b) => b.brandId === brandId)) throw new Error('That channel was not found.')
     this.audit.write({ agent: 'Director', action: `owner_${kind}`, brandId })
     if (kind === 'pause_brand' || kind === 'resume_brand') {
@@ -1125,6 +1176,19 @@ export class Studio implements StudioApi {
       if (!text.trim()) throw new Error('There is no idea text.')
       await this.addIdeas(brandId, [text.trim().slice(0, 300)])
       return 'Idea added to the bank.'
+    }
+    if (kind === 'rebuild_pending') {
+      const todo = this.episodes.list({ brandId, limit: 200 }).filter((e) => REBUILDABLE.includes(e.status) && !e.videoPath)
+      let n = 0
+      for (const e of todo) {
+        try {
+          await this.rebuildEpisode(e.id, text)
+          n++
+        } catch {
+          // An episode that is being written right now is skipped.
+        }
+      }
+      return `Rebuilding ${n} episode(s) with the updated bible.`
     }
     await this.writeNow(brandId)
     return 'Writing started.'

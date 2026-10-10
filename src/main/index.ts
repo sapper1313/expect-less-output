@@ -408,6 +408,7 @@ async function boot(): Promise<void> {
     postersDir,
     appVersion: app.getVersion(),
     mediaRoot: () => settings.get().mediaRoot,
+    openPath: async (p) => void (await shell.openPath(p)),
     refreshStats: () => stats.refresh({ force: true }),
     broadcast: (text) => alerts.broadcast(text),
     watchdogDir: () => (app.isPackaged ? join(process.resourcesPath, 'watchdog') : join(app.getAppPath(), 'scripts', 'watchdog')),
