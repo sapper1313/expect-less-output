@@ -173,7 +173,8 @@ h2,
 .glass-stage {
   position: relative;
   min-height: 100%;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   isolation: isolate;
 }
 .glass-stage::before,

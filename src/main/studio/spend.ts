@@ -72,6 +72,27 @@ export class SpendService {
     return r.s
   }
 
+  /** What one episode has cost so far, split by what the money bought. */
+  episodeCost(episodeId: string): { total: number; mock: number; parts: Array<{ label: string; dollars: number }> } {
+    const rows = this.db
+      .prepare('SELECT vendor, purpose, mock, COALESCE(SUM(dollars), 0) AS d FROM spend_ledger WHERE episode_id = ? GROUP BY vendor, purpose, mock')
+      .all(episodeId) as Array<{ vendor: string; purpose: string; mock: number; d: number }>
+    const name = (r: { vendor: string; purpose: string }) =>
+      r.vendor === 'anthropic' ? 'Writing and checking (AI text)' : r.purpose === 'thumbnail' ? 'Thumbnails' : r.purpose === 'retry' ? 'Video retakes' : r.vendor === 'xai' ? 'Video and images' : `${r.vendor} ${r.purpose}`
+    const parts = new Map<string, number>()
+    let total = 0
+    let mock = 0
+    for (const r of rows) {
+      if (r.mock) {
+        mock += r.d
+        continue
+      }
+      total += r.d
+      parts.set(name(r), (parts.get(name(r)) ?? 0) + r.d)
+    }
+    return { total: Math.round(total * 1e6) / 1e6, mock, parts: Array.from(parts, ([label, dollars]) => ({ label, dollars: Math.round(dollars * 1e6) / 1e6 })).sort((a, b) => b.dollars - a.dollars) }
+  }
+
   /** Dollars spent against each cap that applies to a call. */
   private applicable(call: { brandId?: number | null; episodeId?: string | null; vendor: string }) {
     const c = this.cfg.get()

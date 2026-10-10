@@ -1030,6 +1030,9 @@ export class Studio implements StudioApi {
 
   // ---------- spend ----------
 
+  async episodeCost(episodeId: string) {
+    return this.spend.episodeCost(episodeId)
+  }
   async spendSummary() {
     return this.spend.summary()
   }

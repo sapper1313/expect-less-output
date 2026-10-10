@@ -11,9 +11,12 @@ import { Home, type GoTarget } from './screens/Home'
 import { Channels, type ChannelsTab } from './screens/Channels'
 import { PostDetail } from './components/ItemDetail'
 import { PostEditor } from './components/PostEditor'
+import { SearchPalette } from './components/SearchPalette'
+import { EpisodePeek } from './screens/StudioLibrary'
+import type { SearchHit } from '@shared/search'
 import { NewPost } from './screens/NewPost'
 import { Bulk } from './screens/Bulk'
-import { About, Activity, SettingsScreen } from './screens/Simple'
+import { About, Activity, SettingsScreen, type SettingsTab } from './screens/Simple'
 import { TikTokDemo } from './screens/TikTokDemo'
 import logoWide from './assets/logo-wide.png'
 
@@ -57,6 +60,9 @@ function Shell() {
   const [studioKey, setStudioKey] = useState(0)
   const [detailPost, setDetailPost] = useState<number | null>(null)
   const [editPost, setEditPost] = useState<number | null>(null)
+  const [searching, setSearching] = useState(false)
+  const [peekEpisode, setPeekEpisode] = useState<string | null>(null)
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('general')
   const [newPostKey, setNewPostKey] = useState(0)
   const setScreen = (s: Screen | 'connections' | 'brands') => {
     if (s === 'connections' || s === 'brands') {
@@ -66,6 +72,15 @@ function Shell() {
     }
     if (s === 'newPost' && screen !== 'newPost') setNewPostKey((k) => k + 1)
     setScreenRaw(s)
+  }
+  const pick = (h: SearchHit) => {
+    setSearching(false)
+    const t = h.target
+    if (t.settingsTab) setSettingsTab(t.settingsTab as SettingsTab)
+    if (t.channelsTab) setChannelsTab(t.channelsTab as ChannelsTab)
+    go({ screen: t.screen as GoTarget['screen'], studioTab: t.studioTab })
+    if (t.episodeId) setPeekEpisode(t.episodeId)
+    if (t.postId) setDetailPost(t.postId)
   }
   const go = (t: GoTarget) => {
     if (t.screen === 'studio') {
@@ -104,6 +119,11 @@ function Shell() {
     const h = (e: KeyboardEvent) => {
       if (!e.metaKey || e.altKey || e.ctrlKey) return
       const k = e.key.toLowerCase()
+      if (k === 'k') {
+        e.preventDefault()
+        setSearching(true)
+        return
+      }
       if (k === 'n' && !e.shiftKey) {
         e.preventDefault()
         setNewPostKey((n) => n + 1)
@@ -147,6 +167,13 @@ function Shell() {
             {COPY.tagline}
           </div>
         </div>
+        <button
+          onClick={() => setSearching(true)}
+          className="no-drag mx-3 mb-2 flex items-center justify-between rounded-md border border-line px-3 py-1.5 text-left text-[12px] text-muted hover:bg-surface2"
+        >
+          <span>Search everything</span>
+          <span className="text-[11px] opacity-70">⌘K</span>
+        </button>
         <nav className="no-drag flex-1 space-y-0.5 px-3">
           {NAV.map((s) => (
             <button
@@ -234,12 +261,14 @@ function Shell() {
         {screen === 'bulk' && <Bulk onDone={() => setScreen('calendar')} />}
         {screen === 'channels' && <Channels key={channelsTab} initialTab={channelsTab} />}
         {screen === 'activity' && <Activity />}
-        {screen === 'settings' && <SettingsScreen />}
+        {screen === 'settings' && <SettingsScreen key={settingsTab} initialTab={settingsTab} />}
         {screen === 'about' && <About />}
         {screen === 'tiktokDemo' && <TikTokDemo onExit={() => setScreen('connections')} />}
       </main>
       {detailPost !== null && <PostDetail postId={detailPost} onClose={() => setDetailPost(null)} onEdit={() => { setEditPost(detailPost); setDetailPost(null) }} />}
       {editPost !== null && <PostEditor postId={editPost} onClose={() => setEditPost(null)} />}
+      {searching && <SearchPalette onPick={pick} onClose={() => setSearching(false)} />}
+      {peekEpisode && <EpisodePeek id={peekEpisode} onClose={() => setPeekEpisode(null)} />}
       <Toasts />
     </div>
   )

@@ -6,6 +6,7 @@ import { api } from '../api'
 import { useLoad } from '../hooks'
 import { Button, StatusBadge, TargetChip } from '../ui'
 import { PostStatsPanel } from './StatsPanel'
+import { VideoPlayer } from './VideoPlayer'
 
 const KIND_LABEL: Record<CalendarKind, string> = {
   posted: 'Posted',
@@ -57,6 +58,12 @@ export function PostDetail({ postId, onClose, onEdit }: { postId: number; onClos
           <div className="mt-2 text-[15px] font-semibold">{post.scheduledAtUtc ? formatEastern(post.scheduledAtUtc) : 'No time set'}</div>
         </div>
       </div>
+
+      {post.videoPath && !post.videoPath.startsWith('/') && (
+        <div className="mt-6">
+          <VideoPlayer path={post.videoPath} poster={post.posterUrl} />
+        </div>
+      )}
 
       <div className="mt-6">
         <div className="mb-2 text-[12px] font-bold uppercase tracking-wide glass-dim">Posting to</div>

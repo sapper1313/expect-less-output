@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { EPISODE_STATUSES, type EpisodeStatus } from '@shared/studio/types'
 import { api } from '../api'
+import { VideoPlayer } from '../components/VideoPlayer'
 import { useApp, useLoad } from '../hooks'
 import { Button, Card, Dialog, Empty, Input, Select, useBusy } from '../ui'
 import { ClipActions } from './Studio'
@@ -71,6 +72,7 @@ function EpisodeView({ id, onClose }: { id: string; onClose: () => void }) {
   const { toast } = useApp()
   const [, run] = useBusy()
   const { data, reload } = useLoad(() => api.studio.episode(id), [id])
+  const { data: cost } = useLoad(() => api.studio.episodeCost(id), [id])
   if (!data) return null
   const { row, pkg } = data
   return (
@@ -95,6 +97,13 @@ function EpisodeView({ id, onClose }: { id: string; onClose: () => void }) {
             <Button onClick={() => copy(pkg.scenes.map((s) => `Scene ${s.n}: ${s.grok_prompt}`).join('\n\n'), toast)}>Copy all prompts</Button>
           )}
         </div>
+        {cost && (cost.total > 0 || cost.mock > 0) && (
+          <div className="rounded-md border border-line p-3">
+            <div><b>What this episode cost:</b> ${cost.total.toFixed(2)}{cost.mock > 0 ? ` (plus $${cost.mock.toFixed(2)} of pretend mock spend)` : ''}</div>
+            {cost.parts.length > 0 && <div className="mt-1 text-[12px] text-muted">{cost.parts.map((p) => `${p.label}: $${p.dollars.toFixed(2)}`).join('  ·  ')}</div>}
+          </div>
+        )}
+        {row.videoPath && <VideoPlayer path={row.videoPath} />}
         {row.flaggedReason && <div className="rounded-md border border-bad p-2 text-bad">Flagged: {row.flaggedReason}</div>}
         {pkg ? (
           <>

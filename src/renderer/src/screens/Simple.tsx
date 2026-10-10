@@ -99,12 +99,14 @@ const TABS = [
   ['testing', 'Testing tools'],
 ] as const
 
-export function SettingsScreen() {
+export type SettingsTab = (typeof TABS)[number][0]
+
+export function SettingsScreen({ initialTab = 'general' }: { initialTab?: SettingsTab }) {
   const { toast } = useApp()
   const { data: s } = useLoad(() => api.settings.get())
   const { data: info } = useLoad(() => api.app.info())
   const { data: status } = useLoad(() => api.scheduler.status())
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>('general')
+  const [tab, setTab] = useState<SettingsTab>(initialTab)
   const save = async (patch: Partial<Settings>) => {
     try {
       await api.settings.set(patch)

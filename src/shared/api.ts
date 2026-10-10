@@ -45,6 +45,7 @@ import type {
   Settings,
 } from './types'
 import type { HomeSummary } from './home'
+import type { SearchHit } from './search'
 import type { StudioApi } from './studio/api'
 
 export interface Api {
@@ -193,6 +194,9 @@ export interface Api {
   studio: StudioApi
   home: {
     summary(): Promise<HomeSummary>
+  }
+  search: {
+    query(q: string): Promise<SearchHit[]>
   }
   textAssist: {
     available(): Promise<boolean>

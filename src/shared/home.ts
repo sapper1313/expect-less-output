@@ -55,7 +55,7 @@ export interface HomeSummary {
   channels: HomeChannel[]
   upcoming: HomePost[]
   recent: HomePost[]
-  spend: { month: string; total: number; capLabel: string; capValue: number | null; percent: number | null; mock: boolean }
+  spend: { month: string; total: number; projected: number; capLabel: string; capValue: number | null; percent: number | null; mock: boolean }
   /** Red dot counts for the left menu. */
   badges: { studio: number; queue: number; channels: number }
   /** Plain lines about what needs the owner. */

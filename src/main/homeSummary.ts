@@ -93,6 +93,10 @@ export async function buildHomeSummary(d: HomeDeps): Promise<HomeSummary> {
   ]
 
   const sp = await d.spend()
+  const eastern = new Date(now - 4 * 3600_000) // close enough to Eastern for a day count
+  const dayOfMonth = Math.max(1, eastern.getUTCDate())
+  const daysInMonth = new Date(Date.UTC(eastern.getUTCFullYear(), eastern.getUTCMonth() + 1, 0)).getUTCDate()
+  const projected = Math.round((sp.total / dayOfMonth) * daysInMonth * 100) / 100
   const g = sp.caps.find((c) => c.key === 'global')
   const capValue = g && !g.cap.none ? g.cap.value : null
   const failedPosts = upcomingAll.filter((p) => p.status === 'missed').length + recentAll.filter((p) => p.status === 'failed').length
@@ -108,7 +112,7 @@ export async function buildHomeSummary(d: HomeDeps): Promise<HomeSummary> {
     channels,
     upcoming: upcomingAll.filter((p) => p.status === 'scheduled' || p.status === 'in_progress' || p.status === 'partial').slice(0, 8).map(toPost),
     recent: posted.slice(0, 6).map(toPost),
-    spend: { month: sp.month, total: sp.total, capLabel: g ? `${g.label}` : 'Global cap', capValue, percent: capValue ? Math.min(100, Math.round((sp.total / capValue) * 100)) : null, mock: d.mockMode() },
+    spend: { month: sp.month, total: sp.total, projected, capLabel: g ? `${g.label}` : 'Global cap', capValue, percent: capValue ? Math.min(100, Math.round((sp.total / capValue) * 100)) : null, mock: d.mockMode() },
     badges: { studio: d.openFlags(), queue: failedPosts, channels: badConns.length },
     needsYou,
   }

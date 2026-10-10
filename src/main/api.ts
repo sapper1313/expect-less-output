@@ -16,6 +16,7 @@ import type { AgentRuntime } from './agent/runtime'
 import type { StatsService } from './stats/service'
 import type { ImportService } from './stats/imported'
 import { buildHomeSummary } from './homeSummary'
+import { searchAll } from './search'
 import { OpenAICompatibleProvider, checkLlmUrl } from './services/textAssist'
 import type { RestorePreview } from '@shared/types'
 import { healthRows } from './services/health'
@@ -299,6 +300,7 @@ export function buildApi(d: ApiDeps): Api {
       mcpConfig: async () => d.agent.mcpConfig(),
     },
     studio: d.studio,
+    search: { query: async (q) => searchAll(d.db, q) },
     home: {
       summary: async () =>
         buildHomeSummary({

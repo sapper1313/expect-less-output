@@ -40,3 +40,24 @@ describe('home summary', () => {
     expect(s.spend.mock).toBe(true)
   })
 })
+
+describe('search and episode cost', () => {
+  it('finds pages and episodes and reports what an episode cost', async () => {
+    const { searchAll } = await import('../../src/main/search')
+    const e = makeStudioEnv()
+    const b = (await e.studio.brands())[0].brandId
+    await e.studio.writeNow(b)
+    for (let i = 0; i < 100 && e.studio.tasks.list({ status: ['queued', 'running'] }).length; i++) {
+      await e.studio.runner.runUntilIdle()
+      await new Promise((r) => setTimeout(r, 20))
+    }
+    const ep = (await e.studio.episodeList({ brandId: b }))[0]
+    expect(searchAll(e.db, 'x')).toEqual([])
+    expect(searchAll(e.db, 'spend caps').some((h) => h.kind === 'page' && h.target.settingsTab === 'studio')).toBe(true)
+    expect(searchAll(e.db, ep.title.slice(0, 6)).some((h) => h.kind === 'episode' && h.target.episodeId === ep.id)).toBe(true)
+    e.db.prepare("INSERT INTO spend_ledger (ts_utc, month_et, brand_id, episode_id, vendor, model, units, unit_kind, unit_price, dollars, outcome, purpose, mock) VALUES ('2026-10-10T00:00:00Z','2026-10',?,?,'xai','m',1,'seconds',0,1.25,'ok','first take',0)").run(b, ep.id)
+    const c = await e.studio.episodeCost(ep.id)
+    expect(c.total).toBeCloseTo(1.25, 2)
+    expect(c.parts[0].label).toBe('Video and images')
+  })
+})

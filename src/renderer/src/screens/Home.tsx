@@ -201,6 +201,7 @@ export function Home({ go, openPost }: { go: (t: GoTarget) => void; openPost: (p
               <div>
                 <div className="text-[13px] font-bold">Spend in {data.spend.month}</div>
                 <div className="text-[12px] glass-dim">{data.spend.capValue === null ? 'No spend cap is set.' : `Cap $${data.spend.capValue}`}</div>
+                <div className="text-[12px] glass-dim">On pace for about ${data.spend.projected.toFixed(2)} this month</div>
                 <button className="mt-1 text-[12px] font-semibold underline" onClick={() => go({ screen: 'studio', studioTab: 'spend' })}>See the details</button>
               </div>
             </div>

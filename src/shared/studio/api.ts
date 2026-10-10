@@ -269,6 +269,7 @@ export interface StudioApi {
   testKey(id: KeyId): Promise<TestResult>
 
   spendSummary(): Promise<SpendSummary>
+  episodeCost(episodeId: string): Promise<{ total: number; mock: number; parts: Array<{ label: string; dollars: number }> }>
   spendRecent(limit?: number): Promise<LedgerRow[]>
   spendCsv(): Promise<string>
 

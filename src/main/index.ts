@@ -1,6 +1,6 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, nativeTheme, net, Notification, powerMonitor, powerSaveBlocker, protocol, safeStorage, shell, Menu } from 'electron'
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'fs'
-import { join, normalize } from 'path'
+import { join, normalize, sep } from 'path'
 import { pathToFileURL } from 'url'
 import { latestSchemaVersion, openDb } from './db'
 import { AlertService } from './alerts/service'
@@ -602,6 +602,13 @@ async function boot(): Promise<void> {
 
   protocol.handle('elo-media', (req) => {
     const url = new URL(req.url)
+    if (url.hostname === 'video') {
+      // Videos play from the Media Root only. Anything outside it is refused.
+      const root = normalize(settings.get().mediaRoot)
+      const vfile = normalize(join(root, decodeURIComponent(url.pathname)))
+      if (!vfile.startsWith(root + sep) || !existsSync(vfile)) return new Response('Not found', { status: 404 })
+      return net.fetch(pathToFileURL(vfile).toString(), { headers: req.headers })
+    }
     if (url.hostname !== 'poster') return new Response('Not found', { status: 404 })
     const file = normalize(join(postersDir, decodeURIComponent(url.pathname)))
     if (!file.startsWith(postersDir) || !existsSync(file))
