@@ -805,10 +805,17 @@ async function boot(): Promise<void> {
       app.quit()
     }
   }
+  // The system is shutting down, restarting or logging out: let that through instead of hiding.
+  powerMonitor.on('shutdown', () => {
+    quitting = true
+  })
+  // Command+Q works like closing the window: the app keeps running from the menu bar. Only Quit in the
+  // menu bar icon menu really stops it, so a stray Command+Q cannot stop your scheduled posts.
   app.on('before-quit', (e) => {
     if (!quitting) {
       e.preventDefault()
-      void requestQuit()
+      mainWindow?.hide()
+      app.dock?.hide()
     }
   })
 

@@ -95,7 +95,7 @@ If macOS still refuses: open **System Settings**, then **Privacy and Security**,
 
 ## 7. Good to know
 
-- Closing the window does not stop posting. The app keeps running in the menu bar. Use **Quit** in the menu bar menu to really stop it.
+- Closing the window does not stop posting. The app keeps running in the menu bar. Pressing Command+Q does the same thing: it only hides the window. Use **Quit** in the menu bar icon's menu to really stop it. Shutting down or restarting the Mac still works normally.
 - The Mac must be awake and on for posts to go out. While a post is due within 30 minutes, the app keeps the Mac from sleeping.
 - If the Mac was asleep when a post was due, the app posts it on wake if it is less than 2 hours late (change this in Settings). Otherwise it holds the post as **missed** and tells you.
 - Your data lives in `~/Library/Application Support/Expect Less Output`. Videos live in the Media Root folder (default `~/Movies/Expect Less Output`). Nothing is sent anywhere.

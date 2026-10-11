@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.2 Command+Q keeps the app running
+
+- Command+Q now hides the window like the red close button. The app keeps running from the menu bar, and only **Quit** in the menu bar icon menu really stops it. Shutting down, restarting or logging out still works.
+
 ## 0.9.1 Character reference images in the Bible
 
 - Each character in the Bible now has its own **Reference images** strip. Add every angle, give each picture a label (front, side, smiling), and switch a picture off with **Retire** when the character changes. A retired picture stays in the Bible and can be switched back on.
