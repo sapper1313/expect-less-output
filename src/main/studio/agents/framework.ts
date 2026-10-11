@@ -97,7 +97,15 @@ export class AuditLog {
       )
   }
 
-  list(f: { brandId?: number | null; agent?: string; fromUtc?: string; toUtc?: string; limit?: number } = {}): AuditEntry[] {
+  list(
+    f: {
+      brandId?: number | null
+      agent?: string
+      fromUtc?: string
+      toUtc?: string
+      limit?: number
+    } = {},
+  ): AuditEntry[] {
     const where: string[] = []
     const args: unknown[] = []
     if (f.brandId) {
@@ -118,7 +126,9 @@ export class AuditLog {
     }
     args.push(f.limit ?? 300)
     const rows = this.db
-      .prepare(`SELECT * FROM audit_log ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT ?`)
+      .prepare(
+        `SELECT * FROM audit_log ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT ?`,
+      )
       .all(...args) as any[]
     return rows.map((r) => ({
       id: r.id,
@@ -173,7 +183,14 @@ export class TaskStore {
     return r ? mapTask(r) : null
   }
 
-  list(f: { status?: TaskStatus | TaskStatus[]; brandId?: number | null; type?: string; limit?: number } = {}): AgentTask[] {
+  list(
+    f: {
+      status?: TaskStatus | TaskStatus[]
+      brandId?: number | null
+      type?: string
+      limit?: number
+    } = {},
+  ): AgentTask[] {
     const where: string[] = []
     const args: unknown[] = []
     if (f.status) {
@@ -192,7 +209,9 @@ export class TaskStore {
     args.push(f.limit ?? 300)
     return (
       this.db
-        .prepare(`SELECT * FROM agent_tasks ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT ?`)
+        .prepare(
+          `SELECT * FROM agent_tasks ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT ?`,
+        )
         .all(...args) as any[]
     ).map(mapTask)
   }
@@ -212,17 +231,30 @@ export class TaskStore {
   /** Claims a task. Returns false if someone else already did. */
   claim(id: number): boolean {
     const r = this.db
-      .prepare("UPDATE agent_tasks SET status = 'running', started_utc = ? WHERE id = ? AND status IN ('queued','waiting')")
+      .prepare(
+        "UPDATE agent_tasks SET status = 'running', started_utc = ? WHERE id = ? AND status IN ('queued','waiting')",
+      )
       .run(iso(this.now()), id)
     return r.changes === 1
   }
 
   /** After a crash or quit: anything left running goes back to queued. Attempts are kept. */
   recoverRunning(): number {
-    return this.db.prepare("UPDATE agent_tasks SET status = 'queued' WHERE status = 'running'").run().changes
+    return this.db
+      .prepare("UPDATE agent_tasks SET status = 'queued' WHERE status = 'running'")
+      .run().changes
   }
 
-  setStatus(id: number, status: TaskStatus, extra: { result?: unknown; error?: string | null; notBeforeMs?: number | null; attempts?: number } = {}): void {
+  setStatus(
+    id: number,
+    status: TaskStatus,
+    extra: {
+      result?: unknown
+      error?: string | null
+      notBeforeMs?: number | null
+      attempts?: number
+    } = {},
+  ): void {
     const done = ['done', 'failed', 'stopped', 'flagged'].includes(status)
     this.db
       .prepare(
@@ -243,7 +275,9 @@ export class TaskStore {
   /** The owner pressed Retry on a flagged or stopped task. */
   reopen(id: number): void {
     this.db
-      .prepare("UPDATE agent_tasks SET status = 'queued', attempts = 0, error = NULL, not_before_utc = NULL, finished_utc = NULL WHERE id = ? AND status IN ('flagged','stopped','failed')")
+      .prepare(
+        "UPDATE agent_tasks SET status = 'queued', attempts = 0, error = NULL, not_before_utc = NULL, finished_utc = NULL WHERE id = ? AND status IN ('flagged','stopped','failed')",
+      )
       .run(id)
   }
 
@@ -252,7 +286,9 @@ export class TaskStore {
   }
 
   setPayload(id: number, payload: Record<string, unknown>): void {
-    this.db.prepare('UPDATE agent_tasks SET payload_json = ? WHERE id = ?').run(JSON.stringify(payload), id)
+    this.db
+      .prepare('UPDATE agent_tasks SET payload_json = ? WHERE id = ?')
+      .run(JSON.stringify(payload), id)
   }
 }
 
@@ -354,7 +390,14 @@ export class AgentRunner {
 
   private async execute(task: AgentTask, def: AgentDef): Promise<void> {
     const audit = (action: string, detail?: unknown) =>
-      this.d.audit.write({ agent: def.name, action, brandId: task.brandId, taskId: task.id, episodeId: task.episodeId, detail })
+      this.d.audit.write({
+        agent: def.name,
+        action,
+        brandId: task.brandId,
+        taskId: task.id,
+        episodeId: task.episodeId,
+        detail,
+      })
     audit('start', { type: task.type, attempt: task.attempts + 1 })
     try {
       const input = def.input.parse(task.payload)
@@ -363,7 +406,10 @@ export class AgentRunner {
         input,
       )
       const parsed = def.output.safeParse(out)
-      if (!parsed.success) throw new RetryableError(`The agent's answer did not match its schema: ${parsed.error.message.slice(0, 200)}`)
+      if (!parsed.success)
+        throw new RetryableError(
+          `The agent's answer did not match its schema: ${parsed.error.message.slice(0, 200)}`,
+        )
       this.d.tasks.setStatus(task.id, 'done', { result: parsed.data, attempts: task.attempts + 1 })
       audit('done')
     } catch (e) {
@@ -379,7 +425,10 @@ export class AgentRunner {
       return
     }
     if (e instanceof Waiting) {
-      this.d.tasks.setStatus(task.id, 'waiting', { notBeforeMs: e.untilMs, attempts: task.attempts })
+      this.d.tasks.setStatus(task.id, 'waiting', {
+        notBeforeMs: e.untilMs,
+        attempts: task.attempts,
+      })
       audit('waiting', { until: new Date(e.untilMs).toISOString() })
       return
     }
@@ -401,7 +450,11 @@ export class AgentRunner {
       e instanceof RetryableError && e.retryAfterSeconds
         ? e.retryAfterSeconds
         : cfg.backoffBaseSeconds * 2 ** (attempts - 1)
-    this.d.tasks.setStatus(task.id, 'queued', { error: msg, attempts, notBeforeMs: this.now() + wait * 1000 })
+    this.d.tasks.setStatus(task.id, 'queued', {
+      error: msg,
+      attempts,
+      notBeforeMs: this.now() + wait * 1000,
+    })
     audit('retry', { attempt: attempts, error: msg, inSeconds: wait })
   }
 }

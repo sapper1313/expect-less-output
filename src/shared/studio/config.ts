@@ -73,7 +73,13 @@ export const DEFAULT_STUDIO_CONFIG: StudioConfig = {
   watchdog: { enabled: true, runStart: '07:00', runEnd: '22:00', thresholdMinutes: 30 },
   platformCaps: {},
   publicHost: { endpoint: '', bucket: '', publicBase: '', region: 'auto' },
-  thumbnailEngine: { generateImages: true, candidates: 3, abDelayHours: 48, abMinImpressions: 500, font: '' },
+  thumbnailEngine: {
+    generateImages: true,
+    candidates: 3,
+    abDelayHours: 48,
+    abMinImpressions: 500,
+    font: '',
+  },
   qcClipRetryCap: 2,
   digestTime: '07:30',
   backupDir: '~/ELO/Backups',
@@ -209,7 +215,12 @@ export function deepMerge<T>(base: T, over: unknown): T {
   for (const [k, v] of Object.entries(over as Record<string, unknown>)) {
     const b = (base as Record<string, unknown>)?.[k]
     out[k] =
-      b && typeof b === 'object' && !Array.isArray(b) && v && typeof v === 'object' && !Array.isArray(v)
+      b &&
+      typeof b === 'object' &&
+      !Array.isArray(b) &&
+      v &&
+      typeof v === 'object' &&
+      !Array.isArray(v)
         ? deepMerge(b, v)
         : (v ?? b)
   }

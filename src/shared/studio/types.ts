@@ -137,7 +137,13 @@ export interface StudioConfig {
   platformCaps: Record<string, unknown>
   /** Temporary public host for files a platform must fetch (an Instagram cover picture). */
   publicHost: { endpoint: string; bucket: string; publicBase: string; region: string }
-  thumbnailEngine: { generateImages: boolean; candidates: number; abDelayHours: number; abMinImpressions: number; font: string }
+  thumbnailEngine: {
+    generateImages: boolean
+    candidates: number
+    abDelayHours: number
+    abMinImpressions: number
+    font: string
+  }
   qcClipRetryCap: number
   digestTime: string
   backupDir: string
@@ -269,7 +275,8 @@ export interface EpisodeRow {
   updatedUtc: string
 }
 
-export type TaskStatus = 'queued' | 'running' | 'waiting' | 'done' | 'failed' | 'stopped' | 'flagged'
+export type TaskStatus =
+  'queued' | 'running' | 'waiting' | 'done' | 'failed' | 'stopped' | 'flagged'
 
 export interface AgentTask {
   id: number

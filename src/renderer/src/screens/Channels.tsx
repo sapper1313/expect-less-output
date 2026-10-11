@@ -6,8 +6,16 @@ import { StudioChannelSettings } from './StudioSettings'
 export type ChannelsTab = 'setup' | 'connections' | 'studio'
 const TABS: Array<[ChannelsTab, string, string]> = [
   ['setup', 'Channel setup', 'Names, colors, posting times, hashtags and defaults'],
-  ['connections', 'Connections', 'Sign in to YouTube, Meta and TikTok and see if each login is healthy'],
-  ['studio', 'Studio settings per channel', 'How often the studio writes, which platforms, flags and the Bluesky account'],
+  [
+    'connections',
+    'Connections',
+    'Sign in to YouTube, Meta and TikTok and see if each login is healthy',
+  ],
+  [
+    'studio',
+    'Studio settings per channel',
+    'How often the studio writes, which platforms, flags and the Bluesky account',
+  ],
 ]
 
 /** Everything about setting up a channel lives here: the channel itself, its logins, and its studio settings. */

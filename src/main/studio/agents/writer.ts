@@ -1,6 +1,14 @@
 import { z, type ZodType } from 'zod'
 import type { Db } from '../../db'
-import { Draft, HollowDraft, ShortDraft, draftToPackage, isHollow, type HollowDraftData, type ShortDraftData } from '@shared/studio/drafts'
+import {
+  Draft,
+  HollowDraft,
+  ShortDraft,
+  draftToPackage,
+  isHollow,
+  type HollowDraftData,
+  type ShortDraftData,
+} from '@shared/studio/drafts'
 import type { StudioConfigService } from '../configService'
 import type { BibleService } from '../bible'
 import type { EpisodeLibrary } from '../library'
@@ -39,7 +47,9 @@ const Input = z.object({ slotDate: z.string(), episodeId: z.string().optional() 
 const Output = z.object({ episodeId: z.string(), status: z.string(), attempts: z.number() })
 
 /** One Show Writer instance per brand: the same module, loaded with that brand's bible on every call. */
-export function makeWriterAgent(d: WriterDeps): AgentDef<z.infer<typeof Input>, z.infer<typeof Output>> {
+export function makeWriterAgent(
+  d: WriterDeps,
+): AgentDef<z.infer<typeof Input>, z.infer<typeof Output>> {
   return {
     name: 'Show Writer',
     taskType: 'write_episode',
@@ -60,12 +70,37 @@ export function makeWriterAgent(d: WriterDeps): AgentDef<z.infer<typeof Input>, 
       const catchphrases = bible.characters.flatMap((c) => c.catchphrases)
 
       // The episode exists from the first moment, so the runway counts it and a resumed task reuses it.
-      let episodeId = input.episodeId ?? d.library.list({ brandId, limit: 500 }).find((e) => e.slotDate === input.slotDate && ['Idea', 'Written', 'Checking'].includes(e.status))?.id
+      let episodeId =
+        input.episodeId ??
+        d.library
+          .list({ brandId, limit: 500 })
+          .find(
+            (e) =>
+              e.slotDate === input.slotDate && ['Idea', 'Written', 'Checking'].includes(e.status),
+          )?.id
       if (!episodeId) {
-        const n = d.library.list({ brandId, limit: 5000 }).filter((e) => e.origin === 'studio').length + 1
+        const n =
+          d.library.list({ brandId, limit: 5000 }).filter((e) => e.origin === 'studio').length + 1
         episodeId = d.library.create(
           brandId,
-          { series: brandName, episode_number: n, title: 'Writing in progress', logline: '', runtime_target_seconds: 0, counted_objects: [], scenes: [], youtube: { title: '', description: '', tags: [], made_for_kids: brand.madeForKids, ai_disclosure: brand.aiDisclosure }, tags: [], summary: '' },
+          {
+            series: brandName,
+            episode_number: n,
+            title: 'Writing in progress',
+            logline: '',
+            runtime_target_seconds: 0,
+            counted_objects: [],
+            scenes: [],
+            youtube: {
+              title: '',
+              description: '',
+              tags: [],
+              made_for_kids: brand.madeForKids,
+              ai_disclosure: brand.aiDisclosure,
+            },
+            tags: [],
+            summary: '',
+          },
           { status: 'Idea', slotDate: input.slotDate },
         ).id
         ctx.tasks.setPayload(ctx.task.id, { ...ctx.task.payload, episodeId })
@@ -85,7 +120,10 @@ export function makeWriterAgent(d: WriterDeps): AgentDef<z.infer<typeof Input>, 
               episodeId,
               taskId: ctx.task.id,
               system: `You are the Show Writer for "${brandName}". Give ten fresh episode ideas as one line each. ${STYLE_RULES}\nAnswer only with JSON: {"ideas":["..."]}\n\n${bibleMd}`,
-              user: `${ctxLine({ task: 'ideas', brand: brandName, round: d.bible.ideas(brandId, true).length })}\nRecent titles: ${d.library.list({ brandId, limit: 30 }).map((e) => e.title).join('; ')}`,
+              user: `${ctxLine({ task: 'ideas', brand: brandName, round: d.bible.ideas(brandId, true).length })}\nRecent titles: ${d.library
+                .list({ brandId, limit: 30 })
+                .map((e) => e.title)
+                .join('; ')}`,
               maxTokens: 3000,
             },
             Ideas,
@@ -97,11 +135,17 @@ export function makeWriterAgent(d: WriterDeps): AgentDef<z.infer<typeof Input>, 
       }
 
       const recent = d.library.list({ brandId, limit: 12 }).filter((e) => e.id !== episodeId)
-      const events = brand.holidayTieIns ? d.holidays.upcoming(21).map((h) => `${h.date}: ${h.name}`) : []
+      const events = brand.holidayTieIns
+        ? d.holidays.upcoming(21).map((h) => `${h.date}: ${h.name}`)
+        : []
       const hints = d.hints?.(brandId) ?? []
       const feedback: string[] = []
       let lastReason = 'The script did not pass its checks.'
-      const checks = { math: brand.mathCheck, steps: brand.stepsCheck, kidSafety: brand.madeForKids }
+      const checks = {
+        math: brand.mathCheck,
+        steps: brand.stepsCheck,
+        kidSafety: brand.madeForKids,
+      }
 
       for (let attempt = 0; attempt < cap; attempt++) {
         const draft = await d.gateway.json(
@@ -112,14 +156,33 @@ export function makeWriterAgent(d: WriterDeps): AgentDef<z.infer<typeof Input>, 
             taskId: ctx.task.id,
             system: `You are the Show Writer for "${brandName}". Follow the series bible exactly. Write the whole episode.\n${STYLE_RULES}\n${long ? 'Answer only with JSON in this shape:\n' + HOLLOW_SHAPE + `\nWrite at least ${Math.ceil(bible.minSeconds / 10) + 1} scenes so the content adds up to more than ${bible.minSeconds} seconds. Count them before you answer.` : 'Answer only with JSON in this shape:\n' + SHORT_SHAPE}\n\n${bibleMd}`,
             user: [
-              ctxLine({ task: 'write', brand: brandName, format: brand.format, slotDate: input.slotDate, attempt, feedback, minSeconds: bible.minSeconds, maxSeconds: bible.maxSeconds, catchphrases, checks }),
+              ctxLine({
+                task: 'write',
+                brand: brandName,
+                format: brand.format,
+                slotDate: input.slotDate,
+                attempt,
+                feedback,
+                minSeconds: bible.minSeconds,
+                maxSeconds: bible.maxSeconds,
+                catchphrases,
+                checks,
+              }),
               `Posting date: ${input.slotDate}.`,
               idea ? `Use this idea if it fits: ${idea.text}` : '',
-              events.length ? `Upcoming days you may tie in if it fits the bible: ${events.join('; ')}` : '',
-              recent.length ? `Recent episodes (do not repeat them):\n${recent.map((e) => `- ${e.title}: ${e.summary}`).join('\n')}` : '',
+              events.length
+                ? `Upcoming days you may tie in if it fits the bible: ${events.join('; ')}`
+                : '',
+              recent.length
+                ? `Recent episodes (do not repeat them):\n${recent.map((e) => `- ${e.title}: ${e.summary}`).join('\n')}`
+                : '',
               hints.length ? `What is working lately: ${hints.join(' ')}` : '',
-              ctx.task.payload.note ? `The owner asked for this change: ${String(ctx.task.payload.note)}` : '',
-              feedback.length ? `Fix these problems from the last try:\n${feedback.map((f) => `- ${f}`).join('\n')}` : '',
+              ctx.task.payload.note
+                ? `The owner asked for this change: ${String(ctx.task.payload.note)}`
+                : '',
+              feedback.length
+                ? `Fix these problems from the last try:\n${feedback.map((f) => `- ${f}`).join('\n')}`
+                : '',
             ]
               .filter(Boolean)
               .join('\n'),
@@ -129,7 +192,13 @@ export function makeWriterAgent(d: WriterDeps): AgentDef<z.infer<typeof Input>, 
         )
         feedback.length = 0
         const parsed: ShortDraftData | HollowDraftData = Draft.parse(draft)
-        const cand = { title: parsed.title, idea: parsed.idea, hook: isHollow(parsed) ? undefined : parsed.hook, summary: parsed.summary, keyLines: parsed.key_lines }
+        const cand = {
+          title: parsed.title,
+          idea: parsed.idea,
+          hook: isHollow(parsed) ? undefined : parsed.hook,
+          summary: parsed.summary,
+          keyLines: parsed.key_lines,
+        }
         const check = { brandId, brandName, episodeId, taskId: ctx.task.id }
 
         // 1. repetition guard
@@ -141,7 +210,13 @@ export function makeWriterAgent(d: WriterDeps): AgentDef<z.infer<typeof Input>, 
           continue
         }
         // Save as Written so the work is never lost, then check.
-        const pkg = draftToPackage(brandName, d.library.get(episodeId).number, parsed, brand.madeForKids, brand.aiDisclosure)
+        const pkg = draftToPackage(
+          brandName,
+          d.library.get(episodeId).number,
+          parsed,
+          brand.madeForKids,
+          brand.aiDisclosure,
+        )
         const existing = d.library.getPackage(episodeId)
         if (existing) d.library.savePackage(episodeId, { ...existing, ...pkg })
         d.library.setStatus(episodeId, 'Checking', `Attempt ${attempt + 1}`)
@@ -182,13 +257,28 @@ export function makeWriterAgent(d: WriterDeps): AgentDef<z.infer<typeof Input>, 
 
         // Passed everything.
         const saved = d.library.getPackage(episodeId)
-        if (saved) d.library.savePackage(episodeId, { ...saved, qc_report: qc, math_report: math ?? undefined, safety_report: safety ?? undefined })
-        d.library.setFields(episodeId, { keyText: rep.keyText, embeddingJson: rep.embedding ? JSON.stringify(rep.embedding) : null })
-        d.library.setStatus(episodeId, 'Ready for production', `Passed every check on attempt ${attempt + 1}.`)
+        if (saved)
+          d.library.savePackage(episodeId, {
+            ...saved,
+            qc_report: qc,
+            math_report: math ?? undefined,
+            safety_report: safety ?? undefined,
+          })
+        d.library.setFields(episodeId, {
+          keyText: rep.keyText,
+          embeddingJson: rep.embedding ? JSON.stringify(rep.embedding) : null,
+        })
+        d.library.setStatus(
+          episodeId,
+          'Ready for production',
+          `Passed every check on attempt ${attempt + 1}.`,
+        )
         ctx.audit('ready', { episodeId, attempts: attempt + 1, via: rep.via })
         return { episodeId, status: 'Ready for production', attempts: attempt + 1 }
       }
-      throw new FlagNow(`The Writer could not get this script through its checks after ${cap} tries. Last problem: ${lastReason}`)
+      throw new FlagNow(
+        `The Writer could not get this script through its checks after ${cap} tries. Last problem: ${lastReason}`,
+      )
     },
   }
 }

@@ -46,6 +46,9 @@ Estimate before you go live: each brand shows about what one episode costs (firs
 
 Pick a brand. Edit the premise, voice, characters, hooks, do and don't lists, banned phrases and length targets. **Import skills** reads Markdown or text files (or a whole folder) and stores them under the brand. The Writer receives the full bible and every skill on every call. **Export Markdown** copies it all out. The ideas bank is a list of topics the Writer uses and refills when low. Holidays and fun days (seeded 18 months ahead) are shown to the Writers 21 days ahead.
 
+
+**Character reference images.** In the Bible, under each character, click **Add images** and pick the pictures (every angle). Save the bible first if the character is new. Give each picture a short label such as "front" or "side". When a character changes, click **Retire** on the old pictures instead of deleting them: they stay here and are not sent. **Use again** switches one back on. The Producer sends up to 14 pictures with every clip, taking turns between characters. Each picture adds a small cost per clip, so keep only the ones that matter. Renaming a character keeps its pictures. Removing a character stops its pictures being used. Pictures added under Studio Settings still work and count as brand wide.
+
 ## 6. Wonder Hollow: how Grok Bot takes over
 
 1. The Writer produces a complete package that passes the Math Checker (counted objects checked by running code) and the Safety Checker. It then shows as **Ready for production** in the **Library**, and as a plain `.json` in `~/ELO/Library/hollow/ready/`. The Calendar shows the production window.

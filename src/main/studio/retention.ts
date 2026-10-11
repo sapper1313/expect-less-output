@@ -50,26 +50,52 @@ export class Archivist {
         `SELECT id, brand_id, title, video_path, scheduled_at_utc FROM posts
          WHERE status = 'posted' AND media_purged_at IS NULL AND scheduled_at_utc < ?`,
       )
-      .all(cutoffUtc) as Array<{ id: number; brand_id: number; title: string; video_path: string; scheduled_at_utc: string }>
+      .all(cutoffUtc) as Array<{
+      id: number
+      brand_id: number
+      title: string
+      video_path: string
+      scheduled_at_utc: string
+    }>
     const items: PurgeItem[] = []
     for (const p of posts) {
-      const item: PurgeItem = { postId: p.id, brandId: p.brand_id, title: p.title, postedAtUtc: p.scheduled_at_utc, files: [] }
+      const item: PurgeItem = {
+        postId: p.id,
+        brandId: p.brand_id,
+        title: p.title,
+        postedAtUtc: p.scheduled_at_utc,
+        files: [],
+      }
       try {
         const v = this.d.media.resolve(p.video_path)
         if (existsSync(v)) item.files.push({ path: v, bytes: statSync(v).size, kind: 'video' })
       } catch {
         // path outside the media root: leave it alone
       }
-      const ep = this.d.db.prepare('SELECT id, thumb_path, video_path FROM episodes WHERE post_id = ?').get(p.id) as
-        | { id: string; thumb_path: string | null; video_path: string | null }
-        | undefined
+      const ep = this.d.db
+        .prepare('SELECT id, thumb_path, video_path FROM episodes WHERE post_id = ?')
+        .get(p.id) as
+        { id: string; thumb_path: string | null; video_path: string | null } | undefined
       if (ep?.thumb_path && existsSync(ep.thumb_path))
-        item.files.push({ path: ep.thumb_path, bytes: statSync(ep.thumb_path).size, kind: 'thumbnail' })
-      if (ep?.video_path && existsSync(ep.video_path) && !item.files.some((f) => f.path === ep.video_path))
+        item.files.push({
+          path: ep.thumb_path,
+          bytes: statSync(ep.thumb_path).size,
+          kind: 'thumbnail',
+        })
+      if (
+        ep?.video_path &&
+        existsSync(ep.video_path) &&
+        !item.files.some((f) => f.path === ep.video_path)
+      )
         item.files.push({ path: ep.video_path, bytes: statSync(ep.video_path).size, kind: 'video' })
       items.push(item)
     }
-    const report: PurgeReport = { dryRun, cutoffUtc, items, bytes: items.reduce((n, i) => n + i.files.reduce((m, f) => m + f.bytes, 0), 0) }
+    const report: PurgeReport = {
+      dryRun,
+      cutoffUtc,
+      items,
+      bytes: items.reduce((n, i) => n + i.files.reduce((m, f) => m + f.bytes, 0), 0),
+    }
     if (dryRun) return report
 
     const archiveStats = this.d.db.prepare(
@@ -87,10 +113,22 @@ export class Archivist {
            FROM post_targets t WHERE t.post_id = ?`,
         )
         .all(it.postId) as any[]
-      const ep = this.d.db.prepare('SELECT id FROM episodes WHERE post_id = ?').get(it.postId) as { id: string } | undefined
+      const ep = this.d.db.prepare('SELECT id FROM episodes WHERE post_id = ?').get(it.postId) as
+        { id: string } | undefined
       const stamp = new Date(this.now()).toISOString()
       for (const t of targets)
-        archiveStats.run(it.brandId, t.platform, it.postId, ep?.id ?? null, t.posted_at_utc ?? it.postedAtUtc, t.views, t.likes, t.comments, t.shares, stamp)
+        archiveStats.run(
+          it.brandId,
+          t.platform,
+          it.postId,
+          ep?.id ?? null,
+          t.posted_at_utc ?? it.postedAtUtc,
+          t.views,
+          t.likes,
+          t.comments,
+          t.shares,
+          stamp,
+        )
       for (const f of it.files) {
         try {
           unlinkSync(f.path)
@@ -102,7 +140,11 @@ export class Archivist {
       this.d.db.prepare('UPDATE posts SET media_purged_at = ? WHERE id = ?').run(stamp, it.postId)
       if (ep) {
         this.d.episodes.setFields(ep.id, { mediaPurgedAt: stamp, videoPath: null, thumbPath: null })
-        this.d.episodes.setStatus(ep.id, 'Archived', 'Video and full size thumbnail removed by retention.')
+        this.d.episodes.setStatus(
+          ep.id,
+          'Archived',
+          'Video and full size thumbnail removed by retention.',
+        )
       }
       this.d.audit.write({
         agent: 'Archivist',

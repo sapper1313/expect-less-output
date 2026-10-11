@@ -44,8 +44,13 @@ export class AnthropicClient implements LlmClient {
 
   private headers(): Record<string, string> {
     const key = this.apiKey()
-    if (!key) throw new Error('The Anthropic API key is not set. Add it in Settings, under the Studio tab.')
-    return { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }
+    if (!key)
+      throw new Error('The Anthropic API key is not set. Add it in Settings, under the Studio tab.')
+    return {
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    }
   }
 
   /** A cheap authenticated call that costs nothing. */
@@ -58,7 +63,10 @@ export class AnthropicClient implements LlmClient {
   async complete(req: LlmRequest & { model: string; maxTokens: number }): Promise<LlmResponse> {
     const content: unknown[] = []
     for (const img of req.images ?? [])
-      content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: img } })
+      content.push({
+        type: 'image',
+        source: { type: 'base64', media_type: 'image/jpeg', data: img },
+      })
     content.push({ type: 'text', text: req.user })
     const send = (withTool: boolean) =>
       this.fetchImpl(`${this.base}/v1/messages`, {
@@ -67,11 +75,22 @@ export class AnthropicClient implements LlmClient {
         body: JSON.stringify({
           model: req.model,
           max_tokens: req.maxTokens,
-          system: withTool ? `${req.system}\n\nGive your answer by calling the submit_answer tool.` : req.system,
+          system: withTool
+            ? `${req.system}\n\nGive your answer by calling the submit_answer tool.`
+            : req.system,
           messages: [{ role: 'user', content }],
           // Some models only accept "auto", not a forced tool, so the tool is offered and asked for.
           ...(withTool && req.jsonSchema
-            ? { tools: [{ name: 'submit_answer', description: 'Submit the answer in exactly this shape.', input_schema: req.jsonSchema }], tool_choice: { type: 'auto' } }
+            ? {
+                tools: [
+                  {
+                    name: 'submit_answer',
+                    description: 'Submit the answer in exactly this shape.',
+                    input_schema: req.jsonSchema,
+                  },
+                ],
+                tool_choice: { type: 'auto' },
+              }
             : {}),
         }),
         signal: AbortSignal.timeout(Math.max(180_000, req.maxTokens * 40)),
@@ -94,9 +113,25 @@ export class AnthropicClient implements LlmClient {
     }
     const tool = (data.content ?? []).find((c) => c.type === 'tool_use')
     if (req.jsonSchema && data.stop_reason === 'max_tokens')
-      throw new RetryableError('The answer was cut off because it was too long. It will be tried again.', undefined, { inputTokens: data.usage?.input_tokens ?? 0, outputTokens: data.usage?.output_tokens ?? 0 })
-    const text = tool ? JSON.stringify(tool.input ?? {}) : (data.content ?? []).filter((c) => c.type === 'text').map((c) => c.text ?? '').join('')
-    return { text, inputTokens: data.usage?.input_tokens ?? 0, outputTokens: data.usage?.output_tokens ?? 0 }
+      throw new RetryableError(
+        'The answer was cut off because it was too long. It will be tried again.',
+        undefined,
+        {
+          inputTokens: data.usage?.input_tokens ?? 0,
+          outputTokens: data.usage?.output_tokens ?? 0,
+        },
+      )
+    const text = tool
+      ? JSON.stringify(tool.input ?? {})
+      : (data.content ?? [])
+          .filter((c) => c.type === 'text')
+          .map((c) => c.text ?? '')
+          .join('')
+    return {
+      text,
+      inputTokens: data.usage?.input_tokens ?? 0,
+      outputTokens: data.usage?.output_tokens ?? 0,
+    }
   }
 }
 
@@ -135,14 +170,21 @@ export class MockLlm implements LlmClient {
     const fn = this.responders.get(req.agent)
     const out = fn ? fn(req) : { ok: true }
     const text = typeof out === 'string' ? out : JSON.stringify(out)
-    return { text, inputTokens: approxTokens(req.system + req.user), outputTokens: approxTokens(text) }
+    return {
+      text,
+      inputTokens: approxTokens(req.system + req.user),
+      outputTokens: approxTokens(text),
+    }
   }
 }
 
 /** The schema as plain JSON Schema for the model's tool, or undefined when it cannot be made (the text answer is used then). */
 export function toJsonSchema(schema: ZodType): Record<string, unknown> | undefined {
   try {
-    const j = z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }) as Record<string, unknown>
+    const j = z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }) as Record<
+      string,
+      unknown
+    >
     delete j.$schema
     return j.type === 'object' ? j : undefined
   } catch {
@@ -210,24 +252,46 @@ export class LlmGateway {
       const used = e instanceof RetryableError ? e.usage : undefined
       const wasted = used ? llmDollars(cfg, model, used.inputTokens, used.outputTokens) : 0
       if (used && wasted > 0 && !isLocalModel(model))
-        this.d.spend.record({ brandId: req.brandId, episodeId: req.episodeId, taskId: req.taskId, vendor: 'anthropic', model, units: used.inputTokens + used.outputTokens, unitKind: 'tokens', unitPrice: 0, dollars: wasted, purpose: 'text', mock })
-      this.logRun(req, model, used?.inputTokens ?? 0, used?.outputTokens ?? 0, wasted, started, 'error', mock)
+        this.d.spend.record({
+          brandId: req.brandId,
+          episodeId: req.episodeId,
+          taskId: req.taskId,
+          vendor: 'anthropic',
+          model,
+          units: used.inputTokens + used.outputTokens,
+          unitKind: 'tokens',
+          unitPrice: 0,
+          dollars: wasted,
+          purpose: 'text',
+          mock,
+        })
+      this.logRun(
+        req,
+        model,
+        used?.inputTokens ?? 0,
+        used?.outputTokens ?? 0,
+        wasted,
+        started,
+        'error',
+        mock,
+      )
       throw e
     }
     const dollars = llmDollars(cfg, model, res.inputTokens, res.outputTokens)
-    if (!isLocalModel(model)) this.d.spend.record({
-      brandId: req.brandId,
-      episodeId: req.episodeId,
-      taskId: req.taskId,
-      vendor: 'anthropic',
-      model,
-      units: res.inputTokens + res.outputTokens,
-      unitKind: 'tokens',
-      unitPrice: 0,
-      dollars,
-      purpose: 'text',
-      mock,
-    })
+    if (!isLocalModel(model))
+      this.d.spend.record({
+        brandId: req.brandId,
+        episodeId: req.episodeId,
+        taskId: req.taskId,
+        vendor: 'anthropic',
+        model,
+        units: res.inputTokens + res.outputTokens,
+        unitKind: 'tokens',
+        unitPrice: 0,
+        dollars,
+        purpose: 'text',
+        mock,
+      })
     this.logRun(req, model, res.inputTokens, res.outputTokens, dollars, started, 'ok', mock)
     return res
   }
@@ -238,7 +302,11 @@ export class LlmGateway {
     let user = req.user
     let lastProblem = ''
     for (let attempt = 0; attempt < 4; attempt++) {
-      const res = await this.call({ ...req, user, jsonSchema: req.jsonSchema ?? toJsonSchema(schema) })
+      const res = await this.call({
+        ...req,
+        user,
+        jsonSchema: req.jsonSchema ?? toJsonSchema(schema),
+      })
       let value: T
       try {
         const parsed = schema.safeParse(extractJson(res.text))
@@ -286,7 +354,10 @@ export class LlmGateway {
         new Date(this.d.now ? this.d.now() : Date.now()).toISOString(),
         req.agent,
         model,
-        createHash('sha1').update(req.system + req.user).digest('hex').slice(0, 12),
+        createHash('sha1')
+          .update(req.system + req.user)
+          .digest('hex')
+          .slice(0, 12),
         inTok,
         outTok,
         dollars,

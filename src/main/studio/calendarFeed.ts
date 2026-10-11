@@ -28,7 +28,18 @@ const POST_KIND: Record<string, CalendarKind | null> = {
   canceled: null,
 }
 
-const ACTIVE_EPISODE = ['Idea', 'Written', 'Checking', 'Ready for production', 'In production', 'Awaiting video', 'Video received', 'Checking video', 'Scheduled', 'Posted']
+const ACTIVE_EPISODE = [
+  'Idea',
+  'Written',
+  'Checking',
+  'Ready for production',
+  'In production',
+  'Awaiting video',
+  'Video received',
+  'Checking video',
+  'Scheduled',
+  'Posted',
+]
 
 export class CalendarFeed {
   constructor(
@@ -42,7 +53,13 @@ export class CalendarFeed {
   items(f: CalendarFilter): CalendarItem[] {
     const out: CalendarItem[] = []
     const brands = new Map(
-      (this.db.prepare('SELECT id, name, color FROM brands').all() as Array<{ id: number; name: string; color: string }>).map((b) => [b.id, b]),
+      (
+        this.db.prepare('SELECT id, name, color FROM brands').all() as Array<{
+          id: number
+          name: string
+          color: string
+        }>
+      ).map((b) => [b.id, b]),
     )
     const brandOk = (id: number) => !f.brandId || f.brandId === id
     const cutoff = new Date(this.now() - this.cfg.get().retentionDays * 86_400_000).toISOString()
@@ -118,7 +135,9 @@ export class CalendarFeed {
     // 3. planned slots with no episode, and production windows for weekly brands.
     for (const b of this.cfg.listBrandConfigs()) {
       if (!brandOk(b.brandId)) continue
-      const platforms = Object.entries(b.config.platforms).filter(([, on]) => on).map(([p]) => p)
+      const platforms = Object.entries(b.config.platforms)
+        .filter(([, on]) => on)
+        .map(([p]) => p)
       if (f.platform && !platforms.includes(f.platform)) continue
       for (const date of dueDates(b.config, fromDate, toDate)) {
         if (!slotsWithEpisode.has(`${b.brandId}|${date}`) && !this.postOnDate(b.brandId, date)) {
@@ -182,18 +201,24 @@ export class CalendarFeed {
         postId: null,
       })
     }
-    return out.filter((i) => !f.kind || i.kind === f.kind).sort((a, b) => a.startUtc.localeCompare(b.startUtc))
+    return out
+      .filter((i) => !f.kind || i.kind === f.kind)
+      .sort((a, b) => a.startUtc.localeCompare(b.startUtc))
   }
 
   private platformsOf(brandId: number): string[] {
-    return Object.entries(this.cfg.getBrand(brandId).platforms).filter(([, on]) => on).map(([p]) => p)
+    return Object.entries(this.cfg.getBrand(brandId).platforms)
+      .filter(([, on]) => on)
+      .map(([p]) => p)
   }
 
   private postOnDate(brandId: number, date: string): boolean {
     const from = slotToUtc(date, '00:00')
     const to = slotToUtc(addDays(date, 1), '00:00')
     return !!this.db
-      .prepare("SELECT 1 FROM posts WHERE brand_id = ? AND scheduled_at_utc >= ? AND scheduled_at_utc < ? AND status NOT IN ('canceled','draft')")
+      .prepare(
+        "SELECT 1 FROM posts WHERE brand_id = ? AND scheduled_at_utc >= ? AND scheduled_at_utc < ? AND status NOT IN ('canceled','draft')",
+      )
       .get(brandId, from, to)
   }
 
@@ -204,10 +229,16 @@ export class CalendarFeed {
   backfillPostedFolders(): number {
     let added = 0
     const known = new Set(
-      (this.db.prepare('SELECT video_path FROM posts').all() as Array<{ video_path: string }>).map((r) => basename(r.video_path)),
+      (this.db.prepare('SELECT video_path FROM posts').all() as Array<{ video_path: string }>).map(
+        (r) => basename(r.video_path),
+      ),
     )
     const seen = new Set(
-      (this.db.prepare("SELECT tags FROM episodes WHERE origin = 'backfill'").all() as Array<{ tags: string }>).map((r) => r.tags),
+      (
+        this.db.prepare("SELECT tags FROM episodes WHERE origin = 'backfill'").all() as Array<{
+          tags: string
+        }>
+      ).map((r) => r.tags),
     )
     for (const b of this.cfg.listBrandConfigs()) {
       const posted = join(this.media.brandDir(b.name), 'Posted')
@@ -231,7 +262,13 @@ export class CalendarFeed {
               runtime_target_seconds: 0,
               counted_objects: [],
               scenes: [],
-              youtube: { title: file.replace(/\.[^.]+$/, ''), description: '', tags: [], made_for_kids: false, ai_disclosure: true },
+              youtube: {
+                title: file.replace(/\.[^.]+$/, ''),
+                description: '',
+                tags: [],
+                made_for_kids: false,
+                ai_disclosure: true,
+              },
               tags: [key],
               summary: 'Imported from the Posted folder.',
             },

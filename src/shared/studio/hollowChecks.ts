@@ -2,7 +2,13 @@ import { numbersIn, wordToNumber } from './mathEval'
 import type { CountedObject, Scene } from './types'
 
 export interface CountIssue {
-  kind: 'missing_scene' | 'not_in_prompt' | 'quantity_not_stated' | 'wrong_quantity' | 'dialogue_total' | 'dialogue_gap'
+  kind:
+    | 'missing_scene'
+    | 'not_in_prompt'
+    | 'quantity_not_stated'
+    | 'wrong_quantity'
+    | 'dialogue_total'
+    | 'dialogue_gap'
   object: string
   scene?: number
   message: string
@@ -10,7 +16,12 @@ export interface CountIssue {
   correction: string
 }
 
-const stem = (s: string) => s.toLowerCase().replace(/[^a-z ]/g, '').trim().replace(/(es|s)$/, '')
+const stem = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z ]/g, '')
+    .trim()
+    .replace(/(es|s)$/, '')
 
 function mentions(text: string, name: string): boolean {
   const n = stem(name)
@@ -78,7 +89,12 @@ export function checkCountedObjects(objects: CountedObject[], scenes: Scene[]): 
             correction: `Change scene ${n} so it shows exactly ${o.quantity} ${o.name}.`,
           })
     }
-    if (inScenes.length && !inScenes.some((s) => quantitiesBefore(`${s.grok_prompt} ${s.action}`, o.name).includes(o.quantity)))
+    if (
+      inScenes.length &&
+      !inScenes.some((s) =>
+        quantitiesBefore(`${s.grok_prompt} ${s.action}`, o.name).includes(o.quantity),
+      )
+    )
       issues.push({
         kind: 'quantity_not_stated',
         object: o.name,
@@ -114,12 +130,63 @@ export function checkCountedObjects(objects: CountedObject[], scenes: Scene[]): 
 
 /** Words that must never appear in a made for kids script or prompt. A plain screen that runs before the language model check. */
 const FRIGHT = [
-  'blood', 'bloody', 'gore', 'gun', 'knife', 'sword', 'weapon', 'kill', 'killed', 'murder', 'dead', 'death', 'die', 'dying',
-  'corpse', 'ghost', 'zombie', 'demon', 'devil', 'monster', 'scary', 'terrifying', 'terrified', 'horror', 'nightmare',
-  'creepy', 'scream', 'screaming', 'explosion', 'bomb', 'drunk', 'beer', 'wine', 'cigarette', 'smoking',
-  'drug', 'hate', 'stupid', 'idiot', 'shut up', 'damn', 'hell',
+  'blood',
+  'bloody',
+  'gore',
+  'gun',
+  'knife',
+  'sword',
+  'weapon',
+  'kill',
+  'killed',
+  'murder',
+  'dead',
+  'death',
+  'die',
+  'dying',
+  'corpse',
+  'ghost',
+  'zombie',
+  'demon',
+  'devil',
+  'monster',
+  'scary',
+  'terrifying',
+  'terrified',
+  'horror',
+  'nightmare',
+  'creepy',
+  'scream',
+  'screaming',
+  'explosion',
+  'bomb',
+  'drunk',
+  'beer',
+  'wine',
+  'cigarette',
+  'smoking',
+  'drug',
+  'hate',
+  'stupid',
+  'idiot',
+  'shut up',
+  'damn',
+  'hell',
 ]
-const BRANDS = ['disney', 'pixar', 'nintendo', 'pokemon', 'mickey', 'paw patrol', 'cocomelon', 'bluey', 'coca-cola', 'mcdonald', 'lego', 'youtube kids']
+const BRANDS = [
+  'disney',
+  'pixar',
+  'nintendo',
+  'pokemon',
+  'mickey',
+  'paw patrol',
+  'cocomelon',
+  'bluey',
+  'coca-cola',
+  'mcdonald',
+  'lego',
+  'youtube kids',
+]
 
 export interface SafetyHit {
   where: string
@@ -131,8 +198,12 @@ export function safetyScreen(parts: Array<{ where: string; text: string }>): Saf
   const hits: SafetyHit[] = []
   for (const p of parts) {
     const t = ` ${p.text.toLowerCase().replace(/[^a-z0-9' -]/g, ' ')} `
-    for (const w of FRIGHT) if (t.includes(` ${w} `) || (w.length > 4 && t.includes(` ${w}s `))) hits.push({ where: p.where, word: w, kind: 'frightening' })
-    for (const b of BRANDS) if (t.includes(` ${b} `) || t.includes(b)) hits.push({ where: p.where, word: b, kind: 'brand' })
+    for (const w of FRIGHT)
+      if (t.includes(` ${w} `) || (w.length > 4 && t.includes(` ${w}s `)))
+        hits.push({ where: p.where, word: w, kind: 'frightening' })
+    for (const b of BRANDS)
+      if (t.includes(` ${b} `) || t.includes(b))
+        hits.push({ where: p.where, word: b, kind: 'brand' })
   }
   return hits
 }

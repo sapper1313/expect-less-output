@@ -10,7 +10,8 @@ import type { LlmGateway } from '../agents/llm'
 import { ctxLine, STYLE_RULES } from '../agents/prompts'
 import type { CommentSource, PostedRef, RawComment } from './sources'
 
-export type CommentStatus = 'queued' | 'draft' | 'replied' | 'flagged' | 'skipped' | 'discarded' | 'spam' | 'failed'
+export type CommentStatus =
+  'queued' | 'draft' | 'replied' | 'flagged' | 'skipped' | 'discarded' | 'spam' | 'failed'
 
 export interface CommentItem {
   id: number
@@ -46,7 +47,11 @@ const map = (r: any): CommentItem => ({
   repliedUtc: r.replied_utc,
 })
 
-const Answer = z.object({ category: z.enum(['praise', 'thanks', 'question', 'joke', 'unsure', 'other']), reply: z.string().default(''), confidence: z.number().min(0).max(1).default(0.5) })
+const Answer = z.object({
+  category: z.enum(['praise', 'thanks', 'question', 'joke', 'unsure', 'other']),
+  reply: z.string().default(''),
+  confidence: z.number().min(0).max(1).default(0.5),
+})
 const AUTO = new Set(['praise', 'thanks', 'question', 'joke'])
 const MAX_REPLY = 280
 
@@ -78,7 +83,8 @@ export interface CommentsDeps {
  */
 export class CommentsAgent {
   readonly name = 'Comments'
-  readonly role = 'Answers safe comments in the brand voice, drafts or flags the rest, hides obvious spam, and stays inside a daily limit.'
+  readonly role =
+    'Answers safe comments in the brand voice, drafts or flags the rest, hides obvious spam, and stays inside a daily limit.'
 
   constructor(private d: CommentsDeps) {}
 
@@ -86,7 +92,9 @@ export class CommentsAgent {
     return this.d.now ? this.d.now() : Date.now()
   }
 
-  list(filter: { brandId?: number | null; status?: CommentStatus | CommentStatus[] } = {}): CommentItem[] {
+  list(
+    filter: { brandId?: number | null; status?: CommentStatus | CommentStatus[] } = {},
+  ): CommentItem[] {
     const where: string[] = []
     const args: unknown[] = []
     if (filter.brandId) {
@@ -98,17 +106,36 @@ export class CommentsAgent {
       where.push(`status IN (${s.map(() => '?').join(',')})`)
       args.push(...s)
     }
-    return (this.d.db.prepare(`SELECT * FROM comment_items ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT 300`).all(...args) as unknown[]).map(map)
+    return (
+      this.d.db
+        .prepare(
+          `SELECT * FROM comment_items ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT 300`,
+        )
+        .all(...args) as unknown[]
+    ).map(map)
   }
 
   /** Replies sent today (Eastern) for a brand. */
   private sentToday(brandId: number): number {
-    const start = DateTime.fromMillis(this.now(), { zone: 'America/New_York' }).startOf('day').toUTC().toISO() as string
-    return (this.d.db.prepare("SELECT COUNT(*) AS n FROM comment_items WHERE brand_id = ? AND status = 'replied' AND replied_utc >= ?").get(brandId, start) as { n: number }).n
+    const start = DateTime.fromMillis(this.now(), { zone: 'America/New_York' })
+      .startOf('day')
+      .toUTC()
+      .toISO() as string
+    return (
+      this.d.db
+        .prepare(
+          "SELECT COUNT(*) AS n FROM comment_items WHERE brand_id = ? AND status = 'replied' AND replied_utc >= ?",
+        )
+        .get(brandId, start) as { n: number }
+    ).n
   }
 
   private lastReplyMs(brandId: number): number {
-    const r = this.d.db.prepare("SELECT MAX(replied_utc) AS t FROM comment_items WHERE brand_id = ? AND status = 'replied'").get(brandId) as { t: string | null }
+    const r = this.d.db
+      .prepare(
+        "SELECT MAX(replied_utc) AS t FROM comment_items WHERE brand_id = ? AND status = 'replied'",
+      )
+      .get(brandId) as { t: string | null }
     return r.t ? Date.parse(r.t) : 0
   }
 
@@ -133,50 +160,124 @@ export class CommentsAgent {
       try {
         comments = await src.list(ref)
       } catch (e) {
-        this.d.audit.write({ agent: this.name, action: 'list_failed', brandId, detail: { platform: ref.platform, error: (e as Error).message } })
+        this.d.audit.write({
+          agent: this.name,
+          action: 'list_failed',
+          brandId,
+          detail: { platform: ref.platform, error: (e as Error).message },
+        })
         continue
       }
       for (const c of comments) {
-        const seen = this.d.db.prepare('SELECT id, status FROM comment_items WHERE platform = ? AND comment_id = ?').get(ref.platform, c.id) as { id: number; status: string } | undefined
+        const seen = this.d.db
+          .prepare('SELECT id, status FROM comment_items WHERE platform = ? AND comment_id = ?')
+          .get(ref.platform, c.id) as { id: number; status: string } | undefined
         if (seen && seen.status !== 'queued') continue
         res.checked++
-        await this.handle(ref, src, c, seen?.id ?? null, brand.commentsMode as 'auto' | 'draft', res)
+        await this.handle(
+          ref,
+          src,
+          c,
+          seen?.id ?? null,
+          brand.commentsMode as 'auto' | 'draft',
+          res,
+        )
       }
     }
     return res
   }
 
-  private store(ref: PostedRef, c: RawComment, fields: { category: string; status: CommentStatus; reply?: string | null; reason?: string | null; id?: number | null }): number {
+  private store(
+    ref: PostedRef,
+    c: RawComment,
+    fields: {
+      category: string
+      status: CommentStatus
+      reply?: string | null
+      reason?: string | null
+      id?: number | null
+    },
+  ): number {
     if (fields.id) {
-      this.d.db.prepare('UPDATE comment_items SET category = ?, status = ?, reply_text = ?, reason = ? WHERE id = ?').run(fields.category, fields.status, fields.reply ?? null, fields.reason ?? null, fields.id)
+      this.d.db
+        .prepare(
+          'UPDATE comment_items SET category = ?, status = ?, reply_text = ?, reason = ? WHERE id = ?',
+        )
+        .run(fields.category, fields.status, fields.reply ?? null, fields.reason ?? null, fields.id)
       return fields.id
     }
     return Number(
       this.d.db
-        .prepare('INSERT INTO comment_items (brand_id, platform, episode_id, external_post_id, comment_id, author, text, category, status, reply_text, reason, created_utc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(ref.brandId, ref.platform, ref.episodeId, ref.externalId, c.id, c.author, c.text, fields.category, fields.status, fields.reply ?? null, fields.reason ?? null, new Date(this.now()).toISOString()).lastInsertRowid,
+        .prepare(
+          'INSERT INTO comment_items (brand_id, platform, episode_id, external_post_id, comment_id, author, text, category, status, reply_text, reason, created_utc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          ref.brandId,
+          ref.platform,
+          ref.episodeId,
+          ref.externalId,
+          c.id,
+          c.author,
+          c.text,
+          fields.category,
+          fields.status,
+          fields.reply ?? null,
+          fields.reason ?? null,
+          new Date(this.now()).toISOString(),
+        ).lastInsertRowid,
     )
   }
 
-  private async handle(ref: PostedRef, src: CommentSource, c: RawComment, existingId: number | null, mode: 'auto' | 'draft', res: PassResult) {
+  private async handle(
+    ref: PostedRef,
+    src: CommentSource,
+    c: RawComment,
+    existingId: number | null,
+    mode: 'auto' | 'draft',
+    res: PassResult,
+  ) {
     const brandId = ref.brandId
     // A reply we are holding for pacing keeps its prepared text.
-    const held = existingId ? (this.d.db.prepare('SELECT reply_text, category FROM comment_items WHERE id = ?').get(existingId) as { reply_text: string | null; category: string }) : null
+    const held = existingId
+      ? (this.d.db
+          .prepare('SELECT reply_text, category FROM comment_items WHERE id = ?')
+          .get(existingId) as { reply_text: string | null; category: string })
+      : null
     const risk: RiskCategory | null = screenComment(c.text)
     if (risk === 'spam') {
-      this.store(ref, c, { category: 'spam', status: 'spam', reason: 'Looks like spam.', id: existingId })
+      this.store(ref, c, {
+        category: 'spam',
+        status: 'spam',
+        reason: 'Looks like spam.',
+        id: existingId,
+      })
       try {
         await src.hide?.(ref, c)
       } catch {
         // not every platform lets the API hide a comment
       }
-      this.d.audit.write({ agent: this.name, action: 'spam_hidden', brandId, detail: { platform: ref.platform, comment: c.id } })
+      this.d.audit.write({
+        agent: this.name,
+        action: 'spam_hidden',
+        brandId,
+        detail: { platform: ref.platform, comment: c.id },
+      })
       res.spam++
       return
     }
     if (risk) {
-      this.store(ref, c, { category: risk, status: 'flagged', reason: `Not answered automatically: ${risk.replace('_', ' ')}.`, id: existingId })
-      this.d.audit.write({ agent: this.name, action: 'flagged', brandId, detail: { platform: ref.platform, comment: c.id, category: risk } })
+      this.store(ref, c, {
+        category: risk,
+        status: 'flagged',
+        reason: `Not answered automatically: ${risk.replace('_', ' ')}.`,
+        id: existingId,
+      })
+      this.d.audit.write({
+        agent: this.name,
+        action: 'flagged',
+        brandId,
+        detail: { platform: ref.platform, comment: c.id, category: risk },
+      })
       res.flagged++
       return
     }
@@ -186,22 +287,42 @@ export class CommentsAgent {
       const ans = await this.write(ref, c)
       category = ans.category
       if (!AUTO.has(ans.category) || ans.confidence < 0.6 || !ans.reply) {
-        this.store(ref, c, { category: ans.category, status: 'flagged', reason: 'The agent was not sure how to answer.', id: existingId })
-        this.d.audit.write({ agent: this.name, action: 'flagged', brandId, detail: { platform: ref.platform, comment: c.id, category: ans.category } })
+        this.store(ref, c, {
+          category: ans.category,
+          status: 'flagged',
+          reason: 'The agent was not sure how to answer.',
+          id: existingId,
+        })
+        this.d.audit.write({
+          agent: this.name,
+          action: 'flagged',
+          brandId,
+          detail: { platform: ref.platform, comment: c.id, category: ans.category },
+        })
         res.flagged++
         return
       }
       reply = ans.reply.trim()
       const problems = this.problems(reply)
       if (problems.length) {
-        this.store(ref, c, { category, status: 'flagged', reason: `The drafted reply was not usable: ${problems[0]}`, id: existingId })
+        this.store(ref, c, {
+          category,
+          status: 'flagged',
+          reason: `The drafted reply was not usable: ${problems[0]}`,
+          id: existingId,
+        })
         res.flagged++
         return
       }
     }
     if (mode === 'draft') {
       this.store(ref, c, { category, status: 'draft', reply, id: existingId })
-      this.d.audit.write({ agent: this.name, action: 'draft', brandId, detail: { platform: ref.platform, comment: c.id } })
+      this.d.audit.write({
+        agent: this.name,
+        action: 'draft',
+        brandId,
+        detail: { platform: ref.platform, comment: c.id },
+      })
       res.drafted++
       return
     }
@@ -220,7 +341,11 @@ export class CommentsAgent {
 
   private async write(ref: PostedRef, c: RawComment): Promise<z.infer<typeof Answer>> {
     const brandName = this.d.brandName(ref.brandId)
-    const episode = ref.episodeId ? this.d.db.prepare('SELECT title, summary FROM episodes WHERE id = ?').get(ref.episodeId) as { title: string; summary: string } | undefined : undefined
+    const episode = ref.episodeId
+      ? (this.d.db
+          .prepare('SELECT title, summary FROM episodes WHERE id = ?')
+          .get(ref.episodeId) as { title: string; summary: string } | undefined)
+      : undefined
     for (let attempt = 0; attempt < 2; attempt++) {
       const a = await this.d.gateway.json(
         {
@@ -238,39 +363,91 @@ export class CommentsAgent {
     return { category: 'unsure', reply: '', confidence: 0 }
   }
 
-  private async send(id: number, ref: PostedRef, src: CommentSource, c: RawComment, reply: string, res?: PassResult): Promise<void> {
+  private async send(
+    id: number,
+    ref: PostedRef,
+    src: CommentSource,
+    c: RawComment,
+    reply: string,
+    res?: PassResult,
+  ): Promise<void> {
     try {
       const rid = await src.reply(ref, c, reply)
-      this.d.db.prepare("UPDATE comment_items SET status = 'replied', reply_id = ?, reply_text = ?, replied_utc = ? WHERE id = ?").run(rid, reply, new Date(this.now()).toISOString(), id)
-      this.d.audit.write({ agent: this.name, action: 'reply', brandId: ref.brandId, detail: { platform: ref.platform, comment: c.id, reply } })
+      this.d.db
+        .prepare(
+          "UPDATE comment_items SET status = 'replied', reply_id = ?, reply_text = ?, replied_utc = ? WHERE id = ?",
+        )
+        .run(rid, reply, new Date(this.now()).toISOString(), id)
+      this.d.audit.write({
+        agent: this.name,
+        action: 'reply',
+        brandId: ref.brandId,
+        detail: { platform: ref.platform, comment: c.id, reply },
+      })
       if (res) res.replied++
     } catch (e) {
-      this.d.db.prepare("UPDATE comment_items SET status = 'failed', reason = ? WHERE id = ?").run((e as Error).message, id)
-      this.d.audit.write({ agent: this.name, action: 'reply_failed', brandId: ref.brandId, detail: { platform: ref.platform, comment: c.id, error: (e as Error).message } })
+      this.d.db
+        .prepare("UPDATE comment_items SET status = 'failed', reason = ? WHERE id = ?")
+        .run((e as Error).message, id)
+      this.d.audit.write({
+        agent: this.name,
+        action: 'reply_failed',
+        brandId: ref.brandId,
+        detail: { platform: ref.platform, comment: c.id, error: (e as Error).message },
+      })
     }
   }
 
   /** Draft only mode: the owner approved (optionally after editing) and the reply is sent now. */
   async approveDraft(id: number, edited?: string): Promise<void> {
     const row = this.d.db.prepare('SELECT * FROM comment_items WHERE id = ?').get(id) as any
-    if (!row || !['draft', 'flagged', 'failed'].includes(row.status)) throw new Error('That comment is not waiting for you.')
+    if (!row || !['draft', 'flagged', 'failed'].includes(row.status))
+      throw new Error('That comment is not waiting for you.')
     const text = (edited ?? row.reply_text ?? '').trim()
     const problems = this.problems(text)
     if (problems.length) throw new Error(problems[0])
-    const ref = this.d.refs(row.brand_id).find((r) => r.platform === row.platform && r.externalId === row.external_post_id)
+    const ref = this.d
+      .refs(row.brand_id)
+      .find((r) => r.platform === row.platform && r.externalId === row.external_post_id)
     const src = this.d.sources()[row.platform]
     if (!ref || !src) throw new Error('That video or platform is no longer available.')
-    await this.send(id, ref, src, { id: row.comment_id, text: row.text, author: row.author, createdUtc: row.created_utc }, text)
-    if ((this.d.db.prepare('SELECT status FROM comment_items WHERE id = ?').get(id) as { status: string }).status === 'failed')
-      throw new Error((this.d.db.prepare('SELECT reason FROM comment_items WHERE id = ?').get(id) as { reason: string }).reason)
+    await this.send(
+      id,
+      ref,
+      src,
+      { id: row.comment_id, text: row.text, author: row.author, createdUtc: row.created_utc },
+      text,
+    )
+    if (
+      (
+        this.d.db.prepare('SELECT status FROM comment_items WHERE id = ?').get(id) as {
+          status: string
+        }
+      ).status === 'failed'
+    )
+      throw new Error(
+        (
+          this.d.db.prepare('SELECT reason FROM comment_items WHERE id = ?').get(id) as {
+            reason: string
+          }
+        ).reason,
+      )
   }
 
   discard(id: number): void {
-    this.d.db.prepare("UPDATE comment_items SET status = 'discarded' WHERE id = ? AND status IN ('draft','flagged','queued','failed')").run(id)
+    this.d.db
+      .prepare(
+        "UPDATE comment_items SET status = 'discarded' WHERE id = ? AND status IN ('draft','flagged','queued','failed')",
+      )
+      .run(id)
   }
 
   /** The owner wants a flagged comment answered after all: it becomes a draft with their text. */
   draftFor(id: number, text: string): void {
-    this.d.db.prepare("UPDATE comment_items SET status = 'draft', reply_text = ? WHERE id = ? AND status IN ('flagged','failed')").run(text, id)
+    this.d.db
+      .prepare(
+        "UPDATE comment_items SET status = 'draft', reply_text = ? WHERE id = ? AND status IN ('flagged','failed')",
+      )
+      .run(text, id)
   }
 }

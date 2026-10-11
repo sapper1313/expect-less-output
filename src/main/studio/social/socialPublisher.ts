@@ -63,11 +63,32 @@ export class SocialPublisher {
     return this.d.now ? this.d.now() : Date.now()
   }
 
-  add(p: { episodeId: string | null; brandId: number; platform: 'bluesky'; text: string; videoPath: string; title: string; scheduledAtUtc: string; mock: boolean }): SocialRow {
+  add(p: {
+    episodeId: string | null
+    brandId: number
+    platform: 'bluesky'
+    text: string
+    videoPath: string
+    title: string
+    scheduledAtUtc: string
+    mock: boolean
+  }): SocialRow {
     const id = Number(
       this.d.db
-        .prepare('INSERT INTO social_posts (episode_id, brand_id, platform, text, video_path, title, scheduled_at_utc, mock, created_utc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(p.episodeId, p.brandId, p.platform, p.text, p.videoPath, p.title, p.scheduledAtUtc, p.mock ? 1 : 0, new Date(this.now()).toISOString()).lastInsertRowid,
+        .prepare(
+          'INSERT INTO social_posts (episode_id, brand_id, platform, text, video_path, title, scheduled_at_utc, mock, created_utc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          p.episodeId,
+          p.brandId,
+          p.platform,
+          p.text,
+          p.videoPath,
+          p.title,
+          p.scheduledAtUtc,
+          p.mock ? 1 : 0,
+          new Date(this.now()).toISOString(),
+        ).lastInsertRowid,
     )
     return this.get(id) as SocialRow
   }
@@ -88,14 +109,22 @@ export class SocialPublisher {
       where.push('status = ?')
       args.push(filter.status)
     }
-    return (this.d.db.prepare(`SELECT * FROM social_posts ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT 300`).all(...args) as unknown[]).map(map)
+    return (
+      this.d.db
+        .prepare(
+          `SELECT * FROM social_posts ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT 300`,
+        )
+        .all(...args) as unknown[]
+    ).map(map)
   }
 
   /** Posts every Bluesky item that is due. Returns how many were handled. */
   async tick(): Promise<number> {
     const nowIso = new Date(this.now()).toISOString()
     const due = this.d.db
-      .prepare("SELECT * FROM social_posts WHERE status = 'scheduled' AND scheduled_at_utc <= ? AND (next_attempt_utc IS NULL OR next_attempt_utc <= ?) ORDER BY scheduled_at_utc")
+      .prepare(
+        "SELECT * FROM social_posts WHERE status = 'scheduled' AND scheduled_at_utc <= ? AND (next_attempt_utc IS NULL OR next_attempt_utc <= ?) ORDER BY scheduled_at_utc",
+      )
       .all(nowIso, nowIso)
       .map(map)
     let n = 0
@@ -103,8 +132,17 @@ export class SocialPublisher {
       n++
       this.d.db.prepare("UPDATE social_posts SET status = 'posting' WHERE id = ?").run(row.id)
       try {
-        const r = row.mock ? { id: `mock-${row.platform}-${row.id}`, url: `https://example.invalid/mock/${row.platform}/${row.id}` } : await this.send(row)
-        this.d.db.prepare("UPDATE social_posts SET status = 'posted', external_id = ?, external_url = ?, posted_utc = ?, error = NULL WHERE id = ?").run(r.id, r.url, nowIso, row.id)
+        const r = row.mock
+          ? {
+              id: `mock-${row.platform}-${row.id}`,
+              url: `https://example.invalid/mock/${row.platform}/${row.id}`,
+            }
+          : await this.send(row)
+        this.d.db
+          .prepare(
+            "UPDATE social_posts SET status = 'posted', external_id = ?, external_url = ?, posted_utc = ?, error = NULL WHERE id = ?",
+          )
+          .run(r.id, r.url, nowIso, row.id)
         this.d.log('info', `Posted to ${row.platform}${row.mock ? ' (mock)' : ''}: ${row.title}`)
       } catch (e) {
         this.failed(row, e)
@@ -119,11 +157,17 @@ export class SocialPublisher {
     const give = err.kind === 'permanent' || attempts > BACKOFF_MIN.length
     if (!give) {
       const wait = err.retryAfterMs ?? BACKOFF_MIN[attempts - 1] * 60_000
-      this.d.db.prepare("UPDATE social_posts SET status = 'scheduled', attempts = ?, next_attempt_utc = ?, error = ? WHERE id = ?").run(attempts, new Date(this.now() + wait).toISOString(), err.message, row.id)
+      this.d.db
+        .prepare(
+          "UPDATE social_posts SET status = 'scheduled', attempts = ?, next_attempt_utc = ?, error = ? WHERE id = ?",
+        )
+        .run(attempts, new Date(this.now() + wait).toISOString(), err.message, row.id)
       this.d.log('warn', `${row.platform} post will be retried: ${err.message}`)
       return
     }
-    this.d.db.prepare("UPDATE social_posts SET status = 'failed', attempts = ?, error = ? WHERE id = ?").run(attempts, err.message, row.id)
+    this.d.db
+      .prepare("UPDATE social_posts SET status = 'failed', attempts = ?, error = ? WHERE id = ?")
+      .run(attempts, err.message, row.id)
     this.d.log('error', `${row.platform} post failed: ${err.message}`)
     this.d.alert({
       kind: 'failure',
@@ -139,20 +183,46 @@ export class SocialPublisher {
 
   /** The owner pressed Retry on a failed post. */
   retry(id: number): void {
-    this.d.db.prepare("UPDATE social_posts SET status = 'scheduled', attempts = 0, next_attempt_utc = NULL, error = NULL WHERE id = ? AND status = 'failed'").run(id)
+    this.d.db
+      .prepare(
+        "UPDATE social_posts SET status = 'scheduled', attempts = 0, next_attempt_utc = NULL, error = NULL WHERE id = ? AND status = 'failed'",
+      )
+      .run(id)
   }
 
   private async send(row: SocialRow): Promise<{ id: string; url: string }> {
-    const raw = this.d.db.prepare('SELECT state_json FROM social_posts WHERE id = ?').get(row.id) as { state_json: string }
+    const raw = this.d.db
+      .prepare('SELECT state_json FROM social_posts WHERE id = ?')
+      .get(row.id) as { state_json: string }
     const state = JSON.parse(raw.state_json) as Record<string, unknown>
     const setState = (p: Record<string, unknown>) => {
       Object.assign(state, p)
-      this.d.db.prepare('UPDATE social_posts SET state_json = ? WHERE id = ?').run(JSON.stringify(state), row.id)
+      this.d.db
+        .prepare('UPDATE social_posts SET state_json = ? WHERE id = ?')
+        .run(JSON.stringify(state), row.id)
     }
-    const limits = await this.d.bluesky(row.brandId).uploadLimits().catch(() => null)
-    if (limits && limits.canUpload === false) throw new SocialError(`Bluesky will not take a video right now. ${limits.message ?? ''}`.trim(), 'transient', 60 * 60_000)
+    const limits = await this.d
+      .bluesky(row.brandId)
+      .uploadLimits()
+      .catch(() => null)
+    if (limits && limits.canUpload === false)
+      throw new SocialError(
+        `Bluesky will not take a video right now. ${limits.message ?? ''}`.trim(),
+        'transient',
+        60 * 60_000,
+      )
     const info = await probe(row.videoPath)
-    const r = await this.d.bluesky(row.brandId).postVideo({ text: row.text, file: row.videoPath, width: info.width, height: info.height, alt: row.title, state, setState })
+    const r = await this.d
+      .bluesky(row.brandId)
+      .postVideo({
+        text: row.text,
+        file: row.videoPath,
+        width: info.width,
+        height: info.height,
+        alt: row.title,
+        state,
+        setState,
+      })
     setState({ bskyCid: r.cid })
     return { id: r.uri, url: r.url }
   }

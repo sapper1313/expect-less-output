@@ -16,12 +16,14 @@ export interface ModelOption {
 export const CLAUDE_GUIDE: Record<string, { label: string; bestFor: string; avoid: string }> = {
   'claude-haiku-5-5': {
     label: 'Claude Haiku 5.5',
-    bestFor: 'Quick checking and formatting: script checks, math checks, thumbnail text, publishing text, comment replies.',
+    bestFor:
+      'Quick checking and formatting: script checks, math checks, thumbnail text, publishing text, comment replies.',
     avoid: 'Long creative writing where the voice matters.',
   },
   'claude-sonnet-5-5': {
     label: 'Claude Sonnet 5.5',
-    bestFor: 'Writing episodes in the right voice and anything that needs good judgment, including the kids safety check.',
+    bestFor:
+      'Writing episodes in the right voice and anything that needs good judgment, including the kids safety check.',
     avoid: 'Nothing, but it costs more than Haiku for simple jobs.',
   },
   'claude-opus-5-5': {
@@ -36,15 +38,31 @@ export function localGuide(name: string): { bestFor: string; avoid: string } | n
   const n = name.toLowerCase()
   if (/embed|nomic|bge|minilm|e5-|gte-/.test(n)) return null
   if (/llava|vision|-vl|moondream|minicpm-v|bakllava/.test(n))
-    return { bestFor: 'Looking at pictures (video frame checks). Used by the video checker on the Local AI section in Settings, under AI models and Local AI.', avoid: 'Writing text for the agents.' }
+    return {
+      bestFor:
+        'Looking at pictures (video frame checks). Used by the video checker on the Local AI section in Settings, under AI models and Local AI.',
+      avoid: 'Writing text for the agents.',
+    }
   const size = Number(/(\d+(?:\.\d+)?)b\b/.exec(n)?.[1] ?? '0')
   if (size && size <= 4)
-    return { bestFor: 'Very small jobs: title and caption suggestions, hashtags.', avoid: 'Checks and writing. It misses too much.' }
+    return {
+      bestFor: 'Very small jobs: title and caption suggestions, hashtags.',
+      avoid: 'Checks and writing. It misses too much.',
+    }
   if (size && size <= 10)
-    return { bestFor: 'Free help with suggestions, comment replies, thumbnail text and idea lists.', avoid: 'Script checks on long episodes, and the kids safety check.' }
+    return {
+      bestFor: 'Free help with suggestions, comment replies, thumbnail text and idea lists.',
+      avoid: 'Script checks on long episodes, and the kids safety check.',
+    }
   if (size && size <= 40)
-    return { bestFor: 'Free everyday work: suggestions, comments, publishing text, simple checks.', avoid: 'Long Hollow scripts. It may lose track and is slower.' }
-  return { bestFor: 'Free and strong, if the machine can run it.', avoid: 'Slow machines. Watch the time per answer.' }
+    return {
+      bestFor: 'Free everyday work: suggestions, comments, publishing text, simple checks.',
+      avoid: 'Long Hollow scripts. It may lose track and is slower.',
+    }
+  return {
+    bestFor: 'Free and strong, if the machine can run it.',
+    avoid: 'Slow machines. Watch the time per answer.',
+  }
 }
 
 export function buildModelOptions(
@@ -56,11 +74,31 @@ export function buildModelOptions(
   const claude = ids.map((id) => {
     const g = CLAUDE_GUIDE[id]
     const p = prices[id] ?? fallback
-    return { id, label: g?.label ?? id, kind: 'claude' as const, inPerM: p.inPerM, outPerM: p.outPerM, bestFor: g?.bestFor ?? 'A custom model you added to the price table.', avoid: g?.avoid ?? '' }
+    return {
+      id,
+      label: g?.label ?? id,
+      kind: 'claude' as const,
+      inPerM: p.inPerM,
+      outPerM: p.outPerM,
+      bestFor: g?.bestFor ?? 'A custom model you added to the price table.',
+      avoid: g?.avoid ?? '',
+    }
   })
   const local = localNames.flatMap((name) => {
     const g = localGuide(name)
-    return g ? [{ id: LOCAL_MODEL_PREFIX + name, label: `${name} (on your Ollama)`, kind: 'local' as const, inPerM: 0, outPerM: 0, bestFor: g.bestFor, avoid: g.avoid }] : []
+    return g
+      ? [
+          {
+            id: LOCAL_MODEL_PREFIX + name,
+            label: `${name} (on your Ollama)`,
+            kind: 'local' as const,
+            inPerM: 0,
+            outPerM: 0,
+            bestFor: g.bestFor,
+            avoid: g.avoid,
+          },
+        ]
+      : []
   })
   return [...claude, ...local]
 }

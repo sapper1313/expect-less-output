@@ -4,7 +4,12 @@ import { useState } from 'react'
 export function VideoPlayer({ path, poster }: { path: string; poster?: string | null }) {
   const [failed, setFailed] = useState(false)
   const src = 'elo-media://video/' + path.split('/').map(encodeURIComponent).join('/')
-  if (failed) return <div className="rounded-2xl bg-black/20 p-4 text-[12px] glass-dim">This video could not be played here. It may have been moved or removed.</div>
+  if (failed)
+    return (
+      <div className="rounded-2xl bg-black/20 p-4 text-[12px] glass-dim">
+        This video could not be played here. It may have been moved or removed.
+      </div>
+    )
   return (
     <video
       controls

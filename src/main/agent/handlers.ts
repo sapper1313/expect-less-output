@@ -235,7 +235,11 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
   listEpisodes: ({ s, query }) => {
     const lib = s.episodes?.()
     if (!lib) throw new AgentError(500, 'server_error', 'The Library is not available.')
-    const rows = lib.list({ brandId: query.brand_id ?? null, status: query.status ?? 'all', limit: query.limit })
+    const rows = lib.list({
+      brandId: query.brand_id ?? null,
+      status: query.status ?? 'all',
+      limit: query.limit,
+    })
     return { episodes: rows.map((r) => episodeOut(s, r)) }
   },
 
@@ -244,7 +248,10 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
     if (!lib) throw new AgentError(500, 'server_error', 'The Library is not available.')
     const row = lib.find(params.id)
     if (!row) throw new AgentError(404, 'not_found', `No episode with id ${params.id}.`)
-    return { episode: episodeOut(s, row), package: lib.getPackage(row.id) as unknown as Record<string, unknown> | null }
+    return {
+      episode: episodeOut(s, row),
+      package: lib.getPackage(row.id) as unknown as Record<string, unknown> | null,
+    }
   },
 }
 

@@ -27,7 +27,11 @@ export interface SchedulerDeps {
   getSettings: () => Settings
   /** Picks the adapter for a platform. Real YouTube accounts get the YouTube adapter, the rest dry run. */
   /** The settings of the target are passed so a mock mode post can be steered to the dry run adapter. */
-  adapterFor: (platform: Platform, account: Account | null, settings?: Record<string, unknown>) => PlatformAdapter
+  adapterFor: (
+    platform: Platform,
+    account: Account | null,
+    settings?: Record<string, unknown>,
+  ) => PlatformAdapter
   notifier: Notifier
   now?: () => number
   emit?: () => void
@@ -371,7 +375,9 @@ export class Scheduler {
     this.inFlight.add(row.id)
     try {
       const ctx = this.buildContext(row)
-      const result = await this.d.adapterFor(row.platform, ctx.account, ctx.settings).checkStatus(ctx, this.now())
+      const result = await this.d
+        .adapterFor(row.platform, ctx.account, ctx.settings)
+        .checkStatus(ctx, this.now())
       if (result.status === 'needs_action') {
         this.d.db
           .prepare(

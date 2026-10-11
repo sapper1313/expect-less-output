@@ -95,7 +95,11 @@ function Shell() {
   const { data: report } = useLoad(() => api.backup.report())
   const { data: studio } = useLoad(() => api.studio.overview())
   const { data: home } = useLoad(() => api.home.summary())
-  const badge: Partial<Record<Screen, number>> = { studio: home?.badges.studio, queue: home?.badges.queue, channels: home?.badges.channels }
+  const badge: Partial<Record<Screen, number>> = {
+    studio: home?.badges.studio,
+    queue: home?.badges.queue,
+    channels: home?.badges.channels,
+  }
 
   useEffect(() => {
     const root = document.documentElement
@@ -185,7 +189,10 @@ function Shell() {
                 {COPY.nav[s]}
                 <span className="flex items-center gap-2">
                   {!!badge[s] && (
-                    <span title="Needs a look" className="dot-pulse flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                    <span
+                      title="Needs a look"
+                      className="dot-pulse flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+                    >
                       {badge[s]}
                     </span>
                   )}
@@ -265,7 +272,16 @@ function Shell() {
         {screen === 'about' && <About />}
         {screen === 'tiktokDemo' && <TikTokDemo onExit={() => setScreen('connections')} />}
       </main>
-      {detailPost !== null && <PostDetail postId={detailPost} onClose={() => setDetailPost(null)} onEdit={() => { setEditPost(detailPost); setDetailPost(null) }} />}
+      {detailPost !== null && (
+        <PostDetail
+          postId={detailPost}
+          onClose={() => setDetailPost(null)}
+          onEdit={() => {
+            setEditPost(detailPost)
+            setDetailPost(null)
+          }}
+        />
+      )}
       {editPost !== null && <PostEditor postId={editPost} onClose={() => setEditPost(null)} />}
       {searching && <SearchPalette onPick={pick} onClose={() => setSearching(false)} />}
       {peekEpisode && <EpisodePeek id={peekEpisode} onClose={() => setPeekEpisode(null)} />}

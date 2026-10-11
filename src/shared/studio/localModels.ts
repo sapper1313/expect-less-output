@@ -41,7 +41,9 @@ export function recommendModels(ramGb: number | null, hasGpu: boolean | null): R
         { name: 'gemma3:4b', note: 'good general vision model' },
       ],
       embed: embed.slice(0, 1),
-      warning: gpu ? null : 'Without a graphics card expect checks to take around a minute per clip.',
+      warning: gpu
+        ? null
+        : 'Without a graphics card expect checks to take around a minute per clip.',
     }
   return {
     tier: 'large',

@@ -29,8 +29,13 @@ export function nextDueEveryN(startDate: string, n: number, today: string): stri
  * Changing N applies from the next due date forward only. The next due date becomes the new anchor,
  * so dates already in the past or already planned never move.
  */
-export function changeEveryN(cfg: StudioBrandConfig, newN: number, today: string): StudioBrandConfig {
-  if (!Number.isInteger(newN) || newN < 1) throw new Error('Every N days needs a whole number of 1 or more.')
+export function changeEveryN(
+  cfg: StudioBrandConfig,
+  newN: number,
+  today: string,
+): StudioBrandConfig {
+  if (!Number.isInteger(newN) || newN < 1)
+    throw new Error('Every N days needs a whole number of 1 or more.')
   const anchor = nextDueEveryN(cfg.startDate, cfg.everyN, today)
   return { ...cfg, everyN: newN, startDate: anchor }
 }

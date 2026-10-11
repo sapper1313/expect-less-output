@@ -54,7 +54,15 @@ export const HollowDraft = z.object({
   life_lesson: z.string().min(1),
   math_lesson: z.string().min(1),
   runtime_target_seconds: z.number().default(180),
-  counted_objects: z.array(z.object({ name: z.string(), quantity: z.number().int().positive(), scenes: z.array(z.number().int()) })).default([]),
+  counted_objects: z
+    .array(
+      z.object({
+        name: z.string(),
+        quantity: z.number().int().positive(),
+        scenes: z.array(z.number().int()),
+      }),
+    )
+    .default([]),
   scenes: z.array(SceneSchema).min(1),
   youtube: YouTube,
   thumbnail_brief: z.string().default(''),
@@ -70,10 +78,19 @@ export function isHollow(d: ShortDraftData | HollowDraftData): d is HollowDraftD
   return 'scenes' in d
 }
 
-type NewPackage = Omit<EpisodePackage, 'id' | 'brand' | 'brand_id' | 'status_history' | 'schema_version'>
+type NewPackage = Omit<
+  EpisodePackage,
+  'id' | 'brand' | 'brand_id' | 'status_history' | 'schema_version'
+>
 
 /** Turns a Writer draft into the stored package. Shorts keep their clips as scenes so one viewer shows both. */
-export function draftToPackage(series: string, number: number, d: ShortDraftData | HollowDraftData, madeForKids: boolean, ai: boolean): NewPackage {
+export function draftToPackage(
+  series: string,
+  number: number,
+  d: ShortDraftData | HollowDraftData,
+  madeForKids: boolean,
+  ai: boolean,
+): NewPackage {
   if (isHollow(d)) {
     return {
       series,
@@ -119,7 +136,13 @@ export function draftToPackage(series: string, number: number, d: ShortDraftData
     youtube: { ...d.youtube, made_for_kids: madeForKids, ai_disclosure: ai },
     tags: d.tags,
     summary: d.summary,
-    extra: { idea: d.idea, hook: d.hook, caption: d.caption, hashtags: d.hashtags, key_lines: d.key_lines },
+    extra: {
+      idea: d.idea,
+      hook: d.hook,
+      caption: d.caption,
+      hashtags: d.hashtags,
+      key_lines: d.key_lines,
+    },
   }
 }
 

@@ -1,5 +1,12 @@
+import { randomUUID } from 'crypto'
 import type { Db } from '../db'
-import { SeriesBible, bibleToMarkdown, seedBible, type SeriesBibleData, type Skill } from '@shared/studio/bible'
+import {
+  SeriesBible,
+  bibleToMarkdown,
+  seedBible,
+  type SeriesBibleData,
+  type Skill,
+} from '@shared/studio/bible'
 import type { StudioConfigService } from './configService'
 
 export interface Idea {
@@ -25,7 +32,9 @@ export class BibleService {
   /** Gives every brand a bible. Existing facts are preloaded, everything else starts as a short premise. */
   ensureSeeded(): void {
     const has = this.db.prepare('SELECT 1 FROM series_bible WHERE brand_id = ?')
-    const ins = this.db.prepare('INSERT INTO series_bible (brand_id, bible_json, updated_utc) VALUES (?, ?, ?)')
+    const ins = this.db.prepare(
+      'INSERT INTO series_bible (brand_id, bible_json, updated_utc) VALUES (?, ?, ?)',
+    )
     for (const b of this.cfg.listBrandConfigs()) {
       if (has.get(b.brandId)) continue
       ins.run(b.brandId, JSON.stringify(seedBible(b.name, b.config.format)), this.iso())
@@ -34,28 +43,62 @@ export class BibleService {
 
   get(brandId: number): { bible: SeriesBibleData; skills: Skill[] } {
     this.ensureSeeded()
-    const row = this.db.prepare('SELECT bible_json FROM series_bible WHERE brand_id = ?').get(brandId) as { bible_json: string } | undefined
+    const row = this.db
+      .prepare('SELECT bible_json FROM series_bible WHERE brand_id = ?')
+      .get(brandId) as { bible_json: string } | undefined
     const bible = SeriesBible.parse(row ? JSON.parse(row.bible_json) : {})
+    // Older bibles have characters without an id. Give each one a permanent id once.
+    if (row && this.giveIds(bible)) this.save(brandId, bible)
     return { bible, skills: this.skills(brandId) }
+  }
+
+  /** True when it had to add an id. */
+  private giveIds(b: SeriesBibleData): boolean {
+    let changed = false
+    const seen = new Set<string>()
+    for (const c of b.characters) {
+      if (!c.id || seen.has(c.id)) {
+        c.id = randomUUID()
+        changed = true
+      }
+      seen.add(c.id)
+    }
+    return changed
+  }
+
+  private save(brandId: number, bible: SeriesBibleData): void {
+    this.db
+      .prepare(
+        'INSERT INTO series_bible (brand_id, bible_json, updated_utc) VALUES (?, ?, ?) ON CONFLICT(brand_id) DO UPDATE SET bible_json = excluded.bible_json, updated_utc = excluded.updated_utc',
+      )
+      .run(brandId, JSON.stringify(bible), this.iso())
   }
 
   set(brandId: number, patch: Partial<SeriesBibleData>): SeriesBibleData {
     const cur = this.get(brandId).bible
     const next = SeriesBible.parse({ ...cur, ...patch })
-    this.db
-      .prepare('INSERT INTO series_bible (brand_id, bible_json, updated_utc) VALUES (?, ?, ?) ON CONFLICT(brand_id) DO UPDATE SET bible_json = excluded.bible_json, updated_utc = excluded.updated_utc')
-      .run(brandId, JSON.stringify(next), this.iso())
+    this.giveIds(next)
+    this.save(brandId, next)
     return next
   }
 
+  /** The ids of the characters in a brand's bible. */
+  characterIds(brandId: number): Set<string> {
+    return new Set(this.get(brandId).bible.characters.map((c) => c.id))
+  }
+
   skills(brandId: number): Skill[] {
-    return (this.db.prepare('SELECT id, name, text FROM bible_skills WHERE brand_id = ? ORDER BY id').all(brandId) as Skill[])
+    return this.db
+      .prepare('SELECT id, name, text FROM bible_skills WHERE brand_id = ? ORDER BY id')
+      .all(brandId) as Skill[]
   }
 
   addSkill(brandId: number, name: string, text: string): Skill {
     if (!text.trim()) throw new Error('That file is empty.')
     const id = Number(
-      this.db.prepare('INSERT INTO bible_skills (brand_id, name, text, created_utc) VALUES (?, ?, ?, ?)').run(brandId, name.trim() || 'Skill', text, this.iso()).lastInsertRowid,
+      this.db
+        .prepare('INSERT INTO bible_skills (brand_id, name, text, created_utc) VALUES (?, ?, ?, ?)')
+        .run(brandId, name.trim() || 'Skill', text, this.iso()).lastInsertRowid,
     )
     return { id, name: name.trim() || 'Skill', text }
   }
@@ -79,7 +122,9 @@ export class BibleService {
   ideas(brandId: number, includeUsed = false): Idea[] {
     return (
       this.db
-        .prepare(`SELECT id, brand_id, text, used FROM ideas WHERE brand_id = ? ${includeUsed ? '' : 'AND used = 0'} ORDER BY id`)
+        .prepare(
+          `SELECT id, brand_id, text, used FROM ideas WHERE brand_id = ? ${includeUsed ? '' : 'AND used = 0'} ORDER BY id`,
+        )
         .all(brandId) as Array<{ id: number; brand_id: number; text: string; used: number }>
     ).map((r) => ({ id: r.id, brandId: r.brand_id, text: r.text, used: !!r.used }))
   }

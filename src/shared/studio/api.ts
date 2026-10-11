@@ -16,7 +16,13 @@ import type {
 } from './types'
 
 import type { ModelOption } from './modelCatalog'
-import type { CompetitorView, RepostCandidate, RetentionView, TitleLabResult, TrendVideo } from './research'
+import type {
+  CompetitorView,
+  RepostCandidate,
+  RetentionView,
+  TitleLabResult,
+  TrendVideo,
+} from './research'
 import type { DirectorActionView } from '../../main/studio/directorChat'
 import type { BrandSocialView } from '../../main/studio/social/accounts'
 export type { BrandSocialView }
@@ -45,7 +51,12 @@ export interface PurgeReportView {
   cutoffUtc: string
   count: number
   bytes: number
-  items: Array<{ postId: number; title: string; postedAtUtc: string; files: Array<{ path: string; bytes: number; kind: string }> }>
+  items: Array<{
+    postId: number
+    title: string
+    postedAtUtc: string
+    files: Array<{ path: string; bytes: number; kind: string }>
+  }>
 }
 
 export interface ChecklistView {
@@ -148,6 +159,13 @@ export interface AssetView {
   path: string
   name: string
   prompt: string | null
+  /** The bible character this picture belongs to, or null for a brand wide one. */
+  characterId: string | null
+  label: string | null
+  /** Retired pictures are kept but not sent to the video model. */
+  active: boolean
+  /** Address the app can show the picture from. */
+  url: string
 }
 
 export interface ClipJobView {
@@ -190,12 +208,29 @@ export interface ThumbTestView {
   episodeId: string
   state: string
   note: string | null
-  variants: Array<{ variant: string; headline: string; score: number; ctr: number | null; impressions: number | null; winner: boolean; file: string }>
+  variants: Array<{
+    variant: string
+    headline: string
+    score: number
+    ctr: number | null
+    impressions: number | null
+    winner: boolean
+    file: string
+  }>
 }
 
 export interface StudioApi {
   commentList(filter?: { brandId?: number | null; status?: string }): Promise<CommentView[]>
-  runComments(brandId: number): Promise<{ checked: number; replied: number; drafted: number; flagged: number; spam: number; waiting: number }>
+  runComments(
+    brandId: number,
+  ): Promise<{
+    checked: number
+    replied: number
+    drafted: number
+    flagged: number
+    spam: number
+    waiting: number
+  }>
   approveComment(id: number, text?: string): Promise<void>
   discardComment(id: number): Promise<void>
   draftComment(id: number, text: string): Promise<void>
@@ -203,13 +238,28 @@ export interface StudioApi {
   refreshInsights(): Promise<{ fetched: number; social: number; brands: number }>
   digestPreview(): Promise<string>
   sendDigest(): Promise<void>
-  watchdogInfo(): Promise<{ installed: boolean; installCommand: string; uninstallCommand: string; heartbeatAgeMinutes: number | null; plist: string }>
-  saveWatchdog(w: { enabled: boolean; runStart: string; runEnd: string; thresholdMinutes: number }): Promise<void>
+  watchdogInfo(): Promise<{
+    installed: boolean
+    installCommand: string
+    uninstallCommand: string
+    heartbeatAgeMinutes: number | null
+    plist: string
+  }>
+  saveWatchdog(w: {
+    enabled: boolean
+    runStart: string
+    runEnd: string
+    thresholdMinutes: number
+  }): Promise<void>
   backupList(): Promise<BackupView[]>
   backupNow(): Promise<BackupView>
   restoreLibrary(libraryZip: string): Promise<number>
   setAgentEnabled(name: string, enabled: boolean): Promise<AgentInfo[]>
-  guidelineInfo(): Promise<{ current: GuidelineView; history: GuidelineView[]; proposal: { text: string; changes: string[]; at: string } | null }>
+  guidelineInfo(): Promise<{
+    current: GuidelineView
+    history: GuidelineView[]
+    proposal: { text: string; changes: string[]; at: string } | null
+  }>
   saveGuidelines(text: string, note: string): Promise<GuidelineView>
   revertGuidelines(id: number): Promise<GuidelineView>
   approveGuidelineProposal(): Promise<GuidelineView | null>
@@ -226,12 +276,31 @@ export interface StudioApi {
   testBluesky(brandId: number): Promise<TestResult>
 
   assetList(brandId: number): Promise<AssetView[]>
-  addAsset(brandId: number, kind: 'opening' | 'outro' | 'reference_image' | 'voice_reference', path: string): Promise<AssetView[]>
+  addAsset(
+    brandId: number,
+    kind: 'opening' | 'outro' | 'reference_image' | 'voice_reference',
+    path: string,
+    opts?: { characterId?: string; label?: string },
+  ): Promise<AssetView[]>
+  updateAsset(
+    brandId: number,
+    id: number,
+    patch: { label?: string; active?: boolean },
+  ): Promise<AssetView[]>
   removeAsset(brandId: number, id: number): Promise<AssetView[]>
   /** Makes the shared opening or outro once from a prompt. It is reused on every episode at no further cost. */
-  generateSlot(brandId: number, kind: 'opening' | 'outro', prompt: string): Promise<{ dollars: number; mock: boolean }>
+  generateSlot(
+    brandId: number,
+    kind: 'opening' | 'outro',
+    prompt: string,
+  ): Promise<{ dollars: number; mock: boolean }>
   clipLog(episodeId: string): Promise<ClipJobView[]>
-  resolveClip(episodeId: string, clipN: number, action: 'approve' | 'regenerate' | 'edit' | 'discard', prompt?: string): Promise<void>
+  resolveClip(
+    episodeId: string,
+    clipN: number,
+    action: 'approve' | 'regenerate' | 'edit' | 'discard',
+    prompt?: string,
+  ): Promise<void>
   produceNow(episodeId: string): Promise<{ taskId: number }>
 
   bible(brandId: number): Promise<{ bible: SeriesBibleData; skills: Skill[]; markdown: string }>
@@ -249,13 +318,24 @@ export interface StudioApi {
   removeHoliday(id: number): Promise<void>
   agents(): Promise<AgentInfo[]>
   setAgentModel(name: string, model: string): Promise<AgentInfo[]>
-  makeClips(episodeId: string, count: number): Promise<Array<{ postId: number; title: string; start: number; seconds: number }>>
+  makeClips(
+    episodeId: string,
+    count: number,
+  ): Promise<Array<{ postId: number; title: string; start: number; seconds: number }>>
   repostCandidates(brandId?: number | null): Promise<RepostCandidate[]>
-  queueRepost(postId: number, platforms: string[]): Promise<{ newPostId: number; whenUtc: string | null }>
+  queueRepost(
+    postId: number,
+    platforms: string[],
+  ): Promise<{ newPostId: number; whenUtc: string | null }>
   skipRepost(postId: number): Promise<void>
-  makeChapters(episodeId: string): Promise<{ chapters: Array<{ start: number; title: string }>; text: string }>
+  makeChapters(
+    episodeId: string,
+  ): Promise<{ chapters: Array<{ start: number; title: string }>; text: string }>
   chaptersFor(episodeId: string): Promise<string | null>
-  makeCaptions(episodeId: string, languages: string[]): Promise<Array<{ lang: string; name: string; cues: number }>>
+  makeCaptions(
+    episodeId: string,
+    languages: string[],
+  ): Promise<Array<{ lang: string; name: string; cues: number }>>
   captionList(episodeId: string): Promise<Array<{ lang: string; name: string; cues: number }>>
   exportCaptions(episodeId: string): Promise<string>
   uploadCaptions(episodeId: string): Promise<{ uploaded: number; note: string }>
@@ -270,7 +350,11 @@ export interface StudioApi {
   refreshTrends(brandId: number): Promise<{ videos: TrendVideo[]; fetchedUtc: string | null }>
   ideasFromResearch(brandId: number): Promise<string[]>
   assistantAsk(system: string, user: string): Promise<string>
-  modelOptions(): Promise<{ options: ModelOption[]; localOnline: boolean; localError: string | null }>
+  modelOptions(): Promise<{
+    options: ModelOption[]
+    localOnline: boolean
+    localError: string | null
+  }>
   setModelPrice(model: string, inPerM: number, outPerM: number): Promise<void>
   writeNow(brandId: number, slotDate?: string): Promise<{ taskId: number }>
 
@@ -283,7 +367,9 @@ export interface StudioApi {
   brands(): Promise<BrandStudioRow[]>
   setBrand(brandId: number, patch: Partial<StudioBrandConfig>): Promise<StudioBrandConfig>
   cadenceWhatIf(brandId: number, newEveryN: number): Promise<{ current: number; proposed: number }>
-  estimate(brandId: number): Promise<{ firstPass: number; worstCase: number; generatedSeconds: number }>
+  estimate(
+    brandId: number,
+  ): Promise<{ firstPass: number; worstCase: number; generatedSeconds: number }>
 
   keyStatus(): Promise<KeyStatus[]>
   setKey(id: KeyId, value: string, account?: string): Promise<KeyStatus[]>
@@ -291,36 +377,70 @@ export interface StudioApi {
   testKey(id: KeyId): Promise<TestResult>
 
   spendSummary(): Promise<SpendSummary>
-  episodeCost(episodeId: string): Promise<{ total: number; mock: number; parts: Array<{ label: string; dollars: number }> }>
+  episodeCost(
+    episodeId: string,
+  ): Promise<{ total: number; mock: number; parts: Array<{ label: string; dollars: number }> }>
   spendRecent(limit?: number): Promise<LedgerRow[]>
   spendCsv(): Promise<string>
 
-  episodeList(filter?: { brandId?: number | null; status?: EpisodeStatus | 'all'; search?: string; tag?: string; sort?: 'newest' | 'oldest' | 'title' }): Promise<EpisodeRow[]>
+  episodeList(filter?: {
+    brandId?: number | null
+    status?: EpisodeStatus | 'all'
+    search?: string
+    tag?: string
+    sort?: 'newest' | 'oldest' | 'title'
+  }): Promise<EpisodeRow[]>
   episode(id: string): Promise<EpisodeDetail>
   setEpisodeStatus(id: string, status: EpisodeStatus, note?: string): Promise<EpisodeRow>
   duplicateEpisode(id: string): Promise<EpisodeRow>
   exportEpisode(id: string): Promise<string>
 
-  calendar(filter: { fromUtc: string; toUtc: string; brandId?: number | null; platform?: string | null; kind?: CalendarKind | null }): Promise<CalendarItem[]>
+  calendar(filter: {
+    fromUtc: string
+    toUtc: string
+    brandId?: number | null
+    platform?: string | null
+    kind?: CalendarKind | null
+  }): Promise<CalendarItem[]>
   backfillPosted(): Promise<number>
   purge(dryRun: boolean): Promise<PurgeReportView>
 
   directorTick(): Promise<{ created: number; notes: string[] }>
   taskList(filter?: { status?: string; brandId?: number | null }): Promise<AgentTask[]>
-  auditLog(filter?: { brandId?: number | null; agent?: string; fromUtc?: string; toUtc?: string }): Promise<AuditEntry[]>
+  auditLog(filter?: {
+    brandId?: number | null
+    agent?: string
+    fromUtc?: string
+    toUtc?: string
+  }): Promise<AuditEntry[]>
   flagged(): Promise<Array<{ task: AgentTask; episode: EpisodeRow | null }>>
   resolveFlag(taskId: number, action: 'retry' | 'discard' | 'approve'): Promise<void>
   openBrandFolder(brandId: number, kind: 'scripts' | 'videos'): Promise<string>
   rebuildEpisode(id: string, note?: string): Promise<{ taskId: number }>
-  directorChat(message: string, history?: Array<{ who: 'you' | 'director'; text: string }>): Promise<{ reply: string; actions: DirectorActionView[] }>
+  directorChat(
+    message: string,
+    history?: Array<{ who: 'you' | 'director'; text: string }>,
+  ): Promise<{ reply: string; actions: DirectorActionView[] }>
   directorApply(action: DirectorActionView): Promise<string>
   dryRunDay(): Promise<string[]>
   cheapTest(): Promise<TestResult & { dollars: number; mock: boolean }>
 
   localChecklist(): Promise<ChecklistView[]>
-  localSelfTest(): Promise<{ vision: TestResult & { seconds: number }; embed: TestResult & { seconds: number }; whisper: TestResult & { seconds: number } }>
+  localSelfTest(): Promise<{
+    vision: TestResult & { seconds: number }
+    embed: TestResult & { seconds: number }
+    whisper: TestResult & { seconds: number }
+  }>
   localPull(): Promise<string[]>
   localPullProgress(): Promise<Array<{ model: string; pct: number; status: string }>>
-  localRecommend(ramGb: number | null, hasGpu: boolean | null): Promise<{ tier: string; vision: Array<{ name: string; note: string }>; embed: Array<{ name: string; note: string }>; warning: string | null }>
+  localRecommend(
+    ramGb: number | null,
+    hasGpu: boolean | null,
+  ): Promise<{
+    tier: string
+    vision: Array<{ name: string; note: string }>
+    embed: Array<{ name: string; note: string }>
+    warning: string | null
+  }>
   localSetupSteps(): Promise<{ windows: string[]; linux: string[]; warning: string }>
 }

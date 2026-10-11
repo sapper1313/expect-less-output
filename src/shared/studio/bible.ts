@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
 export const Character = z.object({
+  /** Stable id so reference images stay with the character when it is renamed. Filled in by the app. */
+  id: z.string().default(''),
   name: z.string(),
   look: z.string().default(''),
   personality: z.string().default(''),
@@ -35,7 +37,8 @@ export interface Skill {
 
 export const emptyBible = (): SeriesBibleData => SeriesBible.parse({})
 
-const list = (title: string, items: string[]) => (items.length ? `## ${title}\n${items.map((i) => `- ${i}`).join('\n')}\n\n` : '')
+const list = (title: string, items: string[]) =>
+  items.length ? `## ${title}\n${items.map((i) => `- ${i}`).join('\n')}\n\n` : ''
 
 /** The whole bible as Markdown. This is exactly what a Writer receives on every call, and what Export gives the owner. */
 export function bibleToMarkdown(brand: string, b: SeriesBibleData, skills: Skill[]): string {
@@ -72,12 +75,20 @@ export function seedBible(brandName: string, format: 'short' | 'long'): SeriesBi
         'Wonder Hollow Workshop is a cozy 3D animated show for kids. A crew of friendly woodland workshop friends solves a small problem each episode. Every episode teaches one life lesson and one math lesson.',
       audience: 'Children, made for kids. Parents watching along. Warm, safe, positive.',
       characters: [],
-      voiceAndTone: 'Gentle, cheerful, simple words. Age appropriate and positive. No scary or shocking moments. No product placement. No real people or real brands.',
+      voiceAndTone:
+        'Gentle, cheerful, simple words. Age appropriate and positive. No scary or shocking moments. No product placement. No real people or real brands.',
       formats:
         'About 3 minutes. 3D animated style. Scenes are 10 seconds of content each. A scene may be generated at 15 seconds so there is a handle for a smooth transition into the next scene (extension), but it is never a 10 second clip with 5 extra seconds tacked on. The objects being counted are ALWAYS displayed on screen and must look like they belong in the story world, written into the scene as natural props, never an afterthought. The exact quantity is stated in the scene prompt and counted aloud in order. The closing is the crew singing a goodbye ("see you next time") that ends on the Hollow logo. No credits.',
       hookPatterns: ['Start with the problem the crew is facing in the first scene.'],
-      dos: ['Count aloud, one number at a time, while the objects are on screen.', 'End with the goodbye song and the Hollow logo.'],
-      donts: ['No credits.', 'No frightening imagery.', 'No unsafe behavior shown as something to copy.'],
+      dos: [
+        'Count aloud, one number at a time, while the objects are on screen.',
+        'End with the goodbye song and the Hollow logo.',
+      ],
+      donts: [
+        'No credits.',
+        'No frightening imagery.',
+        'No unsafe behavior shown as something to copy.',
+      ],
       recurringSegments: ['The goodbye song'],
       minSeconds: 150,
       maxSeconds: 210,
@@ -97,8 +108,12 @@ export function seedBible(brandName: string, format: 'short' | 'long'): SeriesBi
           catchphrases: ['Fine.', 'Task adequate.', 'Could not post. Probably for the best.'],
         },
       ],
-      voiceAndTone: 'Deadpan. The joke is the delivery, never at the viewer\'s expense. The trick itself must be real and clearly explained.',
-      hookPatterns: ['State the time saved in the first two seconds.', 'Name the annoying task, then say it can be done in one step.'],
+      voiceAndTone:
+        "Deadpan. The joke is the delivery, never at the viewer's expense. The trick itself must be real and clearly explained.",
+      hookPatterns: [
+        'State the time saved in the first two seconds.',
+        'Name the annoying task, then say it can be done in one step.',
+      ],
       dos: ['Teach exactly one real trick.', 'Say the steps plainly.'],
       donts: ['No fake features.', 'No exclamation points.'],
       minSeconds: 25,
@@ -106,13 +121,15 @@ export function seedBible(brandName: string, format: 'short' | 'long'): SeriesBi
     })
   if (n.startsWith('the math of it'))
     return SeriesBible.parse({
-      premise: 'The Math of It shows the real math behind everyday things, with every number checked.',
+      premise:
+        'The Math of It shows the real math behind everyday things, with every number checked.',
       minSeconds: 20,
       maxSeconds: 50,
     })
   if (n.startsWith('teach your parents tech'))
     return SeriesBible.parse({
-      premise: 'Teach Your Parents Tech gives short, patient, step by step phone and computer help that anyone can follow.',
+      premise:
+        'Teach Your Parents Tech gives short, patient, step by step phone and computer help that anyone can follow.',
       audience: 'Parents and grandparents learning technology, and the people helping them.',
       voiceAndTone: 'Patient, warm, never talks down. One step at a time.',
       minSeconds: 20,

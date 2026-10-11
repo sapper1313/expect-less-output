@@ -551,7 +551,14 @@ export class PostService {
           platform: t.platform,
           aiFlag: t.aiFlag,
           captionOverride: t.captionOverride,
-          settings: { thumbOffsetMs: t.settings.thumbOffsetMs, tiktok: t.settings.tiktok, thumbnailPath: t.settings.thumbnailPath, coverTimestampMs: t.settings.coverTimestampMs, coverUrl: t.settings.coverUrl, mock: t.settings.mock },
+          settings: {
+            thumbOffsetMs: t.settings.thumbOffsetMs,
+            tiktok: t.settings.tiktok,
+            thumbnailPath: t.settings.thumbnailPath,
+            coverTimestampMs: t.settings.coverTimestampMs,
+            coverUrl: t.settings.coverUrl,
+            mock: t.settings.mock,
+          },
         })),
       )
       return nid
@@ -626,9 +633,12 @@ function cleanSettings(s: TargetSettings | undefined): Record<string, unknown> {
   if (s && typeof s.thumbOffsetMs === 'number' && s.thumbOffsetMs >= 0)
     out.thumbOffsetMs = Math.round(s.thumbOffsetMs)
   if (s?.tiktok) out.tiktok = s.tiktok
-  if (s && typeof s.thumbnailPath === 'string' && s.thumbnailPath) out.thumbnailPath = s.thumbnailPath
-  if (s && typeof s.coverTimestampMs === 'number' && s.coverTimestampMs >= 0) out.coverTimestampMs = Math.round(s.coverTimestampMs)
-  if (s && typeof s.coverUrl === 'string' && /^https:\/\//.test(s.coverUrl)) out.coverUrl = s.coverUrl
+  if (s && typeof s.thumbnailPath === 'string' && s.thumbnailPath)
+    out.thumbnailPath = s.thumbnailPath
+  if (s && typeof s.coverTimestampMs === 'number' && s.coverTimestampMs >= 0)
+    out.coverTimestampMs = Math.round(s.coverTimestampMs)
+  if (s && typeof s.coverUrl === 'string' && /^https:\/\//.test(s.coverUrl))
+    out.coverUrl = s.coverUrl
   if (s?.mock === true) out.mock = true
   return out
 }

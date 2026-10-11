@@ -21,19 +21,35 @@ export function homeSnapshotText(s: HomeSummary): string {
     else lines.push('  Nothing has been posted yet.')
   }
   lines.push('Coming up:')
-  for (const p of s.upcoming.slice(0, 6)) lines.push(`- ${p.brandName}: "${p.title}" on ${p.platforms.join(', ')} at ${p.whenUtc ? formatEastern(p.whenUtc, false) : 'no time'}`)
+  for (const p of s.upcoming.slice(0, 6))
+    lines.push(
+      `- ${p.brandName}: "${p.title}" on ${p.platforms.join(', ')} at ${p.whenUtc ? formatEastern(p.whenUtc, false) : 'no time'}`,
+    )
   if (!s.upcoming.length) lines.push('- nothing scheduled')
   lines.push('Recently posted:')
-  for (const p of s.recent.slice(0, 5)) lines.push(`- ${p.brandName}: "${p.title}" at ${p.whenUtc ? formatEastern(p.whenUtc, false) : 'unknown'}`)
+  for (const p of s.recent.slice(0, 5))
+    lines.push(
+      `- ${p.brandName}: "${p.title}" at ${p.whenUtc ? formatEastern(p.whenUtc, false) : 'unknown'}`,
+    )
   if (!s.recent.length) lines.push('- nothing yet')
-  lines.push(`Spend in ${s.spend.month}: $${s.spend.total.toFixed(2)}${s.spend.capValue === null ? ' (no cap)' : ` of a $${s.spend.capValue} cap`}, on pace for about $${s.spend.projected.toFixed(2)}.${s.spend.mock ? ' Mock mode is on.' : ''}`)
+  lines.push(
+    `Spend in ${s.spend.month}: $${s.spend.total.toFixed(2)}${s.spend.capValue === null ? ' (no cap)' : ` of a $${s.spend.capValue} cap`}, on pace for about $${s.spend.projected.toFixed(2)}.${s.spend.mock ? ' Mock mode is on.' : ''}`,
+  )
   lines.push('Pipeline: ' + s.stages.map((x) => `${x.label} ${x.count}`).join(', '))
-  lines.push(s.needsYou.length ? 'Needs the owner: ' + s.needsYou.join('; ') : 'Nothing needs the owner right now.')
+  lines.push(
+    s.needsYou.length
+      ? 'Needs the owner: ' + s.needsYou.join('; ')
+      : 'Nothing needs the owner right now.',
+  )
   return lines.join('\n')
 }
 
 export function latestLines(s: HomeSummary): string {
   return s.channels
-    .map((c) => (c.latest ? `${c.name}: "${c.latest.title}" has ${n(c.latest.views)} views, ${n(c.latest.likes)} likes, ${n(c.latest.comments)} comments.` : `${c.name}: nothing posted yet.`))
+    .map((c) =>
+      c.latest
+        ? `${c.name}: "${c.latest.title}" has ${n(c.latest.views)} views, ${n(c.latest.likes)} likes, ${n(c.latest.comments)} comments.`
+        : `${c.name}: nothing posted yet.`,
+    )
     .join('\n')
 }

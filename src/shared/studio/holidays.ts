@@ -41,7 +41,11 @@ export function easter(y: number): string {
 
 /** US holidays plus fun, math and tech days for one year. */
 export function holidaysForYear(y: number): HolidayDef[] {
-  const h = (date: string, name: string, kind: HolidayDef['kind'] = 'holiday') => ({ date, name, kind })
+  const h = (date: string, name: string, kind: HolidayDef['kind'] = 'holiday') => ({
+    date,
+    name,
+    kind,
+  })
   return [
     h(iso(y, 1, 1), "New Year's Day"),
     h(nth(y, 1, 1, 3), 'Martin Luther King Jr. Day'),
@@ -75,7 +79,13 @@ export function holidaysForYear(y: number): HolidayDef[] {
     h(iso(y, 10, 31), 'Halloween'),
     h(iso(y, 11, 11), 'Veterans Day'),
     h(nth(y, 11, 4, 4), 'Thanksgiving'),
-    h(DateTime.fromISO(nth(y, 11, 4, 4)).plus({ days: 4 }).toFormat('yyyy-MM-dd'), 'Cyber Monday', 'tech'),
+    h(
+      DateTime.fromISO(nth(y, 11, 4, 4))
+        .plus({ days: 4 })
+        .toFormat('yyyy-MM-dd'),
+      'Cyber Monday',
+      'tech',
+    ),
     h(iso(y, 12, 24), 'Christmas Eve'),
     h(iso(y, 12, 25), 'Christmas Day'),
     h(iso(y, 12, 31), "New Year's Eve"),

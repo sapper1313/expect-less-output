@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'fs'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'fs'
 import { dirname, join } from 'path'
 import { gunzipSync, gzipSync } from 'zlib'
 import type { Db } from '../db'
@@ -48,7 +56,11 @@ export interface EpisodeFilter {
 }
 
 /** Statuses from which a video is allowed to start. Used by the Grok Bot readable "ready" folder. */
-export const READY_STATUSES: EpisodeStatus[] = ['Ready for production', 'In production', 'Awaiting video']
+export const READY_STATUSES: EpisodeStatus[] = [
+  'Ready for production',
+  'In production',
+  'Awaiting video',
+]
 
 export class EpisodeLibrary {
   constructor(
@@ -90,7 +102,13 @@ export class EpisodeLibrary {
     brandId: number,
     pkg: Omit<EpisodePackage, 'id' | 'brand' | 'brand_id' | 'status_history' | 'schema_version'> &
       Partial<Pick<EpisodePackage, 'status_history'>>,
-    opts: { status?: EpisodeStatus; slotDate?: string | null; origin?: string; id?: string; keyText?: string } = {},
+    opts: {
+      status?: EpisodeStatus
+      slotDate?: string | null
+      origin?: string
+      id?: string
+      keyText?: string
+    } = {},
   ): EpisodeRow {
     const id = opts.id ?? this.nextId(brandId)
     const status = opts.status ?? 'Idea'
@@ -158,8 +176,19 @@ export class EpisodeLibrary {
     const row = this.get(id)
     const path = this.writePackage(row.brandId, id, { ...pkg, id })
     this.db
-      .prepare('UPDATE episodes SET title = ?, summary = ?, series = ?, number = ?, tags = ?, package_path = ?, updated_utc = ? WHERE id = ?')
-      .run(pkg.title, pkg.summary, pkg.series, pkg.episode_number, pkg.tags.join(' '), path, this.iso(), id)
+      .prepare(
+        'UPDATE episodes SET title = ?, summary = ?, series = ?, number = ?, tags = ?, package_path = ?, updated_utc = ? WHERE id = ?',
+      )
+      .run(
+        pkg.title,
+        pkg.summary,
+        pkg.series,
+        pkg.episode_number,
+        pkg.tags.join(' '),
+        path,
+        this.iso(),
+        id,
+      )
     this.syncReadyCopy(id)
     return this.get(id)
   }
@@ -205,7 +234,21 @@ export class EpisodeLibrary {
     return this.get(id)
   }
 
-  setFields(id: string, f: Partial<{ postId: number | null; videoPath: string | null; thumbPath: string | null; previewPath: string | null; slotDate: string | null; embeddingJson: string | null; keyText: string; mediaPurgedAt: string | null; scheduledAtUtc: string | null; postedAtUtc: string | null }>): void {
+  setFields(
+    id: string,
+    f: Partial<{
+      postId: number | null
+      videoPath: string | null
+      thumbPath: string | null
+      previewPath: string | null
+      slotDate: string | null
+      embeddingJson: string | null
+      keyText: string
+      mediaPurgedAt: string | null
+      scheduledAtUtc: string | null
+      postedAtUtc: string | null
+    }>,
+  ): void {
     const col: Record<string, string> = {
       postId: 'post_id',
       videoPath: 'video_path',
@@ -238,18 +281,27 @@ export class EpisodeLibrary {
     }
     if (f.search?.trim()) {
       const like = `%${f.search.trim().replace(/[\\%_]/g, (c) => '\\' + c)}%`
-      where.push("(title LIKE ? ESCAPE '\\' OR summary LIKE ? ESCAPE '\\' OR tags LIKE ? ESCAPE '\\' OR id LIKE ? ESCAPE '\\')")
+      where.push(
+        "(title LIKE ? ESCAPE '\\' OR summary LIKE ? ESCAPE '\\' OR tags LIKE ? ESCAPE '\\' OR id LIKE ? ESCAPE '\\')",
+      )
       args.push(like, like, like, like)
     }
     if (f.tag) {
       where.push("(' ' || tags || ' ') LIKE ?")
       args.push(`% ${f.tag} %`)
     }
-    const order = f.sort === 'oldest' ? 'created_utc ASC, id ASC' : f.sort === 'title' ? 'title COLLATE NOCASE' : 'created_utc DESC, id DESC'
+    const order =
+      f.sort === 'oldest'
+        ? 'created_utc ASC, id ASC'
+        : f.sort === 'title'
+          ? 'title COLLATE NOCASE'
+          : 'created_utc DESC, id DESC'
     args.push(f.limit ?? 500)
     return (
       this.db
-        .prepare(`SELECT * FROM episodes ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${order} LIMIT ?`)
+        .prepare(
+          `SELECT * FROM episodes ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${order} LIMIT ?`,
+        )
         .all(...args) as any[]
     ).map(mapRow)
   }
@@ -260,8 +312,20 @@ export class EpisodeLibrary {
     const pkg = this.getPackage(id)
     if (!pkg) throw new Error('This episode has no package to copy.')
     const rest: Partial<EpisodePackage> = { ...pkg }
-    for (const k of ['id', 'brand', 'brand_id', 'status_history', 'schema_version'] as const) delete rest[k]
-    return this.create(row.brandId, { ...(rest as Omit<EpisodePackage, 'id' | 'brand' | 'brand_id' | 'status_history' | 'schema_version'>), title: `${pkg.title} (copy)`, episode_number: 0 }, { status: 'Idea' })
+    for (const k of ['id', 'brand', 'brand_id', 'status_history', 'schema_version'] as const)
+      delete rest[k]
+    return this.create(
+      row.brandId,
+      {
+        ...(rest as Omit<
+          EpisodePackage,
+          'id' | 'brand' | 'brand_id' | 'status_history' | 'schema_version'
+        >),
+        title: `${pkg.title} (copy)`,
+        episode_number: 0,
+      },
+      { status: 'Idea' },
+    )
   }
 
   exportJson(id: string): string {

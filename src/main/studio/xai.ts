@@ -60,7 +60,8 @@ export class XaiClient implements VideoClient, ImageClient {
 
   private headers(): Record<string, string> {
     const key = this.apiKey()
-    if (!key) throw new Error('The xAI API key is not set. Add it in Settings, under the Studio tab.')
+    if (!key)
+      throw new Error('The xAI API key is not set. Add it in Settings, under the Studio tab.')
     return { Authorization: `Bearer ${key}`, 'content-type': 'application/json' }
   }
 
@@ -84,7 +85,8 @@ export class XaiClient implements VideoClient, ImageClient {
       resolution: req.resolution,
     }
     if (req.imageUrl) body.image = { url: req.imageUrl }
-    if (req.referenceImageUrls?.length) body.reference_image_urls = req.referenceImageUrls.slice(0, 14)
+    if (req.referenceImageUrls?.length)
+      body.reference_image_urls = req.referenceImageUrls.slice(0, 14)
     const res = await this.fetchImpl(`${this.base}/v1/videos/generations`, {
       method: 'POST',
       headers: this.headers(),
@@ -111,9 +113,14 @@ export class XaiClient implements VideoClient, ImageClient {
       throw new RetryableError(await explainHttp('xAI', res), ra > 0 ? ra : undefined)
     }
     if (!res.ok) throw new Error(await explainHttp('xAI', res))
-    const data = (await res.json()) as { status?: string; video?: { url?: string }; error?: unknown }
+    const data = (await res.json()) as {
+      status?: string
+      video?: { url?: string }
+      error?: unknown
+    }
     if (data.status === 'done' && data.video?.url) return { status: 'done', url: data.video.url }
-    if (data.status === 'failed') return { status: 'failed', error: JSON.stringify(data.error ?? 'failed').slice(0, 300) }
+    if (data.status === 'failed')
+      return { status: 'failed', error: JSON.stringify(data.error ?? 'failed').slice(0, 300) }
     if (data.status === 'expired') return { status: 'expired' }
     return { status: 'pending' }
   }
@@ -121,7 +128,8 @@ export class XaiClient implements VideoClient, ImageClient {
   async download(url: string, dest: string): Promise<void> {
     mkdirSync(dirname(dest), { recursive: true })
     const res = await this.fetchImpl(url, { signal: AbortSignal.timeout(300_000) })
-    if (!res.ok || !res.body) throw new RetryableError(`The finished video could not be downloaded (HTTP ${res.status}).`)
+    if (!res.ok || !res.body)
+      throw new RetryableError(`The finished video could not be downloaded (HTTP ${res.status}).`)
     await pipeline(Readable.fromWeb(res.body as never), createWriteStream(dest))
   }
 
@@ -129,10 +137,16 @@ export class XaiClient implements VideoClient, ImageClient {
     const res = await this.fetchImpl(`${this.base}/v1/images/generations`, {
       method: 'POST',
       headers: this.headers(),
-      body: JSON.stringify({ model: req.model, prompt: req.prompt, aspect_ratio: req.aspectRatio, response_format: 'url' }),
+      body: JSON.stringify({
+        model: req.model,
+        prompt: req.prompt,
+        aspect_ratio: req.aspectRatio,
+        response_format: 'url',
+      }),
       signal: AbortSignal.timeout(120_000),
     })
-    if (res.status === 429 || res.status >= 500) throw new RetryableError(await explainHttp('xAI', res))
+    if (res.status === 429 || res.status >= 500)
+      throw new RetryableError(await explainHttp('xAI', res))
     if (!res.ok) throw new Error(await explainHttp('xAI', res))
     const data = (await res.json()) as { data?: Array<{ url?: string }>; id?: string }
     const url = data.data?.[0]?.url

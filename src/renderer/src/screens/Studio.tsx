@@ -12,7 +12,17 @@ import { StudioLibrary } from './StudioLibrary'
 import { StudioResearch } from './StudioResearch'
 import { StudioSpend } from './StudioSpend'
 
-export type Tab = 'overview' | 'bible' | 'library' | 'publishing' | 'comments' | 'insights' | 'research' | 'spend' | 'log' | 'flagged'
+export type Tab =
+  | 'overview'
+  | 'bible'
+  | 'library'
+  | 'publishing'
+  | 'comments'
+  | 'insights'
+  | 'research'
+  | 'spend'
+  | 'log'
+  | 'flagged'
 const TABS: Array<[Tab, string]> = [
   ['overview', 'Overview'],
   ['bible', 'Bible'],
@@ -47,7 +57,9 @@ export function Studio({ initialTab = 'overview' }: { initialTab?: Tab }) {
           >
             {label}
             {id === 'flagged' && ov && ov.openFlags > 0 && (
-              <span className="dot-pulse ml-2 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{ov.openFlags}</span>
+              <span className="dot-pulse ml-2 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                {ov.openFlags}
+              </span>
             )}
           </button>
         ))}
@@ -82,7 +94,12 @@ function Overview() {
           <div className="flex gap-2">
             <Button
               variant={ov.paused ? 'primary' : 'secondary'}
-              onClick={() => run(async () => { await api.studio.pauseAll(!ov.paused); reload() })}
+              onClick={() =>
+                run(async () => {
+                  await api.studio.pauseAll(!ov.paused)
+                  reload()
+                })
+              }
             >
               {ov.paused ? 'Resume everything' : 'Pause everything'}
             </Button>
@@ -91,14 +108,21 @@ function Overview() {
               onClick={() =>
                 run(async () => {
                   const r = await api.studio.directorTick()
-                  toast({ kind: 'info', headline: 'Director checked in.', detail: r.notes.slice(0, 3).join(' ') || `${r.created} new task(s).` })
+                  toast({
+                    kind: 'info',
+                    headline: 'Director checked in.',
+                    detail: r.notes.slice(0, 3).join(' ') || `${r.created} new task(s).`,
+                  })
                   reload()
                 })
               }
             >
               Run a pass now
             </Button>
-            <Button disabled={busy} onClick={() => run(async () => setReport(await api.studio.dryRunDay()))}>
+            <Button
+              disabled={busy}
+              onClick={() => run(async () => setReport(await api.studio.dryRunDay()))}
+            >
               Dry run day
             </Button>
           </div>
@@ -106,15 +130,21 @@ function Overview() {
       >
         {ov.paused && (
           <div className="mb-2 rounded-md border border-warn p-2 text-[13px]">
-            The studio starts paused so nothing happens until you are ready. Check Settings (keys, caps, brands), then press Resume everything. Mock mode is on, so the first runs spend nothing.
+            The studio starts paused so nothing happens until you are ready. Check Settings (keys,
+            caps, brands), then press Resume everything. Mock mode is on, so the first runs spend
+            nothing.
           </div>
         )}
         <div className="text-[13px] text-muted">
-          {ov.paused ? 'Everything is paused. Nothing new will start.' : `${ov.queued} waiting, ${ov.running} running, ${ov.openFlags} need you.`}{' '}
+          {ov.paused
+            ? 'Everything is paused. Nothing new will start.'
+            : `${ov.queued} waiting, ${ov.running} running, ${ov.openFlags} need you.`}{' '}
           Library: {ov.libraryEpisodes} episodes, {(ov.libraryBytes / 1024 / 1024).toFixed(1)} MB.
         </div>
         {report && (
-          <pre className="mt-3 max-h-64 overflow-auto rounded-md bg-bg p-3 text-[12px] leading-relaxed">{report.join('\n')}</pre>
+          <pre className="mt-3 max-h-64 overflow-auto rounded-md bg-bg p-3 text-[12px] leading-relaxed">
+            {report.join('\n')}
+          </pre>
         )}
       </Card>
       <DirectorChat onChanged={reload} />
@@ -123,17 +153,37 @@ function Overview() {
           <Card key={b.brandId} title={b.name} actions={<BrandDot color={b.color} />}>
             <div className="space-y-1 text-[13px]">
               <div className="flex gap-3 pb-1">
-                <button className="text-accent underline" onClick={() => void api.studio.openBrandFolder(b.brandId, 'scripts')}>Open episode scripts folder</button>
-                <button className="text-accent underline" onClick={() => void api.studio.openBrandFolder(b.brandId, 'videos')}>Open videos folder</button>
+                <button
+                  className="text-accent underline"
+                  onClick={() => void api.studio.openBrandFolder(b.brandId, 'scripts')}
+                >
+                  Open episode scripts folder
+                </button>
+                <button
+                  className="text-accent underline"
+                  onClick={() => void api.studio.openBrandFolder(b.brandId, 'videos')}
+                >
+                  Open videos folder
+                </button>
               </div>
               <div>
                 {b.config.format === 'long' ? 'Long form, 16:9' : 'Short form, 9:16'}.{' '}
-                {b.config.cadenceMode === 'every_n' ? `Every ${b.config.everyN} day(s)` : 'Weekly schedule'}
+                {b.config.cadenceMode === 'every_n'
+                  ? `Every ${b.config.everyN} day(s)`
+                  : 'Weekly schedule'}
                 {b.config.paused ? ' (paused)' : ''}.
               </div>
-              <div className="text-muted">Next due: {b.nextDue ?? 'none'}. Runway covered: {b.runwayCovered} date(s) of {b.config.runwayDays} days.</div>
               <div className="text-muted">
-                Posts to: {Object.entries(b.config.platforms).filter(([, on]) => on).map(([p]) => p).join(', ') || 'nowhere yet'}.
+                Next due: {b.nextDue ?? 'none'}. Runway covered: {b.runwayCovered} date(s) of{' '}
+                {b.config.runwayDays} days.
+              </div>
+              <div className="text-muted">
+                Posts to:{' '}
+                {Object.entries(b.config.platforms)
+                  .filter(([, on]) => on)
+                  .map(([p]) => p)
+                  .join(', ') || 'nowhere yet'}
+                .
               </div>
             </div>
           </Card>
@@ -147,18 +197,37 @@ function DirectorLog() {
   const { data: brands } = useLoad(() => api.brands.list())
   const [brandId, setBrandId] = useState<number | 'all'>('all')
   const [agent, setAgent] = useState('')
-  const { data: rows } = useLoad(() => api.studio.auditLog({ brandId: brandId === 'all' ? null : brandId, agent: agent || undefined }), [brandId, agent])
-  const { data: agents } = useLoad(async () => [...new Set((await api.studio.auditLog({})).map((r) => r.agent))])
+  const { data: rows } = useLoad(
+    () =>
+      api.studio.auditLog({
+        brandId: brandId === 'all' ? null : brandId,
+        agent: agent || undefined,
+      }),
+    [brandId, agent],
+  )
+  const { data: agents } = useLoad(async () => [
+    ...new Set((await api.studio.auditLog({})).map((r) => r.agent)),
+  ])
   return (
     <div className="space-y-3">
       <div className="flex gap-3">
-        <Select className="w-56" value={brandId} onChange={(e) => setBrandId(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+        <Select
+          className="w-56"
+          value={brandId}
+          onChange={(e) => setBrandId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+        >
           <option value="all">All brands</option>
-          {brands?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          {brands?.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
         </Select>
         <Select className="w-56" value={agent} onChange={(e) => setAgent(e.target.value)}>
           <option value="">All agents</option>
-          {agents?.map((a) => <option key={a}>{a}</option>)}
+          {agents?.map((a) => (
+            <option key={a}>{a}</option>
+          ))}
         </Select>
       </div>
       {!rows?.length ? (
@@ -166,14 +235,27 @@ function DirectorLog() {
       ) : (
         <div className="overflow-hidden rounded-lg border border-line">
           <table className="w-full text-left text-[12px]">
-            <thead className="bg-surface2 text-muted"><tr><th className="p-2">When</th><th>Agent</th><th>Action</th><th>Details</th></tr></thead>
+            <thead className="bg-surface2 text-muted">
+              <tr>
+                <th className="p-2">When</th>
+                <th>Agent</th>
+                <th>Action</th>
+                <th>Details</th>
+              </tr>
+            </thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} className="border-t border-line align-top">
                   <td className="whitespace-nowrap p-2">{formatEastern(r.tsUtc)}</td>
                   <td>{r.agent}</td>
                   <td>{r.action}</td>
-                  <td className="max-w-[420px] truncate text-muted" title={JSON.stringify(r.detail)}>{r.detail ? JSON.stringify(r.detail) : ''}{r.episodeId ? ` ${r.episodeId}` : ''}</td>
+                  <td
+                    className="max-w-[420px] truncate text-muted"
+                    title={JSON.stringify(r.detail)}
+                  >
+                    {r.detail ? JSON.stringify(r.detail) : ''}
+                    {r.episodeId ? ` ${r.episodeId}` : ''}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -193,7 +275,16 @@ function Flagged() {
   return (
     <div className="space-y-3">
       {data.length > 1 && (
-        <Button onClick={() => run(async () => { for (const { task } of data) await api.studio.resolveFlag(task.id, 'retry'); reload() })}>Retry all ({data.length})</Button>
+        <Button
+          onClick={() =>
+            run(async () => {
+              for (const { task } of data) await api.studio.resolveFlag(task.id, 'retry')
+              reload()
+            })
+          }
+        >
+          Retry all ({data.length})
+        </Button>
       )}
       {data.map(({ task, episode }) => {
         const brandId = task.brandId ?? episode?.brandId ?? null
@@ -212,9 +303,37 @@ function Flagged() {
               <ClipActions episodeId={episode.id} onDone={reload} />
             ) : (
               <div className="mt-3 flex gap-2">
-                <Button onClick={() => run(async () => { await api.studio.resolveFlag(task.id, 'retry'); reload() })}>Retry</Button>
-                <Button onClick={() => run(async () => { await api.studio.resolveFlag(task.id, 'approve'); reload() })}>Approve as is</Button>
-                <Button variant="danger" onClick={() => run(async () => { await api.studio.resolveFlag(task.id, 'discard'); reload() })}>Discard</Button>
+                <Button
+                  onClick={() =>
+                    run(async () => {
+                      await api.studio.resolveFlag(task.id, 'retry')
+                      reload()
+                    })
+                  }
+                >
+                  Retry
+                </Button>
+                <Button
+                  onClick={() =>
+                    run(async () => {
+                      await api.studio.resolveFlag(task.id, 'approve')
+                      reload()
+                    })
+                  }
+                >
+                  Approve as is
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() =>
+                    run(async () => {
+                      await api.studio.resolveFlag(task.id, 'discard')
+                      reload()
+                    })
+                  }
+                >
+                  Discard
+                </Button>
               </div>
             )}
           </Card>
@@ -229,24 +348,44 @@ function DirectorChat({ onChanged }: { onChanged: () => void }) {
   const { toast } = useApp()
   const [busy, run] = useBusy()
   const [text, setText] = useState('')
-  const [log, setLog] = useState<Array<{ who: 'you' | 'director'; text: string; actions?: DirectorActionView[] }>>([])
+  const [log, setLog] = useState<
+    Array<{ who: 'you' | 'director'; text: string; actions?: DirectorActionView[] }>
+  >([])
   const send = () => {
     const message = text.trim()
     if (!message || busy) return
     setText('')
     setLog((l) => [...l, { who: 'you', text: message }])
     void run(async () => {
-      const r = await api.studio.directorChat(message, log.map((m) => ({ who: m.who, text: m.text })))
+      const r = await api.studio.directorChat(
+        message,
+        log.map((m) => ({ who: m.who, text: m.text })),
+      )
       setLog((l) => [...l, { who: 'director', text: r.reply, actions: r.actions }])
     })
   }
   return (
     <Card title="Talk to the Director">
       <div className="max-h-72 space-y-2 overflow-y-auto text-[13px]">
-        {!log.length && <div className="text-muted">Ask what is going on, or say what you want. For example: "I updated the bible for Trash Panda, make the changes", "rebuild Clock Out Early episode 3, make the hook shorter", "pause Trash Panda", or "add an idea about spam texts". I suggest buttons. Nothing runs until you press one. Episodes that already have a video are never rebuilt.</div>}
+        {!log.length && (
+          <div className="text-muted">
+            Ask what is going on, or say what you want. For example: "I updated the bible for Trash
+            Panda, make the changes", "rebuild Clock Out Early episode 3, make the hook shorter",
+            "pause Trash Panda", or "add an idea about spam texts". I suggest buttons. Nothing runs
+            until you press one. Episodes that already have a video are never rebuilt.
+          </div>
+        )}
         {log.map((m, i) => (
           <div key={i} className={m.who === 'you' ? 'text-right' : ''}>
-            <div className={m.who === 'you' ? 'inline-block rounded-md bg-surface-2 px-3 py-2' : 'inline-block px-1 py-1'}>{m.text}</div>
+            <div
+              className={
+                m.who === 'you'
+                  ? 'inline-block rounded-md bg-surface-2 px-3 py-2'
+                  : 'inline-block px-1 py-1'
+              }
+            >
+              {m.text}
+            </div>
             {m.actions?.length ? (
               <div className="mt-1 flex flex-wrap gap-2">
                 {m.actions.map((a, j) => (
@@ -276,9 +415,13 @@ function DirectorChat({ onChanged }: { onChanged: () => void }) {
           value={text}
           placeholder="Tell the Director something, like: I updated the bible for Trash Panda, rebuild the waiting episodes"
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') send() }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') send()
+          }}
         />
-        <Button disabled={busy || !text.trim()} onClick={send}>Send</Button>
+        <Button disabled={busy || !text.trim()} onClick={send}>
+          Send
+        </Button>
       </div>
     </Card>
   )
@@ -295,24 +438,82 @@ export function ClipActions({ episodeId, onDone }: { episodeId: string; onDone: 
   return (
     <div className="mt-3 space-y-3">
       {[...latest.values()].map((j) => {
-        const qc = j.qc as { reasons?: string[]; steps?: Array<{ name: string; ok: boolean; note: string; via: string }> } | null
+        const qc = j.qc as {
+          reasons?: string[]
+          steps?: Array<{ name: string; ok: boolean; note: string; via: string }>
+        } | null
         const bad = j.status === 'flagged' || j.status === 'failed' || j.status === 'expired'
         return (
           <div key={j.clipN} className="rounded-md border border-line p-3 text-[13px]">
             <div className="flex items-center justify-between">
-              <b>Clip {j.clipN}, take {j.take}</b>
+              <b>
+                Clip {j.clipN}, take {j.take}
+              </b>
               <span className={bad ? 'font-bold text-bad' : 'text-muted'}>{j.status}</span>
             </div>
             {j.error && <div className="mt-1 text-bad">{j.error}</div>}
-            {qc?.steps && <div className="mt-1 text-[12px] text-muted">{qc.steps.map((s) => `${s.name}: ${s.ok ? 'ok' : 'FAIL'} (${s.via}) ${s.note}`).join(' | ')}</div>}
+            {qc?.steps && (
+              <div className="mt-1 text-[12px] text-muted">
+                {qc.steps
+                  .map((s) => `${s.name}: ${s.ok ? 'ok' : 'FAIL'} (${s.via}) ${s.note}`)
+                  .join(' | ')}
+              </div>
+            )}
             {bad && (
               <>
-                <Textarea className="mt-2 min-h-[56px]" value={edit[j.clipN] ?? j.prompt} onChange={(e) => setEdit({ ...edit, [j.clipN]: e.target.value })} />
+                <Textarea
+                  className="mt-2 min-h-[56px]"
+                  value={edit[j.clipN] ?? j.prompt}
+                  onChange={(e) => setEdit({ ...edit, [j.clipN]: e.target.value })}
+                />
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <Button disabled={!j.filePath} onClick={() => run(async () => { await api.studio.resolveClip(episodeId, j.clipN, 'approve'); onDone() })}>Approve as is</Button>
-                  <Button onClick={() => run(async () => { await api.studio.resolveClip(episodeId, j.clipN, 'edit', edit[j.clipN] ?? j.prompt); onDone() })}>Edit prompt and retry</Button>
-                  <Button onClick={() => run(async () => { await api.studio.resolveClip(episodeId, j.clipN, 'regenerate'); onDone() })}>Regenerate clip</Button>
-                  <Button variant="danger" onClick={() => run(async () => { await api.studio.resolveClip(episodeId, j.clipN, 'discard'); onDone() })}>Discard</Button>
+                  <Button
+                    disabled={!j.filePath}
+                    onClick={() =>
+                      run(async () => {
+                        await api.studio.resolveClip(episodeId, j.clipN, 'approve')
+                        onDone()
+                      })
+                    }
+                  >
+                    Approve as is
+                  </Button>
+                  <Button
+                    onClick={() =>
+                      run(async () => {
+                        await api.studio.resolveClip(
+                          episodeId,
+                          j.clipN,
+                          'edit',
+                          edit[j.clipN] ?? j.prompt,
+                        )
+                        onDone()
+                      })
+                    }
+                  >
+                    Edit prompt and retry
+                  </Button>
+                  <Button
+                    onClick={() =>
+                      run(async () => {
+                        await api.studio.resolveClip(episodeId, j.clipN, 'regenerate')
+                        onDone()
+                      })
+                    }
+                  >
+                    Regenerate clip
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() =>
+                      run(async () => {
+                        await api.studio.resolveClip(episodeId, j.clipN, 'discard')
+                        onDone()
+                      })
+                    }
+                  >
+                    Discard
+                  </Button>
                 </div>
               </>
             )}

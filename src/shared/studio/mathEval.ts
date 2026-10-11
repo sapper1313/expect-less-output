@@ -1,14 +1,15 @@
 // A small, safe arithmetic evaluator. The Math Checker uses it so every number is checked by running code,
 // never by trusting a language model's own arithmetic. No eval, no Function.
 
-const OPS: Record<string, { prec: number; right?: boolean; fn: (a: number, b: number) => number }> = {
-  '+': { prec: 1, fn: (a, b) => a + b },
-  '-': { prec: 1, fn: (a, b) => a - b },
-  '*': { prec: 2, fn: (a, b) => a * b },
-  '/': { prec: 2, fn: (a, b) => a / b },
-  '%': { prec: 2, fn: (a, b) => a % b },
-  '^': { prec: 3, right: true, fn: (a, b) => Math.pow(a, b) },
-}
+const OPS: Record<string, { prec: number; right?: boolean; fn: (a: number, b: number) => number }> =
+  {
+    '+': { prec: 1, fn: (a, b) => a + b },
+    '-': { prec: 1, fn: (a, b) => a - b },
+    '*': { prec: 2, fn: (a, b) => a * b },
+    '/': { prec: 2, fn: (a, b) => a / b },
+    '%': { prec: 2, fn: (a, b) => a % b },
+    '^': { prec: 3, right: true, fn: (a, b) => Math.pow(a, b) },
+  }
 
 const FUNCS: Record<string, (...a: number[]) => number> = {
   sqrt: Math.sqrt,
@@ -20,7 +21,13 @@ const FUNCS: Record<string, (...a: number[]) => number> = {
   max: Math.max,
 }
 
-type Tok = { t: 'num'; v: number } | { t: 'op'; v: string } | { t: '(' } | { t: ')' } | { t: 'fn'; v: string } | { t: ',' }
+type Tok =
+  | { t: 'num'; v: number }
+  | { t: 'op'; v: string }
+  | { t: '(' }
+  | { t: ')' }
+  | { t: 'fn'; v: string }
+  | { t: ',' }
 
 function tokenize(src: string): Tok[] {
   const s = src
@@ -142,7 +149,8 @@ export function evaluate(expr: string): number {
       st.push(FUNCS[item.fn](...args))
     }
   }
-  if (st.length !== 1 || !Number.isFinite(st[0])) throw new Error('The expression did not give a number.')
+  if (st.length !== 1 || !Number.isFinite(st[0]))
+    throw new Error('The expression did not give a number.')
   return st[0]
 }
 
@@ -160,9 +168,27 @@ export function closeEnough(a: number, b: number, tolerance = 0.005): boolean {
 // ---------- number words and counted objects ----------
 
 const WORDS: Record<string, number> = {
-  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
-  eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
-  eighteen: 18, nineteen: 19, twenty: 20,
+  zero: 0,
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  thirteen: 13,
+  fourteen: 14,
+  fifteen: 15,
+  sixteen: 16,
+  seventeen: 17,
+  eighteen: 18,
+  nineteen: 19,
+  twenty: 20,
 }
 
 export function wordToNumber(w: string): number | null {
@@ -196,9 +222,16 @@ export function extractClaims(text: string): MathClaim[] {
     'gi',
   )
   for (const m of text.matchAll(chain)) {
-    claims.push({ text: m[0], expression: m[1].replaceAll('$', ''), claimed: Number(m[2].replaceAll(',', '')) })
+    claims.push({
+      text: m[0],
+      expression: m[1].replaceAll('$', ''),
+      claimed: Number(m[2].replaceAll(',', '')),
+    })
   }
-  const pct = new RegExp(String.raw`(${num})%\s+of\s+\$?(${num})\s*(?:=|equals|is|makes|gives)\s*\$?(${num})`, 'gi')
+  const pct = new RegExp(
+    String.raw`(${num})%\s+of\s+\$?(${num})\s*(?:=|equals|is|makes|gives)\s*\$?(${num})`,
+    'gi',
+  )
   for (const m of text.matchAll(pct)) {
     claims.push({
       text: m[0],

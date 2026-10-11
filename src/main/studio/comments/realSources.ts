@@ -5,7 +5,10 @@ import type { CommentSource, PostedRef, RawComment } from './sources'
 
 /** YouTube comments through the Data API (commentThreads.list and comments.insert). */
 export interface YoutubeCommentsApi {
-  listComments(accountId: number, videoId: string): Promise<Array<{ id: string; text: string; author: string; publishedAt: string }>>
+  listComments(
+    accountId: number,
+    videoId: string,
+  ): Promise<Array<{ id: string; text: string; author: string; publishedAt: string }>>
   replyToComment(accountId: number, parentId: string, text: string): Promise<string>
   rejectComment?(accountId: number, commentId: string): Promise<void>
 }
@@ -15,7 +18,12 @@ export class YoutubeCommentSource implements CommentSource {
   constructor(private api: YoutubeCommentsApi) {}
   async list(ref: PostedRef): Promise<RawComment[]> {
     if (ref.accountId === null) return []
-    return (await this.api.listComments(ref.accountId, ref.externalId)).map((c) => ({ id: c.id, text: c.text, author: c.author, createdUtc: c.publishedAt }))
+    return (await this.api.listComments(ref.accountId, ref.externalId)).map((c) => ({
+      id: c.id,
+      text: c.text,
+      author: c.author,
+      createdUtc: c.publishedAt,
+    }))
   }
   async reply(ref: PostedRef, c: RawComment, text: string): Promise<string> {
     return this.api.replyToComment(ref.accountId as number, c.id, text)
@@ -37,11 +45,34 @@ export class MetaCommentSource implements CommentSource {
   async list(ref: PostedRef): Promise<RawComment[]> {
     const token = this.tokenFor(this.account(ref))
     if (this.platform === 'facebook') {
-      const r = await this.graph.get<{ data?: Array<{ id: string; message?: string; from?: { name?: string }; created_time?: string }> }>(`/${ref.externalId}/comments`, { fields: 'id,message,from,created_time', order: 'reverse_chronological', limit: 50 }, token)
-      return (r.data ?? []).map((c) => ({ id: c.id, text: c.message ?? '', author: c.from?.name ?? '', createdUtc: c.created_time ?? '' }))
+      const r = await this.graph.get<{
+        data?: Array<{
+          id: string
+          message?: string
+          from?: { name?: string }
+          created_time?: string
+        }>
+      }>(
+        `/${ref.externalId}/comments`,
+        { fields: 'id,message,from,created_time', order: 'reverse_chronological', limit: 50 },
+        token,
+      )
+      return (r.data ?? []).map((c) => ({
+        id: c.id,
+        text: c.message ?? '',
+        author: c.from?.name ?? '',
+        createdUtc: c.created_time ?? '',
+      }))
     }
-    const r = await this.graph.get<{ data?: Array<{ id: string; text?: string; username?: string; timestamp?: string }> }>(`/${ref.externalId}/comments`, { fields: 'id,text,username,timestamp', limit: 50 }, token)
-    return (r.data ?? []).map((c) => ({ id: c.id, text: c.text ?? '', author: c.username ?? '', createdUtc: c.timestamp ?? '' }))
+    const r = await this.graph.get<{
+      data?: Array<{ id: string; text?: string; username?: string; timestamp?: string }>
+    }>(`/${ref.externalId}/comments`, { fields: 'id,text,username,timestamp', limit: 50 }, token)
+    return (r.data ?? []).map((c) => ({
+      id: c.id,
+      text: c.text ?? '',
+      author: c.username ?? '',
+      createdUtc: c.timestamp ?? '',
+    }))
   }
 
   async reply(ref: PostedRef, c: RawComment, text: string): Promise<string> {
@@ -53,7 +84,11 @@ export class MetaCommentSource implements CommentSource {
 
   async hide(ref: PostedRef, c: RawComment): Promise<void> {
     const token = this.tokenFor(this.account(ref))
-    await this.graph.post(`/${c.id}`, this.platform === 'facebook' ? { is_hidden: true } : { hide: true }, token)
+    await this.graph.post(
+      `/${c.id}`,
+      this.platform === 'facebook' ? { is_hidden: true } : { hide: true },
+      token,
+    )
   }
 }
 
@@ -61,7 +96,13 @@ export class BlueskyCommentSource implements CommentSource {
   readonly platform = 'bluesky'
   constructor(private clientFor: (brandId: number) => BlueskyClient) {}
   async list(ref: PostedRef): Promise<RawComment[]> {
-    return (await this.clientFor(ref.brandId).listReplies(ref.externalId)).map((r) => ({ id: r.uri, text: r.text, author: r.username, createdUtc: r.at, meta: { cid: r.cid } }))
+    return (await this.clientFor(ref.brandId).listReplies(ref.externalId)).map((r) => ({
+      id: r.uri,
+      text: r.text,
+      author: r.username,
+      createdUtc: r.at,
+      meta: { cid: r.cid },
+    }))
   }
   async reply(ref: PostedRef, c: RawComment, text: string): Promise<string> {
     const root = { uri: ref.externalId, cid: ref.state.bskyCid ?? '' }

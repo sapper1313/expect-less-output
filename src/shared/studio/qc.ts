@@ -1,6 +1,11 @@
 /** Pure helpers for Video QC: comparing speech, reading model answers, and building caption files. */
 
-const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9' ]/g, ' ').replace(/\s+/g, ' ').trim()
+const norm = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9' ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 
 /** How much of the scripted words were heard, 0 to 1. Order is ignored so small slips do not fail a clip. */
 export function speechSimilarity(scripted: string, heard: string): number {
@@ -45,7 +50,9 @@ const stamp = (sec: number) => {
 }
 
 export function buildSrt(segments: Segment[]): string {
-  return segments.map((s, i) => `${i + 1}\n${stamp(s.start)} --> ${stamp(s.end)}\n${s.text}\n`).join('\n')
+  return segments
+    .map((s, i) => `${i + 1}\n${stamp(s.start)} --> ${stamp(s.end)}\n${s.text}\n`)
+    .join('\n')
 }
 
 /** Captions from the scripted lines when no timed transcript exists. Time is shared out by word count over each clip. */
@@ -81,7 +88,8 @@ export function parseVision(answer: string): VisionVerdict {
   for (const line of answer.split('\n')) {
     const m = /issue:\s*(.+)/i.exec(line)
     if (!m) continue
-    if (/confidence:\s*high/i.test(line)) issues.push(m[1].replace(/confidence:\s*high/i, '').trim())
+    if (/confidence:\s*high/i.test(line))
+      issues.push(m[1].replace(/confidence:\s*high/i, '').trim())
     else ignored.push(m[1].replace(/confidence:\s*\w+/i, '').trim())
   }
   return { issues, ignored }

@@ -23,9 +23,13 @@ export class Holidays {
   ensureSeeded(): void {
     const today = DateTime.fromISO(todayEastern(this.now()))
     const end = today.plus({ months: 18 })
-    const ins = this.db.prepare('INSERT OR IGNORE INTO holidays (date, name, kind) VALUES (?, ?, ?)')
+    const ins = this.db.prepare(
+      'INSERT OR IGNORE INTO holidays (date, name, kind) VALUES (?, ?, ?)',
+    )
     for (let y = today.year; y <= end.year; y++)
-      for (const h of holidaysForYear(y)) if (h.date >= today.toFormat('yyyy-MM-dd') && h.date <= end.toFormat('yyyy-MM-dd')) ins.run(h.date, h.name, h.kind)
+      for (const h of holidaysForYear(y))
+        if (h.date >= today.toFormat('yyyy-MM-dd') && h.date <= end.toFormat('yyyy-MM-dd'))
+          ins.run(h.date, h.name, h.kind)
   }
 
   list(fromIso?: string, toIso?: string): HolidayRow[] {
@@ -34,7 +38,14 @@ export class Holidays {
       this.db
         .prepare('SELECT * FROM holidays WHERE date >= ? AND date <= ? ORDER BY date, name')
         .all(fromIso ?? '0000-00-00', toIso ?? '9999-99-99') as any[]
-    ).map((r) => ({ id: r.id, date: r.date, name: r.name, kind: r.kind, enabled: !!r.enabled, custom: !!r.custom }))
+    ).map((r) => ({
+      id: r.id,
+      date: r.date,
+      name: r.name,
+      kind: r.kind,
+      enabled: !!r.enabled,
+      custom: !!r.custom,
+    }))
   }
 
   /** Enabled events in the next N days, for the Writers. */
@@ -46,7 +57,9 @@ export class Holidays {
   add(date: string, name: string, kind = 'fun'): void {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Use the date form 2026-12-31.')
     if (!name.trim()) throw new Error('Give the day a name.')
-    this.db.prepare('INSERT OR IGNORE INTO holidays (date, name, kind, custom) VALUES (?, ?, ?, 1)').run(date, name.trim(), kind)
+    this.db
+      .prepare('INSERT OR IGNORE INTO holidays (date, name, kind, custom) VALUES (?, ?, ?, 1)')
+      .run(date, name.trim(), kind)
   }
 
   setEnabled(id: number, enabled: boolean): void {

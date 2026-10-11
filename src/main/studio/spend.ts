@@ -67,18 +67,34 @@ export class SpendService {
 
   private sum(where: string, ...args: unknown[]): number {
     const r = this.db
-      .prepare(`SELECT COALESCE(SUM(dollars), 0) AS s FROM spend_ledger WHERE mock = 0 AND ${where}`)
+      .prepare(
+        `SELECT COALESCE(SUM(dollars), 0) AS s FROM spend_ledger WHERE mock = 0 AND ${where}`,
+      )
       .get(...args) as { s: number }
     return r.s
   }
 
   /** What one episode has cost so far, split by what the money bought. */
-  episodeCost(episodeId: string): { total: number; mock: number; parts: Array<{ label: string; dollars: number }> } {
+  episodeCost(episodeId: string): {
+    total: number
+    mock: number
+    parts: Array<{ label: string; dollars: number }>
+  } {
     const rows = this.db
-      .prepare('SELECT vendor, purpose, mock, COALESCE(SUM(dollars), 0) AS d FROM spend_ledger WHERE episode_id = ? GROUP BY vendor, purpose, mock')
+      .prepare(
+        'SELECT vendor, purpose, mock, COALESCE(SUM(dollars), 0) AS d FROM spend_ledger WHERE episode_id = ? GROUP BY vendor, purpose, mock',
+      )
       .all(episodeId) as Array<{ vendor: string; purpose: string; mock: number; d: number }>
     const name = (r: { vendor: string; purpose: string }) =>
-      r.vendor === 'anthropic' ? 'Writing and checking (AI text)' : r.purpose === 'thumbnail' ? 'Thumbnails' : r.purpose === 'retry' ? 'Video retakes' : r.vendor === 'xai' ? 'Video and images' : `${r.vendor} ${r.purpose}`
+      r.vendor === 'anthropic'
+        ? 'Writing and checking (AI text)'
+        : r.purpose === 'thumbnail'
+          ? 'Thumbnails'
+          : r.purpose === 'retry'
+            ? 'Video retakes'
+            : r.vendor === 'xai'
+              ? 'Video and images'
+              : `${r.vendor} ${r.purpose}`
     const parts = new Map<string, number>()
     let total = 0
     let mock = 0
@@ -90,7 +106,14 @@ export class SpendService {
       total += r.d
       parts.set(name(r), (parts.get(name(r)) ?? 0) + r.d)
     }
-    return { total: Math.round(total * 1e6) / 1e6, mock, parts: Array.from(parts, ([label, dollars]) => ({ label, dollars: Math.round(dollars * 1e6) / 1e6 })).sort((a, b) => b.dollars - a.dollars) }
+    return {
+      total: Math.round(total * 1e6) / 1e6,
+      mock,
+      parts: Array.from(parts, ([label, dollars]) => ({
+        label,
+        dollars: Math.round(dollars * 1e6) / 1e6,
+      })).sort((a, b) => b.dollars - a.dollars),
+    }
   }
 
   /** Dollars spent against each cap that applies to a call. */
@@ -98,7 +121,12 @@ export class SpendService {
     const c = this.cfg.get()
     const m = this.month()
     const out: Array<{ key: string; label: string; cap: Cap; spent: number }> = []
-    out.push({ key: 'global', label: LABELS.global, cap: c.globalCap, spent: this.sum('month_et = ?', m) })
+    out.push({
+      key: 'global',
+      label: LABELS.global,
+      cap: c.globalCap,
+      spent: this.sum('month_et = ?', m),
+    })
     if (call.vendor === 'anthropic')
       out.push({
         key: 'text',
@@ -137,10 +165,18 @@ export class SpendService {
     }
   }
 
-  private announceStop(key: string, label: string, limit: number, spent: number, attempted: number) {
+  private announceStop(
+    key: string,
+    label: string,
+    limit: number,
+    spent: number,
+    attempted: number,
+  ) {
     const period = `stop:${todayEastern(this.now())}`
     const r = this.db
-      .prepare('INSERT OR IGNORE INTO spend_alerts (period, cap_key, threshold, ts_utc) VALUES (?, ?, 1, ?)')
+      .prepare(
+        'INSERT OR IGNORE INTO spend_alerts (period, cap_key, threshold, ts_utc) VALUES (?, ?, 1, ?)',
+      )
       .run(period, key, new Date(this.now()).toISOString())
     if (r.changes)
       this.alert(
@@ -190,7 +226,9 @@ export class SpendService {
       for (const t of [50, 80, 100]) {
         if (pct < t) continue
         const ins = this.db
-          .prepare('INSERT OR IGNORE INTO spend_alerts (period, cap_key, threshold, ts_utc) VALUES (?, ?, ?, ?)')
+          .prepare(
+            'INSERT OR IGNORE INTO spend_alerts (period, cap_key, threshold, ts_utc) VALUES (?, ?, ?, ?)',
+          )
           .run(period, a.key, t, new Date(this.now()).toISOString())
         if (ins.changes)
           this.alert(
@@ -206,14 +244,16 @@ export class SpendService {
   }
 
   recent(limit = 50): LedgerRow[] {
-    return (this.db.prepare('SELECT * FROM spend_ledger ORDER BY id DESC LIMIT ?').all(limit) as unknown[]).map(
-      mapRow,
-    )
+    return (
+      this.db.prepare('SELECT * FROM spend_ledger ORDER BY id DESC LIMIT ?').all(limit) as unknown[]
+    ).map(mapRow)
   }
 
   forEpisode(episodeId: string): { dollars: number; rows: LedgerRow[] } {
     const rows = (
-      this.db.prepare('SELECT * FROM spend_ledger WHERE episode_id = ? ORDER BY id').all(episodeId) as unknown[]
+      this.db
+        .prepare('SELECT * FROM spend_ledger WHERE episode_id = ? ORDER BY id')
+        .all(episodeId) as unknown[]
     ).map(mapRow)
     return { dollars: round(rows.filter((r) => !r.mock).reduce((n, r) => n + r.dollars, 0)), rows }
   }
@@ -236,17 +276,42 @@ export class SpendService {
     const total = this.sum('month_et = ?', m)
     const mockTotal = (
       this.db
-        .prepare('SELECT COALESCE(SUM(dollars),0) AS s FROM spend_ledger WHERE mock = 1 AND month_et = ?')
+        .prepare(
+          'SELECT COALESCE(SUM(dollars),0) AS s FROM spend_ledger WHERE mock = 1 AND month_et = ?',
+        )
         .get(m) as { s: number }
     ).s
     const caps: CapUsage[] = []
     const add = (key: string, label: string, cap: Cap, spent: number) =>
-      caps.push({ key, label, cap, spent: round(spent), remaining: cap.none ? null : round(cap.value - spent) })
+      caps.push({
+        key,
+        label,
+        cap,
+        spent: round(spent),
+        remaining: cap.none ? null : round(cap.value - spent),
+      })
     add('global', 'Global monthly', c.globalCap, total)
-    add('text', 'AI text (Anthropic)', c.aiTextCap, this.sum("month_et = ? AND vendor = 'anthropic'", m))
+    add(
+      'text',
+      'AI text (Anthropic)',
+      c.aiTextCap,
+      this.sum("month_et = ? AND vendor = 'anthropic'", m),
+    )
     for (const b of this.cfg.listBrandConfigs())
-      add(`brand:${b.brandId}`, b.name, b.config.monthlyCap, this.sum('month_et = ? AND brand_id = ?', m, b.brandId))
-    return { month: m, byBrand: brands, byVendor: vendors, total: round(total), mockTotal: round(mockTotal), caps }
+      add(
+        `brand:${b.brandId}`,
+        b.name,
+        b.config.monthlyCap,
+        this.sum('month_et = ? AND brand_id = ?', m, b.brandId),
+      )
+    return {
+      month: m,
+      byBrand: brands,
+      byVendor: vendors,
+      total: round(total),
+      mockTotal: round(mockTotal),
+      caps,
+    }
   }
 
   exportCsv(): string {

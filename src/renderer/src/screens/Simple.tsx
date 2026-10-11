@@ -122,140 +122,146 @@ export function SettingsScreen({ initialTab = 'general' }: { initialTab?: Settin
       <div className="max-w-4xl space-y-4 px-8">
         <div className="flex flex-wrap gap-1">
           {TABS.map(([id, label]) => (
-            <button key={id} onClick={() => setTab(id)} className={`rounded-md px-3 py-1.5 text-[13px] font-semibold ${tab === id ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}>{label}</button>
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`rounded-md px-3 py-1.5 text-[13px] font-semibold ${tab === id ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}
+            >
+              {label}
+            </button>
           ))}
         </div>
         {tab === 'general' && (
           <>
-        <Card title="Media library">
-          <Field
-            label="Media Root folder"
-            hint="Each brand gets a Queue folder and a Posted folder inside it."
-          >
-            <div className="flex gap-2">
-              <Input readOnly value={s.mediaRoot} />
-              <Button
-                onClick={async () => {
-                  const p = await api.settings.pickMediaRoot()
-                  if (p) await save({ mediaRoot: p })
-                }}
+            <Card title="Media library">
+              <Field
+                label="Media Root folder"
+                hint="Each brand gets a Queue folder and a Posted folder inside it."
               >
-                Choose
-              </Button>
-              <Button onClick={() => api.app.openMediaRoot()}>Open</Button>
-            </div>
-          </Field>
-        </Card>
+                <div className="flex gap-2">
+                  <Input readOnly value={s.mediaRoot} />
+                  <Button
+                    onClick={async () => {
+                      const p = await api.settings.pickMediaRoot()
+                      if (p) await save({ mediaRoot: p })
+                    }}
+                  >
+                    Choose
+                  </Button>
+                  <Button onClick={() => api.app.openMediaRoot()}>Open</Button>
+                </div>
+              </Field>
+            </Card>
 
-        <Card title="Scheduling">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field
-              label="Scheduling mode"
-              hint="Slots: next open slot only. Manual: pick any time. Both: slot pre-filled, you can override."
-            >
-              <Select
-                value={s.schedulingMode}
-                onChange={(e) =>
-                  save({ schedulingMode: e.target.value as Settings['schedulingMode'] })
-                }
-              >
-                <option value="both">Both</option>
-                <option value="slots">Slots</option>
-                <option value="manual">Manual</option>
-              </Select>
-            </Field>
-            <div />
-            <Field
-              label="Early handoff to YouTube (hours before)"
-              hint="The platform publishes at the exact time by itself."
-            >
-              <Input
-                type="number"
-                min={0}
-                max={72}
-                value={s.handoffHoursYoutube}
-                onChange={(e) => save({ handoffHoursYoutube: Number(e.target.value) })}
-              />
-            </Field>
-            <Field label="Early handoff to Facebook (hours before)">
-              <Input
-                type="number"
-                min={0}
-                max={72}
-                value={s.handoffHoursFacebook}
-                onChange={(e) => save({ handoffHoursFacebook: Number(e.target.value) })}
-              />
-            </Field>
-            <Field label="If a post was missed (Mac asleep or off)">
-              <Select
-                value={s.missedBehavior}
-                onChange={(e) =>
-                  save({ missedBehavior: e.target.value as Settings['missedBehavior'] })
-                }
-              >
-                <option value="post_if_recent">Post on wake if not too late</option>
-                <option value="hold">Hold and alert me</option>
-              </Select>
-            </Field>
-            <Field label="Too late means more than (minutes)">
-              <Input
-                type="number"
-                min={5}
-                max={1440}
-                value={s.missedGraceMinutes}
-                onChange={(e) => save({ missedGraceMinutes: Number(e.target.value) })}
-              />
-            </Field>
-          </div>
-          <div className="mt-4 flex items-center gap-4">
-            <Check
-              checked={s.schedulerPaused}
-              onChange={(v) => (v ? api.scheduler.pause() : api.scheduler.resume())}
-            >
-              Pause the scheduler
-            </Check>
-            <span className="text-[12px] text-muted">
-              {status?.pendingCount ?? 0} post(s) waiting.
-            </span>
-          </div>
-        </Card>
+            <Card title="Scheduling">
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field
+                  label="Scheduling mode"
+                  hint="Slots: next open slot only. Manual: pick any time. Both: slot pre-filled, you can override."
+                >
+                  <Select
+                    value={s.schedulingMode}
+                    onChange={(e) =>
+                      save({ schedulingMode: e.target.value as Settings['schedulingMode'] })
+                    }
+                  >
+                    <option value="both">Both</option>
+                    <option value="slots">Slots</option>
+                    <option value="manual">Manual</option>
+                  </Select>
+                </Field>
+                <div />
+                <Field
+                  label="Early handoff to YouTube (hours before)"
+                  hint="The platform publishes at the exact time by itself."
+                >
+                  <Input
+                    type="number"
+                    min={0}
+                    max={72}
+                    value={s.handoffHoursYoutube}
+                    onChange={(e) => save({ handoffHoursYoutube: Number(e.target.value) })}
+                  />
+                </Field>
+                <Field label="Early handoff to Facebook (hours before)">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={72}
+                    value={s.handoffHoursFacebook}
+                    onChange={(e) => save({ handoffHoursFacebook: Number(e.target.value) })}
+                  />
+                </Field>
+                <Field label="If a post was missed (Mac asleep or off)">
+                  <Select
+                    value={s.missedBehavior}
+                    onChange={(e) =>
+                      save({ missedBehavior: e.target.value as Settings['missedBehavior'] })
+                    }
+                  >
+                    <option value="post_if_recent">Post on wake if not too late</option>
+                    <option value="hold">Hold and alert me</option>
+                  </Select>
+                </Field>
+                <Field label="Too late means more than (minutes)">
+                  <Input
+                    type="number"
+                    min={5}
+                    max={1440}
+                    value={s.missedGraceMinutes}
+                    onChange={(e) => save({ missedGraceMinutes: Number(e.target.value) })}
+                  />
+                </Field>
+              </div>
+              <div className="mt-4 flex items-center gap-4">
+                <Check
+                  checked={s.schedulerPaused}
+                  onChange={(v) => (v ? api.scheduler.pause() : api.scheduler.resume())}
+                >
+                  Pause the scheduler
+                </Check>
+                <span className="text-[12px] text-muted">
+                  {status?.pendingCount ?? 0} post(s) waiting.
+                </span>
+              </div>
+            </Card>
 
-        <Card title="App">
-          <div className="space-y-3">
-            <Check checked={s.launchAtLogin} onChange={(v) => save({ launchAtLogin: v })}>
-              Open Expect Less Output when I log in
-            </Check>
-            <div className="text-[12px] text-muted">
-              Closing the window keeps the scheduler running from the menu bar. Use Quit in the menu
-              bar menu to stop it.
-            </div>
-            <Field label="Theme">
-              <Select
-                className="w-56"
-                value={s.theme}
-                onChange={(e) => save({ theme: e.target.value as Settings['theme'] })}
-              >
-                <option value="dark">Dark</option>
-                <option value="light">Light</option>
-                <option value="system">Match macOS</option>
-              </Select>
-            </Field>
-          </div>
-        </Card>
+            <Card title="App">
+              <div className="space-y-3">
+                <Check checked={s.launchAtLogin} onChange={(v) => save({ launchAtLogin: v })}>
+                  Open Expect Less Output when I log in
+                </Check>
+                <div className="text-[12px] text-muted">
+                  Closing the window keeps the scheduler running from the menu bar. Use Quit in the
+                  menu bar menu to stop it.
+                </div>
+                <Field label="Theme">
+                  <Select
+                    className="w-56"
+                    value={s.theme}
+                    onChange={(e) => save({ theme: e.target.value as Settings['theme'] })}
+                  >
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                    <option value="system">Match macOS</option>
+                  </Select>
+                </Field>
+              </div>
+            </Card>
 
-        <Card title="Connections">
-          <p className="text-muted">
-            Google and YouTube logins are on the Connections screen. Secrets are stored encrypted in
-            the macOS Keychain and are never shown in full. Keychain encryption is{' '}
-            {info?.encryptionAvailable ? 'available' : 'NOT available'} on this Mac.
-          </p>
-        </Card>
-        <Card title="Where things live">
-          <div className="space-y-1 text-[12px] text-muted">
-            <div>Database: {info?.dbPath}</div>
-            <div>App data: {info?.dataDir}</div>
-          </div>
-        </Card>
+            <Card title="Connections">
+              <p className="text-muted">
+                Google and YouTube logins are on the Connections screen. Secrets are stored
+                encrypted in the macOS Keychain and are never shown in full. Keychain encryption is{' '}
+                {info?.encryptionAvailable ? 'available' : 'NOT available'} on this Mac.
+              </p>
+            </Card>
+            <Card title="Where things live">
+              <div className="space-y-1 text-[12px] text-muted">
+                <div>Database: {info?.dbPath}</div>
+                <div>App data: {info?.dataDir}</div>
+              </div>
+            </Card>
           </>
         )}
         {tab === 'studio' && <StudioSettings />}
@@ -277,44 +283,44 @@ export function SettingsScreen({ initialTab = 'general' }: { initialTab?: Settin
         {tab === 'api' && <AgentsCard s={s} save={save} />}
         {tab === 'testing' && (
           <>
-        <Card title="Testing tools (dry run)">
-          <div className="grid gap-4 md:grid-cols-3">
-            <Field label="Force a failure on">
-              <Select
-                value={s.dryRunFailPlatform ?? ''}
-                onChange={(e) =>
-                  save({
-                    dryRunFailPlatform: (e.target.value || null) as Settings['dryRunFailPlatform'],
-                  })
-                }
-              >
-                <option value="">No platform</option>
-                {PLATFORMS.map((p) => (
-                  <option key={p} value={p}>
-                    {PLATFORM_LABELS[p]}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Kind of failure">
-              <Select
-                value={s.dryRunFailKind}
-                onChange={(e) =>
-                  save({ dryRunFailKind: e.target.value as Settings['dryRunFailKind'] })
-                }
-              >
-                <option value="transient">Temporary (retries)</option>
-                <option value="permanent">Permanent (no retries)</option>
-              </Select>
-            </Field>
-            <div className="pt-6">
-              <Check checked={s.fastBackoff} onChange={(v) => save({ fastBackoff: v })}>
-                Short retry waits (5, 10, 15 seconds)
-              </Check>
-            </div>
-          </div>
-        </Card>
-
+            <Card title="Testing tools (dry run)">
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field label="Force a failure on">
+                  <Select
+                    value={s.dryRunFailPlatform ?? ''}
+                    onChange={(e) =>
+                      save({
+                        dryRunFailPlatform: (e.target.value ||
+                          null) as Settings['dryRunFailPlatform'],
+                      })
+                    }
+                  >
+                    <option value="">No platform</option>
+                    {PLATFORMS.map((p) => (
+                      <option key={p} value={p}>
+                        {PLATFORM_LABELS[p]}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Kind of failure">
+                  <Select
+                    value={s.dryRunFailKind}
+                    onChange={(e) =>
+                      save({ dryRunFailKind: e.target.value as Settings['dryRunFailKind'] })
+                    }
+                  >
+                    <option value="transient">Temporary (retries)</option>
+                    <option value="permanent">Permanent (no retries)</option>
+                  </Select>
+                </Field>
+                <div className="pt-6">
+                  <Check checked={s.fastBackoff} onChange={(v) => save({ fastBackoff: v })}>
+                    Short retry waits (5, 10, 15 seconds)
+                  </Check>
+                </div>
+              </div>
+            </Card>
           </>
         )}
       </div>

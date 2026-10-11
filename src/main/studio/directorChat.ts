@@ -1,7 +1,17 @@
 import { z } from 'zod'
 import { STYLE_RULES } from './agents/prompts'
 
-export const DIRECTOR_ACTIONS = ['pause_all', 'resume_all', 'pause_brand', 'resume_brand', 'add_idea', 'retry_flagged', 'write_now', 'rebuild_episode', 'rebuild_pending'] as const
+export const DIRECTOR_ACTIONS = [
+  'pause_all',
+  'resume_all',
+  'pause_brand',
+  'resume_brand',
+  'add_idea',
+  'retry_flagged',
+  'write_now',
+  'rebuild_episode',
+  'rebuild_pending',
+] as const
 export type DirectorActionKind = (typeof DIRECTOR_ACTIONS)[number]
 
 export const DirectorAction = z.object({

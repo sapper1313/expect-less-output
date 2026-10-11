@@ -18,7 +18,16 @@ export async function httpError(vendor: string, res: Response): Promise<SocialEr
     // ignore
   }
   const ra = Number(res.headers.get('retry-after'))
-  if (res.status === 429 || res.status >= 500) return new SocialError(`${vendor} is busy or slow (HTTP ${res.status}). ${body}`.trim(), 'transient', ra > 0 ? ra * 1000 : undefined)
-  if (res.status === 401 || res.status === 403) return new SocialError(`${vendor} refused the login or token (HTTP ${res.status}). Check the connection in Settings, under the Studio tab. ${body}`.trim(), 'permanent')
+  if (res.status === 429 || res.status >= 500)
+    return new SocialError(
+      `${vendor} is busy or slow (HTTP ${res.status}). ${body}`.trim(),
+      'transient',
+      ra > 0 ? ra * 1000 : undefined,
+    )
+  if (res.status === 401 || res.status === 403)
+    return new SocialError(
+      `${vendor} refused the login or token (HTTP ${res.status}). Check the connection in Settings, under the Studio tab. ${body}`.trim(),
+      'permanent',
+    )
   return new SocialError(`${vendor} said no (HTTP ${res.status}). ${body}`.trim(), 'permanent')
 }

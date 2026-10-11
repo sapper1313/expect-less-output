@@ -75,7 +75,13 @@ export function Calendar() {
     if (!range) return
     let alive = true
     api.studio
-      .calendar({ fromUtc: range.from, toUtc: range.to, brandId: brandId === 'all' ? null : brandId, platform: platform || null, kind: kind || null })
+      .calendar({
+        fromUtc: range.from,
+        toUtc: range.to,
+        brandId: brandId === 'all' ? null : brandId,
+        platform: platform || null,
+        kind: kind || null,
+      })
       .then((r) => alive && setItems(r))
       .catch(() => alive && setItems([]))
     return () => {
@@ -114,8 +120,10 @@ export function Calendar() {
       title: i.title,
       start: i.allDay ? i.date : i.startUtc,
       allDay: i.allDay,
-      backgroundColor: i.kind === 'planned' || i.kind === 'production_window' ? 'transparent' : KIND_COLOR[i.kind],
-      borderColor: i.kind === 'planned' || i.kind === 'production_window' ? i.brandColor : KIND_COLOR[i.kind],
+      backgroundColor:
+        i.kind === 'planned' || i.kind === 'production_window' ? 'transparent' : KIND_COLOR[i.kind],
+      borderColor:
+        i.kind === 'planned' || i.kind === 'production_window' ? i.brandColor : KIND_COLOR[i.kind],
       textColor: i.kind === 'planned' || i.kind === 'production_window' ? undefined : '#111111',
       editable: false,
       extendedProps: { item: i },
@@ -125,16 +133,30 @@ export function Calendar() {
   return (
     <div className="flex h-full flex-col">
       <PageHeader title={COPY.nav.calendar}>
-        <Select className="w-40" value={platform} onChange={(e) => setPlatform(e.target.value)} aria-label="Platform">
+        <Select
+          className="w-40"
+          value={platform}
+          onChange={(e) => setPlatform(e.target.value)}
+          aria-label="Platform"
+        >
           <option value="">All platforms</option>
           {['youtube', 'facebook', 'instagram', 'tiktok', 'bluesky'].map((p) => (
-            <option key={p} value={p}>{p}</option>
+            <option key={p} value={p}>
+              {p}
+            </option>
           ))}
         </Select>
-        <Select className="w-44" value={kind} onChange={(e) => setKind(e.target.value as CalendarKind | '')} aria-label="Status">
+        <Select
+          className="w-44"
+          value={kind}
+          onChange={(e) => setKind(e.target.value as CalendarKind | '')}
+          aria-label="Status"
+        >
           <option value="">All statuses</option>
           {(Object.keys(KIND_LABEL) as CalendarKind[]).map((k) => (
-            <option key={k} value={k}>{KIND_LABEL[k]}</option>
+            <option key={k} value={k}>
+              {KIND_LABEL[k]}
+            </option>
           ))}
         </Select>
         <Select
@@ -168,7 +190,9 @@ export function Calendar() {
             right: 'dayGridMonth,timeGridWeek,listMonth',
           }}
           buttonText={{ today: 'Today', month: 'Month', week: 'Week', list: 'List' }}
-          datesSet={(a: DatesSetArg) => setRange({ from: a.start.toISOString(), to: a.end.toISOString() })}
+          datesSet={(a: DatesSetArg) =>
+            setRange({ from: a.start.toISOString(), to: a.end.toISOString() })
+          }
           height="100%"
           events={[...events, ...studioEvents]}
           editable
@@ -194,9 +218,21 @@ export function Calendar() {
             const item = arg.event.extendedProps.item as CalendarItem | undefined
             if (item)
               return (
-                <div className="w-full overflow-hidden px-1 py-px text-[11px] leading-tight" style={{ color: item.kind === 'planned' || item.kind === 'production_window' ? item.brandColor : undefined }}>
-                  <div className="truncate"><b>{item.title}</b></div>
-                  <div className="text-[9px] font-bold uppercase opacity-80">{KIND_LABEL[item.kind]}</div>
+                <div
+                  className="w-full overflow-hidden px-1 py-px text-[11px] leading-tight"
+                  style={{
+                    color:
+                      item.kind === 'planned' || item.kind === 'production_window'
+                        ? item.brandColor
+                        : undefined,
+                  }}
+                >
+                  <div className="truncate">
+                    <b>{item.title}</b>
+                  </div>
+                  <div className="text-[9px] font-bold uppercase opacity-80">
+                    {KIND_LABEL[item.kind]}
+                  </div>
                 </div>
               )
             const post = arg.event.extendedProps.post as (typeof visible)[number]
@@ -227,8 +263,26 @@ export function Calendar() {
           }}
         />
       </div>
-      {viewing !== null && <PostDetail postId={viewing} onClose={() => setViewing(null)} onEdit={() => { setEditing(viewing); setViewing(null) }} />}
-      {viewItem && <ItemDetail item={viewItem} onClose={() => setViewItem(null)} onOpenEpisode={() => { setOpenEpisode(viewItem.episodeId); setViewItem(null) }} />}
+      {viewing !== null && (
+        <PostDetail
+          postId={viewing}
+          onClose={() => setViewing(null)}
+          onEdit={() => {
+            setEditing(viewing)
+            setViewing(null)
+          }}
+        />
+      )}
+      {viewItem && (
+        <ItemDetail
+          item={viewItem}
+          onClose={() => setViewItem(null)}
+          onOpenEpisode={() => {
+            setOpenEpisode(viewItem.episodeId)
+            setViewItem(null)
+          }}
+        />
+      )}
       {editing !== null && <PostEditor postId={editing} onClose={() => setEditing(null)} />}
       {openEpisode && <EpisodePeek id={openEpisode} onClose={() => setOpenEpisode(null)} />}
       {drop && (

@@ -9,44 +9,178 @@ const hash = (s: string) => {
 const dayIndex = (iso: string) => Math.floor(Date.parse(`${iso}T00:00:00Z`) / 86_400_000)
 
 const TOPICS: Array<{ title: string; trick: string; summary: string }> = [
-  { title: 'Stop retyping the same email', trick: 'save a text shortcut so one short word types your whole reply', summary: 'Use a text shortcut for repeated replies.' },
-  { title: 'Silence a noisy group chat in two taps', trick: 'mute the thread without leaving it', summary: 'Mute a busy group chat.' },
-  { title: 'Find any file by what is inside it', trick: 'search file contents instead of file names', summary: 'Search inside documents.' },
-  { title: 'Make your inbox sort itself', trick: 'set one rule that files newsletters away', summary: 'Auto sort email with a rule.' },
-  { title: 'Never miss a meeting link again', trick: 'pin the link to the calendar invite', summary: 'Pin meeting links.' },
-  { title: 'Turn a long thread into three bullets', trick: 'ask an assistant to summarize the thread', summary: 'Summarize long threads.' },
-  { title: 'Copy from your phone, paste on your laptop', trick: 'turn on the shared clipboard', summary: 'Shared clipboard.' },
-  { title: 'Record your screen in one shortcut', trick: 'use the built in screen recorder shortcut', summary: 'Quick screen recording.' },
-  { title: 'Fix a blurry scan in seconds', trick: 'use the document scanner mode', summary: 'Clean document scans.' },
-  { title: 'Undo a deleted file you thought was gone', trick: 'open the recently deleted folder', summary: 'Recover deleted files.' },
-  { title: 'Find the setting everyone forgets', trick: 'search the settings instead of scrolling', summary: 'Search settings.' },
-  { title: 'Split a bill without a calculator', trick: 'type the total and the people count into the search bar', summary: 'Split bills in search.' },
-  { title: 'Stop the endless password resets', trick: 'let a password manager fill your logins', summary: 'Use a password manager.' },
-  { title: 'Rename fifty files at once', trick: 'select them all and rename in one batch', summary: 'Batch rename files.' },
-  { title: 'Get a calendar reminder from an email', trick: 'drag the email onto the calendar', summary: 'Email to calendar event.' },
-  { title: 'Read a PDF out loud while you cook', trick: 'turn on read aloud', summary: 'Read aloud for PDFs.' },
-  { title: 'Translate a menu with your camera', trick: 'point the camera and tap translate', summary: 'Camera translate.' },
-  { title: 'Shrink a huge photo before you send it', trick: 'pick a smaller size in the share sheet', summary: 'Resize photos.' },
-  { title: 'Dictate a whole page instead of typing', trick: 'press the dictation key and speak', summary: 'Dictation.' },
-  { title: 'Keep two windows side by side', trick: 'snap windows to each half of the screen', summary: 'Snap windows.' },
-  { title: 'Block the spam calls for good', trick: 'silence unknown callers', summary: 'Silence unknown callers.' },
-  { title: 'Back up your phone while you sleep', trick: 'switch on the nightly backup', summary: 'Nightly backup.' },
-  { title: 'Share one folder instead of ten files', trick: 'send a single shared folder link', summary: 'Share a folder.' },
-  { title: 'Draft a polite no in ten seconds', trick: 'ask an assistant for a kind short refusal', summary: 'Polite refusal.' },
-  { title: 'Charge your phone faster without a new cable', trick: 'turn on airplane mode while it charges', summary: 'Charge faster.' },
-  { title: 'Make text bigger everywhere', trick: 'raise the text size once in settings', summary: 'Bigger text.' },
-  { title: 'Find your lost phone from your laptop', trick: 'use the find my device page', summary: 'Find a lost phone.' },
-  { title: 'Scan a code without another app', trick: 'point the camera at the code', summary: 'Scan codes.' },
-  { title: 'Clean up your desktop in one click', trick: 'sort files into stacks', summary: 'Desktop stacks.' },
-  { title: 'Turn a photo into editable text', trick: 'copy text straight from the picture', summary: 'Copy text from photos.' },
+  {
+    title: 'Stop retyping the same email',
+    trick: 'save a text shortcut so one short word types your whole reply',
+    summary: 'Use a text shortcut for repeated replies.',
+  },
+  {
+    title: 'Silence a noisy group chat in two taps',
+    trick: 'mute the thread without leaving it',
+    summary: 'Mute a busy group chat.',
+  },
+  {
+    title: 'Find any file by what is inside it',
+    trick: 'search file contents instead of file names',
+    summary: 'Search inside documents.',
+  },
+  {
+    title: 'Make your inbox sort itself',
+    trick: 'set one rule that files newsletters away',
+    summary: 'Auto sort email with a rule.',
+  },
+  {
+    title: 'Never miss a meeting link again',
+    trick: 'pin the link to the calendar invite',
+    summary: 'Pin meeting links.',
+  },
+  {
+    title: 'Turn a long thread into three bullets',
+    trick: 'ask an assistant to summarize the thread',
+    summary: 'Summarize long threads.',
+  },
+  {
+    title: 'Copy from your phone, paste on your laptop',
+    trick: 'turn on the shared clipboard',
+    summary: 'Shared clipboard.',
+  },
+  {
+    title: 'Record your screen in one shortcut',
+    trick: 'use the built in screen recorder shortcut',
+    summary: 'Quick screen recording.',
+  },
+  {
+    title: 'Fix a blurry scan in seconds',
+    trick: 'use the document scanner mode',
+    summary: 'Clean document scans.',
+  },
+  {
+    title: 'Undo a deleted file you thought was gone',
+    trick: 'open the recently deleted folder',
+    summary: 'Recover deleted files.',
+  },
+  {
+    title: 'Find the setting everyone forgets',
+    trick: 'search the settings instead of scrolling',
+    summary: 'Search settings.',
+  },
+  {
+    title: 'Split a bill without a calculator',
+    trick: 'type the total and the people count into the search bar',
+    summary: 'Split bills in search.',
+  },
+  {
+    title: 'Stop the endless password resets',
+    trick: 'let a password manager fill your logins',
+    summary: 'Use a password manager.',
+  },
+  {
+    title: 'Rename fifty files at once',
+    trick: 'select them all and rename in one batch',
+    summary: 'Batch rename files.',
+  },
+  {
+    title: 'Get a calendar reminder from an email',
+    trick: 'drag the email onto the calendar',
+    summary: 'Email to calendar event.',
+  },
+  {
+    title: 'Read a PDF out loud while you cook',
+    trick: 'turn on read aloud',
+    summary: 'Read aloud for PDFs.',
+  },
+  {
+    title: 'Translate a menu with your camera',
+    trick: 'point the camera and tap translate',
+    summary: 'Camera translate.',
+  },
+  {
+    title: 'Shrink a huge photo before you send it',
+    trick: 'pick a smaller size in the share sheet',
+    summary: 'Resize photos.',
+  },
+  {
+    title: 'Dictate a whole page instead of typing',
+    trick: 'press the dictation key and speak',
+    summary: 'Dictation.',
+  },
+  {
+    title: 'Keep two windows side by side',
+    trick: 'snap windows to each half of the screen',
+    summary: 'Snap windows.',
+  },
+  {
+    title: 'Block the spam calls for good',
+    trick: 'silence unknown callers',
+    summary: 'Silence unknown callers.',
+  },
+  {
+    title: 'Back up your phone while you sleep',
+    trick: 'switch on the nightly backup',
+    summary: 'Nightly backup.',
+  },
+  {
+    title: 'Share one folder instead of ten files',
+    trick: 'send a single shared folder link',
+    summary: 'Share a folder.',
+  },
+  {
+    title: 'Draft a polite no in ten seconds',
+    trick: 'ask an assistant for a kind short refusal',
+    summary: 'Polite refusal.',
+  },
+  {
+    title: 'Charge your phone faster without a new cable',
+    trick: 'turn on airplane mode while it charges',
+    summary: 'Charge faster.',
+  },
+  {
+    title: 'Make text bigger everywhere',
+    trick: 'raise the text size once in settings',
+    summary: 'Bigger text.',
+  },
+  {
+    title: 'Find your lost phone from your laptop',
+    trick: 'use the find my device page',
+    summary: 'Find a lost phone.',
+  },
+  {
+    title: 'Scan a code without another app',
+    trick: 'point the camera at the code',
+    summary: 'Scan codes.',
+  },
+  {
+    title: 'Clean up your desktop in one click',
+    trick: 'sort files into stacks',
+    summary: 'Desktop stacks.',
+  },
+  {
+    title: 'Turn a photo into editable text',
+    trick: 'copy text straight from the picture',
+    summary: 'Copy text from photos.',
+  },
 ]
 
-const OBJECTS = ['acorns', 'lanterns', 'wooden spoons', 'paper boats', 'seed packets', 'copper keys', 'clay pots', 'ribbon spools', 'bird feathers', 'tin cups']
+const OBJECTS = [
+  'acorns',
+  'lanterns',
+  'wooden spoons',
+  'paper boats',
+  'seed packets',
+  'copper keys',
+  'clay pots',
+  'ribbon spools',
+  'bird feathers',
+  'tin cups',
+]
 const WORD = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
 
 function pick<T>(list: T[], ctx: Record<string, any>): T {
   const seed = hash(String(ctx.brand ?? '')) % list.length
-  return list[(dayIndex(String(ctx.slotDate ?? '2026-01-01')) * 7 + seed + (ctx.attempt ?? 0) * 11) % list.length]
+  return list[
+    (dayIndex(String(ctx.slotDate ?? '2026-01-01')) * 7 + seed + (ctx.attempt ?? 0) * 11) %
+      list.length
+  ]
 }
 
 function mockShort(ctx: Record<string, any>) {
@@ -58,8 +192,12 @@ function mockShort(ctx: Record<string, any>) {
   const each = Math.min(15, Math.round((target / n) * 10) / 10)
   const sign = (ctx.catchphrases as string[] | undefined)?.[0] ?? 'That is all.'
   const hook = `You can ${t.trick} and it takes seconds.`
-  const mathLines = ctx.checks?.math ? ' Quick math: 7 x 8 = 56, so 56 minutes saved in a week of eight daily minutes.' : ''
-  const stepLines = ctx.checks?.steps ? ' Step 1: open the settings. Step 2: search for the option. Step 3: switch it on.' : ''
+  const mathLines = ctx.checks?.math
+    ? ' Quick math: 7 x 8 = 56, so 56 minutes saved in a week of eight daily minutes.'
+    : ''
+  const stepLines = ctx.checks?.steps
+    ? ' Step 1: open the settings. Step 2: search for the option. Step 3: switch it on.'
+    : ''
   const clips = Array.from({ length: n }, (_, i) => ({
     n: i + 1,
     seconds: each,
@@ -74,7 +212,11 @@ function mockShort(ctx: Record<string, any>) {
     clips,
     caption: `${t.title}. ${t.summary}`,
     hashtags: ['#tech', '#timesaver', '#worksmarter'],
-    youtube: { title: t.title, description: `${t.summary} A quick trick you can use today.`, tags: ['tech tips', 'time saver'] },
+    youtube: {
+      title: t.title,
+      description: `${t.summary} A quick trick you can use today.`,
+      tags: ['tech tips', 'time saver'],
+    },
     summary: t.summary,
     tags: ['tip', t.title.split(' ')[0].toLowerCase()],
     key_lines: [hook],
@@ -97,7 +239,10 @@ function mockHollow(ctx: Record<string, any>) {
     const counting = ci >= 0
     const nums = counting ? perScene[ci] : []
     const dialogue = counting
-      ? nums.map((v) => ({ speaker: 'Pip', line: `${WORD[v][0].toUpperCase()}${WORD[v].slice(1)}!` }))
+      ? nums.map((v) => ({
+          speaker: 'Pip',
+          line: `${WORD[v][0].toUpperCase()}${WORD[v].slice(1)}!`,
+        }))
       : n === total
         ? [{ speaker: 'Crew', line: 'Thank you for visiting. See you next time!' }]
         : [{ speaker: 'Moss', line: 'Let us keep going, friends.' }]
@@ -126,7 +271,10 @@ function mockHollow(ctx: Record<string, any>) {
           : counting
             ? `Soft 3D animated style, the same woodland friends counting at the workbench while the ${obj} stay clearly in frame, warm light, gentle camera.`
             : `Soft 3D animated style, friendly woodland workshop friends working together in a cozy workshop, scene ${n}, warm light, gentle camera.`,
-      extension_note: n % 3 === 0 ? 'Generated at 15 seconds so the next scene can start from the last frame.' : '',
+      extension_note:
+        n % 3 === 0
+          ? 'Generated at 15 seconds so the next scene can start from the last frame.'
+          : '',
     }
   })
   const title = `Counting ${obj} in the Hollow ${(h % 90) + 10}`
@@ -139,7 +287,11 @@ function mockHollow(ctx: Record<string, any>) {
     runtime_target_seconds: 180,
     counted_objects: [{ name: obj, quantity: qty, scenes: countScenes }],
     scenes,
-    youtube: { title: `${title} | Wonder Hollow Workshop`, description: `The crew counts ${qty} ${obj}. A gentle story about sharing, with counting practice for little ones.`, tags: ['kids', 'counting', 'learning'] },
+    youtube: {
+      title: `${title} | Wonder Hollow Workshop`,
+      description: `The crew counts ${qty} ${obj}. A gentle story about sharing, with counting practice for little ones.`,
+      tags: ['kids', 'counting', 'learning'],
+    },
     thumbnail_brief: `The three friends smiling over exactly ${word} ${obj} on the workbench, bright warm colors.`,
     summary: `Counting ${qty} ${obj} and sharing the work.`,
     tags: ['counting', 'sharing'],
@@ -157,51 +309,119 @@ export function registerMockResponders(mock: MockLlm): void {
     }
     return ctx.format === 'long' ? mockHollow(ctx) : mockShort(ctx)
   })
-  mock.respond('Producer', (req) => ({ prompt: `${String(readCtx(req.user).prompt ?? 'A scene')} Steady, well lit and clearly visible, with clear sound.` }))
+  mock.respond('Producer', (req) => ({
+    prompt: `${String(readCtx(req.user).prompt ?? 'A scene')} Steady, well lit and clearly visible, with clear sound.`,
+  }))
   mock.respond('Thumbnail', (req) => {
     const c = readCtx(req.user)
     const title = String(c.title ?? 'New episode')
-    const words = title.replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean)
+    const words = title
+      .replace(/[^A-Za-z0-9 ]/g, '')
+      .split(/\s+/)
+      .filter(Boolean)
     const n = Number(c.count ?? 3)
-    const heads = [words.slice(0, 4).join(' '), words.slice(-3).join(' '), `Watch ${words[0] ?? 'this'} now`.split(' ').slice(0, 4).join(' ')]
-    return { concepts: Array.from({ length: n }, (_, i) => ({ headline: heads[i % heads.length] || 'Watch this', image_prompt: `A bold clear scene for ${title}, option ${i + 1}`, use_video_frame: i === n - 1 && n > 2 })) }
+    const heads = [
+      words.slice(0, 4).join(' '),
+      words.slice(-3).join(' '),
+      `Watch ${words[0] ?? 'this'} now`.split(' ').slice(0, 4).join(' '),
+    ]
+    return {
+      concepts: Array.from({ length: n }, (_, i) => ({
+        headline: heads[i % heads.length] || 'Watch this',
+        image_prompt: `A bold clear scene for ${title}, option ${i + 1}`,
+        use_video_frame: i === n - 1 && n > 2,
+      })),
+    }
   })
   mock.respond('Publisher', (req) => {
     const c = readCtx(req.user)
     const platforms = (c.platforms as string[]) ?? []
     const title = String(c.title ?? 'New episode')
-    const tags = ((c.hashtags as string[]) ?? []).map((t) => (t.startsWith('#') ? t : `#${t.replace(/\s+/g, '')}`)).slice(0, 3)
+    const tags = ((c.hashtags as string[]) ?? [])
+      .map((t) => (t.startsWith('#') ? t : `#${t.replace(/\s+/g, '')}`))
+      .slice(0, 3)
     const base = String(c.caption || c.summary || title)
     const out: Record<string, unknown> = {}
-    if (platforms.includes('youtube')) out.youtube = { title: title.slice(0, 100), description: String(c.description || base), tags: tags.map((t) => t.slice(1)) }
-    if (platforms.includes('instagram')) out.instagram = { caption: `${base} ${tags.join(' ')}`.trim() }
-    if (platforms.includes('facebook')) out.facebook = { caption: `${base} ${tags.slice(0, 2).join(' ')}`.trim() }
+    if (platforms.includes('youtube'))
+      out.youtube = {
+        title: title.slice(0, 100),
+        description: String(c.description || base),
+        tags: tags.map((t) => t.slice(1)),
+      }
+    if (platforms.includes('instagram'))
+      out.instagram = { caption: `${base} ${tags.join(' ')}`.trim() }
+    if (platforms.includes('facebook'))
+      out.facebook = { caption: `${base} ${tags.slice(0, 2).join(' ')}`.trim() }
     if (platforms.includes('tiktok')) out.tiktok = { caption: `${base} ${tags.join(' ')}`.trim() }
-    if (platforms.includes('bluesky')) out.bluesky = { text: `${title}. ${String(c.summary ?? '')}`.slice(0, 240) }
+    if (platforms.includes('bluesky'))
+      out.bluesky = { text: `${title}. ${String(c.summary ?? '')}`.slice(0, 240) }
     return out
   })
   mock.respond('Analytics', (req) => {
     const c = readCtx(req.user)
-    return { summary: `Out of ${c.videos} videos, the quicker tips with a clear hook in the first two seconds did best. Posts around the evening hours earned more views. Keep the headlines short on thumbnails.` }
+    return {
+      summary: `Out of ${c.videos} videos, the quicker tips with a clear hook in the first two seconds did best. Posts around the evening hours earned more views. Keep the headlines short on thumbnails.`,
+    }
   })
   mock.respond('Comments', (req) => {
     const t = String(readCtx(req.user).comment ?? '').toLowerCase()
-    if (/(love|great|awesome|amazing|nice|good)/.test(t)) return { category: 'praise', reply: 'Glad that one helped. More soon.', confidence: 0.9 }
+    if (/(love|great|awesome|amazing|nice|good)/.test(t))
+      return { category: 'praise', reply: 'Glad that one helped. More soon.', confidence: 0.9 }
     if (/(thank|thanks)/.test(t)) return { category: 'thanks', reply: 'Anytime.', confidence: 0.9 }
-    if (/(lol|haha|funny)/.test(t)) return { category: 'joke', reply: 'Fine. That was a little funny.', confidence: 0.8 }
-    if (t.includes('?')) return { category: 'question', reply: 'Good question. It is in the steps near the start of the video.', confidence: 0.8 }
+    if (/(lol|haha|funny)/.test(t))
+      return { category: 'joke', reply: 'Fine. That was a little funny.', confidence: 0.8 }
+    if (t.includes('?'))
+      return {
+        category: 'question',
+        reply: 'Good question. It is in the steps near the start of the video.',
+        confidence: 0.8,
+      }
     return { category: 'unsure', reply: '', confidence: 0.2 }
   })
-  mock.respond('Director', () => ({ reply: 'Mock mode is on, so I only pretend to think. In real mode I will answer from the live studio state.', actions: [] }))
-  mock.respond('Assistant', () => 'Mock mode is on, so this is a pretend answer. Turn mock mode off to get real answers.')
+  mock.respond('Director', () => ({
+    reply:
+      'Mock mode is on, so I only pretend to think. In real mode I will answer from the live studio state.',
+    actions: [],
+  }))
+  mock.respond(
+    'Assistant',
+    () => 'Mock mode is on, so this is a pretend answer. Turn mock mode off to get real answers.',
+  )
   mock.respond('Title Lab', (req) =>
     req.user.startsWith('Topic:')
-      ? { titles: [{ title: 'The one trick that saves an hour', why: 'A clear promise in few words.' }, { title: 'Stop doing this every morning', why: 'A mild warning makes people curious.' }], tags: ['tips', 'shortcuts', 'productivity'] }
+      ? {
+          titles: [
+            { title: 'The one trick that saves an hour', why: 'A clear promise in few words.' },
+            { title: 'Stop doing this every morning', why: 'A mild warning makes people curious.' },
+          ],
+          tags: ['tips', 'shortcuts', 'productivity'],
+        }
       : { ideas: ['A mock idea learned from rivals', 'Another mock angle from the trends'] },
   )
-  mock.respond('Chapters', () => ({ titles: ['The setup', 'The problem shows up', 'Trying the fix', 'It starts to work', 'The big finish', 'Goodbye song', 'Extra one', 'Extra two', 'Extra three', 'Extra four'] }))
-  mock.respond('Translator', (req) => ({ cues: (JSON.parse(req.user) as string[]).map((t) => `[translated] ${t}`) }))
-  mock.respond('Clip Scout', () => ({ clips: [{ title: 'The best moment, in short', caption: 'A quick clip from the full episode.' }, { title: 'Watch this part', caption: 'Another favorite bit.' }, { title: 'Do not miss this', caption: 'The third short.' }] }))
+  mock.respond('Chapters', () => ({
+    titles: [
+      'The setup',
+      'The problem shows up',
+      'Trying the fix',
+      'It starts to work',
+      'The big finish',
+      'Goodbye song',
+      'Extra one',
+      'Extra two',
+      'Extra three',
+      'Extra four',
+    ],
+  }))
+  mock.respond('Translator', (req) => ({
+    cues: (JSON.parse(req.user) as string[]).map((t) => `[translated] ${t}`),
+  }))
+  mock.respond('Clip Scout', () => ({
+    clips: [
+      { title: 'The best moment, in short', caption: 'A quick clip from the full episode.' },
+      { title: 'Watch this part', caption: 'Another favorite bit.' },
+      { title: 'Do not miss this', caption: 'The third short.' },
+    ],
+  }))
   mock.respond('Script QC', () => ({ pass: true, fixes: [] }))
   mock.respond('Hollow Safety Checker', () => ({ pass: true, issues: [] }))
   mock.respond('Math Checker', () => ({ claims: [], outdated: [] }))

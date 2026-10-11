@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'fs'
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'fs'
 import { dirname, join, relative } from 'path'
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import { DateTime } from 'luxon'
@@ -64,9 +72,17 @@ export class StudioBackup {
   async run(): Promise<BackupInfo> {
     const dir = this.dir()
     mkdirSync(dir, { recursive: true })
-    const stamp = DateTime.fromMillis(this.now(), { zone: 'America/New_York' }).toFormat('yyyy-LL-dd-HHmmss')
+    const stamp = DateTime.fromMillis(this.now(), { zone: 'America/New_York' }).toFormat(
+      'yyyy-LL-dd-HHmmss',
+    )
     const dbZip = join(dir, `elo-backup-${stamp}.zip`)
-    const r = await createBackup({ db: this.d.db, outPath: dbZip, appVersion: this.d.appVersion, mediaRoot: this.d.mediaRoot(), postersDir: this.d.postersDir })
+    const r = await createBackup({
+      db: this.d.db,
+      outPath: dbZip,
+      appVersion: this.d.appVersion,
+      mediaRoot: this.d.mediaRoot(),
+      postersDir: this.d.postersDir,
+    })
     const root = this.d.libraryRoot()
     const files: Record<string, Uint8Array> = {}
     for (const f of this.libraryFiles(root)) files[relative(root, f)] = readFileSync(f)
@@ -77,8 +93,18 @@ export class StudioBackup {
       writeFileSync(libraryZip, zipSync(files, { level: 6 }))
     }
     this.prune()
-    this.d.audit.write({ agent: 'Backup', action: 'backup', detail: { dbZip, libraryZip, bytes: r.bytes } })
-    return { stamp, dbZip, libraryZip, bytes: r.bytes + (libraryZip ? statSync(libraryZip).size : 0), createdUtc: new Date(this.now()).toISOString() }
+    this.d.audit.write({
+      agent: 'Backup',
+      action: 'backup',
+      detail: { dbZip, libraryZip, bytes: r.bytes },
+    })
+    return {
+      stamp,
+      dbZip,
+      libraryZip,
+      bytes: r.bytes + (libraryZip ? statSync(libraryZip).size : 0),
+      createdUtc: new Date(this.now()).toISOString(),
+    }
   }
 
   list(): BackupInfo[] {
@@ -91,7 +117,13 @@ export class StudioBackup {
         const dbZip = join(dir, m[0])
         const lib = join(dir, `elo-library-${m[1]}.zip`)
         const libraryZip = existsSync(lib) ? lib : null
-        return { stamp: m[1], dbZip, libraryZip, bytes: statSync(dbZip).size + (libraryZip ? statSync(libraryZip).size : 0), createdUtc: statSync(dbZip).mtime.toISOString() }
+        return {
+          stamp: m[1],
+          dbZip,
+          libraryZip,
+          bytes: statSync(dbZip).size + (libraryZip ? statSync(libraryZip).size : 0),
+          createdUtc: statSync(dbZip).mtime.toISOString(),
+        }
       })
       .sort((a, b) => b.stamp.localeCompare(a.stamp))
   }
@@ -122,13 +154,21 @@ export class StudioBackup {
       writeFileSync(dest, data)
       n++
     }
-    this.d.audit.write({ agent: 'Backup', action: 'restore_library', detail: { libraryZip, files: n } })
+    this.d.audit.write({
+      agent: 'Backup',
+      action: 'restore_library',
+      detail: { libraryZip, files: n },
+    })
     return n
   }
 
   /** What a backup zip holds, for the "are my bibles in there" question. */
   inspect(dbZip: string): { hasDatabase: boolean; hasSecrets: boolean; manifest: unknown } {
     const f = unzipSync(new Uint8Array(readFileSync(dbZip)))
-    return { hasDatabase: 'elo.sqlite' in f, hasSecrets: Object.keys(f).some((k) => /secret/i.test(k)), manifest: 'manifest.json' in f ? JSON.parse(strFromU8(f['manifest.json'])) : null }
+    return {
+      hasDatabase: 'elo.sqlite' in f,
+      hasSecrets: Object.keys(f).some((k) => /secret/i.test(k)),
+      manifest: 'manifest.json' in f ? JSON.parse(strFromU8(f['manifest.json'])) : null,
+    }
   }
 }

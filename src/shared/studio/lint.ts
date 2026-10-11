@@ -27,8 +27,7 @@ export function lintValue(
   roboticPhrases: string[],
   path = '$',
 ): Array<LintIssue & { path: string }> {
-  if (typeof value === 'string')
-    return lintText(value, roboticPhrases).map((i) => ({ ...i, path }))
+  if (typeof value === 'string') return lintText(value, roboticPhrases).map((i) => ({ ...i, path }))
   if (Array.isArray(value))
     return value.flatMap((v, i) => lintValue(v, roboticPhrases, `${path}[${i}]`))
   if (value && typeof value === 'object')

@@ -79,9 +79,15 @@ async function llmProvider(c: Settings, studio: Studio): Promise<OpenAICompatibl
     throw new Error('Text assist is turned off. Turn it on in Settings, under Text assist.')
   if (c.llmProvider === 'studio-local') {
     const l = (await studio.getConfig()).local
-    if (!l.ollamaHost) throw new Error('Set the Ollama host on the Local AI section in Settings, under AI models and Local AI first.')
+    if (!l.ollamaHost)
+      throw new Error(
+        'Set the Ollama host on the Local AI section in Settings, under AI models and Local AI first.',
+      )
     if (!l.textModel) throw new Error('Pick a text model in Settings, under Text assist.')
-    return new OpenAICompatibleProvider({ baseUrl: l.ollamaHost.replace(/\/+$/, '') + '/v1', model: l.textModel })
+    return new OpenAICompatibleProvider({
+      baseUrl: l.ollamaHost.replace(/\/+$/, '') + '/v1',
+      model: l.textModel,
+    })
   }
   if (!c.llmModel.trim()) throw new Error('Type the model name in Settings, under Text assist.')
   const check = checkLlmUrl(c.llmBaseUrl, c.llmAllowLan)
@@ -319,7 +325,12 @@ export function buildApi(d: ApiDeps): Api {
           db: d.db,
           now: () => Date.now(),
           posts: (f) => d.posts.list(f),
-          health: () => healthRows({ db: d.db, metaExpiresAt: () => d.meta.status().expiresAt, tiktokExpiresAt: (id) => d.tiktok.refreshExpiry(id) }),
+          health: () =>
+            healthRows({
+              db: d.db,
+              metaExpiresAt: () => d.meta.status().expiresAt,
+              tiktokExpiresAt: (id) => d.tiktok.refreshExpiry(id),
+            }),
           bluesky: () => d.studio.socialAccountList(),
           studioBrands: () => d.studio.brands(),
           openFlags: () => d.studio.tasks.list({ status: ['flagged', 'stopped'] }).length,
@@ -334,7 +345,12 @@ export function buildApi(d: ApiDeps): Api {
         const c = d.settings.get()
         if (c.llmProvider === 'studio-local') {
           const l = (await d.studio.getConfig()).local
-          return { provider: c.llmProvider, available: !!l.ollamaHost && !!l.textModel, model: l.textModel, baseUrl: l.ollamaHost }
+          return {
+            provider: c.llmProvider,
+            available: !!l.ollamaHost && !!l.textModel,
+            model: l.textModel,
+            baseUrl: l.ollamaHost,
+          }
         }
         return {
           provider: c.llmProvider,
@@ -345,12 +361,28 @@ export function buildApi(d: ApiDeps): Api {
       },
       autoSetup: async () => {
         const host = (await d.studio.getConfig()).local.ollamaHost
-        if (!host) return { ok: false, message: 'Set the Ollama host on the Local AI section in Settings, under AI models and Local AI first.' }
+        if (!host)
+          return {
+            ok: false,
+            message:
+              'Set the Ollama host on the Local AI section in Settings, under AI models and Local AI first.',
+          }
         const { options, localOnline } = await d.studio.modelOptions()
-        if (!localOnline) return { ok: false, message: `Could not reach Ollama at ${host}. Check that it is running.` }
-        const text = options.filter((o) => o.kind === 'local' && !/embed|llava|vision|-vl/i.test(o.id))
+        if (!localOnline)
+          return {
+            ok: false,
+            message: `Could not reach Ollama at ${host}. Check that it is running.`,
+          }
+        const text = options.filter(
+          (o) => o.kind === 'local' && !/embed|llava|vision|-vl/i.test(o.id),
+        )
         const pick = text.find((o) => /\b(7|8|9)b\b/i.test(o.id)) ?? text[0]
-        if (!pick) return { ok: false, message: 'Ollama has no text model yet. On the Ollama machine run: ollama pull llama3.1:8b' }
+        if (!pick)
+          return {
+            ok: false,
+            message:
+              'Ollama has no text model yet. On the Ollama machine run: ollama pull llama3.1:8b',
+          }
         const name = pick.id.replace(/^ollama:/, '')
         await d.studio.setConfig({ local: { textModel: name } } as never)
         d.settings.set({ llmProvider: 'studio-local' })

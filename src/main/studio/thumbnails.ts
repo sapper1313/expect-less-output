@@ -3,7 +3,16 @@ import { join } from 'path'
 import { z } from 'zod'
 import type { Db } from '../db'
 import { SEED_GUIDELINES } from '@shared/studio/thumbnailGuidelines'
-import { bestFrameMs, composeThumbnail, extractFrame, findFont, fitJpeg, grayStats, probe, scaleImage } from './ffmpeg'
+import {
+  bestFrameMs,
+  composeThumbnail,
+  extractFrame,
+  findFont,
+  fitJpeg,
+  grayStats,
+  probe,
+  scaleImage,
+} from './ffmpeg'
 import type { StudioConfigService } from './configService'
 import { expandHome } from './configService'
 import type { EpisodeLibrary } from './library'
@@ -32,30 +41,43 @@ export class Guidelines {
   ) {}
 
   private ensure() {
-    const n = (this.db.prepare('SELECT COUNT(*) AS n FROM guideline_versions').get() as { n: number }).n
+    const n = (
+      this.db.prepare('SELECT COUNT(*) AS n FROM guideline_versions').get() as { n: number }
+    ).n
     if (!n) this.save(SEED_GUIDELINES, 'Seeded with the starting best practices.', 'seed')
   }
 
   current(): GuidelineVersion {
     this.ensure()
-    return this.map(this.db.prepare('SELECT * FROM guideline_versions ORDER BY id DESC LIMIT 1').get())
+    return this.map(
+      this.db.prepare('SELECT * FROM guideline_versions ORDER BY id DESC LIMIT 1').get(),
+    )
   }
 
   history(): GuidelineVersion[] {
     this.ensure()
-    return (this.db.prepare('SELECT * FROM guideline_versions ORDER BY id DESC LIMIT 100').all() as unknown[]).map((r) => this.map(r))
+    return (
+      this.db
+        .prepare('SELECT * FROM guideline_versions ORDER BY id DESC LIMIT 100')
+        .all() as unknown[]
+    ).map((r) => this.map(r))
   }
 
   save(text: string, note: string, source = 'owner'): GuidelineVersion {
     const id = Number(
-      this.db.prepare('INSERT INTO guideline_versions (created_utc, text, note, source) VALUES (?, ?, ?, ?)').run(new Date(this.now()).toISOString(), text, note, source).lastInsertRowid,
+      this.db
+        .prepare(
+          'INSERT INTO guideline_versions (created_utc, text, note, source) VALUES (?, ?, ?, ?)',
+        )
+        .run(new Date(this.now()).toISOString(), text, note, source).lastInsertRowid,
     )
     return this.map(this.db.prepare('SELECT * FROM guideline_versions WHERE id = ?').get(id))
   }
 
   /** Makes an older version current again by saving it as a new version. History is never rewritten. */
   revert(id: number): GuidelineVersion {
-    const old = this.db.prepare('SELECT * FROM guideline_versions WHERE id = ?').get(id) as { text: string } | undefined
+    const old = this.db.prepare('SELECT * FROM guideline_versions WHERE id = ?').get(id) as
+      { text: string } | undefined
     if (!old) throw new Error('That version does not exist.')
     return this.save(old.text, `Reverted to version ${id}.`, 'revert')
   }
@@ -69,7 +91,10 @@ export class Guidelines {
 export function lineDiff(a: string, b: string): { added: string[]; removed: string[] } {
   const A = new Set(a.split('\n'))
   const B = new Set(b.split('\n'))
-  return { added: [...B].filter((l) => l.trim() && !A.has(l)), removed: [...A].filter((l) => l.trim() && !B.has(l)) }
+  return {
+    added: [...B].filter((l) => l.trim() && !A.has(l)),
+    removed: [...A].filter((l) => l.trim() && !B.has(l)),
+  }
 }
 
 // ---------------------------------------------------------------- thumbnail agent
@@ -99,10 +124,20 @@ export interface ThumbnailSet {
 }
 
 const Concepts = z.object({
-  concepts: z.array(z.object({ headline: z.string().min(1), image_prompt: z.string().default(''), use_video_frame: z.boolean().default(false) })).min(1).max(5),
+  concepts: z
+    .array(
+      z.object({
+        headline: z.string().min(1),
+        image_prompt: z.string().default(''),
+        use_video_frame: z.boolean().default(false),
+      }),
+    )
+    .min(1)
+    .max(5),
 })
 
-const CHECK_PROMPT = 'Rate this thumbnail from 0 to 10 for: text readable at a tiny size, one clear subject, strong contrast, friendly and honest. Answer with one line: SCORE: <number>.'
+const CHECK_PROMPT =
+  'Rate this thumbnail from 0 to 10 for: text readable at a tiny size, one clear subject, strong contrast, friendly and honest. Answer with one line: SCORE: <number>.'
 
 export interface ThumbDeps {
   db: Db
@@ -168,23 +203,70 @@ export class Thumbnailer {
       if (cfg.thumbnailEngine.generateImages && !c.use_video_frame && c.image_prompt) {
         const dollars = cfg.prices.image
         this.d.spend.check({ brandId: ep.brandId, episodeId, vendor: 'xai', dollars, mock })
-        const r = await this.d.image().generate({ model: cfg.modelIds.image, prompt: c.image_prompt, aspectRatio: isLong ? '16:9' : '9:16' }, bg)
-        this.d.spend.record({ brandId: ep.brandId, episodeId, vendor: 'xai', model: cfg.modelIds.image, units: 1, unitKind: 'images', unitPrice: dollars, dollars, requestId: r.requestId, purpose: 'thumbnail', mock })
+        const r = await this.d
+          .image()
+          .generate(
+            {
+              model: cfg.modelIds.image,
+              prompt: c.image_prompt,
+              aspectRatio: isLong ? '16:9' : '9:16',
+            },
+            bg,
+          )
+        this.d.spend.record({
+          brandId: ep.brandId,
+          episodeId,
+          vendor: 'xai',
+          model: cfg.modelIds.image,
+          units: 1,
+          unitKind: 'images',
+          unitPrice: dollars,
+          dollars,
+          requestId: r.requestId,
+          purpose: 'thumbnail',
+          mock,
+        })
         background = 'generated'
       } else {
         await extractFrame(videoPath, info.durationSeconds * (0.25 + 0.25 * i), bg)
       }
       const out = join(dir, `${ids[i]}.jpg`)
-      const { textDrawn } = await composeThumbnail({ background: bg, out, width: size.width, height: size.height, headline: c.headline, font, centerSafe: !isLong })
+      const { textDrawn } = await composeThumbnail({
+        background: bg,
+        out,
+        width: size.width,
+        height: size.height,
+        headline: c.headline,
+        font,
+        centerSafe: !isLong,
+      })
       if (isLong) await fitJpeg(out, 1.9 * 1024 * 1024)
-      candidates.push({ id: ids[i], file: out, headline: c.headline, score: 0, notes: [], textDrawn, background })
+      candidates.push({
+        id: ids[i],
+        file: out,
+        headline: c.headline,
+        score: 0,
+        notes: [],
+        textDrawn,
+        background,
+      })
     }
 
     // 3. score every candidate against the guidelines, then pick
     for (const c of candidates) await this.score(c, episodeId, ep.brandId, isLong)
     candidates.sort((a, b) => b.score - a.score)
     const winner = candidates[0]
-    this.d.audit.write({ agent: 'Thumbnail', action: 'chosen', brandId: ep.brandId, episodeId, detail: { winner: winner.id, scores: candidates.map((c) => [c.id, Number(c.score.toFixed(2))]), guidelinesVersion: guide.id } })
+    this.d.audit.write({
+      agent: 'Thumbnail',
+      action: 'chosen',
+      brandId: ep.brandId,
+      episodeId,
+      detail: {
+        winner: winner.id,
+        scores: candidates.map((c) => [c.id, Number(c.score.toFixed(2))]),
+        guidelinesVersion: guide.id,
+      },
+    })
 
     // 4. outputs for each platform
     const preview = join(expandHome(cfg.libraryDir), 'previews', `${episodeId}.jpg`)
@@ -203,11 +285,33 @@ export class Thumbnailer {
     }
     this.d.episodes.setFields(episodeId, { thumbPath: winner.file, previewPath: preview })
     const saved = this.d.episodes.getPackage(episodeId)
-    if (saved) this.d.episodes.savePackage(episodeId, { ...saved, extra: { ...(saved.extra ?? {}), thumbnails: { guidelinesVersion: guide.id, winner: winner.id, candidates: candidates.map((c) => ({ id: c.id, headline: c.headline, score: c.score, file: c.file })), bestFrameMs: bf } } })
+    if (saved)
+      this.d.episodes.savePackage(episodeId, {
+        ...saved,
+        extra: {
+          ...(saved.extra ?? {}),
+          thumbnails: {
+            guidelinesVersion: guide.id,
+            winner: winner.id,
+            candidates: candidates.map((c) => ({
+              id: c.id,
+              headline: c.headline,
+              score: c.score,
+              file: c.file,
+            })),
+            bestFrameMs: bf,
+          },
+        },
+      })
     return set
   }
 
-  private async score(c: Candidate, episodeId: string, brandId: number, isLong: boolean): Promise<void> {
+  private async score(
+    c: Candidate,
+    episodeId: string,
+    brandId: number,
+    isLong: boolean,
+  ): Promise<void> {
     const g = await grayStats(c.file)
     let code = 0
     const notes: string[] = []
@@ -235,10 +339,19 @@ export class Thumbnailer {
       const small = `${c.file}.small.jpg`
       await scaleImage(c.file, small, 160)
       const fs = await import('fs')
-      const r = await this.d.localAi.describeFrames(CHECK_PROMPT, [fs.readFileSync(small).toString('base64')], { brandId, episodeId })
+      const r = await this.d.localAi.describeFrames(
+        CHECK_PROMPT,
+        [fs.readFileSync(small).toString('base64')],
+        { brandId, episodeId },
+      )
       const m = /score:\s*(\d+(?:\.\d+)?)/i.exec(r.text)
       if (m) vision = Math.min(1, Number(m[1]) / 10)
-      else notes.push(r.via === 'ffmpeg-only' ? 'Small size vision check skipped (no vision model reachable).' : 'Vision check gave no score.')
+      else
+        notes.push(
+          r.via === 'ffmpeg-only'
+            ? 'Small size vision check skipped (no vision model reachable).'
+            : 'Vision check gave no score.',
+        )
       fs.rmSync(small, { force: true })
     }
     c.score = 0.6 * code + 0.4 * (vision ?? code)

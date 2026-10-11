@@ -119,7 +119,8 @@ export class InstagramAdapter implements PlatformAdapter {
             caption: ctx.caption,
             share_to_feed: brand.instagramShareToFeed,
             thumb_offset: thumb,
-            cover_url: typeof ctx.settings.coverUrl === 'string' ? ctx.settings.coverUrl : undefined,
+            cover_url:
+              typeof ctx.settings.coverUrl === 'string' ? ctx.settings.coverUrl : undefined,
             is_ai_generated: ctx.aiFlag ? true : undefined,
           },
           token,

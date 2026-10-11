@@ -13,7 +13,11 @@ import { join } from 'path'
 /** What the Inbox watcher calls when a sidecar names an episode. Without episode_id none of this runs. */
 export interface IngestHooks {
   /** Runs before the post is created. Returns sidecar fields to fill in (title, caption). Throws a plain Error to refuse. */
-  before(episodeId: string, videoPath: string, sidecar: Record<string, unknown>): Promise<Record<string, unknown>>
+  before(
+    episodeId: string,
+    videoPath: string,
+    sidecar: Record<string, unknown>,
+  ): Promise<Record<string, unknown>>
   /** Runs after the post exists. Attaches it to the episode and schedules it. */
   after(episodeId: string, postId: number, sidecar: Record<string, unknown>): Promise<void>
 }
@@ -46,19 +50,38 @@ export function makeIngestHooks(d: IngestDeps): IngestHooks {
       const brand = d.cfg.getBrand(ep.brandId)
       try {
         const info = await probe(videoPath)
-        if (!info.durationSeconds || info.durationSeconds < 1) throw new Error('The video does not play (no duration).')
+        if (!info.durationSeconds || info.durationSeconds < 1)
+          throw new Error('The video does not play (no duration).')
         const ratio = info.width / (info.height || 1)
         const want = RATIO[brand.format]
         if (Math.abs(ratio - want) / want > 0.03)
-          throw new Error(`The video is ${info.width}x${info.height}. This brand needs ${brand.format === 'long' ? '16:9' : '9:16'}.`)
+          throw new Error(
+            `The video is ${info.width}x${info.height}. This brand needs ${brand.format === 'long' ? '16:9' : '9:16'}.`,
+          )
         if (!info.hasAudio) throw new Error('The video has no audio track.')
         const target = pkg?.runtime_target_seconds ?? 0
-        if (target > 0 && (info.durationSeconds < target * 0.6 || info.durationSeconds > target * 1.4))
-          throw new Error(`The video is ${Math.round(info.durationSeconds)} seconds long. About ${target} was expected.`)
-        const light = await d.qc?.check({ path: videoPath, episodeId, brandId: ep.brandId, expectSeconds: info.durationSeconds, aspect: brand.format === 'long' ? '16:9' : '9:16', scriptedLines: [], scene: '', mode: 'light' })
+        if (
+          target > 0 &&
+          (info.durationSeconds < target * 0.6 || info.durationSeconds > target * 1.4)
+        )
+          throw new Error(
+            `The video is ${Math.round(info.durationSeconds)} seconds long. About ${target} was expected.`,
+          )
+        const light = await d.qc?.check({
+          path: videoPath,
+          episodeId,
+          brandId: ep.brandId,
+          expectSeconds: info.durationSeconds,
+          aspect: brand.format === 'long' ? '16:9' : '9:16',
+          scriptedLines: [],
+          scene: '',
+          mode: 'light',
+        })
         if (light && !light.pass) throw new Error(light.reasons[0])
       } catch (e) {
-        d.episodes.setStatus(episodeId, 'Flagged', 'Video check failed.', { flaggedReason: (e as Error).message })
+        d.episodes.setStatus(episodeId, 'Flagged', 'Video check failed.', {
+          flaggedReason: (e as Error).message,
+        })
         throw e
       }
       // Optional: put the shared opening and outro around a video that arrives without them (off for Wonder Hollow by default).
@@ -71,7 +94,18 @@ export function makeIngestHooks(d: IngestDeps): IngestHooks {
           copyFileSync(videoPath, join(work, 'received-original.mp4')) // the video as it arrived is kept
           const info = await probe(videoPath)
           const out = join(work, 'with-opening-outro.mp4')
-          await assemble({ segments: [...(opening ? [{ path: opening.path }] : []), { path: videoPath }, ...(outro ? [{ path: outro.path }] : [])], out, width: info.width, height: info.height, crossfade: 0, lufs: brand.format === 'short' ? -14 : -16 })
+          await assemble({
+            segments: [
+              ...(opening ? [{ path: opening.path }] : []),
+              { path: videoPath },
+              ...(outro ? [{ path: outro.path }] : []),
+            ],
+            out,
+            width: info.width,
+            height: info.height,
+            crossfade: 0,
+            lufs: brand.format === 'short' ? -14 : -16,
+          })
           renameSync(out, videoPath)
         }
       }
@@ -81,7 +115,9 @@ export function makeIngestHooks(d: IngestDeps): IngestHooks {
       if (sidecar.caption === undefined && description) fill.caption = description
       if (sidecar.platforms === undefined) {
         // Only the four platforms the scheduler posts to. Bluesky is handled by the Publisher.
-        const four = (['youtube', 'facebook', 'instagram', 'tiktok'] as const).filter((p) => brand.platforms[p])
+        const four = (['youtube', 'facebook', 'instagram', 'tiktok'] as const).filter(
+          (p) => brand.platforms[p],
+        )
         if (four.length) fill.platforms = four
       }
       if (sidecar.ai_flags === undefined && brand.aiDisclosure)
@@ -97,7 +133,10 @@ export function makeIngestHooks(d: IngestDeps): IngestHooks {
         try {
           await d.pipeline(episodeId, postId)
         } catch (e) {
-          d.episodes.setStatus(episodeId, 'Flagged', 'Publishing could not finish.', { flaggedReason: (e as Error).message, postId })
+          d.episodes.setStatus(episodeId, 'Flagged', 'Publishing could not finish.', {
+            flaggedReason: (e as Error).message,
+            postId,
+          })
         }
         return
       }
@@ -106,30 +145,43 @@ export function makeIngestHooks(d: IngestDeps): IngestHooks {
       if (post && when) {
         d.posts.update(postId, { scheduledAtUtc: when, status: 'scheduled' })
       }
-      d.episodes.setStatus(episodeId, 'Scheduled', when ? `Scheduled for ${when}.` : 'No open slot was found. The post is a draft.', {
-        postId,
-        scheduledAtUtc: when,
-        videoPath: post?.videoPath ?? null,
-      })
+      d.episodes.setStatus(
+        episodeId,
+        'Scheduled',
+        when ? `Scheduled for ${when}.` : 'No open slot was found. The post is a draft.',
+        {
+          postId,
+          scheduledAtUtc: when,
+          videoPath: post?.videoPath ?? null,
+        },
+      )
       d.episodes.setFields(episodeId, { slotDate: ep.slotDate })
     },
   }
 }
 
 /** The next posting date for a brand (its cadence), at the brand's first weekday slot time, not already taken. */
-export function nextOpenPostTime(d: Pick<IngestDeps, 'db' | 'cfg' | 'now'>, brandId: number): string | null {
+export function nextOpenPostTime(
+  d: Pick<IngestDeps, 'db' | 'cfg' | 'now'>,
+  brandId: number,
+): string | null {
   const nowMs = d.now ? d.now() : Date.now()
   const cfg = d.cfg.getBrand(brandId)
-  const slot = (
-    d.db
-      .prepare("SELECT time_local FROM brand_slots WHERE brand_id = ? AND enabled = 1 AND day_type = 'weekday' ORDER BY time_local LIMIT 1")
-      .get(brandId) as { time_local: string } | undefined
-  )?.time_local ?? '17:00'
+  const slot =
+    (
+      d.db
+        .prepare(
+          "SELECT time_local FROM brand_slots WHERE brand_id = ? AND enabled = 1 AND day_type = 'weekday' ORDER BY time_local LIMIT 1",
+        )
+        .get(brandId) as { time_local: string } | undefined
+    )?.time_local ?? '17:00'
   const today = todayEastern(nowMs)
   const taken = new Set(
     (
       d.db
-        .prepare("SELECT scheduled_at_utc AS t FROM posts WHERE brand_id = ? AND scheduled_at_utc IS NOT NULL AND status IN ('scheduled','in_progress','partial','posted')")
+        .prepare(
+          "SELECT scheduled_at_utc AS t FROM posts WHERE brand_id = ? AND scheduled_at_utc IS NOT NULL AND status IN ('scheduled','in_progress','partial','posted')",
+        )
         .all(brandId) as Array<{ t: string }>
     ).map((r) => easternDate(r.t)),
   )

@@ -35,7 +35,28 @@ async function normalize(seg: Segment, out: string, w: number, h: number): Promi
   const vf = `scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24,format=yuv420p`
   const args = ['-i', seg.path]
   if (!info.hasAudio) args.push('-f', 'lavfi', '-i', `anullsrc=r=44100:cl=stereo`)
-  args.push('-t', String(keep), '-vf', vf, '-map', '0:v:0', '-map', info.hasAudio ? '0:a:0' : '1:a:0', '-af', 'aresample=44100,aformat=channel_layouts=stereo', '-c:v', 'libx264', '-preset', 'veryfast', '-c:a', 'aac', '-ar', '44100', '-shortest', out)
+  args.push(
+    '-t',
+    String(keep),
+    '-vf',
+    vf,
+    '-map',
+    '0:v:0',
+    '-map',
+    info.hasAudio ? '0:a:0' : '1:a:0',
+    '-af',
+    'aresample=44100,aformat=channel_layouts=stereo',
+    '-c:v',
+    'libx264',
+    '-preset',
+    'veryfast',
+    '-c:a',
+    'aac',
+    '-ar',
+    '44100',
+    '-shortest',
+    out,
+  )
   await ffmpeg(args)
   return keep
 }
@@ -53,7 +74,8 @@ export async function assemble(i: AssembleInput): Promise<AssembleResult> {
       parts.push(p)
     }
     const joined = join(dir, 'joined.mp4')
-    const xf = i.crossfade > 0 && parts.length > 1 ? Math.min(i.crossfade, ...lens.map((l) => l / 3)) : 0
+    const xf =
+      i.crossfade > 0 && parts.length > 1 ? Math.min(i.crossfade, ...lens.map((l) => l / 3)) : 0
     if (xf > 0) {
       const inputs = parts.flatMap((p) => ['-i', p])
       let v = '[0:v]'
@@ -68,7 +90,24 @@ export async function assemble(i: AssembleInput): Promise<AssembleResult> {
         a = `[a${n}]`
         acc += lens[n] - xf
       }
-      await ffmpeg([...inputs, '-filter_complex', filters.join(';'), '-map', v, '-map', a, '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', joined])
+      await ffmpeg([
+        ...inputs,
+        '-filter_complex',
+        filters.join(';'),
+        '-map',
+        v,
+        '-map',
+        a,
+        '-c:v',
+        'libx264',
+        '-preset',
+        'veryfast',
+        '-pix_fmt',
+        'yuv420p',
+        '-c:a',
+        'aac',
+        joined,
+      ])
     } else {
       const list = join(dir, 'list.txt')
       writeFileSync(list, parts.map((p) => `file '${p.replaceAll("'", "'\\''")}'`).join('\n'))
@@ -78,11 +117,23 @@ export async function assemble(i: AssembleInput): Promise<AssembleResult> {
     let burned = false
     const vf: string[] = []
     if (i.burnSrt && (await hasFilter('subtitles'))) {
-      vf.push(`subtitles='${i.burnSrt.replaceAll('\\', '\\\\').replaceAll(':', '\\:').replaceAll("'", "\\'")}'`)
+      vf.push(
+        `subtitles='${i.burnSrt.replaceAll('\\', '\\\\').replaceAll(':', '\\:').replaceAll("'", "\\'")}'`,
+      )
       burned = true
     }
     const args = ['-i', joined, '-af', `loudnorm=I=${i.lufs}:TP=-1.5:LRA=11`]
-    if (vf.length) args.push('-vf', vf.join(','), '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p')
+    if (vf.length)
+      args.push(
+        '-vf',
+        vf.join(','),
+        '-c:v',
+        'libx264',
+        '-preset',
+        'veryfast',
+        '-pix_fmt',
+        'yuv420p',
+      )
     else args.push('-c:v', 'copy')
     args.push('-c:a', 'aac', '-ar', '44100', '-movflags', '+faststart', i.out)
     try {
@@ -91,7 +142,21 @@ export async function assemble(i: AssembleInput): Promise<AssembleResult> {
       if (!burned) throw e
       // Burning failed on this ffmpeg. Fall back to a clean video and a sidecar file.
       burned = false
-      await ffmpeg(['-i', joined, '-af', `loudnorm=I=${i.lufs}:TP=-1.5:LRA=11`, '-c:v', 'copy', '-c:a', 'aac', '-ar', '44100', '-movflags', '+faststart', i.out])
+      await ffmpeg([
+        '-i',
+        joined,
+        '-af',
+        `loudnorm=I=${i.lufs}:TP=-1.5:LRA=11`,
+        '-c:v',
+        'copy',
+        '-c:a',
+        'aac',
+        '-ar',
+        '44100',
+        '-movflags',
+        '+faststart',
+        i.out,
+      ])
     }
     const info = await probe(i.out)
     return { durationSeconds: info.durationSeconds, burned }

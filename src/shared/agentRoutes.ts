@@ -184,7 +184,8 @@ export const ROUTES: RouteDef[] = [
     id: 'getEpisode',
     method: 'GET',
     path: '/v1/episodes/{id}',
-    summary: 'One episode with its full package: scene prompts, dialogue, counted objects, title and description (read only).',
+    summary:
+      'One episode with its full package: scene prompts, dialogue, counted objects, title and description (read only).',
     params: EpisodeIdParams,
     response: EpisodeOut,
     success: 200,

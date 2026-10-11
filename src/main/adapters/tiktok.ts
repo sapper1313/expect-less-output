@@ -114,7 +114,10 @@ export class TikTokAdapter implements PlatformAdapter {
           brand_content_toggle: t.commercialOn && t.brandedContent,
           brand_organic_toggle: t.commercialOn && t.yourBrand,
           is_aigc: ctx.aiFlag,
-          video_cover_timestamp_ms: typeof ctx.settings.coverTimestampMs === 'number' ? ctx.settings.coverTimestampMs : undefined,
+          video_cover_timestamp_ms:
+            typeof ctx.settings.coverTimestampMs === 'number'
+              ? ctx.settings.coverTimestampMs
+              : undefined,
         }
       }
       const init = await this.withToken(a, (token) =>

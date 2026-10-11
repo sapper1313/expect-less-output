@@ -102,8 +102,19 @@ export class YoutubeClient implements YoutubeClientLike {
   }
 
   /** Top level comments on a video, newest first. commentThreads.list costs 1 quota unit. */
-  async listComments(accountId: number, videoId: string): Promise<Array<{ id: string; text: string; author: string; publishedAt: string }>> {
-    const res = await this.call(accountId, (yt) => yt.commentThreads.list({ part: ['snippet'], videoId, maxResults: 50, order: 'time', textFormat: 'plainText' }))
+  async listComments(
+    accountId: number,
+    videoId: string,
+  ): Promise<Array<{ id: string; text: string; author: string; publishedAt: string }>> {
+    const res = await this.call(accountId, (yt) =>
+      yt.commentThreads.list({
+        part: ['snippet'],
+        videoId,
+        maxResults: 50,
+        order: 'time',
+        textFormat: 'plainText',
+      }),
+    )
     this.quota.record('commentThreadsList')
     return (res.data.items ?? []).map((t) => ({
       id: t.snippet?.topLevelComment?.id ?? t.id ?? '',
@@ -115,14 +126,21 @@ export class YoutubeClient implements YoutubeClientLike {
 
   /** Replies to a comment. comments.insert costs 50 quota units. */
   async replyToComment(accountId: number, parentId: string, text: string): Promise<string> {
-    const res = await this.call(accountId, (yt) => yt.comments.insert({ part: ['snippet'], requestBody: { snippet: { parentId, textOriginal: text } } }))
+    const res = await this.call(accountId, (yt) =>
+      yt.comments.insert({
+        part: ['snippet'],
+        requestBody: { snippet: { parentId, textOriginal: text } },
+      }),
+    )
     this.quota.record('commentInsert')
     return res.data.id ?? ''
   }
 
   /** Rejects an obvious spam comment (it is hidden, not deleted). */
   async rejectComment(accountId: number, commentId: string): Promise<void> {
-    await this.call(accountId, (yt) => yt.comments.setModerationStatus({ id: [commentId], moderationStatus: 'rejected' }))
+    await this.call(accountId, (yt) =>
+      yt.comments.setModerationStatus({ id: [commentId], moderationStatus: 'rejected' }),
+    )
     this.quota.record('commentModerate')
   }
 
@@ -130,8 +148,14 @@ export class YoutubeClient implements YoutubeClientLike {
    * Changes the title, description or tags of a video that is already on YouTube. videos.update replaces the whole
    * snippet, so the current one is read first and only the given fields change. Costs 1 + 50 quota units.
    */
-  async updateVideo(accountId: number, videoId: string, patch: { title?: string; description?: string; tags?: string[] }): Promise<void> {
-    const cur = await this.call(accountId, (yt) => yt.videos.list({ part: ['snippet'], id: [videoId] }))
+  async updateVideo(
+    accountId: number,
+    videoId: string,
+    patch: { title?: string; description?: string; tags?: string[] },
+  ): Promise<void> {
+    const cur = await this.call(accountId, (yt) =>
+      yt.videos.list({ part: ['snippet'], id: [videoId] }),
+    )
     this.quota.record('videosList')
     const snippet = cur.data.items?.[0]?.snippet
     if (!snippet) throw new AdapterError('YouTube does not have that video any more.', 'permanent')
@@ -154,54 +178,155 @@ export class YoutubeClient implements YoutubeClientLike {
   }
 
   /** Top videos for a search. Costs 100 quota units, so it is used sparingly. */
-  async searchVideos(accountId: number, q: string, max = 10): Promise<Array<{ id: string; title: string; channel: string; publishedAt: string | null; views: number | null }>> {
-    const res = await this.call(accountId, (yt) => yt.search.list({ part: ['snippet'], q, type: ['video'], order: 'viewCount', maxResults: max }))
+  async searchVideos(
+    accountId: number,
+    q: string,
+    max = 10,
+  ): Promise<
+    Array<{
+      id: string
+      title: string
+      channel: string
+      publishedAt: string | null
+      views: number | null
+    }>
+  > {
+    const res = await this.call(accountId, (yt) =>
+      yt.search.list({
+        part: ['snippet'],
+        q,
+        type: ['video'],
+        order: 'viewCount',
+        maxResults: max,
+      }),
+    )
     this.quota.record('searchList')
     const items = (res.data.items ?? []).filter((i) => i.id?.videoId)
     const ids = items.map((i) => i.id!.videoId!)
     const stats = ids.length ? await this.videoStatistics(accountId, ids) : new Map()
-    return items.map((i) => ({ id: i.id!.videoId!, title: i.snippet?.title ?? '', channel: i.snippet?.channelTitle ?? '', publishedAt: i.snippet?.publishedAt ?? null, views: stats.get(i.id!.videoId!)?.views ?? null }))
+    return items.map((i) => ({
+      id: i.id!.videoId!,
+      title: i.snippet?.title ?? '',
+      channel: i.snippet?.channelTitle ?? '',
+      publishedAt: i.snippet?.publishedAt ?? null,
+      views: stats.get(i.id!.videoId!)?.views ?? null,
+    }))
   }
 
   /** A channel by its @handle or channel id: name, subscribers and its newest videos with views. */
-  async channelWithRecent(accountId: number, handleOrId: string, recent = 8): Promise<{ id: string; title: string; subscribers: number | null; videos: Array<{ id: string; title: string; publishedAt: string | null; views: number | null }> } | null> {
+  async channelWithRecent(
+    accountId: number,
+    handleOrId: string,
+    recent = 8,
+  ): Promise<{
+    id: string
+    title: string
+    subscribers: number | null
+    videos: Array<{ id: string; title: string; publishedAt: string | null; views: number | null }>
+  } | null> {
     const isId = /^UC[\w-]{20,}$/.test(handleOrId)
     const res = await this.call(accountId, (yt) =>
-      yt.channels.list(isId ? { part: ['snippet', 'statistics', 'contentDetails'], id: [handleOrId] } : { part: ['snippet', 'statistics', 'contentDetails'], forHandle: handleOrId.replace(/^@?/, '@') }),
+      yt.channels.list(
+        isId
+          ? { part: ['snippet', 'statistics', 'contentDetails'], id: [handleOrId] }
+          : {
+              part: ['snippet', 'statistics', 'contentDetails'],
+              forHandle: handleOrId.replace(/^@?/, '@'),
+            },
+      ),
     )
     this.quota.record('channelsList')
     const ch = res.data.items?.[0]
     if (!ch?.id) return null
     const uploads = ch.contentDetails?.relatedPlaylists?.uploads
-    let videos: Array<{ id: string; title: string; publishedAt: string | null; views: number | null }> = []
+    let videos: Array<{
+      id: string
+      title: string
+      publishedAt: string | null
+      views: number | null
+    }> = []
     if (uploads) {
-      const list = await this.call(accountId, (yt) => yt.playlistItems.list({ part: ['snippet', 'contentDetails'], playlistId: uploads, maxResults: recent }))
+      const list = await this.call(accountId, (yt) =>
+        yt.playlistItems.list({
+          part: ['snippet', 'contentDetails'],
+          playlistId: uploads,
+          maxResults: recent,
+        }),
+      )
       this.quota.record('playlistItemsList')
-      const ids = (list.data.items ?? []).map((i) => i.contentDetails?.videoId).filter((x): x is string => !!x)
+      const ids = (list.data.items ?? [])
+        .map((i) => i.contentDetails?.videoId)
+        .filter((x): x is string => !!x)
       const stats = ids.length ? await this.videoStatistics(accountId, ids) : new Map()
-      videos = (list.data.items ?? []).flatMap((i) => (i.contentDetails?.videoId ? [{ id: i.contentDetails.videoId, title: i.snippet?.title ?? '', publishedAt: i.contentDetails.videoPublishedAt ?? null, views: stats.get(i.contentDetails.videoId)?.views ?? null }] : []))
+      videos = (list.data.items ?? []).flatMap((i) =>
+        i.contentDetails?.videoId
+          ? [
+              {
+                id: i.contentDetails.videoId,
+                title: i.snippet?.title ?? '',
+                publishedAt: i.contentDetails.videoPublishedAt ?? null,
+                views: stats.get(i.contentDetails.videoId)?.views ?? null,
+              },
+            ]
+          : [],
+      )
     }
-    const subs = ch.statistics?.hiddenSubscriberCount ? null : ch.statistics?.subscriberCount ? Number(ch.statistics.subscriberCount) : null
+    const subs = ch.statistics?.hiddenSubscriberCount
+      ? null
+      : ch.statistics?.subscriberCount
+        ? Number(ch.statistics.subscriberCount)
+        : null
     return { id: ch.id, title: ch.snippet?.title ?? '', subscribers: subs, videos }
   }
 
   /** Adds a caption track to a video. Costs 400 quota units per language. */
-  async uploadCaption(accountId: number, videoId: string, lang: string, name: string, srt: string): Promise<void> {
-    await this.call(accountId, (yt) => yt.captions.insert({ part: ['snippet'], requestBody: { snippet: { videoId, language: lang, name, isDraft: false } }, media: { mimeType: 'application/octet-stream', body: Readable.from([srt]) } }))
+  async uploadCaption(
+    accountId: number,
+    videoId: string,
+    lang: string,
+    name: string,
+    srt: string,
+  ): Promise<void> {
+    await this.call(accountId, (yt) =>
+      yt.captions.insert({
+        part: ['snippet'],
+        requestBody: { snippet: { videoId, language: lang, name, isDraft: false } },
+        media: { mimeType: 'application/octet-stream', body: Readable.from([srt]) },
+      }),
+    )
     this.quota.record('captionInsert')
   }
 
   /** The most popular videos right now in a category. Costs 1 quota unit. */
-  async trending(accountId: number, categoryId: string, max = 12): Promise<Array<{ id: string; title: string; channel: string; views: number | null }>> {
-    const res = await this.call(accountId, (yt) => yt.videos.list({ part: ['snippet', 'statistics'], chart: 'mostPopular', videoCategoryId: categoryId || undefined, regionCode: 'US', maxResults: max }))
+  async trending(
+    accountId: number,
+    categoryId: string,
+    max = 12,
+  ): Promise<Array<{ id: string; title: string; channel: string; views: number | null }>> {
+    const res = await this.call(accountId, (yt) =>
+      yt.videos.list({
+        part: ['snippet', 'statistics'],
+        chart: 'mostPopular',
+        videoCategoryId: categoryId || undefined,
+        regionCode: 'US',
+        maxResults: max,
+      }),
+    )
     this.quota.record('videosList')
-    return (res.data.items ?? []).map((v) => ({ id: v.id ?? '', title: v.snippet?.title ?? '', channel: v.snippet?.channelTitle ?? '', views: v.statistics?.viewCount ? Number(v.statistics.viewCount) : null }))
+    return (res.data.items ?? []).map((v) => ({
+      id: v.id ?? '',
+      title: v.snippet?.title ?? '',
+      channel: v.snippet?.channelTitle ?? '',
+      views: v.statistics?.viewCount ? Number(v.statistics.viewCount) : null,
+    }))
   }
 
   /** thumbnails.set costs 50 quota units. The channel must be verified; otherwise YouTube answers 403. */
   async setThumbnail(accountId: number, videoId: string, filePath: string): Promise<void> {
     const mime = filePath.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg'
-    await this.call(accountId, (yt) => yt.thumbnails.set({ videoId, media: { mimeType: mime, body: createReadStream(filePath) } }))
+    await this.call(accountId, (yt) =>
+      yt.thumbnails.set({ videoId, media: { mimeType: mime, body: createReadStream(filePath) } }),
+    )
     this.quota.record('thumbnailsSet')
   }
 

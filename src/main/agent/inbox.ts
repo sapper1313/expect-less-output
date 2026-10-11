@@ -171,7 +171,12 @@ export class InboxWatcher {
           delete obj.episode_id
           delete obj.description
           delete obj.thumbnail_url
-          if (!this.d.studio) throw new AgentError(400, 'bad_request', 'This build has no studio, so episode_id cannot be used.')
+          if (!this.d.studio)
+            throw new AgentError(
+              400,
+              'bad_request',
+              'This build has no studio, so episode_id cannot be used.',
+            )
           try {
             const fill = await this.d.studio.before(episodeId, full, side)
             for (const [k, v] of Object.entries(fill)) if (obj[k] === undefined) obj[k] = v
@@ -223,7 +228,11 @@ export class InboxWatcher {
     names: string[],
   ): Promise<boolean> {
     const stem = name.slice(0, name.length - extname(name).length)
-    if (names.some((n) => VIDEO.includes(extname(n).toLowerCase()) && n.slice(0, -extname(n).length) === stem))
+    if (
+      names.some(
+        (n) => VIDEO.includes(extname(n).toLowerCase()) && n.slice(0, -extname(n).length) === stem,
+      )
+    )
       return false
     let size: number
     try {
@@ -277,7 +286,9 @@ export class InboxWatcher {
     const from = u.origin
     const tmp = join(dest, '..', `.${basename(dest)}.download`)
     try {
-      const res = await (this.d.fetch ?? fetch)(url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) })
+      const res = await (this.d.fetch ?? fetch)(url, {
+        signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+      })
       if (!res.ok || !res.body) throw bad(`The server at ${from} answered ${res.status}.`)
       let got = 0
       const counter = new Transform({

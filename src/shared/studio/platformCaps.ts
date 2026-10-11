@@ -3,9 +3,11 @@
  * Where a number could not be confirmed it is marked in `notes` and the Publisher also checks live where an API
  * exists (Bluesky getUploadLimits, TikTok creator_info).
  */
-export type CapKey = 'youtube_long' | 'youtube_shorts' | 'instagram_reels' | 'facebook_reels' | 'tiktok' | 'bluesky'
+export type CapKey =
+  'youtube_long' | 'youtube_shorts' | 'instagram_reels' | 'facebook_reels' | 'tiktok' | 'bluesky'
 
-export type CoverSupport = 'custom_upload' | 'frame_select' | 'auto_frame' | 'cover_url_or_frame' | 'none'
+export type CoverSupport =
+  'custom_upload' | 'frame_select' | 'auto_frame' | 'cover_url_or_frame' | 'none'
 
 export interface PlatformCap {
   label: string
@@ -43,7 +45,8 @@ export const DEFAULT_PLATFORM_CAPS: Record<CapKey, PlatformCap> = {
     cover: 'custom_upload',
     thumbSize: { width: 1280, height: 720, maxMB: 2 },
     comments: true,
-    notes: 'thumbnails.set needs a verified channel. The API accepts up to 50 MB, the 2 MB guideline is YouTube Help.',
+    notes:
+      'thumbnails.set needs a verified channel. The API accepts up to 50 MB, the 2 MB guideline is YouTube Help.',
   },
   youtube_shorts: {
     label: 'YouTube Shorts',
@@ -59,7 +62,8 @@ export const DEFAULT_PLATFORM_CAPS: Record<CapKey, PlatformCap> = {
     cover: 'auto_frame',
     thumbSize: null,
     comments: true,
-    notes: 'Custom thumbnails are NOT supported through the API. YouTube picks a frame, so the opening frame is designed.',
+    notes:
+      'Custom thumbnails are NOT supported through the API. YouTube picks a frame, so the opening frame is designed.',
   },
   instagram_reels: {
     label: 'Instagram Reels',
@@ -75,7 +79,8 @@ export const DEFAULT_PLATFORM_CAPS: Record<CapKey, PlatformCap> = {
     cover: 'cover_url_or_frame',
     thumbSize: { width: 1080, height: 1920, maxMB: 8 },
     comments: true,
-    notes: 'cover_url needs a public address, else thumb_offset picks a frame. The profile grid shows a centered 1080x1080 square. API publishing limit: 100 per 24 hours (docs also say 50 for carousels).',
+    notes:
+      'cover_url needs a public address, else thumb_offset picks a frame. The profile grid shows a centered 1080x1080 square. API publishing limit: 100 per 24 hours (docs also say 50 for carousels).',
   },
   facebook_reels: {
     label: 'Facebook Reels',
@@ -107,7 +112,8 @@ export const DEFAULT_PLATFORM_CAPS: Record<CapKey, PlatformCap> = {
     cover: 'frame_select',
     thumbSize: null,
     comments: false,
-    notes: 'Cover is a frame only, video_cover_timestamp_ms, Direct Post only. The real maximum length comes from creator_info at post time. The Content Posting API has no comment endpoints.',
+    notes:
+      'Cover is a frame only, video_cover_timestamp_ms, Direct Post only. The real maximum length comes from creator_info at post time. The Content Posting API has no comment endpoints.',
   },
   bluesky: {
     label: 'Bluesky',
@@ -123,7 +129,8 @@ export const DEFAULT_PLATFORM_CAPS: Record<CapKey, PlatformCap> = {
     cover: 'none',
     thumbSize: null,
     comments: true,
-    notes: 'Limits were raised in 2026 (reported as 10 minutes and 300 MB). The Publisher reads app.bsky.video.getUploadLimits for the live daily allowance. Account email must be verified.',
+    notes:
+      'Limits were raised in 2026 (reported as 10 minutes and 300 MB). The Publisher reads app.bsky.video.getUploadLimits for the live daily allowance. Account email must be verified.',
   },
 }
 

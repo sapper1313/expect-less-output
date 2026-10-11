@@ -32,17 +32,25 @@ export interface ProducerDeps {
 }
 
 const Input = z.object({ episodeId: z.string() })
-const Output = z.object({ episodeId: z.string(), finalPath: z.string(), clips: z.number(), takes: z.number() })
+const Output = z.object({
+  episodeId: z.string(),
+  finalPath: z.string(),
+  clips: z.number(),
+  takes: z.number(),
+})
 const FixedPrompt = z.object({ prompt: z.string().min(5) })
 
-const dataUri = (path: string) => `data:image/${path.endsWith('.png') ? 'png' : 'jpeg'};base64,${readFileSync(path).toString('base64')}`
+const dataUri = (path: string) =>
+  `data:image/${path.endsWith('.png') ? 'png' : 'jpeg'};base64,${readFileSync(path).toString('base64')}`
 
 /**
  * The Producer makes the video for an episode through the Grok API. Every clip is a persisted job, so the task can be
  * stopped and resumed at any time without paying twice. It polls, downloads at once (results expire), asks Video QC,
  * retries a bad clip with a prompt the text agent fixed, then assembles with ffmpeg and hands the finished video to the Publisher.
  */
-export function makeProducerAgent(d: ProducerDeps): AgentDef<z.infer<typeof Input>, z.infer<typeof Output>> {
+export function makeProducerAgent(
+  d: ProducerDeps,
+): AgentDef<z.infer<typeof Input>, z.infer<typeof Output>> {
   return {
     name: 'Producer',
     taskType: 'produce_episode',
@@ -66,13 +74,26 @@ export function makeProducerAgent(d: ProducerDeps): AgentDef<z.infer<typeof Inpu
       const chain = brand.format === 'long' && brand.hollowViaApi
       const work = d.workDir(episodeId)
       mkdirSync(work, { recursive: true })
-      if (['Ready for production', 'Flagged'].includes(ep.status)) d.episodes.setStatus(episodeId, 'In production', 'The Producer started.')
+      if (['Ready for production', 'Flagged'].includes(ep.status))
+        d.episodes.setStatus(episodeId, 'In production', 'The Producer started.')
 
       for (const s of pkg.scenes)
-        d.jobs.plan({ episodeId, brandId: ep.brandId, clipN: s.n, take: 1, prompt: s.grok_prompt, model, resolution: brand.resolution, aspect, generateSeconds: s.generate_seconds, keepSeconds: s.content_seconds, purpose: 'first take' })
+        d.jobs.plan({
+          episodeId,
+          brandId: ep.brandId,
+          clipN: s.n,
+          take: 1,
+          prompt: s.grok_prompt,
+          model,
+          resolution: brand.resolution,
+          aspect,
+          generateSeconds: s.generate_seconds,
+          keepSeconds: s.content_seconds,
+          purpose: 'first take',
+        })
 
       const client = d.video()
-      const refs = chain ? [] : d.assets.list(ep.brandId, 'reference_image').slice(0, 14)
+      const refs = chain ? [] : d.assets.references(ep.brandId)
       const refCost = refs.length * cfg.prices.referenceImage
       const sceneOf = (n: number) => pkg.scenes.find((s) => s.n === n)
       const maxTakes = cfg.qcClipRetryCap + 1
@@ -82,7 +103,8 @@ export function makeProducerAgent(d: ProducerDeps): AgentDef<z.infer<typeof Inpu
         let waiting = false
         for (const job of d.jobs.latest(episodeId)) {
           if (['passed', 'approved', 'discarded'].includes(job.status)) continue
-          if (job.status === 'flagged') throw new FlagNow(job.error ?? `Clip ${job.clipN} needs a look.`)
+          if (job.status === 'flagged')
+            throw new FlagNow(job.error ?? `Clip ${job.clipN} needs a look.`)
           const prev = d.jobs.latest(episodeId).find((j) => j.clipN === job.clipN - 1)
           if (chain && prev && !['passed', 'approved'].includes(prev.status)) {
             waiting = true
@@ -99,7 +121,8 @@ export function makeProducerAgent(d: ProducerDeps): AgentDef<z.infer<typeof Inpu
             let imageUrl: string | undefined
             if (chain && prev?.filePath) {
               const frame = join(work, `frame-${prev.clipN}-take-${prev.take}.jpg`)
-              if (!existsSync(frame)) await extractFrame(prev.filePath, Math.max(0, prev.keepSeconds - 0.1), frame)
+              if (!existsSync(frame))
+                await extractFrame(prev.filePath, Math.max(0, prev.keepSeconds - 0.1), frame)
               imageUrl = dataUri(frame)
             }
             const { requestId } = await client.start({
@@ -108,7 +131,8 @@ export function makeProducerAgent(d: ProducerDeps): AgentDef<z.infer<typeof Inpu
               durationSeconds: job.generateSeconds,
               resolution: job.resolution as '480p',
               aspectRatio: job.aspect as '9:16',
-              referenceImageUrls: !imageUrl && refs.length ? refs.map((r) => dataUri(r.path)) : undefined,
+              referenceImageUrls:
+                !imageUrl && refs.length ? refs.map((r) => dataUri(r.path)) : undefined,
               imageUrl,
             })
             d.jobs.update(job.id, { status: 'started', requestId })
@@ -127,7 +151,12 @@ export function makeProducerAgent(d: ProducerDeps): AgentDef<z.infer<typeof Inpu
               purpose: job.purpose,
               mock,
             })
-            ctx.audit('clip_started', { clip: job.clipN, take: job.take, requestId, purpose: job.purpose })
+            ctx.audit('clip_started', {
+              clip: job.clipN,
+              take: job.take,
+              requestId,
+              purpose: job.purpose,
+            })
             progressed = true
             continue
           }
@@ -144,8 +173,14 @@ export function makeProducerAgent(d: ProducerDeps): AgentDef<z.infer<typeof Inpu
               d.jobs.update(job.id, { status: 'downloaded', filePath: file })
               ctx.audit('clip_downloaded', { clip: job.clipN, take: job.take })
             } else {
-              const why = st.status === 'failed' ? `The video model reported a failure: ${st.error}` : 'The video request expired before it could be downloaded.'
-              d.jobs.update(job.id, { status: st.status === 'failed' ? 'failed' : 'expired', error: why })
+              const why =
+                st.status === 'failed'
+                  ? `The video model reported a failure: ${st.error}`
+                  : 'The video request expired before it could be downloaded.'
+              d.jobs.update(job.id, {
+                status: st.status === 'failed' ? 'failed' : 'expired',
+                error: why,
+              })
               ctx.audit('clip_failed', { clip: job.clipN, take: job.take, why })
             }
             progressed = true
@@ -178,7 +213,9 @@ export function makeProducerAgent(d: ProducerDeps): AgentDef<z.infer<typeof Inpu
           if (job.status === 'failed' || job.status === 'expired') {
             if (job.take >= maxTakes) {
               d.jobs.update(job.id, { status: 'flagged' })
-              throw new FlagNow(`Clip ${job.clipN} failed after ${job.take} takes. Last problem: ${job.error ?? 'unknown'}`)
+              throw new FlagNow(
+                `Clip ${job.clipN} failed after ${job.take} takes. Last problem: ${job.error ?? 'unknown'}`,
+              )
             }
             let prompt = job.prompt
             if (job.qc) {
@@ -189,7 +226,8 @@ export function makeProducerAgent(d: ProducerDeps): AgentDef<z.infer<typeof Inpu
                     brandId: ep.brandId,
                     episodeId,
                     taskId: ctx.task.id,
-                    system: 'You fix prompts for an AI video model. Given a prompt and why the clip failed checks, write an improved prompt that fixes the problem. Keep the same scene. Answer only with JSON: {"prompt": "..."}.',
+                    system:
+                      'You fix prompts for an AI video model. Given a prompt and why the clip failed checks, write an improved prompt that fixes the problem. Keep the same scene. Answer only with JSON: {"prompt": "..."}.',
                     user: `${ctxLine({ task: 'fix_prompt', prompt: job.prompt })}\nPrompt: ${job.prompt}\nProblem: ${job.error}`,
                     maxTokens: 2500,
                   },
@@ -200,20 +238,34 @@ export function makeProducerAgent(d: ProducerDeps): AgentDef<z.infer<typeof Inpu
                 prompt = `${job.prompt} Steady, well lit and clearly visible, with clear sound.`
               }
             }
-            d.jobs.plan({ episodeId, brandId: ep.brandId, clipN: job.clipN, take: job.take + 1, prompt, model: job.model, resolution: job.resolution, aspect: job.aspect, generateSeconds: job.generateSeconds, keepSeconds: job.keepSeconds, purpose: 'retry' })
+            d.jobs.plan({
+              episodeId,
+              brandId: ep.brandId,
+              clipN: job.clipN,
+              take: job.take + 1,
+              prompt,
+              model: job.model,
+              resolution: job.resolution,
+              aspect: job.aspect,
+              generateSeconds: job.generateSeconds,
+              keepSeconds: job.keepSeconds,
+              purpose: 'retry',
+            })
             ctx.audit('clip_retry', { clip: job.clipN, take: job.take + 1, because: job.error })
             progressed = true
           }
         }
         if (!progressed) {
           if (waiting) break
-          if (d.jobs.latest(episodeId).every((j) => ['passed', 'approved'].includes(j.status))) break
+          if (d.jobs.latest(episodeId).every((j) => ['passed', 'approved'].includes(j.status)))
+            break
           break
         }
       }
 
       const latest = d.jobs.latest(episodeId)
-      if (!latest.every((j) => ['passed', 'approved'].includes(j.status))) throw new Waiting(ctx.now() + (mock ? 1000 : 15_000))
+      if (!latest.every((j) => ['passed', 'approved'].includes(j.status)))
+        throw new Waiting(ctx.now() + (mock ? 1000 : 15_000))
 
       // ---- assemble ----
       const useSlots = brand.useOpeningOutro || chain
@@ -223,14 +275,34 @@ export function makeProducerAgent(d: ProducerDeps): AgentDef<z.infer<typeof Inpu
       const finalPath = join(work, 'final.mp4')
       const srtPath = join(work, 'final.srt')
       const clips = latest.map((j) => ({ path: j.filePath as string, keepSeconds: j.keepSeconds }))
-      const plain = () => assemble({ segments: [...(opening ? [{ path: opening.path }] : []), ...clips, ...(outro ? [{ path: outro.path }] : [])], out: finalPath, width: first.width, height: first.height, crossfade: chain ? 0.4 : 0, lufs: brand.format === 'short' ? -14 : -16 })
+      const plain = () =>
+        assemble({
+          segments: [
+            ...(opening ? [{ path: opening.path }] : []),
+            ...clips,
+            ...(outro ? [{ path: outro.path }] : []),
+          ],
+          out: finalPath,
+          width: first.width,
+          height: first.height,
+          crossfade: chain ? 0.4 : 0,
+          lufs: brand.format === 'short' ? -14 : -16,
+        })
       const result = await plain()
-      ctx.audit('assembled', { seconds: result.durationSeconds, opening: !!opening, outro: !!outro })
+      ctx.audit('assembled', {
+        seconds: result.durationSeconds,
+        opening: !!opening,
+        outro: !!outro,
+      })
 
       // ---- captions ----
       let burned = false
       if (brand.captionMode !== 'off') {
-        let segs = segmentsFromScript(pkg.scenes.map((s) => ({ seconds: s.content_seconds, lines: s.dialogue.map((l) => l.line) })).filter((c) => c.lines.length))
+        let segs = segmentsFromScript(
+          pkg.scenes
+            .map((s) => ({ seconds: s.content_seconds, lines: s.dialogue.map((l) => l.line) }))
+            .filter((c) => c.lines.length),
+        )
         if (!d.qc.simulate && !cfg.mockMode) {
           try {
             const wav = join(work, 'final.wav')
@@ -243,16 +315,42 @@ export function makeProducerAgent(d: ProducerDeps): AgentDef<z.infer<typeof Inpu
         }
         writeFileSync(srtPath, buildSrt(segs))
         if (brand.captionMode === 'burn') {
-          const b = await assemble({ segments: [{ path: finalPath }], out: join(work, 'final-burned.mp4'), width: first.width, height: first.height, crossfade: 0, lufs: brand.format === 'short' ? -14 : -16, burnSrt: srtPath })
+          const b = await assemble({
+            segments: [{ path: finalPath }],
+            out: join(work, 'final-burned.mp4'),
+            width: first.width,
+            height: first.height,
+            crossfade: 0,
+            lufs: brand.format === 'short' ? -14 : -16,
+            burnSrt: srtPath,
+          })
           burned = b.burned
         }
       }
       const outFile = burned ? join(work, 'final-burned.mp4') : finalPath
       // Hand the finished video to the Publisher. It is its own task so a text or thumbnail problem never remakes the video.
-      d.episodes.setStatus(episodeId, 'Video received', 'The Producer finished the video.', { videoPath: outFile })
-      ctx.tasks.create({ type: 'publish_episode', brandId: ep.brandId, episodeId, payload: { episodeId, videoPath: outFile, srt: brand.captionMode === 'off' ? undefined : srtPath, mock }, dedupeKey: `publish:${episodeId}` })
+      d.episodes.setStatus(episodeId, 'Video received', 'The Producer finished the video.', {
+        videoPath: outFile,
+      })
+      ctx.tasks.create({
+        type: 'publish_episode',
+        brandId: ep.brandId,
+        episodeId,
+        payload: {
+          episodeId,
+          videoPath: outFile,
+          srt: brand.captionMode === 'off' ? undefined : srtPath,
+          mock,
+        },
+        dedupeKey: `publish:${episodeId}`,
+      })
       ctx.audit('handed_to_publisher', { takes: d.jobs.all(episodeId).length })
-      return { episodeId, finalPath: outFile, clips: latest.length, takes: d.jobs.all(episodeId).length }
+      return {
+        episodeId,
+        finalPath: outFile,
+        clips: latest.length,
+        takes: d.jobs.all(episodeId).length,
+      }
     },
   }
 }

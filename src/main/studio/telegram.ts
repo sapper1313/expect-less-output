@@ -60,8 +60,13 @@ export class TelegramAssistant {
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(20_000),
     })
-    const j = (await res.json().catch(() => null)) as { ok?: boolean; result?: T; description?: string } | null
-    if (!res.ok || !j?.ok) throw new Error(`Telegram said no: ${j?.description ?? `HTTP ${res.status}`}`)
+    const j = (await res.json().catch(() => null)) as {
+      ok?: boolean
+      result?: T
+      description?: string
+    } | null
+    if (!res.ok || !j?.ok)
+      throw new Error(`Telegram said no: ${j?.description ?? `HTTP ${res.status}`}`)
     return j.result as T
   }
 
@@ -72,7 +77,12 @@ export class TelegramAssistant {
 
   status() {
     const s = this.d.load()
-    return { enabled: s.enabled, hasToken: !!this.d.token(), paired: s.chatIds.length, code: s.code }
+    return {
+      enabled: s.enabled,
+      hasToken: !!this.d.token(),
+      paired: s.chatIds.length,
+      code: s.code,
+    }
   }
 
   newCode(): string {
@@ -93,7 +103,10 @@ export class TelegramAssistant {
 
   start(): void {
     if (this.timer || !this.d.load().enabled) return
-    this.timer = setInterval(() => void this.pollOnce().catch((e) => this.d.log(`Telegram: ${(e as Error).message}`)), 4000)
+    this.timer = setInterval(
+      () => void this.pollOnce().catch((e) => this.d.log(`Telegram: ${(e as Error).message}`)),
+      4000,
+    )
   }
   stop(): void {
     if (this.timer) clearInterval(this.timer)
@@ -109,7 +122,11 @@ export class TelegramAssistant {
 
   private async send(chatId: number, text: string): Promise<void> {
     for (let i = 0; i < text.length || i === 0; i += 3800)
-      await this.api('sendMessage', { chat_id: chatId, text: text.slice(i, i + 3800), disable_web_page_preview: true })
+      await this.api('sendMessage', {
+        chat_id: chatId,
+        text: text.slice(i, i + 3800),
+        disable_web_page_preview: true,
+      })
   }
 
   async pollOnce(): Promise<number> {
@@ -117,11 +134,18 @@ export class TelegramAssistant {
     this.busy = true
     try {
       const s = this.d.load()
-      const updates = await this.api<Update[]>('getUpdates', { offset: s.offset, timeout: 0, allowed_updates: ['message'] })
+      const updates = await this.api<Update[]>('getUpdates', {
+        offset: s.offset,
+        timeout: 0,
+        allowed_updates: ['message'],
+      })
       for (const u of updates) {
         this.d.save({ ...this.d.load(), offset: u.update_id + 1 })
         const m = u.message
-        if (m?.text && m.chat.type === 'private') await this.handle(m.chat.id, m.text.trim()).catch((e) => this.d.log(`Telegram reply failed: ${(e as Error).message}`))
+        if (m?.text && m.chat.type === 'private')
+          await this.handle(m.chat.id, m.text.trim()).catch((e) =>
+            this.d.log(`Telegram reply failed: ${(e as Error).message}`),
+          )
       }
       return updates.length
     } finally {
@@ -140,7 +164,10 @@ export class TelegramAssistant {
       const last = this.warned.get(chatId) ?? 0
       if (this.now() - last > 10 * 60_000) {
         this.warned.set(chatId, this.now())
-        await this.send(chatId, 'I only talk to my owner. In the app open Settings, Alerts and backup, press Show pairing code, then send me that number.')
+        await this.send(
+          chatId,
+          'I only talk to my owner. In the app open Settings, Alerts and backup, press Show pairing code, then send me that number.',
+        )
       }
       return
     }
@@ -149,22 +176,39 @@ export class TelegramAssistant {
     if (pend && (lower === 'yes' || lower === 'y')) {
       this.pending.delete(chatId)
       await this.d.setPaused(pend === 'pause')
-      await this.send(chatId, pend === 'pause' ? 'Done. The whole studio is paused.' : 'Done. The studio is running again.')
+      await this.send(
+        chatId,
+        pend === 'pause'
+          ? 'Done. The whole studio is paused.'
+          : 'Done. The studio is running again.',
+      )
       return
     }
     this.pending.delete(chatId)
     if (lower === '/start' || lower === '/help')
-      return this.send(chatId, 'Ask me things like "how is the last post doing?" or "how much have I spent?". Quick commands: /status, /latest, /spend, /flags, /pause, /resume.')
+      return this.send(
+        chatId,
+        'Ask me things like "how is the last post doing?" or "how much have I spent?". Quick commands: /status, /latest, /spend, /flags, /pause, /resume.',
+      )
     if (lower === '/pause' || lower === '/resume') {
       this.pending.set(chatId, lower === '/pause' ? 'pause' : 'resume')
-      return this.send(chatId, `Reply YES to ${lower === '/pause' ? 'pause everything' : 'resume everything'}. Anything else cancels.`)
+      return this.send(
+        chatId,
+        `Reply YES to ${lower === '/pause' ? 'pause everything' : 'resume everything'}. Anything else cancels.`,
+      )
     }
     const snap = await this.d.snapshot()
     if (lower === '/status') return this.send(chatId, snap.status)
     if (lower === '/latest') return this.send(chatId, snap.latest)
     if (lower === '/spend' || lower === '/flags') {
       const key = lower === '/spend' ? /^Spend/ : /^Needs|^Nothing needs/
-      return this.send(chatId, snap.text.split('\n').filter((l) => key.test(l)).join('\n') || 'No information.')
+      return this.send(
+        chatId,
+        snap.text
+          .split('\n')
+          .filter((l) => key.test(l))
+          .join('\n') || 'No information.',
+      )
     }
     const answer = await this.d.ask(`${SYSTEM}\n\nFacts:\n${snap.text}`, text.slice(0, 600))
     await this.send(chatId, answer.trim() || 'I did not get an answer. Try again in a moment.')

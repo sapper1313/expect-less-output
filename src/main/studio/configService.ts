@@ -24,10 +24,18 @@ const KEY = 'studio.config'
 export const HOLLOW_NAME = 'Wonder Hollow Workshop'
 
 /** Brand name prefixes that get studio defaults on first run. After that everything is by id. */
-const SEED_FORMATS: Array<{ prefix: string; format: BrandFormat; patch?: Partial<StudioBrandConfig> }> = [
+const SEED_FORMATS: Array<{
+  prefix: string
+  format: BrandFormat
+  patch?: Partial<StudioBrandConfig>
+}> = [
   { prefix: 'wonder hollow', format: 'long' },
   { prefix: 'the math of it', format: 'short', patch: { mathCheck: true } },
-  { prefix: 'teach your parents tech', format: 'short', patch: { mathCheck: true, stepsCheck: true } },
+  {
+    prefix: 'teach your parents tech',
+    format: 'short',
+    patch: { mathCheck: true, stepsCheck: true },
+  },
 ]
 
 export function expandHome(p: string): string {
@@ -50,8 +58,7 @@ export class StudioConfigService {
   get(): StudioConfig {
     if (this.cache) return this.cache
     const row = this.db.prepare('SELECT value_json FROM settings WHERE key = ?').get(KEY) as
-      | { value_json: string }
-      | undefined
+      { value_json: string } | undefined
     let stored: unknown = null
     if (row) {
       try {
@@ -116,17 +123,32 @@ export class StudioConfigService {
     for (const b of brands) {
       if (has.get(b.id)) {
         // A row from before the checker flags existed gets the seed choices for its brand once.
-        const row = this.db.prepare('SELECT config_json FROM studio_brands WHERE brand_id = ?').get(b.id) as { config_json: string }
+        const row = this.db
+          .prepare('SELECT config_json FROM studio_brands WHERE brand_id = ?')
+          .get(b.id) as { config_json: string }
         const stored = JSON.parse(row.config_json) as Partial<StudioBrandConfig>
         if (stored.mathCheck === undefined) {
           const sd = SEED_FORMATS.find((x) => b.name.toLowerCase().startsWith(x.prefix))
-          const patch = { mathCheck: false, stepsCheck: false, ...(stored.format === 'long' ? { mathCheck: true } : {}), ...(sd?.patch ?? {}) }
-          this.db.prepare('UPDATE studio_brands SET config_json = ? WHERE brand_id = ?').run(JSON.stringify({ ...stored, ...patch }), b.id)
+          const patch = {
+            mathCheck: false,
+            stepsCheck: false,
+            ...(stored.format === 'long' ? { mathCheck: true } : {}),
+            ...(sd?.patch ?? {}),
+          }
+          this.db
+            .prepare('UPDATE studio_brands SET config_json = ? WHERE brand_id = ?')
+            .run(JSON.stringify({ ...stored, ...patch }), b.id)
         }
         continue
       }
       const seed = SEED_FORMATS.find((s) => b.name.toLowerCase().startsWith(s.prefix))
-      ins.run(b.id, JSON.stringify({ ...defaultBrandConfig(seed?.format ?? 'short', today), ...(seed?.patch ?? {}) }))
+      ins.run(
+        b.id,
+        JSON.stringify({
+          ...defaultBrandConfig(seed?.format ?? 'short', today),
+          ...(seed?.patch ?? {}),
+        }),
+      )
     }
   }
 
@@ -141,7 +163,12 @@ export class StudioConfigService {
     return normalizeBrandConfig(JSON.parse(row.config_json), 'short', todayEastern(this.now()))
   }
 
-  listBrandConfigs(): Array<{ brandId: number; name: string; color: string; config: StudioBrandConfig }> {
+  listBrandConfigs(): Array<{
+    brandId: number
+    name: string
+    color: string
+    config: StudioBrandConfig
+  }> {
     this.ensureBrandRows()
     const rows = this.db
       .prepare('SELECT id, name, color FROM brands WHERE archived = 0 ORDER BY id')
@@ -163,7 +190,11 @@ export class StudioConfigService {
       platforms: { ...cur.platforms, ...(patch.platforms ?? {}) },
     }
     if (patch.everyN !== undefined && patch.everyN !== cur.everyN)
-      next = changeEveryN({ ...next, everyN: cur.everyN, startDate: cur.startDate }, patch.everyN, today)
+      next = changeEveryN(
+        { ...next, everyN: cur.everyN, startDate: cur.startDate },
+        patch.everyN,
+        today,
+      )
     if (!Number.isInteger(next.everyN) || next.everyN < 1)
       throw new Error('Every N days needs a whole number of 1 or more.')
     if (!(next.runwayDays >= 0)) throw new Error('Runway days cannot be negative.')

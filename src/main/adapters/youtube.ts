@@ -126,13 +126,22 @@ export class YoutubeAdapter implements PlatformAdapter {
       }
     }
     const thumb = ctx.settings.thumbnailPath
-    if (!ctx.getState().thumbDone && typeof thumb === 'string' && thumb && this.d.client.setThumbnail) {
+    if (
+      !ctx.getState().thumbDone &&
+      typeof thumb === 'string' &&
+      thumb &&
+      this.d.client.setThumbnail
+    ) {
       try {
         await this.d.client.setThumbnail(ctx.account!.id, id, thumb)
         this.d.log('info', 'Custom thumbnail set on YouTube.', ctx)
       } catch (err) {
         // The video is up. A thumbnail problem (for example a channel that is not verified) must not cause a second upload.
-        this.d.log('warn', `Uploaded, but the custom thumbnail was not set: ${(err as Error).message}`, ctx)
+        this.d.log(
+          'warn',
+          `Uploaded, but the custom thumbnail was not set: ${(err as Error).message}`,
+          ctx,
+        )
       }
       ctx.setState({ thumbDone: true })
     }

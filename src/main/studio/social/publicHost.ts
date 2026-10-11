@@ -28,8 +28,12 @@ export interface SignInput {
 
 /** AWS Signature Version 4. Checked against the vector in the AWS documentation (see tests). */
 export function signV4(i: SignInput): { authorization: string; signedHeaders: string } {
-  const names = Object.keys(i.headers).map((h) => h.toLowerCase()).sort()
-  const lower = Object.fromEntries(Object.entries(i.headers).map(([k, v]) => [k.toLowerCase(), v.trim().replace(/\s+/g, ' ')]))
+  const names = Object.keys(i.headers)
+    .map((h) => h.toLowerCase())
+    .sort()
+  const lower = Object.fromEntries(
+    Object.entries(i.headers).map(([k, v]) => [k.toLowerCase(), v.trim().replace(/\s+/g, ' ')]),
+  )
   const canonicalHeaders = names.map((n) => `${n}:${lower[n]}\n`).join('')
   const signedHeaders = names.join(';')
   const q = Object.entries(i.query ?? {})
@@ -46,10 +50,17 @@ export function signV4(i: SignInput): { authorization: string; signedHeaders: st
   const kService = hmac(kRegion, i.service)
   const kSigning = hmac(kService, 'aws4_request')
   const signature = createHmac('sha256', kSigning).update(toSign).digest('hex')
-  return { authorization: `AWS4-HMAC-SHA256 Credential=${i.accessKey}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`, signedHeaders }
+  return {
+    authorization: `AWS4-HMAC-SHA256 Credential=${i.accessKey}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+    signedHeaders,
+  }
 }
 
-const amz = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+const amz = (ms: number) =>
+  new Date(ms)
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}/, '')
 
 /**
  * A temporary public home for files a platform must download (an Instagram cover). Uses any S3 compatible
@@ -65,14 +76,29 @@ export class PublicHost {
 
   configured(): boolean {
     const h = this.cfg.get().publicHost
-    return !!(h.endpoint && h.bucket && h.publicBase && this.secrets.has(R2_KEY_ID) && this.secrets.has(R2_SECRET))
+    return !!(
+      h.endpoint &&
+      h.bucket &&
+      h.publicBase &&
+      this.secrets.has(R2_KEY_ID) &&
+      this.secrets.has(R2_SECRET)
+    )
   }
 
-  private async send(method: 'PUT' | 'DELETE' | 'GET', key: string, body?: Buffer, contentType?: string): Promise<Response> {
+  private async send(
+    method: 'PUT' | 'DELETE' | 'GET',
+    key: string,
+    body?: Buffer,
+    contentType?: string,
+  ): Promise<Response> {
     const h = this.cfg.get().publicHost
     const url = new URL(h.endpoint)
     const path = `/${h.bucket}/${key.split('/').map(encodeURIComponent).join('/')}`
-    const headers: Record<string, string> = { host: url.host, 'x-amz-content-sha256': 'UNSIGNED-PAYLOAD', 'x-amz-date': amz(this.now()) }
+    const headers: Record<string, string> = {
+      host: url.host,
+      'x-amz-content-sha256': 'UNSIGNED-PAYLOAD',
+      'x-amz-date': amz(this.now()),
+    }
     const { authorization } = signV4({
       method,
       path,
@@ -86,7 +112,11 @@ export class PublicHost {
     })
     return this.fetchImpl(`${url.origin}${path}`, {
       method,
-      headers: { ...headers, authorization, ...(contentType ? { 'content-type': contentType } : {}) },
+      headers: {
+        ...headers,
+        authorization,
+        ...(contentType ? { 'content-type': contentType } : {}),
+      },
       body: body as unknown as BodyInit,
       signal: AbortSignal.timeout(10 * 60_000),
     })
@@ -94,11 +124,18 @@ export class PublicHost {
 
   /** Uploads a file and returns its public address. */
   async upload(file: string, key?: string): Promise<{ url: string; key: string }> {
-    if (!this.configured()) throw new Error('The public host is not set up. Add the Cloudflare R2 details in Settings, under the Studio tab.')
+    if (!this.configured())
+      throw new Error(
+        'The public host is not set up. Add the Cloudflare R2 details in Settings, under the Studio tab.',
+      )
     const k = key ?? `elo/${this.now()}-${basename(file)}`
     const size = statSync(file).size
     if (size > 1024 * 1024 * 1024) throw new Error('The file is bigger than 1 GB.')
-    const type = /\.png$/i.test(file) ? 'image/png' : /\.jpe?g$/i.test(file) ? 'image/jpeg' : 'video/mp4'
+    const type = /\.png$/i.test(file)
+      ? 'image/png'
+      : /\.jpe?g$/i.test(file)
+        ? 'image/jpeg'
+        : 'video/mp4'
     const res = await this.send('PUT', k, readFileSync(file), type)
     if (!res.ok) throw new Error(`The public host refused the upload (HTTP ${res.status}).`)
     const base = this.cfg.get().publicHost.publicBase.replace(/\/+$/, '')

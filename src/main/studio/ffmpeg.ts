@@ -20,7 +20,9 @@ export function ffmpegBin(): string {
 export function ffprobeBin(): string {
   if (process.platform === 'darwin' && process.arch === 'arm64') {
     try {
-      return unpacked(join(dirname(require.resolve('@ffprobe-installer/darwin-arm64/package.json')), 'ffprobe'))
+      return unpacked(
+        join(dirname(require.resolve('@ffprobe-installer/darwin-arm64/package.json')), 'ffprobe'),
+      )
     } catch {
       // fall through
     }
@@ -28,7 +30,10 @@ export function ffprobeBin(): string {
   return unpacked(ffprobeStatic.path)
 }
 
-export async function ffmpeg(args: string[], timeoutMs = 600_000): Promise<{ stdout: string; stderr: string }> {
+export async function ffmpeg(
+  args: string[],
+  timeoutMs = 600_000,
+): Promise<{ stdout: string; stderr: string }> {
   return run(ffmpegBin(), ['-hide_banner', '-loglevel', 'error', '-y', ...args], {
     timeout: timeoutMs,
     maxBuffer: 20 * 1024 * 1024,
@@ -81,12 +86,26 @@ export async function makePlaceholderVideo(o: {
   const audio =
     o.audio === false
       ? []
-      : ['-f', 'lavfi', '-i', `sine=frequency=330:duration=${o.seconds}`, '-c:a', 'aac', '-shortest']
+      : [
+          '-f',
+          'lavfi',
+          '-i',
+          `sine=frequency=330:duration=${o.seconds}`,
+          '-c:a',
+          'aac',
+          '-shortest',
+        ]
   const tail = ['-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-t', String(o.seconds), o.out]
   if (o.text && !o.black) {
     const safe = o.text.replace(/[^A-Za-z0-9 .,:_-]/g, '').slice(0, 60)
     try {
-      await ffmpeg([...base, ...audio, '-vf', `drawtext=text='${safe}':fontcolor=white:fontsize=${Math.round(o.height / 24)}:x=(w-text_w)/2:y=(h-text_h)/2`, ...tail])
+      await ffmpeg([
+        ...base,
+        ...audio,
+        '-vf',
+        `drawtext=text='${safe}':fontcolor=white:fontsize=${Math.round(o.height / 24)}:x=(w-text_w)/2:y=(h-text_h)/2`,
+        ...tail,
+      ])
       return
     } catch {
       // This ffmpeg has no drawtext. Fall back to a plain clip.
@@ -96,9 +115,22 @@ export async function makePlaceholderVideo(o: {
 }
 
 /** A solid colour JPEG, used for mock thumbnails. */
-export async function makePlaceholderImage(out: string, width: number, height: number, color = '0xD9734E'): Promise<void> {
+export async function makePlaceholderImage(
+  out: string,
+  width: number,
+  height: number,
+  color = '0xD9734E',
+): Promise<void> {
   mkdirSync(dirname(out), { recursive: true })
-  await ffmpeg(['-f', 'lavfi', '-i', `color=c=${color}:s=${width}x${height}`, '-frames:v', '1', out])
+  await ffmpeg([
+    '-f',
+    'lavfi',
+    '-i',
+    `color=c=${color}:s=${width}x${height}`,
+    '-frames:v',
+    '1',
+    out,
+  ])
 }
 
 /** Scales an image so its width is `width`. Used for the 320 pixel library preview. */
@@ -108,16 +140,36 @@ export async function scaleImage(input: string, out: string, width: number): Pro
 }
 
 /** One frame from a video at `seconds`, as a JPEG. */
-export async function extractFrame(video: string, seconds: number, out: string, width?: number): Promise<void> {
+export async function extractFrame(
+  video: string,
+  seconds: number,
+  out: string,
+  width?: number,
+): Promise<void> {
   mkdirSync(dirname(out), { recursive: true })
   const vf = width ? ['-vf', `scale=${width}:-2`] : []
-  await ffmpeg(['-ss', String(Math.max(0, seconds)), '-i', video, ...vf, '-frames:v', '1', '-q:v', '3', out])
+  await ffmpeg([
+    '-ss',
+    String(Math.max(0, seconds)),
+    '-i',
+    video,
+    ...vf,
+    '-frames:v',
+    '1',
+    '-q:v',
+    '3',
+    out,
+  ])
 }
 
 /** Runs ffmpeg and returns its log (stderr), for the detect filters that print their findings there. */
 async function ffmpegLog(args: string[]): Promise<string> {
   try {
-    const r = await run(ffmpegBin(), ['-hide_banner', '-nostats', '-loglevel', 'info', '-y', ...args], { timeout: 300_000, maxBuffer: 20 * 1024 * 1024 })
+    const r = await run(
+      ffmpegBin(),
+      ['-hide_banner', '-nostats', '-loglevel', 'info', '-y', ...args],
+      { timeout: 300_000, maxBuffer: 20 * 1024 * 1024 },
+    )
     return r.stderr
   } catch (e) {
     return String((e as { stderr?: string }).stderr ?? '')
@@ -128,19 +180,46 @@ const sum = (log: string, re: RegExp) => [...log.matchAll(re)].reduce((n, m) => 
 
 /** Seconds of black picture. */
 export async function blackSeconds(path: string): Promise<number> {
-  const log = await ffmpegLog(['-i', path, '-vf', 'blackdetect=d=0.2:pix_th=0.10', '-an', '-f', 'null', '-'])
+  const log = await ffmpegLog([
+    '-i',
+    path,
+    '-vf',
+    'blackdetect=d=0.2:pix_th=0.10',
+    '-an',
+    '-f',
+    'null',
+    '-',
+  ])
   return sum(log, /black_duration:([\d.]+)/g)
 }
 
 /** Seconds of frozen picture. */
 export async function frozenSeconds(path: string): Promise<number> {
-  const log = await ffmpegLog(['-i', path, '-vf', 'freezedetect=n=-55dB:d=1', '-an', '-f', 'null', '-'])
+  const log = await ffmpegLog([
+    '-i',
+    path,
+    '-vf',
+    'freezedetect=n=-55dB:d=1',
+    '-an',
+    '-f',
+    'null',
+    '-',
+  ])
   return sum(log, /freeze_duration:\s*([\d.]+)/g)
 }
 
 /** Seconds of silence (quieter than -35 dB for at least 1 second). */
 export async function silentSeconds(path: string): Promise<number> {
-  const log = await ffmpegLog(['-i', path, '-vn', '-af', 'silencedetect=noise=-35dB:d=1', '-f', 'null', '-'])
+  const log = await ffmpegLog([
+    '-i',
+    path,
+    '-vn',
+    '-af',
+    'silencedetect=noise=-35dB:d=1',
+    '-f',
+    'null',
+    '-',
+  ])
   return sum(log, /silence_duration:\s*([\d.]+)/g)
 }
 
@@ -157,7 +236,12 @@ export async function extractWav(video: string, out: string): Promise<void> {
 }
 
 /** Evenly spaced frames as JPEG files. Returns their paths. */
-export async function sampleFrames(video: string, count: number, dir: string, seconds: number): Promise<string[]> {
+export async function sampleFrames(
+  video: string,
+  count: number,
+  dir: string,
+  seconds: number,
+): Promise<string[]> {
   mkdirSync(dir, { recursive: true })
   const out: string[] = []
   for (let i = 0; i < count; i++) {
@@ -179,11 +263,32 @@ export async function hasFilter(name: string): Promise<boolean> {
 }
 
 /** Brightness mean and spread (contrast), and how busy the picture is, from a tiny grayscale copy. */
-export async function grayStats(file: string): Promise<{ mean: number; std: number; edges: number }> {
-  const { stdout } = await run(ffmpegBin(), ['-hide_banner', '-loglevel', 'error', '-i', file, '-frames:v', '1', '-vf', 'scale=64:36', '-f', 'rawvideo', '-pix_fmt', 'gray', '-'], {
-    encoding: 'buffer',
-    maxBuffer: 1024 * 1024,
-  })
+export async function grayStats(
+  file: string,
+): Promise<{ mean: number; std: number; edges: number }> {
+  const { stdout } = await run(
+    ffmpegBin(),
+    [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-i',
+      file,
+      '-frames:v',
+      '1',
+      '-vf',
+      'scale=64:36',
+      '-f',
+      'rawvideo',
+      '-pix_fmt',
+      'gray',
+      '-',
+    ],
+    {
+      encoding: 'buffer',
+      maxBuffer: 1024 * 1024,
+    },
+  )
   const px = stdout as unknown as Buffer
   const n = px.length || 1
   let sum = 0
@@ -200,7 +305,13 @@ export async function grayStats(file: string): Promise<{ mean: number; std: numb
 
 /** Fonts a thumbnail can use on this Mac. */
 export function findFont(preferred: string): string | null {
-  const list = [preferred, '/System/Library/Fonts/Supplemental/Impact.ttf', '/System/Library/Fonts/Supplemental/Arial Black.ttf', '/Library/Fonts/Arial Black.ttf', '/System/Library/Fonts/Supplemental/Arial Bold.ttf']
+  const list = [
+    preferred,
+    '/System/Library/Fonts/Supplemental/Impact.ttf',
+    '/System/Library/Fonts/Supplemental/Arial Black.ttf',
+    '/Library/Fonts/Arial Black.ttf',
+    '/System/Library/Fonts/Supplemental/Arial Bold.ttf',
+  ]
   return list.find((f) => f && existsSync(f)) ?? null
 }
 
@@ -259,9 +370,29 @@ export async function fitJpeg(file: string, maxBytes: number): Promise<void> {
 }
 
 /** A short video made of one image, used as the opening frame of a Short. */
-export async function stillVideo(image: string, seconds: number, width: number, height: number, out: string): Promise<void> {
+export async function stillVideo(
+  image: string,
+  seconds: number,
+  width: number,
+  height: number,
+  out: string,
+): Promise<void> {
   mkdirSync(dirname(out), { recursive: true })
-  await ffmpeg(['-loop', '1', '-i', image, '-t', String(seconds), '-vf', `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},fps=24,format=yuv420p`, '-c:v', 'libx264', '-preset', 'veryfast', out])
+  await ffmpeg([
+    '-loop',
+    '1',
+    '-i',
+    image,
+    '-t',
+    String(seconds),
+    '-vf',
+    `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},fps=24,format=yuv420p`,
+    '-c:v',
+    'libx264',
+    '-preset',
+    'veryfast',
+    out,
+  ])
 }
 
 /** The most striking moment of a video (contrast and detail), in milliseconds. Used for cover frames. */

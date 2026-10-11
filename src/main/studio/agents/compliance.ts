@@ -1,12 +1,20 @@
 import { z } from 'zod'
 import type { Db } from '../../db'
 import { lintValue } from '@shared/studio/lint'
-import { DEFAULT_PLATFORM_CAPS, capKeyFor, hashtagCount, limitProblem, type PlatformCap } from '@shared/studio/platformCaps'
+import {
+  DEFAULT_PLATFORM_CAPS,
+  capKeyFor,
+  hashtagCount,
+  limitProblem,
+  type PlatformCap,
+} from '@shared/studio/platformCaps'
 import type { StudioConfigService } from '../configService'
 import type { BibleService } from '../bible'
 
 export const PlatformTextsSchema = z.object({
-  youtube: z.object({ title: z.string(), description: z.string(), tags: z.array(z.string()).default([]) }).optional(),
+  youtube: z
+    .object({ title: z.string(), description: z.string(), tags: z.array(z.string()).default([]) })
+    .optional(),
   instagram: z.object({ caption: z.string() }).optional(),
   facebook: z.object({ caption: z.string() }).optional(),
   tiktok: z.object({ caption: z.string() }).optional(),
@@ -46,7 +54,9 @@ export interface ComplianceInput {
 }
 
 const mainText = (t: PlatformTexts, p: string): string | null => {
-  const v = (t as Record<string, { caption?: string; text?: string; description?: string } | undefined>)[p]
+  const v = (
+    t as Record<string, { caption?: string; text?: string; description?: string } | undefined>
+  )[p]
   return v ? (v.caption ?? v.text ?? v.description ?? null) : null
 }
 
@@ -65,7 +75,8 @@ const setText = (t: PlatformTexts, p: string, text: string) => {
  */
 export class Compliance {
   readonly name = 'Compliance'
-  readonly role = 'Applies AI disclosure and made for kids rules, checks platform limits and banned content, and lints the writing before anything is scheduled.'
+  readonly role =
+    'Applies AI disclosure and made for kids rules, checks platform limits and banned content, and lints the writing before anything is scheduled.'
 
   constructor(private d: { db: Db; cfg: StudioConfigService; bible: BibleService }) {}
 
@@ -86,16 +97,30 @@ export class Compliance {
     // made for kids: the YouTube designation must match the brand
     const kids = { required: brand.madeForKids, applied: false }
     if (brand.madeForKids) {
-      const r = this.d.db.prepare('UPDATE brand_defaults SET youtube_made_for_kids = 1, ai_flag_youtube = ? WHERE brand_id = ? AND youtube_made_for_kids = 0').run(brand.aiDisclosure ? 1 : 0, i.brandId)
+      const r = this.d.db
+        .prepare(
+          'UPDATE brand_defaults SET youtube_made_for_kids = 1, ai_flag_youtube = ? WHERE brand_id = ? AND youtube_made_for_kids = 0',
+        )
+        .run(brand.aiDisclosure ? 1 : 0, i.brandId)
       kids.applied = r.changes > 0
-      log.push(`Made for kids: ${kids.applied ? 'switched the YouTube designation on' : 'already on'}.`)
+      log.push(
+        `Made for kids: ${kids.applied ? 'switched the YouTube designation on' : 'already on'}.`,
+      )
     }
 
-    const phrases = [...this.d.cfg.get().roboticPhrases, ...this.d.bible.get(i.brandId).bible.bannedPhrases]
+    const phrases = [
+      ...this.d.cfg.get().roboticPhrases,
+      ...this.d.bible.get(i.brandId).bible.bannedPhrases,
+    ]
     for (const p of i.platforms) {
       const cap = this.cap(p, i.isShort)
       if (!cap) {
-        platforms[p] = { ok: false, skipped: true, reason: `No limits are known for ${p}.`, disclosure: 'none' }
+        platforms[p] = {
+          ok: false,
+          skipped: true,
+          reason: `No limits are known for ${p}.`,
+          disclosure: 'none',
+        }
         continue
       }
       // 1. does the video fit?
@@ -108,7 +133,8 @@ export class Compliance {
       // 2. disclosure
       let disclosure: PlatformVerdict['disclosure'] = 'none'
       if (brand.aiDisclosure) {
-        const api = p === 'youtube' || p === 'instagram' || (p === 'tiktok' && i.tiktokMode === 'direct')
+        const api =
+          p === 'youtube' || p === 'instagram' || (p === 'tiktok' && i.tiktokMode === 'direct')
         disclosure = api ? 'api' : 'text'
         if (!api) {
           const cur = mainText(texts, p)
@@ -126,7 +152,9 @@ export class Compliance {
       if (t !== null) {
         if (t.length > cap.textMax) {
           verdict.ok = false
-          violations.push(`${cap.label}: the text is ${t.length} characters. The limit is ${cap.textMax}. Shorten it.`)
+          violations.push(
+            `${cap.label}: the text is ${t.length} characters. The limit is ${cap.textMax}. Shorten it.`,
+          )
         }
         const tags = hashtagCount(t)
         if (cap.hashtagsMax !== null && tags > cap.hashtagsMax) {
@@ -138,7 +166,9 @@ export class Compliance {
       if (p === 'youtube' && yt) {
         if (cap.titleMax && yt.title.length > cap.titleMax) {
           verdict.ok = false
-          violations.push(`YouTube: the title is ${yt.title.length} characters. The limit is ${cap.titleMax}.`)
+          violations.push(
+            `YouTube: the title is ${yt.title.length} characters. The limit is ${cap.titleMax}.`,
+          )
         }
         if (/[<>]/.test(yt.title)) {
           verdict.ok = false

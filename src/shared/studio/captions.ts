@@ -44,7 +44,11 @@ export function buildCues(pkg: Pick<EpisodePackage, 'scenes'>, offset = 0): Cue[
     const slot = s.content_seconds / lines.length
     lines.forEach((text, j) => {
       const start = offset + starts[i] + j * slot
-      cues.push({ start, end: start + Math.min(slot - 0.1, Math.max(1.4, text.length * 0.07)), text })
+      cues.push({
+        start,
+        end: start + Math.min(slot - 0.1, Math.max(1.4, text.length * 0.07)),
+        text,
+      })
     })
   })
   return cues
@@ -60,11 +64,19 @@ const stamp = (sec: number) => {
 }
 
 export function toSrt(cues: Cue[]): string {
-  return cues.map((c, i) => `${i + 1}\n${stamp(c.start)} --> ${stamp(Math.max(c.end, c.start + 0.5))}\n${c.text}\n`).join('\n')
+  return cues
+    .map(
+      (c, i) =>
+        `${i + 1}\n${stamp(c.start)} --> ${stamp(Math.max(c.end, c.start + 0.5))}\n${c.text}\n`,
+    )
+    .join('\n')
 }
 
 /** Groups scenes into chapters of at least `minSeconds`. YouTube needs 3 or more, the first at 0:00, each 10 seconds or longer. */
-export function chapterGroups(pkg: Pick<EpisodePackage, 'scenes'>, minSeconds = 20): Array<{ start: number; scenes: number[] }> {
+export function chapterGroups(
+  pkg: Pick<EpisodePackage, 'scenes'>,
+  minSeconds = 20,
+): Array<{ start: number; scenes: number[] }> {
   const starts = sceneStarts(pkg)
   const total = pkg.scenes.reduce((n, s) => n + s.content_seconds, 0)
   if (total < 60) return []
@@ -74,7 +86,8 @@ export function chapterGroups(pkg: Pick<EpisodePackage, 'scenes'>, minSeconds = 
   pkg.scenes.forEach((_s, i) => {
     const last = groups[groups.length - 1]
     const lastLen = last ? starts[i] - last.start : 0
-    if (!last || lastLen >= Math.max(minSeconds, want)) groups.push({ start: starts[i], scenes: [i] })
+    if (!last || lastLen >= Math.max(minSeconds, want))
+      groups.push({ start: starts[i], scenes: [i] })
     else last.scenes.push(i)
   })
   // A short tail joins the chapter before it.
@@ -82,6 +95,8 @@ export function chapterGroups(pkg: Pick<EpisodePackage, 'scenes'>, minSeconds = 
   return groups.length >= 3 ? groups : []
 }
 
-export const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`
+export const mmss = (sec: number) =>
+  `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`
 
-export const chaptersText = (chapters: Chapter[]) => chapters.map((c) => `${mmss(c.start)} ${c.title}`).join('\n')
+export const chaptersText = (chapters: Chapter[]) =>
+  chapters.map((c) => `${mmss(c.start)} ${c.title}`).join('\n')

@@ -10,7 +10,8 @@ export interface WatchdogSettings {
   thresholdMinutes: number
 }
 
-const hhmm = (s: string) => (/^\d{1,2}:\d{2}$/.test(s) ? s.replace(':', '').padStart(4, '0') : '0700')
+const hhmm = (s: string) =>
+  /^\d{1,2}:\d{2}$/.test(s) ? s.replace(':', '').padStart(4, '0') : '0700'
 
 /**
  * The app side of the watchdog: it writes a heartbeat every Director pass and keeps the watchdog's settings file current.
@@ -53,8 +54,19 @@ export class Watchdog {
     writeFileSync(join(this.dataDir, 'watchdog.env'), lines.join('\n') + '\n', { mode: 0o600 })
   }
 
-  info(): { installed: boolean; installCommand: string; uninstallCommand: string; heartbeatAgeMinutes: number | null; plist: string } {
-    const plist = join(homedir(), 'Library', 'LaunchAgents', 'com.expectlessmedia.elo.watchdog.plist')
+  info(): {
+    installed: boolean
+    installCommand: string
+    uninstallCommand: string
+    heartbeatAgeMinutes: number | null
+    plist: string
+  } {
+    const plist = join(
+      homedir(),
+      'Library',
+      'LaunchAgents',
+      'com.expectlessmedia.elo.watchdog.plist',
+    )
     const dir = this.scriptsDir()
     const last = this.lastBeatMs()
     return {

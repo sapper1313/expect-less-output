@@ -1,4 +1,20 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, nativeTheme, net, Notification, powerMonitor, powerSaveBlocker, protocol, safeStorage, shell, Menu } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  dialog,
+  ipcMain,
+  nativeImage,
+  nativeTheme,
+  net,
+  Notification,
+  powerMonitor,
+  powerSaveBlocker,
+  protocol,
+  safeStorage,
+  shell,
+  Menu,
+} from 'electron'
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'fs'
 import { join, normalize, sep } from 'path'
 import { pathToFileURL } from 'url'
@@ -114,7 +130,13 @@ function createWindow(): void {
   mainWindow.webContents.on('context-menu', (_e, p) => {
     if (!p.selectionText && !p.isEditable) return
     const items: Electron.MenuItemConstructorOptions[] = p.isEditable
-      ? [{ role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { type: 'separator' }, { role: 'selectAll' }]
+      ? [
+          { role: 'cut' },
+          { role: 'copy' },
+          { role: 'paste' },
+          { type: 'separator' },
+          { role: 'selectAll' },
+        ]
       : [{ role: 'copy' }, { role: 'selectAll' }]
     Menu.buildFromTemplate(items).popup()
   })
@@ -375,8 +397,17 @@ async function boot(): Promise<void> {
   const dryRuns = Object.fromEntries(
     PLATFORMS.map((p) => [p, new DryRunAdapter(p, { getSettings: () => settings.get() })]),
   ) as unknown as Record<Platform, PlatformAdapter>
-  const realAdapters = { youtube: youtubeAdapter, facebook: facebookAdapter, instagram: instagramAdapter, tiktok: tiktokAdapter } as unknown as Record<Platform, PlatformAdapter>
-  const adapterFor = (platform: Platform, account: Account | null, targetSettings?: Record<string, unknown>): PlatformAdapter =>
+  const realAdapters = {
+    youtube: youtubeAdapter,
+    facebook: facebookAdapter,
+    instagram: instagramAdapter,
+    tiktok: tiktokAdapter,
+  } as unknown as Record<Platform, PlatformAdapter>
+  const adapterFor = (
+    platform: Platform,
+    account: Account | null,
+    targetSettings?: Record<string, unknown>,
+  ): PlatformAdapter =>
     pickAdapter(platform, account, targetSettings, { dry: dryRuns, real: realAdapters })
 
   const scheduler = new Scheduler({
@@ -407,12 +438,20 @@ async function boot(): Promise<void> {
     appVersion: app.getVersion(),
     mediaRoot: () => settings.get().mediaRoot,
     openPath: async (p) => void (await shell.openPath(p)),
-    retention: (a, v, f, t) => new YoutubeRetentionReader((id) => tokens.getAccessToken(id)).read(a, v, f, t),
+    retention: (a, v, f, t) =>
+      new YoutubeRetentionReader((id) => tokens.getAccessToken(id)).read(a, v, f, t),
     postViews: (id) => stats.postStats(id).totals.views,
     uploadCaption: (a, v, l, n, srt) => ytClient.uploadCaption(a, v, l, n, srt),
     youtube: ytClient,
     youtubeAccountFor: (brandId) => {
-      const q = (where: string, ...a: unknown[]) => (db.prepare(`SELECT id FROM accounts WHERE platform = 'youtube' AND mode != 'dry_run' AND status = 'connected' ${where} ORDER BY id LIMIT 1`).get(...a) as { id: number } | undefined)?.id ?? null
+      const q = (where: string, ...a: unknown[]) =>
+        (
+          db
+            .prepare(
+              `SELECT id FROM accounts WHERE platform = 'youtube' AND mode != 'dry_run' AND status = 'connected' ${where} ORDER BY id LIMIT 1`,
+            )
+            .get(...a) as { id: number } | undefined
+        )?.id ?? null
       return q('AND brand_id = ?', brandId) ?? q('')
     },
     youtubeCategoryFor: (brandId) => brands.getDefaults(brandId).youtubeCategoryId,
@@ -421,20 +460,32 @@ async function boot(): Promise<void> {
       await alerts.broadcast(text)
       await telegramRef?.notify(text).catch(() => undefined)
     },
-    watchdogDir: () => (app.isPackaged ? join(process.resourcesPath, 'watchdog') : join(app.getAppPath(), 'scripts', 'watchdog')),
+    watchdogDir: () =>
+      app.isPackaged
+        ? join(process.resourcesPath, 'watchdog')
+        : join(app.getAppPath(), 'scripts', 'watchdog'),
     expiring: () => {
       const lines: string[] = []
-      for (const r of healthRows({ db, metaExpiresAt: () => meta.status().expiresAt, tiktokExpiresAt: (id) => tiktok.refreshExpiry(id) })) {
-        if (r.status === 'needs_reauth') lines.push(`${r.brandName} ${r.platform} needs you to sign in again.`)
+      for (const r of healthRows({
+        db,
+        metaExpiresAt: () => meta.status().expiresAt,
+        tiktokExpiresAt: (id) => tiktok.refreshExpiry(id),
+      })) {
+        if (r.status === 'needs_reauth')
+          lines.push(`${r.brandName} ${r.platform} needs you to sign in again.`)
         else if (r.expiresAt) {
           const days = Math.ceil((Date.parse(r.expiresAt) - Date.now()) / 86_400_000)
-          if (days <= 7) lines.push(`${r.platform} login for ${r.brandName} expires in ${Math.max(0, days)} day(s).`)
+          if (days <= 7)
+            lines.push(
+              `${r.platform} login for ${r.brandName} expires in ${Math.max(0, days)} day(s).`,
+            )
         }
       }
       return [...new Set(lines)]
     },
     commentSources: () => {
-      const acct = (ref: { accountId: number | null; brandId: number }) => brands.listAccounts(ref.brandId).find((a) => a.id === ref.accountId) ?? null
+      const acct = (ref: { accountId: number | null; brandId: number }) =>
+        brands.listAccounts(ref.brandId).find((a) => a.id === ref.accountId) ?? null
       return {
         youtube: new YoutubeCommentSource(ytClient),
         facebook: new MetaCommentSource('facebook', graph, (a) => meta.tokenForAccount(a), acct),
@@ -576,7 +627,11 @@ async function boot(): Promise<void> {
     youtubeUpdate: (accountId, videoId, patch) => ytClient.updateVideo(accountId, videoId, patch),
     facebookUpdate: async (brandId, accountId, videoId, patch) => {
       const acct = brands.listAccounts(brandId).find((a) => a.id === accountId) ?? null
-      await graph.post(`/${videoId}`, { title: patch.title, description: patch.description }, meta.tokenForAccount(acct))
+      await graph.post(
+        `/${videoId}`,
+        { title: patch.title, description: patch.description },
+        meta.tokenForAccount(acct),
+      )
     },
     mock: () => studio.cfg.get().mockMode,
     log: (m) => log.log('info', m),
@@ -586,14 +641,22 @@ async function boot(): Promise<void> {
   const telegram = new TelegramAssistant({
     token: () => (secrets.has('telegram.botToken') ? secrets.get('telegram.botToken') : null),
     load: () => {
-      const r = db.prepare('SELECT value_json FROM settings WHERE key = ?').get(TG_KEY) as { value_json: string } | undefined
+      const r = db.prepare('SELECT value_json FROM settings WHERE key = ?').get(TG_KEY) as
+        { value_json: string } | undefined
       try {
-        return r ? { ...EMPTY_TG_STATE, ...(JSON.parse(r.value_json) as object) } : { ...EMPTY_TG_STATE }
+        return r
+          ? { ...EMPTY_TG_STATE, ...(JSON.parse(r.value_json) as object) }
+          : { ...EMPTY_TG_STATE }
       } catch {
         return { ...EMPTY_TG_STATE }
       }
     },
-    save: (st) => void db.prepare('INSERT INTO settings (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json').run(TG_KEY, JSON.stringify(st)),
+    save: (st) =>
+      void db
+        .prepare(
+          'INSERT INTO settings (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json',
+        )
+        .run(TG_KEY, JSON.stringify(st)),
     snapshot: async () => {
       const sum = await apiRef!.home.summary()
       const text = homeSnapshotText(sum)
@@ -662,8 +725,16 @@ async function boot(): Promise<void> {
       // Videos play from the Media Root only. Anything outside it is refused.
       const root = normalize(settings.get().mediaRoot)
       const vfile = normalize(join(root, decodeURIComponent(url.pathname)))
-      if (!vfile.startsWith(root + sep) || !existsSync(vfile)) return new Response('Not found', { status: 404 })
+      if (!vfile.startsWith(root + sep) || !existsSync(vfile))
+        return new Response('Not found', { status: 404 })
       return net.fetch(pathToFileURL(vfile).toString(), { headers: req.headers })
+    }
+    if (url.hostname === 'asset') {
+      // Reference images are looked up by id, so no path from the page is ever read.
+      const file = studio.assetFile(Number(decodeURIComponent(url.pathname).replace(/^\//, '')))
+      return file
+        ? net.fetch(pathToFileURL(file).toString())
+        : new Response('Not found', { status: 404 })
     }
     if (url.hostname !== 'poster') return new Response('Not found', { status: 404 })
     const file = normalize(join(postersDir, decodeURIComponent(url.pathname)))

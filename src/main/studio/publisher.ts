@@ -78,8 +78,12 @@ export class Publisher {
   /** The first open slot on or after the episode's planned date, never in the past. */
   slotFor(brandId: number, slotDate: string | null): string | null {
     const brand = this.d.cfg.getBrand(brandId)
-    if (brand.cadenceMode === 'weekly') return nextOpenPostTime({ db: this.d.db, cfg: this.d.cfg, now: this.d.now }, brandId)
-    const from = Math.max(slotDate ? new Date(slotToUtc(slotDate, '00:00')).getTime() : 0, this.now() + 60_000)
+    if (brand.cadenceMode === 'weekly')
+      return nextOpenPostTime({ db: this.d.db, cfg: this.d.cfg, now: this.d.now }, brandId)
+    const from = Math.max(
+      slotDate ? new Date(slotToUtc(slotDate, '00:00')).getTime() : 0,
+      this.now() + 60_000,
+    )
     return this.d.posts.nextSlots(brandId, 1, new Date(from).toISOString())[0] ?? null
   }
 
@@ -87,14 +91,29 @@ export class Publisher {
     return platforms
       .map((p) => {
         const key = capKeyFor(p, isShort)
-        const c = key ? { ...DEFAULT_PLATFORM_CAPS[key], ...((this.d.cfg.get().platformCaps[key] as object) ?? {}) } : null
-        return c ? `${c.label}: text up to ${c.textMax} characters${c.titleMax ? `, title up to ${c.titleMax}` : ''}. ${c.hashtagNote}` : p
+        const c = key
+          ? {
+              ...DEFAULT_PLATFORM_CAPS[key],
+              ...((this.d.cfg.get().platformCaps[key] as object) ?? {}),
+            }
+          : null
+        return c
+          ? `${c.label}: text up to ${c.textMax} characters${c.titleMax ? `, title up to ${c.titleMax}` : ''}. ${c.hashtagNote}`
+          : p
       })
       .join('\n')
   }
 
   /** Writes the text for every platform. Compliance reads it; anything it rejects goes back for a rewrite. */
-  private async texts(episodeId: string, brandId: number, brandName: string, platforms: string[], isShort: boolean, info: Parameters<Compliance['run']>[0]['video'], tiktokMode: string | null) {
+  private async texts(
+    episodeId: string,
+    brandId: number,
+    brandName: string,
+    platforms: string[],
+    isShort: boolean,
+    info: Parameters<Compliance['run']>[0]['video'],
+    tiktokMode: string | null,
+  ) {
     const pkg = this.d.episodes.getPackage(episodeId)!
     const cap = this.d.cfg.get().retryCap
     const bibleMd = this.d.bible.markdown(brandId)
@@ -108,9 +127,21 @@ export class Publisher {
           episodeId,
           system: `You write the title, caption or post text for each platform for "${brandName}", in the voice of the series bible. Short, human, specific. ${STYLE_RULES}\nOnly include the platforms asked for. Answer only with JSON using these keys: youtube {title, description, tags[]}, instagram {caption}, facebook {caption}, tiktok {caption}, bluesky {text}.\nLimits:\n${this.limitsText(platforms, isShort)}\n\n${bibleMd}`,
           user: [
-            ctxLine({ task: 'publish_text', brand: brandName, title: pkg.youtube.title || pkg.title, summary: pkg.summary, description: pkg.youtube.description, hashtags: (pkg.extra?.hashtags as string[]) ?? pkg.youtube.tags, caption: (pkg.extra?.caption as string) ?? '', platforms, attempt }),
+            ctxLine({
+              task: 'publish_text',
+              brand: brandName,
+              title: pkg.youtube.title || pkg.title,
+              summary: pkg.summary,
+              description: pkg.youtube.description,
+              hashtags: (pkg.extra?.hashtags as string[]) ?? pkg.youtube.tags,
+              caption: (pkg.extra?.caption as string) ?? '',
+              platforms,
+              attempt,
+            }),
             `Episode: ${pkg.title}\nSummary: ${pkg.summary}\nHook: ${(pkg.extra?.hook as string) ?? pkg.logline}\nTags: ${pkg.youtube.tags.join(', ')}`,
-            feedback.length ? `Fix these problems from the last try:\n${feedback.map((f) => `- ${f}`).join('\n')}` : '',
+            feedback.length
+              ? `Fix these problems from the last try:\n${feedback.map((f) => `- ${f}`).join('\n')}`
+              : '',
           ]
             .filter(Boolean)
             .join('\n'),
@@ -118,14 +149,26 @@ export class Publisher {
         },
         PlatformTextsSchema,
       )
-      const only = Object.fromEntries(Object.entries(out).filter(([k]) => platforms.includes(k))) as PlatformTexts
-      const report = this.d.compliance.run({ episodeId, brandId, isShort, platforms, texts: only, video: info, tiktokMode })
+      const only = Object.fromEntries(
+        Object.entries(out).filter(([k]) => platforms.includes(k)),
+      ) as PlatformTexts
+      const report = this.d.compliance.run({
+        episodeId,
+        brandId,
+        isShort,
+        platforms,
+        texts: only,
+        video: info,
+        tiktokMode,
+      })
       last = report
       if (report.pass) return report
       feedback.length = 0
       feedback.push(...report.violations)
     }
-    throw new FlagNow(`Compliance could not clear the text after ${cap} tries. ${last?.violations.slice(0, 3).join(' ') ?? ''}`)
+    throw new FlagNow(
+      `Compliance could not clear the text after ${cap} tries. ${last?.violations.slice(0, 3).join(' ') ?? ''}`,
+    )
   }
 
   async run(r: PublishRun): Promise<PublishResult> {
@@ -134,7 +177,9 @@ export class Publisher {
     if (!pkg) throw new FlagNow('The episode has no package.')
     const cfg = this.d.cfg.get()
     const brand = this.d.cfg.getBrand(ep.brandId)
-    const brandName = (this.d.db.prepare('SELECT name FROM brands WHERE id = ?').get(ep.brandId) as { name: string }).name
+    const brandName = (
+      this.d.db.prepare('SELECT name FROM brands WHERE id = ?').get(ep.brandId) as { name: string }
+    ).name
     const isShort = brand.format === 'short'
     const mock = cfg.mockMode
     const mockVideo = r.mock === true
@@ -155,7 +200,14 @@ export class Publisher {
         const still = join(dir, 'still.mp4')
         await stillVideo(thumbs.coverFile, 0.25, info.width, info.height, still)
         const out = join(this.d.workDir(r.episodeId), 'final-open.mp4')
-        await assemble({ segments: [{ path: still }, { path: video }], out, width: info.width, height: info.height, crossfade: 0, lufs: -14 })
+        await assemble({
+          segments: [{ path: still }, { path: video }],
+          out,
+          width: info.width,
+          height: info.height,
+          crossfade: 0,
+          lufs: -14,
+        })
         video = out
       } finally {
         rmSync(dir, { recursive: true, force: true })
@@ -164,23 +216,48 @@ export class Publisher {
 
     // 2. text and compliance
     const vinfo = await probe(video)
-    const video2 = { durationSeconds: vinfo.durationSeconds, width: vinfo.width, height: vinfo.height, sizeBytes: statSync(video).size }
-    const wanted = (Object.keys(brand.platforms) as Array<keyof typeof brand.platforms>).filter((p) => brand.platforms[p])
-    const tiktokAcc = this.d.db.prepare("SELECT mode FROM accounts WHERE brand_id = ? AND platform = 'tiktok'").get(ep.brandId) as { mode: string } | undefined
-    const report = await this.texts(r.episodeId, ep.brandId, brandName, wanted, isShort, video2, tiktokAcc?.mode ?? null)
+    const video2 = {
+      durationSeconds: vinfo.durationSeconds,
+      width: vinfo.width,
+      height: vinfo.height,
+      sizeBytes: statSync(video).size,
+    }
+    const wanted = (Object.keys(brand.platforms) as Array<keyof typeof brand.platforms>).filter(
+      (p) => brand.platforms[p],
+    )
+    const tiktokAcc = this.d.db
+      .prepare("SELECT mode FROM accounts WHERE brand_id = ? AND platform = 'tiktok'")
+      .get(ep.brandId) as { mode: string } | undefined
+    const report = await this.texts(
+      r.episodeId,
+      ep.brandId,
+      brandName,
+      wanted,
+      isShort,
+      video2,
+      tiktokAcc?.mode ?? null,
+    )
     const ok = (p: string) => report.platforms[p]?.ok && !report.platforms[p]?.skipped
-    const skipped = Object.entries(report.platforms).filter(([, v]) => v.skipped).map(([platform, v]) => ({ platform, reason: v.reason ?? '' }))
+    const skipped = Object.entries(report.platforms)
+      .filter(([, v]) => v.skipped)
+      .map(([platform, v]) => ({ platform, reason: v.reason ?? '' }))
 
     // 3. real world gaps that skip one platform
     const notReady = !mock && ok('bluesky') ? this.d.socialReady(ep.brandId) : null
     if (notReady) {
       skipped.push({ platform: 'bluesky', reason: notReady })
-      report.platforms.bluesky = { ...report.platforms.bluesky, ok: false, skipped: true, reason: notReady }
+      report.platforms.bluesky = {
+        ...report.platforms.bluesky,
+        ok: false,
+        skipped: true,
+        reason: notReady,
+      }
     }
 
     // 4. per platform covers
     const settingsFor = async (p: Platform): Promise<PostTargetInput['settings']> => {
-      if (p === 'youtube' && !isShort && thumbs.youtubeLongFile) return { thumbnailPath: thumbs.youtubeLongFile }
+      if (p === 'youtube' && !isShort && thumbs.youtubeLongFile)
+        return { thumbnailPath: thumbs.youtubeLongFile }
       if (p === 'instagram') {
         if (thumbs.coverFile && this.d.host.configured() && !mock) {
           const up = await this.d.host.upload(thumbs.coverFile, `covers/${r.episodeId}.jpg`)
@@ -195,56 +272,132 @@ export class Publisher {
     for (const p of FOUR) {
       if (!ok(p)) continue
       const t = report.texts[p]
-      let text = p === 'youtube' ? report.texts.youtube?.description : (t as { caption?: string } | undefined)?.caption
+      let text =
+        p === 'youtube'
+          ? report.texts.youtube?.description
+          : (t as { caption?: string } | undefined)?.caption
       if (p === 'youtube' && text && this.d.cfg.get().autoChapters && this.d.chapters) {
         const lines = await this.d.chapters(r.episodeId).catch(() => null)
         if (lines && !/^0:00 /m.test(text)) text = `${text}\n\n${lines}`
       }
       const cover = await settingsFor(p)
-      targets.push({ platform: p, aiFlag: brand.aiDisclosure, captionOverride: text ?? null, settings: mockVideo ? { ...(cover ?? {}), mock: true } : cover })
+      targets.push({
+        platform: p,
+        aiFlag: brand.aiDisclosure,
+        captionOverride: text ?? null,
+        settings: mockVideo ? { ...(cover ?? {}), mock: true } : cover,
+      })
     }
 
     // 5. schedule
     const when = this.slotFor(ep.brandId, ep.slotDate)
     const title = report.texts.youtube?.title ?? pkg.youtube.title ?? pkg.title
-    const caption = report.texts.youtube?.description ?? targets.find((t) => t.captionOverride)?.captionOverride ?? pkg.youtube.description
+    const caption =
+      report.texts.youtube?.description ??
+      targets.find((t) => t.captionOverride)?.captionOverride ??
+      pkg.youtube.description
     let postId: number | null = null
     let videoAbs = video
     if (targets.length) {
       if (existing && r.postId) {
-        this.d.posts.update(r.postId, { title, caption, scheduledAtUtc: when, status: when ? 'scheduled' : 'draft', targets })
+        this.d.posts.update(r.postId, {
+          title,
+          caption,
+          scheduledAtUtc: when,
+          status: when ? 'scheduled' : 'draft',
+          targets,
+        })
         postId = r.postId
       } else {
-        const post = await this.d.posts.create({ brandId: ep.brandId, sourcePath: video, title, caption, scheduledAtUtc: when, status: when ? 'scheduled' : 'draft', targets })
+        const post = await this.d.posts.create({
+          brandId: ep.brandId,
+          sourcePath: video,
+          title,
+          caption,
+          scheduledAtUtc: when,
+          status: when ? 'scheduled' : 'draft',
+          targets,
+        })
         postId = post.id
       }
-      const queued = this.d.media.resolve((this.d.posts.get(postId) as { videoPath: string }).videoPath)
+      const queued = this.d.media.resolve(
+        (this.d.posts.get(postId) as { videoPath: string }).videoPath,
+      )
       videoAbs = queued
-      if (r.srt && existsSync(r.srt)) copyFileSync(r.srt, queued.slice(0, queued.length - extname(queued).length) + '.srt')
+      if (r.srt && existsSync(r.srt))
+        copyFileSync(r.srt, queued.slice(0, queued.length - extname(queued).length) + '.srt')
     }
     // Bluesky
     let social = 0
     for (const p of ['bluesky'] as const) {
       if (!ok(p) || !when) continue
       const text = (report.texts[p] as { text: string }).text
-      this.d.social.add({ episodeId: r.episodeId, brandId: ep.brandId, platform: p, text, videoPath: videoAbs, title, scheduledAtUtc: when, mock: mock || mockVideo })
+      this.d.social.add({
+        episodeId: r.episodeId,
+        brandId: ep.brandId,
+        platform: p,
+        text,
+        videoPath: videoAbs,
+        title,
+        scheduledAtUtc: when,
+        mock: mock || mockVideo,
+      })
       social++
     }
-    for (const s of skipped) this.d.db.prepare('INSERT INTO audit_log (ts_utc, brand_id, agent, action, episode_id, detail_json) VALUES (?, ?, ?, ?, ?, ?)').run(new Date(this.now()).toISOString(), ep.brandId, 'Compliance', 'platform_skipped', r.episodeId, JSON.stringify(s))
+    for (const s of skipped)
+      this.d.db
+        .prepare(
+          'INSERT INTO audit_log (ts_utc, brand_id, agent, action, episode_id, detail_json) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          new Date(this.now()).toISOString(),
+          ep.brandId,
+          'Compliance',
+          'platform_skipped',
+          r.episodeId,
+          JSON.stringify(s),
+        )
 
     // 6. record and finish
     const saved = this.d.episodes.getPackage(r.episodeId)
-    if (saved) this.d.episodes.savePackage(r.episodeId, { ...saved, extra: { ...(saved.extra ?? {}), compliance: { platforms: report.platforms, log: report.log, kids: report.kids }, publish: { skipped, social } } })
-    this.d.episodes.setStatus(r.episodeId, 'Scheduled', when ? `Scheduled for ${when}.` : 'No open slot found. Left as a draft.', { postId, scheduledAtUtc: when, videoPath: videoAbs })
-    if (!isShort && ok('youtube') && thumbs.candidates.length >= 2) this.d.tester.register(r.episodeId, ep.brandId, postId, thumbs.candidates.slice(0, 2))
+    if (saved)
+      this.d.episodes.savePackage(r.episodeId, {
+        ...saved,
+        extra: {
+          ...(saved.extra ?? {}),
+          compliance: { platforms: report.platforms, log: report.log, kids: report.kids },
+          publish: { skipped, social },
+        },
+      })
+    this.d.episodes.setStatus(
+      r.episodeId,
+      'Scheduled',
+      when ? `Scheduled for ${when}.` : 'No open slot found. Left as a draft.',
+      { postId, scheduledAtUtc: when, videoPath: videoAbs },
+    )
+    if (!isShort && ok('youtube') && thumbs.candidates.length >= 2)
+      this.d.tester.register(r.episodeId, ep.brandId, postId, thumbs.candidates.slice(0, 2))
     return { postId, scheduledAtUtc: when, skipped, social }
   }
 }
 
-const Input = z.object({ episodeId: z.string(), videoPath: z.string().optional(), srt: z.string().optional(), postId: z.number().optional(), mock: z.boolean().optional() })
-const Output = z.object({ postId: z.number().nullable(), scheduledAtUtc: z.string().nullable(), skipped: z.array(z.object({ platform: z.string(), reason: z.string() })), social: z.number() })
+const Input = z.object({
+  episodeId: z.string(),
+  videoPath: z.string().optional(),
+  srt: z.string().optional(),
+  postId: z.number().optional(),
+  mock: z.boolean().optional(),
+})
+const Output = z.object({
+  postId: z.number().nullable(),
+  scheduledAtUtc: z.string().nullable(),
+  skipped: z.array(z.object({ platform: z.string(), reason: z.string() })),
+  social: z.number(),
+})
 
-export function makePublisherAgent(p: Publisher): AgentDef<z.infer<typeof Input>, z.infer<typeof Output>> {
+export function makePublisherAgent(
+  p: Publisher,
+): AgentDef<z.infer<typeof Input>, z.infer<typeof Output>> {
   return {
     name: 'Publisher',
     taskType: 'publish_episode',

@@ -13,7 +13,13 @@ interface BrandMeta {
 export interface BrandSocialView {
   brandId: number
   brandName: string
-  bluesky: { handle: string; hasPassword: boolean; passwordMasked: string; state: 'not_set' | 'connected' | 'failed' | 'untested'; message: string }
+  bluesky: {
+    handle: string
+    hasPassword: boolean
+    passwordMasked: string
+    state: 'not_set' | 'connected' | 'failed' | 'untested'
+    message: string
+  }
 }
 
 export interface AccountsDeps {
@@ -36,7 +42,8 @@ export class SocialAccounts {
   }
 
   private all(): Record<string, BrandMeta> {
-    const r = this.d.db.prepare('SELECT value_json FROM settings WHERE key = ?').get(META_KEY) as { value_json: string } | undefined
+    const r = this.d.db.prepare('SELECT value_json FROM settings WHERE key = ?').get(META_KEY) as
+      { value_json: string } | undefined
     try {
       return r ? (JSON.parse(r.value_json) as Record<string, BrandMeta>) : {}
     } catch {
@@ -50,7 +57,9 @@ export class SocialAccounts {
     const all = this.all()
     all[String(brandId)] = { ...(all[String(brandId)] ?? {}), ...patch }
     this.d.db
-      .prepare('INSERT INTO settings (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json')
+      .prepare(
+        'INSERT INTO settings (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json',
+      )
       .run(META_KEY, JSON.stringify(all))
   }
   private pwKey = (id: number) => `bluesky.appPassword.${id}`
@@ -73,7 +82,16 @@ export class SocialAccounts {
   blueskyFor(brandId: number): BlueskyClient {
     let c = this.blueskyClients.get(brandId)
     if (!c) {
-      c = new BlueskyClient({ handle: () => this.blueskyHandle(brandId), password: () => this.d.secrets.get(this.pwKey(brandId)) }, this.d.fetchImpl, undefined, undefined, this.d.now)
+      c = new BlueskyClient(
+        {
+          handle: () => this.blueskyHandle(brandId),
+          password: () => this.d.secrets.get(this.pwKey(brandId)),
+        },
+        this.d.fetchImpl,
+        undefined,
+        undefined,
+        this.d.now,
+      )
       this.blueskyClients.set(brandId, c)
     }
     return c
@@ -81,17 +99,29 @@ export class SocialAccounts {
 
   /** Why a brand cannot post to Bluesky yet, or null when it can. */
   notReady(brandId: number): string | null {
-    return this.blueskyHandle(brandId) && this.d.secrets.has(this.pwKey(brandId)) ? null : `${this.d.brandName(brandId)} has no Bluesky handle and app password saved. Add them in Settings, under the Studio tab, Bluesky accounts.`
+    return this.blueskyHandle(brandId) && this.d.secrets.has(this.pwKey(brandId))
+      ? null
+      : `${this.d.brandName(brandId)} has no Bluesky handle and app password saved. Add them in Settings, under the Studio tab, Bluesky accounts.`
   }
 
   async testBluesky(brandId: number): Promise<{ ok: boolean; message: string }> {
     try {
       const msg = await this.blueskyFor(brandId).test()
-      this.setMeta(brandId, { tests: { bluesky: { ok: true, message: msg, at: new Date(this.now()).toISOString() } } })
+      this.setMeta(brandId, {
+        tests: { bluesky: { ok: true, message: msg, at: new Date(this.now()).toISOString() } },
+      })
       return { ok: true, message: msg }
     } catch (e) {
       this.blueskyClients.delete(brandId)
-      this.setMeta(brandId, { tests: { bluesky: { ok: false, message: (e as Error).message, at: new Date(this.now()).toISOString() } } })
+      this.setMeta(brandId, {
+        tests: {
+          bluesky: {
+            ok: false,
+            message: (e as Error).message,
+            at: new Date(this.now()).toISOString(),
+          },
+        },
+      })
       return { ok: false, message: (e as Error).message }
     }
   }
@@ -108,7 +138,8 @@ export class SocialAccounts {
           handle: m.blueskyHandle ?? '',
           hasPassword: !!pw,
           passwordMasked: pw ? mask(pw) : '',
-          state: !pw || !m.blueskyHandle ? 'not_set' : !bt ? 'untested' : bt.ok ? 'connected' : 'failed',
+          state:
+            !pw || !m.blueskyHandle ? 'not_set' : !bt ? 'untested' : bt.ok ? 'connected' : 'failed',
           message: bt?.message ?? '',
         },
       }

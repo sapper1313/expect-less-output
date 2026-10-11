@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.1 Character reference images in the Bible
+
+- Each character in the Bible now has its own **Reference images** strip. Add every angle, give each picture a label (front, side, smiling), and switch a picture off with **Retire** when the character changes. A retired picture stays in the Bible and can be switched back on.
+- Characters have a permanent id, so renaming a character keeps its pictures. Removing a character stops its pictures from being sent.
+- The Producer sends the pictures that are on (up to 14, characters taking turns so one character cannot crowd out another, brand wide pictures fill what is left). The character check uses up to 3 of them.
+- Pictures you already added under Studio Settings still work as brand wide references.
+
 ## 0.9.0 Studio round two
 
 - **Home** is the new first screen: a Liquid Glass dashboard with the whole pipeline, one card per channel (connection health, latest post numbers, days of episodes ahead), spend with a monthly projection, what is coming up and what just posted.

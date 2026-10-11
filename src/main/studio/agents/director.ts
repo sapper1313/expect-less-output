@@ -1,6 +1,14 @@
 import { DateTime } from 'luxon'
 import type { Db } from '../../db'
-import { addDays, dueDates, hhmmToMinutes, productionDays, slotToUtc, todayEastern, windowOpensOn } from '@shared/studio/cadence'
+import {
+  addDays,
+  dueDates,
+  hhmmToMinutes,
+  productionDays,
+  slotToUtc,
+  todayEastern,
+  windowOpensOn,
+} from '@shared/studio/cadence'
 import type { AgentTask, StudioBrandConfig } from '@shared/studio/types'
 import type { StudioConfigService } from '../configService'
 import type { AuditLog, TaskStore } from './framework'
@@ -70,17 +78,43 @@ export class Director {
         const key = t.dedupeKey ?? `${t.type}:${JSON.stringify(t.payload ?? {})}`
         if (!fakeTasks.has(key)) {
           const rowId = -(fakeTasks.size + 1)
-          fakeTasks.set(key, { id: rowId, type: t.type, brandId: t.brandId ?? null, episodeId: t.episodeId ?? null, parentId: null, status: 'queued', attempts: 0, payload: t.payload ?? {}, result: null, error: null, notBeforeUtc: null, createdUtc: '', startedUtc: null, finishedUtc: null })
+          fakeTasks.set(key, {
+            id: rowId,
+            type: t.type,
+            brandId: t.brandId ?? null,
+            episodeId: t.episodeId ?? null,
+            parentId: null,
+            status: 'queued',
+            attempts: 0,
+            payload: t.payload ?? {},
+            result: null,
+            error: null,
+            notBeforeUtc: null,
+            createdUtc: '',
+            startedUtc: null,
+            finishedUtc: null,
+          })
         }
         return fakeTasks.get(key) as AgentTask
       },
       list: (f: Parameters<TaskStore['list']>[0] = {}) => {
-        const fakes = [...fakeTasks.values()].filter((t) => (!f.type || t.type === f.type) && (!f.brandId || t.brandId === f.brandId) && (!f.status || [f.status].flat().includes(t.status)))
+        const fakes = [...fakeTasks.values()].filter(
+          (t) =>
+            (!f.type || t.type === f.type) &&
+            (!f.brandId || t.brandId === f.brandId) &&
+            (!f.status || [f.status].flat().includes(t.status)),
+        )
         return [...fakes, ...real.list(f)]
       },
     } as unknown as TaskStore
     const quiet = { write: () => {}, list: () => [] } as unknown as AuditLog
-    const deps: DirectorDeps = { ...this.d, tasks, audit: quiet, alert: () => {}, onTick: undefined }
+    const deps: DirectorDeps = {
+      ...this.d,
+      tasks,
+      audit: quiet,
+      alert: () => {},
+      onTick: undefined,
+    }
     for (let h = 0; h < hours; h++) {
       const at = nowMs + h * 3_600_000
       const et = DateTime.fromMillis(at, { zone: 'America/New_York' })
@@ -88,7 +122,13 @@ export class Director {
       for (const b of this.d.config.listBrandConfigs()) {
         if (b.config.paused) continue
         const notes: string[] = []
-        const ctx: BrandContext = { brandId: b.brandId, name: b.name, config: b.config, today, nowMs: at }
+        const ctx: BrandContext = {
+          brandId: b.brandId,
+          name: b.name,
+          config: b.config,
+          today,
+          nowMs: at,
+        }
         for (const p of this.planners) {
           const made = p(ctx, deps, notes)
           for (const t of made) {
@@ -96,14 +136,23 @@ export class Director {
             if (seen.has(key)) continue
             seen.add(key)
             const when = h === 0 ? 'now' : et.toFormat('h:mm a') + ' ET'
-            if (t.type === 'write_episode') lines.push(`${when}: ${b.name}: ask the Writer for the ${(t.payload as { slotDate?: string }).slotDate} episode.`)
-            else if (t.type === 'produce_episode') lines.push(`${when}: ${b.name}: start making the video for ${(t.payload as { episodeId?: string }).episodeId}.`)
-            else if (t.type === 'analytics_daily') lines.push(`${when}: collect today's numbers and write what is working.`)
+            if (t.type === 'write_episode')
+              lines.push(
+                `${when}: ${b.name}: ask the Writer for the ${(t.payload as { slotDate?: string }).slotDate} episode.`,
+              )
+            else if (t.type === 'produce_episode')
+              lines.push(
+                `${when}: ${b.name}: start making the video for ${(t.payload as { episodeId?: string }).episodeId}.`,
+              )
+            else if (t.type === 'analytics_daily')
+              lines.push(`${when}: collect today's numbers and write what is working.`)
             else if (t.type === 'comments_pass') {
               const k = `comments:${b.brandId}`
               if (!seen.has(k)) {
                 seen.add(k)
-                lines.push(`${when}: ${b.name}: check comments about every 30 minutes (${b.config.commentsMode === 'auto' ? 'auto reply' : 'draft only'}).`)
+                lines.push(
+                  `${when}: ${b.name}: check comments about every 30 minutes (${b.config.commentsMode === 'auto' ? 'auto reply' : 'draft only'}).`,
+                )
               }
             } else lines.push(`${when}: ${b.name}: ${t.type}.`)
           }
@@ -115,7 +164,10 @@ export class Director {
           }
       }
     }
-    if (!lines.length) lines.push('Nothing to do in the next 24 hours. Every brand has enough scripts and nothing is due.')
+    if (!lines.length)
+      lines.push(
+        'Nothing to do in the next 24 hours. Every brand has enough scripts and nothing is due.',
+      )
     return lines
   }
 
@@ -141,7 +193,10 @@ export class Director {
     this.d.audit.write({
       agent: AGENT,
       action: 'tick',
-      detail: { created: out.created.map((t) => `${t.type}#${t.id}`), notes: out.notes.slice(0, 20) },
+      detail: {
+        created: out.created.map((t) => `${t.type}#${t.id}`),
+        notes: out.notes.slice(0, 20),
+      },
     })
     this.d.onTick?.()
     return out
@@ -167,7 +222,11 @@ const runwayPlanner: Planner = (ctx, d, notes) => {
       .some((t) => (t.payload as { slotDate?: string }).slotDate === date)
     if (parked) continue
     const key = `write:${ctx.brandId}:${date}`
-    const before = d.tasks.list({ brandId: ctx.brandId, type: 'write_episode', status: ['queued', 'running', 'waiting'] })
+    const before = d.tasks.list({
+      brandId: ctx.brandId,
+      type: 'write_episode',
+      status: ['queued', 'running', 'waiting'],
+    })
     const had = before.some((t) => (t.payload as { slotDate?: string }).slotDate === date)
     const t = d.tasks.create({
       type: 'write_episode',
@@ -177,10 +236,17 @@ const runwayPlanner: Planner = (ctx, d, notes) => {
     })
     if (!had) {
       created.push(t)
-      d.audit.write({ agent: AGENT, action: 'ask_writer', brandId: ctx.brandId, taskId: t.id, detail: { slotDate: date } })
+      d.audit.write({
+        agent: AGENT,
+        action: 'ask_writer',
+        brandId: ctx.brandId,
+        taskId: t.id,
+        detail: { slotDate: date },
+      })
     }
   }
-  if (created.length) notes.push(`${ctx.name}: asked the Writer for ${created.length} episode(s) to fill the runway.`)
+  if (created.length)
+    notes.push(`${ctx.name}: asked the Writer for ${created.length} episode(s) to fill the runway.`)
   return created
 }
 
@@ -195,8 +261,17 @@ const upkeepPlanner: Planner = (ctx, d) => {
   if (first && first.brandId === ctx.brandId && et.hour >= 5) {
     const key = `analytics:${ctx.today}`
     if (!d.db.prepare('SELECT 1 FROM agent_tasks WHERE dedupe_key = ?').get(key)) {
-      const t = d.tasks.create({ type: 'analytics_daily', payload: { day: ctx.today }, dedupeKey: key })
-      d.audit.write({ agent: AGENT, action: 'plan_analytics', taskId: t.id, detail: { day: ctx.today } })
+      const t = d.tasks.create({
+        type: 'analytics_daily',
+        payload: { day: ctx.today },
+        dedupeKey: key,
+      })
+      d.audit.write({
+        agent: AGENT,
+        action: 'plan_analytics',
+        taskId: t.id,
+        detail: { day: ctx.today },
+      })
       created.push(t)
     }
   }
@@ -204,7 +279,15 @@ const upkeepPlanner: Planner = (ctx, d) => {
     const bucket = Math.floor(ctx.nowMs / (30 * 60_000))
     const key = `comments:${ctx.brandId}:${bucket}`
     const exists = d.db.prepare('SELECT 1 FROM agent_tasks WHERE dedupe_key = ?').get(key)
-    if (!exists) created.push(d.tasks.create({ type: 'comments_pass', brandId: ctx.brandId, payload: {}, dedupeKey: key }))
+    if (!exists)
+      created.push(
+        d.tasks.create({
+          type: 'comments_pass',
+          brandId: ctx.brandId,
+          payload: {},
+          dedupeKey: key,
+        }),
+      )
   }
   return created
 }
@@ -219,20 +302,40 @@ const productionPlanner: Planner = (ctx, d, notes) => {
   if (!(b.path === 'auto' || (b.format === 'long' && b.hollowViaApi))) return []
   const et = DateTime.fromMillis(ctx.nowMs, { zone: 'America/New_York' })
   if (et.hour * 60 + et.minute < hhmmToMinutes(b.runTime)) return []
-  const busy = d.tasks.list({ brandId: ctx.brandId, type: 'produce_episode', status: ['queued', 'running', 'waiting'] })
+  const busy = d.tasks.list({
+    brandId: ctx.brandId,
+    type: 'produce_episode',
+    status: ['queued', 'running', 'waiting'],
+  })
   if (busy.length) return []
   const rows = d.db
-    .prepare("SELECT id, slot_date FROM episodes WHERE brand_id = ? AND status = 'Ready for production' ORDER BY slot_date, id")
+    .prepare(
+      "SELECT id, slot_date FROM episodes WHERE brand_id = ? AND status = 'Ready for production' ORDER BY slot_date, id",
+    )
     .all(ctx.brandId) as Array<{ id: string; slot_date: string | null }>
   for (const ep of rows) {
     const days = ep.slot_date ? productionDays(b, ep.slot_date) : []
     if (days.length && ctx.today < days[0]) continue
     const parked = d.tasks
       .list({ brandId: ctx.brandId, type: 'produce_episode', status: ['flagged', 'stopped'] })
-      .some((t) => t.episodeId === ep.id || (t.payload as { episodeId?: string }).episodeId === ep.id)
+      .some(
+        (t) => t.episodeId === ep.id || (t.payload as { episodeId?: string }).episodeId === ep.id,
+      )
     if (parked) continue
-    const t = d.tasks.create({ type: 'produce_episode', brandId: ctx.brandId, episodeId: ep.id, payload: { episodeId: ep.id }, dedupeKey: `produce:${ep.id}` })
-    d.audit.write({ agent: AGENT, action: 'start_production', brandId: ctx.brandId, taskId: t.id, episodeId: ep.id })
+    const t = d.tasks.create({
+      type: 'produce_episode',
+      brandId: ctx.brandId,
+      episodeId: ep.id,
+      payload: { episodeId: ep.id },
+      dedupeKey: `produce:${ep.id}`,
+    })
+    d.audit.write({
+      agent: AGENT,
+      action: 'start_production',
+      brandId: ctx.brandId,
+      taskId: t.id,
+      episodeId: ep.id,
+    })
     notes.push(`${ctx.name}: started production of ${ep.id}.`)
     return [t]
   }
@@ -245,8 +348,14 @@ const missedSlotWatcher: Planner = (ctx, d, notes) => {
   const tomorrow = addDays(ctx.today, 1)
   const etHour = DateTime.fromMillis(ctx.nowMs, { zone: 'America/New_York' }).hour
   // The day the studio started work on a brand, a slot cannot have been met yet, so it is never called missed.
-  const first = d.db.prepare("SELECT MIN(created_utc) AS t FROM episodes WHERE brand_id = ? AND origin != 'backfill'").get(ctx.brandId) as { t: string | null }
-  const startDay = first.t ? DateTime.fromISO(first.t, { zone: 'utc' }).setZone('America/New_York').toFormat('yyyy-MM-dd') : ctx.today
+  const first = d.db
+    .prepare(
+      "SELECT MIN(created_utc) AS t FROM episodes WHERE brand_id = ? AND origin != 'backfill'",
+    )
+    .get(ctx.brandId) as { t: string | null }
+  const startDay = first.t
+    ? DateTime.fromISO(first.t, { zone: 'utc' }).setZone('America/New_York').toFormat('yyyy-MM-dd')
+    : ctx.today
   for (const date of dueDates(ctx.config, ctx.today, tomorrow)) {
     if (date <= startDay) continue
     const eps = episodesOn(d.db, ctx.brandId, date).filter((e) => !GONE.includes(e.status))
@@ -264,7 +373,12 @@ const missedSlotWatcher: Planner = (ctx, d, notes) => {
     if (alerted(d.db, ctx.brandId, 'missed_slot_alert', date)) continue
     const why = eps.length ? `its episode is "${eps[0].status}"` : 'there is no episode for it'
     d.alert('A posting slot will be missed.', `${ctx.name} is due ${date} but ${why}.`)
-    d.audit.write({ agent: AGENT, action: 'missed_slot_alert', brandId: ctx.brandId, detail: { date } })
+    d.audit.write({
+      agent: AGENT,
+      action: 'missed_slot_alert',
+      brandId: ctx.brandId,
+      detail: { date },
+    })
     notes.push(`${ctx.name}: alerted that the ${date} slot will be missed.`)
   }
   if (isPackage) {
@@ -272,15 +386,31 @@ const missedSlotWatcher: Planner = (ctx, d, notes) => {
       const opens = windowOpensOn(ctx.config, date)
       if (!opens || opens > ctx.today) continue
       const eps = episodesOn(d.db, ctx.brandId, date).filter((e) => !GONE.includes(e.status))
-      const ready = eps.some((e) => ['Ready for production', 'In production', 'Awaiting video', ...DELIVERED].includes(e.status))
+      const ready = eps.some((e) =>
+        ['Ready for production', 'In production', 'Awaiting video', ...DELIVERED].includes(
+          e.status,
+        ),
+      )
       if (ready || alerted(d.db, ctx.brandId, 'not_ready_alert', date)) continue
       // The Writer is still on it: that is the Director's job, not a reason to bother the owner.
       const active = d.tasks
-        .list({ brandId: ctx.brandId, type: 'write_episode', status: ['queued', 'running', 'waiting'] })
+        .list({
+          brandId: ctx.brandId,
+          type: 'write_episode',
+          status: ['queued', 'running', 'waiting'],
+        })
         .some((t) => (t.payload as { slotDate?: string }).slotDate === date)
       if (active) continue
-      d.alert('An episode package is not ready.', `${ctx.name} for ${date}: the production window opened ${opens} and the package is not READY.`)
-      d.audit.write({ agent: AGENT, action: 'not_ready_alert', brandId: ctx.brandId, detail: { date } })
+      d.alert(
+        'An episode package is not ready.',
+        `${ctx.name} for ${date}: the production window opened ${opens} and the package is not READY.`,
+      )
+      d.audit.write({
+        agent: AGENT,
+        action: 'not_ready_alert',
+        brandId: ctx.brandId,
+        detail: { date },
+      })
     }
   }
   return []
@@ -290,13 +420,17 @@ const missedSlotWatcher: Planner = (ctx, d, notes) => {
 function firstSlotMs(db: Db, brandId: number, date: string): number {
   const weekend = [6, 7].includes(DateTime.fromISO(date, { zone: 'America/New_York' }).weekday)
   const row = db
-    .prepare('SELECT time_local FROM brand_slots WHERE brand_id = ? AND enabled = 1 AND day_type = ? ORDER BY time_local LIMIT 1')
+    .prepare(
+      'SELECT time_local FROM brand_slots WHERE brand_id = ? AND enabled = 1 AND day_type = ? ORDER BY time_local LIMIT 1',
+    )
     .get(brandId, weekend ? 'weekend' : 'weekday') as { time_local: string } | undefined
   return new Date(slotToUtc(date, row?.time_local ?? '12:00')).getTime()
 }
 
 function alerted(db: Db, brandId: number, action: string, date: string): boolean {
   return !!db
-    .prepare("SELECT 1 FROM audit_log WHERE agent = 'Director' AND action = ? AND brand_id = ? AND detail_json LIKE ?")
+    .prepare(
+      "SELECT 1 FROM audit_log WHERE agent = 'Director' AND action = ? AND brand_id = ? AND detail_json LIKE ?",
+    )
     .get(action, brandId, `%"date":"${date}"%`)
 }
