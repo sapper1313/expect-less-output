@@ -23,7 +23,7 @@ For each one: paste, press **Save**, then **Test connection**. The key is kept i
 
 ## 2b. Bluesky: one account per brand
 
-Settings, **Bluesky accounts** has a row for every brand. Type that brand's handle and an **app password** (Bluesky, Settings, Privacy and security, App passwords), press **Save**, then **Test connection**. Never your real password.
+Open **Channels**, then the **Studio settings per channel** tab, and scroll down to **Bluesky accounts (one per brand)**. It has a row for every brand. Type that brand's handle and an **app password** (Bluesky, Settings, Privacy and security, App passwords), press **Save**, then **Test connection**. Never your real password.
 
 ## 3. Set your limits before you turn mock mode off
 
