@@ -20,8 +20,22 @@ export interface TikTokAdapterDeps {
   freshCreator: (accountId: number) => Promise<TikTokCreatorInfo>
   host: {
     notify(title: string, body: string): void
+    /** Puts text on the clipboard. Used in Drafts mode, where TikTok ignores text sent by the API. */
+    copyText?(text: string): void
     log(level: 'info' | 'warn' | 'error', message: string, ctx: AdapterContext): void
   }
+}
+
+/**
+ * TikTok has one text field (post_info.title), shown as the caption. Put the title first, then the
+ * description or caption, so neither is lost. A caption that already starts with the title is left alone.
+ */
+export function tiktokCaptionText(title: string, caption: string): string {
+  const t = title.trim()
+  const c = caption.trim()
+  if (!t) return c
+  if (!c) return t
+  return c.startsWith(t) ? c : `${t}\n\n${c}`
 }
 
 const PROCESSING_TIMEOUT_MS = 30 * 60_000
@@ -60,9 +74,10 @@ export class TikTokAdapter implements PlatformAdapter {
         'permanent',
       )
     }
-    if (ctx.caption.length > PLATFORM_LIMITS.tiktok.captionMax) {
+    const text = tiktokCaptionText(ctx.title, ctx.caption)
+    if (text.length > PLATFORM_LIMITS.tiktok.captionMax) {
       throw new AdapterError(
-        `The TikTok caption is ${ctx.caption.length} characters. The limit is ${PLATFORM_LIMITS.tiktok.captionMax}.`,
+        `The TikTok caption (title plus description) is ${text.length} characters. The limit is ${PLATFORM_LIMITS.tiktok.captionMax}.`,
         'permanent',
       )
     }
@@ -106,7 +121,7 @@ export class TikTokAdapter implements PlatformAdapter {
         if (problem) throw new AdapterError(problem, 'permanent')
         const t = s as TikTokPostSettings
         postInfo = {
-          title: ctx.caption,
+          title: tiktokCaptionText(ctx.title, ctx.caption),
           privacy_level: t.privacy,
           disable_comment: !t.allowComment,
           disable_duet: !t.allowDuet,
@@ -177,12 +192,16 @@ export class TikTokAdapter implements PlatformAdapter {
     if (!a || typeof publishId !== 'string') return { status: 'processing' }
     const r = await this.withToken(a, (token) => this.d.client.status(token, publishId))
     switch (r.status) {
-      case 'SEND_TO_USER_INBOX':
+      case 'SEND_TO_USER_INBOX': {
+        // TikTok's inbox upload takes no text, so the caption is copied for pasting into the draft.
+        const text = tiktokCaptionText(ctx.title, ctx.caption)
+        if (text) this.d.host.copyText?.(text)
         this.d.host.notify(
           'TikTok draft ready',
-          `TikTok draft ready for ${ctx.brandName}. Open TikTok, tap the inbox notification, add the AI label if needed, and post.`,
+          `TikTok draft ready for ${ctx.brandName}. Open TikTok, tap the inbox notification, paste the caption${text ? ' (already copied)' : ''}, add the AI label if needed, and post.`,
         )
         return { status: 'needs_action', externalId: publishId }
+      }
       case 'PUBLISH_COMPLETE': {
         const id = r.postIds[0]
         return {

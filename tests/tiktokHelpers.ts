@@ -25,6 +25,7 @@ export async function makeTikTokEnv() {
   const client = new TikTokClient({ urls, sleep: async () => {} })
   const alerts: string[][] = []
   const notes: string[][] = []
+  const copied: string[] = []
   const holder: { env: ReturnType<typeof makeEnv> | null } = { env: null }
   const service = new TikTokService({
     db: null as never,
@@ -53,6 +54,7 @@ export async function makeTikTokEnv() {
     freshCreator: (id) => service.fresh(id),
     host: {
       notify: (t, b) => notes.push([t, b]),
+      copyText: (text) => copied.push(text),
       log: (level, message, ctx) => holder.env!.log.log(level, message, { postId: ctx.postId }),
     },
   })
@@ -80,7 +82,7 @@ export async function makeTikTokEnv() {
     'https://example.test/oauth/tiktok/',
     false,
   )
-  return { fake, env, secrets, service, client, adapter, alerts, notes, close: () => fake.close() }
+  return { fake, env, secrets, service, client, adapter, alerts, notes, copied, close: () => fake.close() }
 }
 
 export async function connectTikTok(t: Awaited<ReturnType<typeof makeTikTokEnv>>, brandId = 1) {

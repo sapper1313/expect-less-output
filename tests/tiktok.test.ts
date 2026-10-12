@@ -2,6 +2,7 @@ import { existsSync, writeFileSync } from 'fs'
 import { afterEach, describe, expect, it } from 'vitest'
 import { planChunks } from '../src/main/tiktok/config'
 import { classifyTikTokError } from '../src/main/tiktok/client'
+import { tiktokCaptionText } from '../src/main/adapters/tiktok'
 import {
   commercialNotice,
   consentKind,
@@ -332,9 +333,10 @@ describe('TikTok Drafts mode (upload to inbox)', () => {
     expect(t.notes).toEqual([
       [
         'TikTok draft ready',
-        'TikTok draft ready for Trash Panda. Open TikTok, tap the inbox notification, add the AI label if needed, and post.',
+        'TikTok draft ready for Trash Panda. Open TikTok, tap the inbox notification, paste the caption (already copied), add the AI label if needed, and post.',
       ],
     ])
+    expect(t.copied).toEqual(['Draft Test\n\ncaption'])
     expect(t.env.posts.get(post.id)!.status).toBe('partial')
     expect(t.env.posts.get(post.id)!.videoPath).toContain('/Queue/')
     await t.env.scheduler.tick()
@@ -536,6 +538,30 @@ describe('TikTok Direct post (mocked, real posts only after audit approval)', ()
       ...extra,
     })
 
+  it('sends the title plus the description as post_info.title', async () => {
+    const t = await env()
+    await direct(t)
+    await sched(t, valid())
+    t.env.clock.ms += 2 * MIN
+    await t.env.scheduler.tick()
+    expect(t.fake.state.inits[0].body.post_info.title).toBe('Direct\n\nHello #funny')
+  })
+
+  it('does not repeat the title when the caption already starts with it', () => {
+    expect(tiktokCaptionText('Fridge Math', 'Fridge Math #fun')).toBe('Fridge Math #fun')
+    expect(tiktokCaptionText('', 'only caption')).toBe('only caption')
+    expect(tiktokCaptionText('only title', '')).toBe('only title')
+  })
+
+  it('refuses a title plus description over 2200 characters', async () => {
+    const t = await env()
+    await direct(t)
+    const post = await sched(t, valid(), { caption: 'x'.repeat(2200) })
+    t.env.clock.ms += 2 * MIN
+    await t.env.scheduler.tick()
+    expect(target(t, post.id).lastError).toContain('title plus description')
+  })
+
   it('refuses to schedule without the creator choices, with a clear message', async () => {
     const t = await env()
     await direct(t)
@@ -568,7 +594,7 @@ describe('TikTok Direct post (mocked, real posts only after audit approval)', ()
     const init = t.fake.state.inits[0]
     expect(init.mode).toBe('direct')
     expect(init.body.post_info).toEqual({
-      title: 'Hello #funny',
+      title: 'Direct\n\nHello #funny',
       privacy_level: 'PUBLIC_TO_EVERYONE',
       disable_comment: false,
       disable_duet: true,

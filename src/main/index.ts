@@ -389,6 +389,7 @@ async function boot(): Promise<void> {
         if (Notification.isSupported()) new Notification({ title, body }).show()
         send({ type: 'toast', toast: { kind: 'info', headline: title, detail: body } })
       },
+      copyText: (text) => clipboard.writeText(text),
       log: (level, message, ctx) =>
         log.log(level, message, { postId: ctx.postId, platform: 'tiktok' }),
     },
