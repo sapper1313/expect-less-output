@@ -30,7 +30,7 @@ export const ShortDraft = z.object({
 })
 export type ShortDraftData = z.infer<typeof ShortDraft>
 
-const SceneSchema = z.object({
+export const SceneSchema = z.object({
   n: z.number().int().min(1),
   content_seconds: z.number().default(10),
   generate_seconds: z.number().min(1).max(15).default(10),
@@ -71,6 +71,15 @@ export const HollowDraft = z.object({
   key_lines: z.array(z.string()).default([]),
 })
 export type HollowDraftData = z.infer<typeof HollowDraft>
+
+/** Long episodes are written in parts. First the plan: everything except the scenes, plus one beat for every scene. */
+export const HollowOutline = HollowDraft.omit({ scenes: true }).extend({
+  beats: z.array(z.object({ n: z.number().int().min(1), beat: z.string().min(1) })).min(1),
+})
+export type HollowOutlineData = z.infer<typeof HollowOutline>
+
+/** Then the scenes, a few at a time. */
+export const SceneBatch = z.object({ scenes: z.array(SceneSchema).min(1) })
 
 export const Draft = z.union([HollowDraft, ShortDraft])
 

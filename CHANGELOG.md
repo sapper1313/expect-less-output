@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.3 Long episodes are written in parts
+
+- A long episode (more than 20 scenes, for example the 7 minute Wonder Hollow episodes) is no longer written as one huge answer, which kept running out of room ("The answer was cut off because it was too long"). The Writer now makes a short plan with one line for every scene, then writes the scenes 12 at a time, each part seeing the whole plan and the end of the part before it. Every part is a small answer, so the length of an episode no longer matters.
+- If a part comes back short, the Writer tries again like it does for a cut off answer. Shorter episodes (a 3 minute Hollow episode, all the short form brands) are written exactly as before.
+
 ## 0.9.2 Command+Q keeps the app running
 
 - Command+Q now hides the window like the red close button. The app keeps running from the menu bar, and only **Quit** in the menu bar icon menu really stops it. Shutting down, restarting or logging out still works.

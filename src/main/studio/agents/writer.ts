@@ -3,6 +3,8 @@ import type { Db } from '../../db'
 import {
   Draft,
   HollowDraft,
+  HollowOutline,
+  SceneBatch,
   ShortDraft,
   draftToPackage,
   isHollow,
@@ -14,7 +16,7 @@ import type { BibleService } from '../bible'
 import type { EpisodeLibrary } from '../library'
 import type { Holidays } from '../holidays'
 import type { RepetitionGuard } from '../repetition'
-import { AgentDef, FlagNow } from './framework'
+import { AgentDef, FlagNow, RetryableError } from './framework'
 import type { LlmGateway } from './llm'
 import { STYLE_RULES, ctxLine } from './prompts'
 import type { HollowSafetyChecker, MathChecker, ScriptQc } from './checkers'
@@ -24,6 +26,16 @@ Every clip is 15 seconds or less. Several clips make a longer video.`
 
 const HOLLOW_SHAPE = `{"title":"","idea":"","logline":"","life_lesson":"","math_lesson":"","runtime_target_seconds":180,"counted_objects":[{"name":"acorns","quantity":5,"scenes":[4,5,6]}],"scenes":[{"n":1,"content_seconds":10,"generate_seconds":10,"setting":"","characters":[""],"action":"","dialogue":[{"speaker":"","line":""}],"objects_in_frame":[""],"camera":"","transition_in":"","transition_out":"","grok_prompt":"a complete prompt for the video model","extension_note":""}],"youtube":{"title":"","description":"","tags":[""]},"thumbnail_brief":"","summary":"","tags":[""],"key_lines":[""]}
 Scenes are numbered 1, 2, 3 in order. Each has 10 seconds of content. Use generate_seconds 15 only where a transition handle helps the next scene start smoothly. Counted objects must be written into the scene as natural props and kept in frame for the whole counting beat, with the exact quantity stated in the scene prompt, and counted aloud one number at a time in order. Keep every field short. Each grok_prompt is at most 90 words, every other scene field is one short sentence, and the whole answer must stay well under 15000 tokens.`
+
+/** Episodes with more scenes than this are written in parts, so no single answer can run out of room. */
+export const PARTS_ABOVE_SCENES = 20
+export const SCENES_PER_PART = 12
+
+const OUTLINE_SHAPE = `{"title":"","idea":"","logline":"","life_lesson":"","math_lesson":"","runtime_target_seconds":420,"counted_objects":[{"name":"acorns","quantity":5,"scenes":[4,5,6]}],"beats":[{"n":1,"beat":"one short sentence about what happens in this scene"}],"youtube":{"title":"","description":"","tags":[""]},"thumbnail_brief":"","summary":"","tags":[""],"key_lines":[""]}
+There is one beat for every scene, numbered 1, 2, 3 in order. Counted objects name the scene numbers where they are counted. Keep every field short.`
+
+const SCENE_SHAPE = `{"scenes":[{"n":1,"content_seconds":10,"generate_seconds":10,"setting":"","characters":[""],"action":"","dialogue":[{"speaker":"","line":""}],"objects_in_frame":[""],"camera":"","transition_in":"","transition_out":"","grok_prompt":"a complete prompt for the video model","extension_note":""}]}
+Each scene has 10 seconds of content. Use generate_seconds 15 only where a transition handle helps the next scene start smoothly. Counted objects must be written into the scene as natural props and kept in frame for the whole counting beat, with the exact quantity stated in the scene prompt, and counted aloud one number at a time in order. Each grok_prompt is at most 90 words and every other field is one short sentence.`
 
 const Ideas = z.object({ ideas: z.array(z.string()).default([]) })
 
@@ -45,6 +57,70 @@ export interface WriterDeps {
 
 const Input = z.object({ slotDate: z.string(), episodeId: z.string().optional() })
 const Output = z.object({ episodeId: z.string(), status: z.string(), attempts: z.number() })
+
+/**
+ * Writes a long episode in parts: a plan with one beat per scene, then the scenes a dozen at a time. Every part is
+ * its own small answer, so a 7 minute episode with 45 scenes cannot be cut off the way one huge answer can.
+ */
+export async function writeInParts(
+  d: WriterDeps,
+  args: {
+    base: Record<string, unknown>
+    system: string
+    userLines: string[]
+    sceneCount: number
+    minSeconds: number
+  },
+): Promise<HollowDraftData> {
+  const { base, system, userLines, sceneCount } = args
+  const outline = await d.gateway.json(
+    {
+      ...base,
+      system: `${system}\nAnswer only with JSON in this shape:\n${OUTLINE_SHAPE}\nPlan exactly ${sceneCount} scenes, so the content adds up to more than ${args.minSeconds} seconds.`,
+      user: userLines.join('\n'),
+      maxTokens: 12000,
+    } as never,
+    HollowOutline,
+  )
+  const beats = [...outline.beats].sort((a, b) => a.n - b.n).map((b, i) => ({ ...b, n: i + 1 }))
+  const scenes: HollowDraftData['scenes'] = []
+  for (let from = 1; from <= beats.length; from += SCENES_PER_PART) {
+    const to = Math.min(beats.length, from + SCENES_PER_PART - 1)
+    const plan = beats.map((b) => `${b.n}. ${b.beat}`).join('\n')
+    const last = scenes[scenes.length - 1]
+    const part = await d.gateway.json(
+      {
+        ...base,
+        system: `${system}\nYou are writing part of one episode. The plan below is fixed. Answer only with JSON in this shape:\n${SCENE_SHAPE}`,
+        user: [
+          `Episode: ${outline.title}. ${outline.logline}`,
+          `Life lesson: ${outline.life_lesson}. Math lesson: ${outline.math_lesson}.`,
+          `Counted objects: ${JSON.stringify(outline.counted_objects)}`,
+          `The whole plan:\n${plan}`,
+          last
+            ? `The scene just before this part (number ${last.n}) ends like this: ${last.action} ${last.dialogue.map((l) => `${l.speaker}: ${l.line}`).join(' ')}`
+            : '',
+          `Write only scenes ${from} to ${to}, numbered ${from} to ${to}, exactly one scene for each beat.`,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+        maxTokens: 16000,
+      } as never,
+      SceneBatch,
+    )
+    const wanted = new Map(beats.map((b) => [b.n, b]))
+    const got = part.scenes
+      .filter((sc) => sc.n >= from && sc.n <= to && wanted.has(sc.n))
+      .sort((a, b) => a.n - b.n)
+    if (got.length < to - from + 1)
+      throw new RetryableError(
+        `The writer returned ${got.length} of the ${to - from + 1} scenes asked for (scenes ${from} to ${to}).`,
+      )
+    scenes.push(...got)
+  }
+  // The plan's beats are not part of the finished draft (the schema drops them).
+  return HollowDraft.parse({ ...outline, scenes })
+}
 
 /** One Show Writer instance per brand: the same module, loaded with that brand's bible on every call. */
 export function makeWriterAgent(
@@ -148,48 +224,58 @@ export function makeWriterAgent(
       }
 
       for (let attempt = 0; attempt < cap; attempt++) {
-        const draft = await d.gateway.json(
-          {
-            agent: 'Show Writer',
-            brandId,
-            episodeId,
-            taskId: ctx.task.id,
-            system: `You are the Show Writer for "${brandName}". Follow the series bible exactly. Write the whole episode.\n${STYLE_RULES}\n${long ? 'Answer only with JSON in this shape:\n' + HOLLOW_SHAPE + `\nWrite at least ${Math.ceil(bible.minSeconds / 10) + 1} scenes so the content adds up to more than ${bible.minSeconds} seconds. Count them before you answer.` : 'Answer only with JSON in this shape:\n' + SHORT_SHAPE}\n\n${bibleMd}`,
-            user: [
-              ctxLine({
-                task: 'write',
-                brand: brandName,
-                format: brand.format,
-                slotDate: input.slotDate,
-                attempt,
-                feedback,
-                minSeconds: bible.minSeconds,
-                maxSeconds: bible.maxSeconds,
-                catchphrases,
-                checks,
-              }),
-              `Posting date: ${input.slotDate}.`,
-              idea ? `Use this idea if it fits: ${idea.text}` : '',
-              events.length
-                ? `Upcoming days you may tie in if it fits the bible: ${events.join('; ')}`
-                : '',
-              recent.length
-                ? `Recent episodes (do not repeat them):\n${recent.map((e) => `- ${e.title}: ${e.summary}`).join('\n')}`
-                : '',
-              hints.length ? `What is working lately: ${hints.join(' ')}` : '',
-              ctx.task.payload.note
-                ? `The owner asked for this change: ${String(ctx.task.payload.note)}`
-                : '',
-              feedback.length
-                ? `Fix these problems from the last try:\n${feedback.map((f) => `- ${f}`).join('\n')}`
-                : '',
-            ]
-              .filter(Boolean)
-              .join('\n'),
-            maxTokens: long ? 32000 : 10000,
-          },
-          (long ? HollowDraft : ShortDraft) as ZodType<ShortDraftData | HollowDraftData>,
-        )
+        const userLines = [
+          ctxLine({
+            task: 'write',
+            brand: brandName,
+            format: brand.format,
+            slotDate: input.slotDate,
+            attempt,
+            feedback,
+            minSeconds: bible.minSeconds,
+            maxSeconds: bible.maxSeconds,
+            catchphrases,
+            checks,
+          }),
+          `Posting date: ${input.slotDate}.`,
+          idea ? `Use this idea if it fits: ${idea.text}` : '',
+          events.length
+            ? `Upcoming days you may tie in if it fits the bible: ${events.join('; ')}`
+            : '',
+          recent.length
+            ? `Recent episodes (do not repeat them):\n${recent.map((e) => `- ${e.title}: ${e.summary}`).join('\n')}`
+            : '',
+          hints.length ? `What is working lately: ${hints.join(' ')}` : '',
+          ctx.task.payload.note
+            ? `The owner asked for this change: ${String(ctx.task.payload.note)}`
+            : '',
+          feedback.length
+            ? `Fix these problems from the last try:\n${feedback.map((f) => `- ${f}`).join('\n')}`
+            : '',
+        ].filter(Boolean)
+        const sceneCount = Math.ceil(bible.minSeconds / 10) + 2
+        const inParts = long && sceneCount > PARTS_ABOVE_SCENES
+        const baseSystem = `You are the Show Writer for "${brandName}". Follow the series bible exactly. Write the whole episode.\n${STYLE_RULES}`
+        const draft = inParts
+          ? await writeInParts(d, {
+              base: { agent: 'Show Writer', brandId, episodeId, taskId: ctx.task.id },
+              system: `${baseSystem}\n\n${bibleMd}`,
+              userLines,
+              sceneCount,
+              minSeconds: bible.minSeconds,
+            })
+          : await d.gateway.json(
+              {
+                agent: 'Show Writer',
+                brandId,
+                episodeId,
+                taskId: ctx.task.id,
+                system: `${baseSystem}\n${long ? 'Answer only with JSON in this shape:\n' + HOLLOW_SHAPE + `\nWrite at least ${Math.ceil(bible.minSeconds / 10) + 1} scenes so the content adds up to more than ${bible.minSeconds} seconds. Count them before you answer.` : 'Answer only with JSON in this shape:\n' + SHORT_SHAPE}\n\n${bibleMd}`,
+                user: userLines.join('\n'),
+                maxTokens: long ? 32000 : 10000,
+              },
+              (long ? HollowDraft : ShortDraft) as ZodType<ShortDraftData | HollowDraftData>,
+            )
         feedback.length = 0
         const parsed: ShortDraftData | HollowDraftData = Draft.parse(draft)
         const cand = {

@@ -108,3 +108,6 @@ Studio, **Director's Log** shows every agent action with filters. **Activity Log
 - **Insights:** the re-post queue lists your best older videos. YouTube is off by default because the same video twice can look like spam.
 - **Telegram:** set it up under Settings, Alerts and backup. Then ask "how is the last post doing?" from your phone.
 
+## Long episodes and "ran out of room"
+
+An episode with more than 20 scenes (a 7 minute Hollow episode has about 44) is written in parts: a plan first, then the scenes 12 at a time. This is automatic. If an episode was flagged with "The answer was cut off", open it on the Library or the Director's Log and press **Rebuild** (or **Write an episode now** on the Bible tab) to write it again with the new method.
