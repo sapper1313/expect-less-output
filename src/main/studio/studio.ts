@@ -1845,7 +1845,7 @@ export class Studio implements StudioApi {
   async rebuildEpisode(id: string, note = '') {
     const ep = this.episodes.find(id)
     if (!ep) throw new Error('That episode was not found.')
-    if (!REBUILDABLE.includes(ep.status) || ep.videoPath)
+    if (!REBUILDABLE.includes(ep.status) || ep.videoPath || ep.postId)
       throw new Error(
         'That episode already has a video or is on its way to posting, so it will not be rebuilt. Make a new episode instead.',
       )
@@ -1919,7 +1919,7 @@ export class Studio implements StudioApi {
       ...ov.brands.flatMap((b) =>
         this.episodes
           .list({ brandId: b.brandId, limit: 40 })
-          .filter((e) => REBUILDABLE.includes(e.status) && !e.videoPath)
+          .filter((e) => REBUILDABLE.includes(e.status) && !e.videoPath && !e.postId)
           .slice(0, 12)
           .map(
             (e) =>
@@ -1989,7 +1989,7 @@ export class Studio implements StudioApi {
     if (kind === 'rebuild_pending') {
       const todo = this.episodes
         .list({ brandId, limit: 200 })
-        .filter((e) => REBUILDABLE.includes(e.status) && !e.videoPath)
+        .filter((e) => REBUILDABLE.includes(e.status) && !e.videoPath && !e.postId)
       let n = 0
       for (const e of todo) {
         try {

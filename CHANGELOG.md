@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased Wonder Hollow keeps to Wednesday and Friday, and a video keeps its own text
+
+- Wonder Hollow Workshop is a Wednesday and Friday show (it was seeded as Tuesday and Friday). Production windows are Sunday and Monday for Wednesday, Wednesday and Thursday for Friday. A new migration (014) moves the saved settings of this brand to that schedule and to YouTube only. No post is changed.
+- Every "next open slot" lookup (the Inbox auto schedule, the agent API, the Studio) now honors a weekly schedule. Before, only the Studio's own date maths did, so a brand with Monday to Friday slots could still land on a Tuesday.
+- A brand only gets targets for platforms it has an account for, and long form brands are always YouTube only when read.
+- A post that already has a good future time keeps it when the Publisher runs again.
+- A video stays bound to the title and text it arrived with: the Publisher refuses to rewrite the post of an episode that has moved on, the Writer and Rebuild refuse to rewrite an episode that already has a post or video, and a second video for the same episode is refused.
+
 ## 0.9.6 Agents can help with the Studio
 
 - New agent API routes and MCP tools: `get_studio_spend`, `list_flagged_tasks`, `list_bible_skills` (always allowed), and `set_studio_caps`, `add_bible_skill`, `remove_bible_skill`, `retry_flagged_task`, `rebuild_episode`, `set_studio_brand_paused` (22 tools in all).

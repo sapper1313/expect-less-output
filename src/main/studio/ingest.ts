@@ -45,6 +45,12 @@ export function makeIngestHooks(d: IngestDeps): IngestHooks {
       const ep = d.episodes.find(episodeId)
       if (!ep) throw new Error(`No episode "${episodeId}" exists in the Library.`)
       const pkg = d.episodes.getPackage(episodeId)
+      // One episode, one video. A second video would borrow the title and text of the first, so it is refused.
+      const attached = ep.postId ? await d.posts.get(ep.postId) : null
+      if (attached && !['canceled', 'failed', 'missed'].includes(attached.status))
+        throw new Error(
+          `Episode ${episodeId} already has a video (post ${attached.id}, ${attached.status}). Cancel that post first, or make a new episode.`,
+        )
       d.episodes.setStatus(episodeId, 'Video received', 'Video arrived through the ingest API.')
       d.episodes.setStatus(episodeId, 'Checking video')
       const brand = d.cfg.getBrand(ep.brandId)
@@ -115,8 +121,15 @@ export function makeIngestHooks(d: IngestDeps): IngestHooks {
       if (sidecar.caption === undefined && description) fill.caption = description
       if (sidecar.platforms === undefined) {
         // Only the four platforms the scheduler posts to. Bluesky is handled by the Publisher.
+        const accounts = new Set(
+          (
+            d.db.prepare('SELECT platform FROM accounts WHERE brand_id = ?').all(ep.brandId) as Array<{
+              platform: string
+            }>
+          ).map((a) => a.platform),
+        )
         const four = (['youtube', 'facebook', 'instagram', 'tiktok'] as const).filter(
-          (p) => brand.platforms[p],
+          (p) => brand.platforms[p] && accounts.has(p),
         )
         if (four.length) fill.platforms = four
       }

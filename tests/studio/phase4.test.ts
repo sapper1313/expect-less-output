@@ -231,7 +231,7 @@ describe('Thumbnail A/B swap test (YouTube long form)', () => {
     const vars = e.db.prepare('SELECT variant, ctr, impressions, winner FROM thumb_variants WHERE episode_id = ? ORDER BY variant').all(row.id) as Array<{ variant: string; ctr: number; impressions: number; winner: number }>
     expect(vars.map((v) => [v.variant, v.ctr, v.winner])).toEqual([['A', 0.041, 0], ['B', 0.058, 1]])
     expect(s.tester.winnersFor(hid)).toHaveLength(1)
-    // what the Hollow ingest produced: made for kids, 1280x720 under 2 MB, scheduled for a Tuesday or Friday
+    // what the Hollow ingest produced: made for kids, 1280x720 under 2 MB, scheduled for a Wednesday or Friday
     const pkg = s.episodes.getPackage(row.id)!
     expect((pkg.extra as { compliance: { kids: { required: boolean } } }).compliance.kids.required).toBe(true)
     const post = e.posts.get(ep.postId!)!
@@ -239,7 +239,7 @@ describe('Thumbnail A/B swap test (YouTube long form)', () => {
     const info = await probe(thumb)
     expect([info.width, info.height]).toEqual([1280, 720])
     expect(statSync(thumb).size).toBeLessThan(2 * 1024 * 1024)
-    expect(['2026-06-05T12:00:00.000Z', '2026-06-02T12:00:00.000Z', '2026-06-09T12:00:00.000Z']).toContain(post.scheduledAtUtc)
+    expect(['2026-06-05T12:00:00.000Z', '2026-06-03T12:00:00.000Z', '2026-06-10T12:00:00.000Z']).toContain(post.scheduledAtUtc)
     expect(e.db.prepare('SELECT youtube_made_for_kids AS k FROM brand_defaults WHERE brand_id = ?').get(hid)).toEqual({ k: 1 })
   })
 

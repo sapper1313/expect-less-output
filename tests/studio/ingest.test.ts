@@ -58,7 +58,7 @@ function setup(fetchImpl?: typeof fetch) {
 }
 
 describe('ingest with episode_id', () => {
-  it('attaches a Muse video to its episode, schedules it for the next Tuesday or Friday, and fills title and caption', async () => {
+  it('attaches a Muse video to its episode, schedules it for the next Wednesday or Friday, and fills title and caption', async () => {
     const t = setup()
     const ep = t.episode()
     writeFileSync(join(t.inbox, 'acorns.mp4'), readFileSync(wide))
@@ -72,8 +72,8 @@ describe('ingest with episode_id', () => {
     expect(post.title).toBe('Counting Acorns')
     expect(post.caption).toBe('About Counting Acorns.')
     expect(post.targets.map((x) => x.platform)).toEqual(['youtube'])
-    // next Tuesday 2026-06-02 at the first weekday slot (08:00 Eastern = 12:00 UTC)
-    expect(post.scheduledAtUtc).toBe('2026-06-02T12:00:00.000Z')
+    // next Wednesday 2026-06-03 at the first weekday slot (08:00 Eastern = 12:00 UTC)
+    expect(post.scheduledAtUtc).toBe('2026-06-03T12:00:00.000Z')
     const history = t.e.studio.episodes.getPackage(ep.id)!.status_history.map((h) => h.status)
     expect(history).toEqual(expect.arrayContaining(['Video received', 'Checking video', 'Scheduled']))
     expect(t.rejected).toEqual([])

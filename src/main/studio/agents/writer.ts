@@ -216,6 +216,12 @@ export function makeWriterAgent(
         ).id
         ctx.tasks.setPayload(ctx.task.id, { ...ctx.task.payload, episodeId })
       }
+      // An episode that has a video or a post is never rewritten: the post already carries the text of that script.
+      const current = d.library.get(episodeId)
+      if (current.postId || current.videoPath)
+        throw new FlagNow(
+          `Episode ${episodeId} already has a video, so its script will not be rewritten. Make a new episode instead.`,
+        )
       ctx.tasks.setEpisode(ctx.task.id, episodeId)
       ctx.audit('episode', { episodeId, slotDate: input.slotDate })
 

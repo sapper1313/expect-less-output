@@ -9,7 +9,10 @@ import { DEFAULT_PLATFORM_CAPS, capKeyFor } from '@shared/studio/platformCaps'
 import type { StudioConfigService } from './configService'
 import type { EpisodeLibrary } from './library'
 import type { Platform, PostTargetInput } from '@shared/types'
+import type { EpisodeStatus } from '@shared/studio/types'
 import { z } from 'zod'
+import { DateTime } from 'luxon'
+import { ZONE } from '@shared/time'
 import { AgentDef, FlagNow } from './agents/framework'
 import { ctxLine, STYLE_RULES } from './agents/prompts'
 import type { LlmGateway } from './agents/llm'
@@ -45,6 +48,9 @@ export interface PublishDeps {
 }
 
 const FOUR: Platform[] = ['youtube', 'facebook', 'instagram', 'tiktok']
+
+/** Episode statuses while a freshly delivered video is being attached. Only then may its post take the episode's text. */
+const ATTACHING: EpisodeStatus[] = ['Awaiting video', 'Video received', 'Checking video', 'Flagged']
 
 export interface PublishRun {
   episodeId: string
@@ -183,10 +189,25 @@ export class Publisher {
     const isShort = brand.format === 'short'
     const mock = cfg.mockMode
     const mockVideo = r.mock === true
+
+    // A video is bound to the title and text written when it arrived. Once the episode has moved on (scheduled, posted, or
+    // rewritten), a run for an existing post could only stamp the new text on the old video, so it is refused.
+    if (r.postId) {
+      if (ep.postId !== null && ep.postId !== r.postId)
+        throw new FlagNow(
+          `Episode ${ep.id} is attached to post ${ep.postId}, not post ${r.postId}. The title and text were not changed.`,
+        )
+      if (!ATTACHING.includes(ep.status))
+        throw new FlagNow(
+          `Post ${r.postId} already has its title and text from when its video arrived, and episode ${ep.id} is now "${ep.status}". They were not changed. Make a new episode for a new script.`,
+        )
+    }
     this.d.episodes.setStatus(r.episodeId, 'Checking video', 'Thumbnail, text and compliance.')
 
     // where the video is right now
     const existing = r.postId ? this.d.posts.get(r.postId) : null
+    if (r.postId && (!existing || existing.brandId !== ep.brandId))
+      throw new FlagNow(`Post ${r.postId} does not belong to this episode's brand.`)
     let video = r.videoPath ?? (existing ? this.d.media.resolve(existing.videoPath) : null)
     if (!video || !existsSync(video)) throw new FlagNow('The finished video file is missing.')
 
@@ -222,8 +243,16 @@ export class Publisher {
       height: vinfo.height,
       sizeBytes: statSync(video).size,
     }
+    // Only platforms the brand has switched on AND has an account for. Bluesky has its own account list.
+    const accounts = new Set(
+      (
+        this.d.db.prepare('SELECT platform FROM accounts WHERE brand_id = ?').all(ep.brandId) as Array<{
+          platform: string
+        }>
+      ).map((a) => a.platform),
+    )
     const wanted = (Object.keys(brand.platforms) as Array<keyof typeof brand.platforms>).filter(
-      (p) => brand.platforms[p],
+      (p) => brand.platforms[p] && (p === 'bluesky' || accounts.has(p)),
     )
     const tiktokAcc = this.d.db
       .prepare("SELECT mode FROM accounts WHERE brand_id = ? AND platform = 'tiktok'")
@@ -290,7 +319,15 @@ export class Publisher {
     }
 
     // 5. schedule
-    const when = this.slotFor(ep.brandId, ep.slotDate)
+    // A post that already has a good future time on an allowed day keeps it. A run never moves it.
+    const days = this.d.posts.postDays(ep.brandId)
+    const keepsTime =
+      existing?.status === 'scheduled' &&
+      !!existing.scheduledAtUtc &&
+      Date.parse(existing.scheduledAtUtc) > this.now() + 60_000 &&
+      (!days ||
+        days.includes(DateTime.fromISO(existing.scheduledAtUtc, { zone: 'utc' }).setZone(ZONE).weekday))
+    const when = keepsTime ? existing!.scheduledAtUtc : this.slotFor(ep.brandId, ep.slotDate)
     const title = report.texts.youtube?.title ?? pkg.youtube.title ?? pkg.title
     const caption =
       report.texts.youtube?.description ??

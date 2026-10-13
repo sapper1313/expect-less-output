@@ -143,10 +143,10 @@ export function defaultBrandConfig(format: BrandFormat, startDate: string): Stud
       ...base,
       resolution: '720p',
       cadenceMode: 'weekly',
-      // Tuesday and Friday posts. Sunday and Monday produce for Tuesday. Wednesday and Thursday for Friday.
-      postDays: [2, 5],
+      // Wednesday and Friday posts. Sunday and Monday produce for Wednesday. Wednesday and Thursday for Friday.
+      postDays: [3, 5],
       windows: [
-        { days: [7, 1], forPostDay: 2 },
+        { days: [7, 1], forPostDay: 3 },
         { days: [3, 4], forPostDay: 5 },
       ],
       platforms: allPlatforms(['youtube']),
@@ -169,10 +169,15 @@ export function normalizeBrandConfig(
 ): StudioBrandConfig {
   const d = defaultBrandConfig(stored?.format ?? format, startDate)
   const s = stored ?? {}
+  const platforms = { ...d.platforms, ...(s.platforms ?? {}) }
+  // Long form is YouTube only, whatever an older row says.
+  if (d.format === 'long')
+    for (const k of Object.keys(platforms) as StudioPlatform[])
+      if (k !== 'youtube') platforms[k] = false
   return {
     ...d,
     ...s,
-    platforms: { ...d.platforms, ...(s.platforms ?? {}) },
+    platforms,
     monthlyCap: { ...d.monthlyCap, ...(s.monthlyCap ?? {}) },
     perEpisodeCap: { ...d.perEpisodeCap, ...(s.perEpisodeCap ?? {}) },
   }

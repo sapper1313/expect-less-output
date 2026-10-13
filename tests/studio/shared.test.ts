@@ -58,16 +58,17 @@ describe('cadence', () => {
     expect(() => changeEveryN(cfg, 0, '2026-06-05')).toThrow()
   })
 
-  it('Wonder Hollow weekly mode posts Tuesday and Friday with two production windows', () => {
+  it('Wonder Hollow weekly mode posts Wednesday and Friday with two production windows', () => {
     const cfg = defaultBrandConfig('long', '2026-06-01')
     expect(cfg.cadenceMode).toBe('weekly')
-    expect(dueDates(cfg, '2026-06-01', '2026-06-14')).toEqual(['2026-06-02', '2026-06-05', '2026-06-09', '2026-06-12'])
-    // Tuesday 06-02: Sunday 05-31 and Monday 06-01
-    expect(productionDays(cfg, '2026-06-02')).toEqual(['2026-05-31', '2026-06-01'])
+    expect(cfg.postDays).toEqual([3, 5])
+    expect(dueDates(cfg, '2026-06-01', '2026-06-14')).toEqual(['2026-06-03', '2026-06-05', '2026-06-10', '2026-06-12'])
+    // Wednesday 06-03: Sunday 05-31 and Monday 06-01
+    expect(productionDays(cfg, '2026-06-03')).toEqual(['2026-05-31', '2026-06-01'])
     // Friday 06-05: Wednesday 06-03 and Thursday 06-04
     expect(productionDays(cfg, '2026-06-05')).toEqual(['2026-06-03', '2026-06-04'])
     expect(windowOpensOn(cfg, '2026-06-05')).toBe('2026-06-03')
-    expect(nextDue(cfg, '2026-06-03')).toBe('2026-06-05')
+    expect(nextDue(cfg, '2026-06-04')).toBe('2026-06-05')
   })
 
   it('projects monthly cost', () => {

@@ -13,6 +13,8 @@ export interface NextSlotsInput {
   taken: string[]
   count: number
   from: string | Date
+  /** ISO weekdays (1 Monday to 7 Sunday) a post may land on. Omit or leave empty for every day. */
+  weekdays?: number[]
   zone?: string
 }
 
@@ -35,6 +37,10 @@ export function getNextOpenSlots(input: NextSlotsInput): string[] {
   let day = DateTime.fromMillis(fromMs, { zone }).startOf('day')
 
   for (let i = 0; i < MAX_DAYS_AHEAD && result.length < count; i++) {
+    if (input.weekdays?.length && !input.weekdays.includes(day.weekday)) {
+      day = day.plus({ days: 1 }).startOf('day')
+      continue
+    }
     const dayType = day.weekday >= 6 ? 'weekend' : 'weekday'
     const times = active
       .filter((s) => s.dayType === dayType)

@@ -6,7 +6,7 @@ Give this whole file to Grok Bot. It says what Expect Less Output (ELO) does now
 
 ELO writes each Wonder Hollow Workshop episode as a complete package: script, scene by scene video prompts, title, description and thumbnail brief. It checks the package, stores it, and waits.
 
-Grok Bot takes the package, makes the clips on the owner's Grok account, binds them into one finished video, and hands the video back to ELO. ELO checks it, makes the thumbnail, writes the YouTube text, and schedules it for the next Tuesday or Friday.
+Grok Bot takes the package, makes the clips on the owner's Grok account, binds them into one finished video, and hands the video back to ELO. ELO checks it, makes the thumbnail, writes the YouTube text, and schedules it for the next Wednesday or Friday.
 
 ELO does NOT make Wonder Hollow video through the API unless the owner switches that on later. Grok Bot makes it.
 
@@ -15,7 +15,7 @@ ELO does NOT make Wonder Hollow video through the API unless the owner switches 
 1. **Writes the episode** in the Wonder Hollow voice: about 3 minutes, 3D animated, made for kids, one life lesson and one math lesson.
 2. **Checks it.** Every counted number is verified by running code, not by guessing. A safety check blocks anything frightening, unsafe, mature, or with real people or brands. A repetition check blocks a copy of an earlier episode.
 3. **Stores it** in the Library as `Ready for production`, and keeps a plain `.json` copy in `~/ELO/Library/hollow/ready/` (one file per episode, named by the episode id). The copy disappears from that folder once the episode moves on.
-4. **Plans the schedule.** Wonder Hollow posts on Tuesday and Friday. The production windows are Sunday and Monday (for Tuesday) and Wednesday and Thursday (for Friday). ELO makes sure a package is ready before a window opens, and the owner gets a message if a posting slot is going to be missed.
+4. **Plans the schedule.** Wonder Hollow posts on Wednesday and Friday. The production windows are Sunday and Monday (for Wednesday) and Wednesday and Thursday (for Friday). ELO makes sure a package is ready before a window opens, and the owner gets a message if a posting slot is going to be missed.
 5. **After your video arrives:** checks it, writes the YouTube title and description, makes a 1280 by 720 thumbnail under 2 MB, sets the made for kids and AI labels, and schedules it. YouTube only. Comments are off.
 
 ## What Grok Bot has to do
@@ -83,7 +83,7 @@ Put these in the Wonder Hollow Workshop `Inbox` folder (inside the owner's ELO M
 
 ELO downloads it into the Inbox as `something.mp4`. The link must be http or https, point to a real MP4 or MOV, and be under 2 GB.
 
-Leave everything else out. ELO writes the YouTube title and description itself from the package, and picks the next Tuesday or Friday slot itself. Sending a title, a caption or a time in the JSON changes nothing, and a `scheduled_at` in the past makes the file get rejected.
+Leave everything else out. ELO writes the YouTube title and description itself from the package, and picks the next Wednesday or Friday slot itself. Sending a title, a caption or a time in the JSON changes nothing, and a `scheduled_at` in the past makes the file get rejected.
 
 The folder must be one the owner has switched on as an Inbox for Wonder Hollow Workshop (ELO, Brands, tick **Watch this brand's Inbox folder**). If a video is not picked up after a minute, ask the owner to check that.
 

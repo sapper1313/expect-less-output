@@ -187,7 +187,27 @@ export class PostService {
       taken: [...taken, ...extraTaken],
       count,
       from: fromUtc ?? new Date().toISOString(),
+      weekdays: this.postDays(brandId),
     })
+  }
+
+  /**
+   * The weekdays a brand may post on when it runs a weekly schedule in the Studio (Wonder Hollow: Wednesday and Friday).
+   * Every way of picking the next slot goes through nextSlots, so none of them can land on another day.
+   */
+  postDays(brandId: number): number[] | undefined {
+    const row = this.db
+      .prepare('SELECT config_json FROM studio_brands WHERE brand_id = ?')
+      .get(brandId) as { config_json: string } | undefined
+    if (!row) return undefined
+    try {
+      const c = JSON.parse(row.config_json) as { cadenceMode?: string; postDays?: unknown }
+      if (c.cadenceMode !== 'weekly' || !Array.isArray(c.postDays)) return undefined
+      const days = c.postDays.filter((d): d is number => Number.isInteger(d) && d >= 1 && d <= 7)
+      return days.length ? days : undefined
+    } catch {
+      return undefined
+    }
   }
 
   countOnDay(brandId: number, dayIso: string): number {

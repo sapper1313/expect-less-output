@@ -33,7 +33,7 @@ Estimate before you go live: each brand shows about what one episode costs (firs
 
 ## 4. Brands: cadence, platforms, flags (Settings, Brands)
 
-- **Every N days** (shorts) or a **Weekly schedule** (Wonder Hollow Workshop: post Tuesday and Friday, produce on Sunday and Monday for Tuesday, Wednesday and Thursday for Friday).
+- **Every N days** (shorts) or a **Weekly schedule** (Wonder Hollow Workshop: post Wednesday and Friday, produce on Sunday and Monday for Wednesday, Wednesday and Thursday for Friday).
 - Changing N applies from the next due date. Dates already planned never move.
 - **Production run time** (default 9:00 AM Eastern): work starts after this time.
 - **Script runway days** (default 7): the Director keeps that many days of approved scripts ready, without bothering you.
@@ -54,7 +54,7 @@ Pick a brand. Edit the premise, voice, characters, hooks, do and don't lists, ba
 1. The Writer produces a complete package that passes the Math Checker (counted objects checked by running code) and the Safety Checker. It then shows as **Ready for production** in the **Library**, and as a plain `.json` in `~/ELO/Library/hollow/ready/`. The Calendar shows the production window.
 2. In the Library, open the episode to read it. **Copy scene prompt** and **Copy all prompts** are there. You can also tell Grok Bot: it reads `GET /v1/episodes?status=Ready for production` through the local API (see `docs/AI_BOT_PROMPT.md`).
 3. Grok Bot makes the clips on your Grok subscription, binds them, and sends the finished video back: put a JSON file with `{"episode_id": "...", "video_url": "https://..."}` in the Wonder Hollow Workshop **Inbox** folder (or a video plus the same JSON). Nothing else changes about the Inbox.
-4. The app checks the video (plays, 16:9, right length, sound), then writes the YouTube text, makes the thumbnail (1280 by 720, under 2 MB), applies made for kids and the AI label, and schedules the next Tuesday or Friday. A bad video marks the episode **Flagged** with the reason.
+4. The app checks the video (plays, 16:9, right length, sound), then writes the YouTube text, makes the thumbnail (1280 by 720, under 2 MB), applies made for kids and the AI label, and schedules the next Wednesday or Friday. A bad video marks the episode **Flagged** with the reason.
 
 To let ELO make Hollow videos itself through the API instead, tick **Make this brand's video through the API** on the brand. It is off by default.
 

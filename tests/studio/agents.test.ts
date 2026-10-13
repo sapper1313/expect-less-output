@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { RetryableError } from '../../src/main/studio/agents/framework'
-import { makeStudioEnv } from './helpers'
+import { hollowId, makeStudioEnv } from './helpers'
 
 const Any = z.object({ slotDate: z.string().optional() }).passthrough()
 
@@ -164,6 +164,14 @@ describe('Director and agent framework', () => {
     const e = makeStudioEnv({ startMs: Date.UTC(2026, 4, 30, 10) }) // the studio began work on Saturday
     const s = e.studio
     for (const b of s.cfg.listBrandConfigs()) s.episodes.create(b.brandId, { series: b.name, episode_number: 1, title: `Old ${b.name}`, logline: '', runtime_target_seconds: 0, counted_objects: [], scenes: [], youtube: { title: 'x', description: 'x', tags: [], made_for_kids: false, ai_disclosure: true }, tags: [], summary: '' } as never, { status: 'Idea', slotDate: '2026-05-30' })
+    // This test is about the missed-slot rule, so Hollow posts on Tuesday here like the shorts do on 06-02.
+    s.cfg.setBrand(hollowId(e), {
+      postDays: [2, 5],
+      windows: [
+        { days: [7, 1], forPostDay: 2 },
+        { days: [3, 4], forPostDay: 5 },
+      ],
+    })
     e.clock.ms = Date.UTC(2026, 5, 2, 10) // Tuesday 06:00 Eastern
     s.director.tick()
     s.director.tick()
