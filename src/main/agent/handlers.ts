@@ -10,6 +10,7 @@ import {
   agentCreatePost,
   agentRetryPost,
   agentUpdatePost,
+  requireStudioWrite,
   listFilter,
   toUtc,
   type AgentServices,
@@ -232,6 +233,105 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
     }
   },
 
+  studioSpend: async ({ s }) => spendOut(await studioOf(s).spendSummary()),
+
+  setStudioCaps: async ({ s, body }) => {
+    requireStudioWrite(s)
+    const st = studioOf(s)
+    const cap = (v: number | null) => ({ value: v ?? 0, none: v === null })
+    for (const b of body.brands ?? []) brandOrNotFound(s, b.brand_id)
+    const patch: Record<string, unknown> = {}
+    if (body.global_monthly !== undefined) patch.globalCap = cap(body.global_monthly)
+    if (body.ai_text_monthly !== undefined) patch.aiTextCap = cap(body.ai_text_monthly)
+    if (body.per_episode_default !== undefined)
+      patch.perEpisodeCapDefault = cap(body.per_episode_default)
+    await studioCall(async () => {
+      if (Object.keys(patch).length) await st.setConfig(patch as never)
+      for (const b of body.brands ?? []) {
+        const bp: Record<string, unknown> = {}
+        if (b.monthly !== undefined) bp.monthlyCap = cap(b.monthly)
+        if (b.per_episode !== undefined) bp.perEpisodeCap = cap(b.per_episode)
+        if (Object.keys(bp).length) await st.setBrand(b.brand_id, bp as never)
+      }
+    })
+    s.log.log('info', `Agent API changed Studio spend caps: ${JSON.stringify(body)}`)
+    return spendOut(await st.spendSummary())
+  },
+
+  listSkills: async ({ s, params }) => {
+    brandOrNotFound(s, params.id)
+    return { skills: skillsOut((await studioOf(s).bible(params.id)).skills) }
+  },
+
+  addSkill: async ({ s, params, body }) => {
+    requireStudioWrite(s)
+    brandOrNotFound(s, params.id)
+    const skills = await studioCall(() => studioOf(s).importSkill(params.id, body.name, body.text))
+    s.log.log('info', `Agent API added the Bible skill "${body.name}" for brand ${params.id}.`)
+    return { skills: skillsOut(skills) }
+  },
+
+  removeSkill: async ({ s, params }) => {
+    requireStudioWrite(s)
+    brandOrNotFound(s, params.id)
+    const r = await studioCall(() => studioOf(s).removeSkillWithBackup(params.id, params.skill_id))
+    s.log.log(
+      'info',
+      `Agent API removed the Bible skill "${r.removed.name}" from brand ${params.id}. Backup: ${r.backupFile}`,
+    )
+    return {
+      removed: skillsOut([r.removed])[0],
+      backup_file: r.backupFile,
+      skills: skillsOut(r.skills),
+    }
+  },
+
+  listFlagged: async ({ s }) => ({
+    tasks: (await studioOf(s).flagged()).map(({ task, episode }) => ({
+      task_id: task.id,
+      type: task.type,
+      brand_id: task.brandId,
+      episode_id: task.episodeId,
+      episode_title: episode?.title ?? null,
+      status: task.status,
+      attempts: task.attempts,
+      error: task.error,
+      finished_at: task.finishedUtc,
+    })),
+  }),
+
+  retryFlagged: async ({ s, params }) => {
+    requireStudioWrite(s)
+    const st = studioOf(s)
+    if (!(await st.flagged()).some((f) => f.task.id === params.task_id))
+      throw new AgentError(
+        404,
+        'not_found',
+        `No flagged or stopped task with id ${params.task_id}. See list_flagged_tasks.`,
+      )
+    await studioCall(() => st.resolveFlag(params.task_id, 'retry'))
+    s.log.log('info', `Agent API retried Studio task ${params.task_id}.`)
+    return { task_id: params.task_id, ok: true }
+  },
+
+  rebuildEpisode: async ({ s, params, body }) => {
+    requireStudioWrite(s)
+    const r = await studioCall(() => studioOf(s).rebuildEpisode(params.episode_id, body.note ?? ''))
+    s.log.log('info', `Agent API rebuilt episode ${params.episode_id} (task ${r.taskId}).`)
+    return { task_id: r.taskId, ok: true }
+  },
+
+  setStudioBrandPaused: async ({ s, params, body }) => {
+    requireStudioWrite(s)
+    brandOrNotFound(s, params.id)
+    await studioCall(() => studioOf(s).setBrand(params.id, { paused: body.paused }))
+    s.log.log(
+      'info',
+      `Agent API ${body.paused ? 'paused' : 'resumed'} Studio work for brand ${params.id}.`,
+    )
+    return { brand_id: params.id, paused: body.paused }
+  },
+
   listEpisodes: ({ s, query }) => {
     const lib = s.episodes?.()
     if (!lib) throw new AgentError(500, 'server_error', 'The Library is not available.')
@@ -253,6 +353,54 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
       package: lib.getPackage(row.id) as unknown as Record<string, unknown> | null,
     }
   },
+}
+
+function studioOf(s: AgentServices) {
+  const st = s.studio?.()
+  if (!st) throw new AgentError(500, 'server_error', 'The Studio is not available.')
+  return st
+}
+
+function brandOrNotFound(s: AgentServices, id: number): void {
+  try {
+    s.brands.get(id)
+  } catch {
+    throw new AgentError(404, 'not_found', `No brand with id ${id}.`)
+  }
+}
+
+/** Studio methods throw plain messages written for the owner. Pass them on as a clear 400. */
+async function studioCall<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn()
+  } catch (e) {
+    if (e instanceof AgentError) throw e
+    throw new AgentError(400, 'bad_request', (e as Error).message)
+  }
+}
+
+const skillsOut = (skills: Array<{ id: number; name: string; text: string }>) =>
+  skills.map((k) => ({ id: k.id, name: k.name, characters: k.text.length }))
+
+function spendOut(sum: import('@shared/studio/types').SpendSummary) {
+  return {
+    month: sum.month,
+    total_dollars: sum.total,
+    mock_dollars: sum.mockTotal,
+    caps: sum.caps.map((c) => ({
+      key: c.key,
+      label: c.label,
+      limit: c.cap.none ? null : c.cap.value,
+      spent: c.spent,
+      remaining: c.remaining,
+    })),
+    by_brand: sum.byBrand.map((b) => ({
+      brand_id: b.brandId,
+      brand_name: b.brandName,
+      dollars: b.dollars,
+    })),
+    by_vendor: sum.byVendor,
+  }
 }
 
 function episodeOut(s: AgentServices, r: import('@shared/studio/types').EpisodeRow) {

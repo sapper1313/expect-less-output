@@ -45,6 +45,9 @@ The app runs a local web service on the owner's Mac.
 | Recent activity log | `GET /v1/activity` |
 | Is the app healthy, which accounts are connected | `GET /v1/health` |
 | Numbers for one posted video | `GET /v1/posts/{id}/stats` |
+| Studio spend and every cap | `GET /v1/studio/spend` |
+| Studio tasks that need a look | `GET /v1/studio/flagged` |
+| Skill files in a brand's Bible | `GET /v1/brands/{id}/skills` |
 | Totals for a brand, last 7 or 30 days | `GET /v1/brands/{id}/stats?range=7d` |
 
 Post statuses: `draft`, `scheduled`, `in_progress`, `partial`, `posted`, `failed`, `missed`, `canceled`.
@@ -72,6 +75,16 @@ Post statuses: `draft`, `scheduled`, `in_progress`, `partial`, `posted`, `failed
 - `ai_flags` marks AI generated content per platform. If a video is AI made, set it to true. When unsure, ask the owner.
 - Do not set the `tiktok.consent` field. Only the owner may agree to TikTok's consent line.
 - Never send `status: "scheduled"` or `next_slot: true` unless the owner asked and said agents may schedule.
+
+### Studio changes (only when the owner has allowed them)
+
+These need the owner to tick "Agents may change Studio settings". If you get `403 studio_locked`, stop and tell the owner. Do not try again.
+
+- `PATCH /v1/studio/caps` with `{"global_monthly": 400, "per_episode_default": 40}` (dollars 0 to 9999, or null for no cap; also `ai_text_monthly` and `brands: [{"brand_id": 5, "monthly": 120}]`).
+- `POST /v1/brands/{id}/skills` with `{"name": "SKILL.md", "text": "..."}` adds a skill. `POST /v1/brands/{id}/skills/{skill_id}/remove` removes one (a backup file is saved first).
+- `POST /v1/studio/flagged/{task_id}/retry` and `POST /v1/studio/episodes/{episode_id}/rebuild` (optional `{"note": "..."}`) cost money. Ask the owner before using them.
+- `POST /v1/studio/brands/{id}/pause` with `{"paused": true}`.
+- Always tell the owner what you changed and what the new values are.
 
 ### Writing good titles and captions
 

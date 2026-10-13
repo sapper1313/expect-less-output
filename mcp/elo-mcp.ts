@@ -25,6 +25,10 @@ function describe(r: RouteDef): string {
     lines.push(
       'Safety: the owner may have limited agents to drafts. If so, asking to schedule returns a clear "drafts_only" error. Do not retry it as scheduled.',
     )
+  if (r.studioWrite)
+    lines.push(
+      'Safety: the owner may not have allowed agents to change Studio settings. If so, this returns a clear "studio_locked" error. Do not retry it, tell the owner to turn on "Agents may change Studio settings" in Settings, Agent API.',
+    )
   lines.push(
     'Times need a zone, for example 2026-06-02T17:00:00-04:00. Posting times for brands are in Eastern time.',
   )

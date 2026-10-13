@@ -6,7 +6,7 @@ import { BlueskyCommentSource } from './comments/realSources'
 import { buildDigest } from './digest'
 import { Watchdog } from './watchdog'
 import { StudioBackup } from './backup'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync } from 'fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import type { Db } from '../db'
@@ -995,6 +995,22 @@ export class Studio implements StudioApi {
     this.d.emit()
     return this.bibles.skills(brandId)
   }
+  /** Removes a skill but first saves its full text to a Markdown file in the library, so it can always be put back. */
+  async removeSkillWithBackup(brandId: number, id: number) {
+    const skill = this.bibles.skills(brandId).find((x) => x.id === id)
+    if (!skill) throw new Error('That skill is not in this brand.')
+    const dir = join(expandHome(this.cfg.get().libraryDir), 'removed-skills')
+    mkdirSync(dir, { recursive: true })
+    const stamp = new Date(this.now()).toISOString().replace(/[:.]/g, '-')
+    const file = join(
+      dir,
+      `${slug((this.d.db.prepare('SELECT name FROM brands WHERE id = ?').get(brandId) as { name: string } | undefined)?.name ?? `brand-${brandId}`)}-${stamp}-${skill.name.replace(/[^\w.-]+/g, '_')}`,
+    )
+    writeFileSync(file, skill.text, 'utf8')
+    this.bibles.removeSkill(id)
+    this.d.emit()
+    return { removed: skill, backupFile: file, skills: this.bibles.skills(brandId) }
+  }
   async exportBible(brandId: number) {
     return this.bibles.markdown(brandId)
   }
@@ -1269,21 +1285,19 @@ export class Studio implements StudioApi {
     return this.guidelines.save(p.text, `Approved proposal: ${p.changes.join('; ')}`, 'refresh')
   }
   async socialPosts(episodeId?: string) {
-    return this.social
-      .list({ episodeId })
-      .map((r) => ({
-        id: r.id,
-        episodeId: r.episodeId,
-        platform: r.platform,
-        status: r.status,
-        text: r.text,
-        title: r.title,
-        scheduledAtUtc: r.scheduledAtUtc,
-        attempts: r.attempts,
-        externalUrl: r.externalUrl,
-        error: r.error,
-        mock: r.mock,
-      }))
+    return this.social.list({ episodeId }).map((r) => ({
+      id: r.id,
+      episodeId: r.episodeId,
+      platform: r.platform,
+      status: r.status,
+      text: r.text,
+      title: r.title,
+      scheduledAtUtc: r.scheduledAtUtc,
+      attempts: r.attempts,
+      externalUrl: r.externalUrl,
+      error: r.error,
+      mock: r.mock,
+    }))
   }
   async retrySocial(id: number) {
     this.social.retry(id)
@@ -1452,21 +1466,19 @@ export class Studio implements StudioApi {
   }
 
   async clipLog(episodeId: string) {
-    return this.jobs
-      .all(episodeId)
-      .map((j) => ({
-        id: j.id,
-        clipN: j.clipN,
-        take: j.take,
-        status: j.status,
-        purpose: j.purpose,
-        prompt: j.prompt,
-        generateSeconds: j.generateSeconds,
-        requestId: j.requestId,
-        filePath: j.filePath,
-        error: j.error,
-        qc: j.qc,
-      }))
+    return this.jobs.all(episodeId).map((j) => ({
+      id: j.id,
+      clipN: j.clipN,
+      take: j.take,
+      status: j.status,
+      purpose: j.purpose,
+      prompt: j.prompt,
+      generateSeconds: j.generateSeconds,
+      requestId: j.requestId,
+      filePath: j.filePath,
+      error: j.error,
+      qc: j.qc,
+    }))
   }
 
   /** Flagged screen actions for one clip. */

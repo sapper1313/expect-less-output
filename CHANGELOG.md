@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.6 Agents can help with the Studio
+
+- New agent API routes and MCP tools: `get_studio_spend`, `list_flagged_tasks`, `list_bible_skills` (always allowed), and `set_studio_caps`, `add_bible_skill`, `remove_bible_skill`, `retry_flagged_task`, `rebuild_episode`, `set_studio_brand_paused` (22 tools in all).
+- The changing tools only work when **Settings, Agent API, Agents may change Studio settings** is ticked. It is off by default. Otherwise they answer `403 studio_locked` and change nothing.
+- Removing a skill first saves its full text to a Markdown file in the Studio library (`removed-skills`). Caps are limited to 0 to 9999 dollars. Agents cannot approve a failed script or discard an episode. Every change is written to the Activity Log.
+
 ## 0.9.5 The bible beats the skill on length, and QC checks the script only
 
 - Imported skill files can describe a production routine that disagrees with the bible (the Wonder Hollow skill says "plan every episode as 12 clips of 12 to 14 seconds", the bible asks for 7 minutes). Script QC had been failing every long draft with "regroup into 12 clips", which can never pass. Now the bible's Length targets and Formats win over a skill's clip count, and a skill's beat table is treated as story structure, not a clip count. The Writer gets the same rule.

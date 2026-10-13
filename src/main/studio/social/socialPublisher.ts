@@ -212,17 +212,15 @@ export class SocialPublisher {
         60 * 60_000,
       )
     const info = await probe(row.videoPath)
-    const r = await this.d
-      .bluesky(row.brandId)
-      .postVideo({
-        text: row.text,
-        file: row.videoPath,
-        width: info.width,
-        height: info.height,
-        alt: row.title,
-        state,
-        setState,
-      })
+    const r = await this.d.bluesky(row.brandId).postVideo({
+      text: row.text,
+      file: row.videoPath,
+      width: info.width,
+      height: info.height,
+      alt: row.title,
+      state,
+      setState,
+    })
     setState({ bskyCid: r.cid })
     return { id: r.uri, url: r.url }
   }

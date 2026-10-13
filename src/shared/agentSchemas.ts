@@ -168,6 +168,7 @@ export const ErrorBody = z.object({
       'unauthorized',
       'forbidden',
       'drafts_only',
+      'studio_locked',
       'not_found',
       'validation',
       'bad_request',
@@ -415,3 +416,108 @@ export const EpisodeOut = z.object({
       'The full episode package: scenes with grok_prompt, dialogue, counted objects, YouTube title and description, thumbnail brief. When the finished video is ready, put a video_url and a JSON file with episode_id in the brand Inbox folder.',
   }),
 })
+
+// ---------- studio ----------
+
+const CapAmount = z.number().min(0).max(9999).nullable().meta({
+  description: 'Dollars per month (0 to 9999). null means no cap.',
+})
+
+export const SetStudioCapsBody = z
+  .object({
+    global_monthly: CapAmount.optional(),
+    ai_text_monthly: CapAmount.optional(),
+    per_episode_default: CapAmount.optional(),
+    brands: z
+      .array(
+        z
+          .object({
+            brand_id: id,
+            monthly: CapAmount.optional(),
+            per_episode: CapAmount.optional(),
+          })
+          .strict(),
+      )
+      .max(50)
+      .optional(),
+  })
+  .strict()
+  .refine((b) => Object.keys(b).length > 0, { message: 'Send at least one cap to change.' })
+
+export const StudioSpendOut = z.object({
+  month: z.string(),
+  total_dollars: z.number(),
+  mock_dollars: z.number().meta({ description: 'Simulated spend. It never counts against caps.' }),
+  caps: z.array(
+    z.object({
+      key: z.string(),
+      label: z.string(),
+      limit: z.number().nullable().meta({ description: 'null means no cap.' }),
+      spent: z.number(),
+      remaining: z.number().nullable(),
+    }),
+  ),
+  by_brand: z.array(
+    z.object({
+      brand_id: z.number().int().nullable(),
+      brand_name: z.string(),
+      dollars: z.number(),
+    }),
+  ),
+  by_vendor: z.array(z.object({ vendor: z.string(), dollars: z.number() })),
+})
+
+const SkillOut = z.object({ id: z.number().int(), name: z.string(), characters: z.number().int() })
+
+export const SkillsOut = z.object({ skills: z.array(SkillOut) })
+
+export const AddSkillBody = z
+  .object({
+    name: z
+      .string()
+      .min(1)
+      .max(120)
+      .meta({ description: 'File name shown in the Bible, for example SKILL.md.' }),
+    text: z.string().min(1).max(200000),
+  })
+  .strict()
+
+export const SkillParams = z.object({ id, skill_id: id })
+
+export const RemoveSkillOut = z.object({
+  removed: SkillOut,
+  backup_file: z.string().meta({
+    description: 'The removed skill was saved here first, so it can be imported again.',
+  }),
+  skills: z.array(SkillOut),
+})
+
+export const FlaggedOut = z.object({
+  tasks: z.array(
+    z.object({
+      task_id: z.number().int(),
+      type: z.string(),
+      brand_id: z.number().int().nullable(),
+      episode_id: z.string().nullable(),
+      episode_title: z.string().nullable(),
+      status: z.string(),
+      attempts: z.number().int(),
+      error: z.string().nullable(),
+      finished_at: z.string().nullable(),
+    }),
+  ),
+})
+
+export const TaskParams = z.object({ task_id: id })
+export const EpisodeParams = z.object({ episode_id: z.string().min(1).max(100) })
+export const TaskOut = z.object({ task_id: z.number().int(), ok: z.boolean() })
+export const RebuildBody = z
+  .object({
+    note: z.string().max(2000).optional().meta({
+      description: 'What to change when the episode is written again.',
+    }),
+  })
+  .strict()
+
+export const PauseBody = z.object({ paused: z.boolean() }).strict()
+export const PauseOut = z.object({ brand_id: z.number().int(), paused: z.boolean() })

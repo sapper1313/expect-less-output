@@ -381,7 +381,8 @@ This lets a program, or an AI assistant such as Claude, create and manage posts 
 ### What agents can and cannot do
 
 - They can: read brands and slots, find the next open slots, create posts, list and read posts, change posts, cancel posts, retry failed posts, read the calendar, read the activity log, and read health.
-- They can never: connect or disconnect an account, read or change a password, key or token, delete a file or a post, or change your settings. There is simply no way to ask for those.
+- They can also read Studio spend and the flagged tasks. With **Agents may change Studio settings** turned on (see below) they can change Studio spend caps, add or remove Bible skills, retry a flagged task, rebuild an episode, and pause or resume a brand.
+- They can never: connect or disconnect an account, read or change a password, key or token, delete a file or a post, or change your other settings. There is simply no way to ask for those.
 - The video is always COPIED into the brand's Queue folder. The original is never moved or deleted.
 
 ### Turn it on
@@ -446,7 +447,7 @@ What happens next:
 
 ## 15. Connect Claude with MCP (Phase 6)
 
-MCP lets Claude use the app directly. The eleven tools are `list_brands`, `get_next_open_slots`, `create_post`, `list_posts`, `get_post`, `update_post`, `cancel_post`, `retry_post`, `get_health`, `get_post_stats` and `get_brand_stats`. They follow the same drafts-only rule.
+MCP lets Claude use the app directly. The tools are `list_brands`, `get_next_open_slots`, `create_post`, `list_posts`, `get_post`, `update_post`, `cancel_post`, `retry_post`, `get_health`, `get_post_stats`, `get_brand_stats`, `list_episodes` and `get_episode`, plus the Studio tools in section 18. The post tools follow the drafts-only rule.
 
 You need: the local API turned on, a token, and the MCP file. In **Settings**, **Agents**, the **Connect Claude (MCP)** box shows the exact file path and the exact text to paste for your Mac, with Copy buttons.
 
@@ -549,3 +550,36 @@ Your logins stay as they are. YouTube already has the permission it needs, so yo
 3. Click **Add** to put a time in the list, then click **Save slots**. Nothing changes until you do.
 
 These are only patterns in your own results. A few videos can mislead, and the best hour can change as your audience grows.
+
+## 18. Let agents help with the Studio (spend caps, skills, retries)
+
+Claude (through MCP) and other bots can read your Studio spend and flagged tasks at any time. Changing things is **off** until you allow it.
+
+### Turn it on
+
+1. Open **Settings**, **Agent API**.
+2. Tick **Agents may change Studio settings**.
+3. Untick it again whenever you want agents to stop changing things. They can still read.
+
+When it is off, any change an agent tries gets a clear `studio_locked` answer and nothing changes.
+
+### What agents can do
+
+| Tool | What it does |
+| --- | --- |
+| `get_studio_spend` | Month to date spend, every cap and what is left (always allowed) |
+| `list_flagged_tasks` | Studio tasks that need a look, with the reason (always allowed) |
+| `list_bible_skills` | The skill files in a brand's Bible, names and sizes (always allowed) |
+| `set_studio_caps` | Change the monthly cap, the AI text cap, the per episode cap, or a brand's caps. 0 to 9999 dollars, or no cap |
+| `add_bible_skill` | Import a skill file into a brand's Bible |
+| `remove_bible_skill` | Remove a skill. Its full text is saved to a backup file first, in `removed-skills` inside your Studio library folder, so it can always be imported again |
+| `retry_flagged_task` | Try a flagged task again (a writing task spends money again) |
+| `rebuild_episode` | Write an episode again from the current Bible. An episode that already has a video is never rebuilt |
+| `set_studio_brand_paused` | Pause or resume a brand's Studio work |
+
+### Safety
+
+- Agents cannot raise a cap above 9999 dollars, cannot approve a script that failed its checks, and cannot discard an episode.
+- Every change is written to the **Activity Log** (for example "Agent API changed Studio spend caps").
+- The same rules apply to the bots Muse and Grok, because they use the same local API and token.
+- Example to ask Claude: "Set the Studio monthly cap to 400 dollars and the per episode cap to 40, then show me the caps."

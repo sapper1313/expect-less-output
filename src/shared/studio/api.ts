@@ -221,9 +221,7 @@ export interface ThumbTestView {
 
 export interface StudioApi {
   commentList(filter?: { brandId?: number | null; status?: string }): Promise<CommentView[]>
-  runComments(
-    brandId: number,
-  ): Promise<{
+  runComments(brandId: number): Promise<{
     checked: number
     replied: number
     drafted: number

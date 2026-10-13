@@ -38,6 +38,8 @@ export interface Settings {
   agentApiPort: number
   /** Off means agents can only create drafts. */
   agentMaySchedule: boolean
+  /** Off means agents can read Studio spend and flagged episodes but cannot change anything there. */
+  agentMayChangeStudio: boolean
   /** Brands with a watched Inbox folder. */
   inboxBrandIds: number[]
   /** Brands whose Inbox videos go to the next open slot instead of waiting as drafts. Needs agentMaySchedule. */

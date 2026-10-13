@@ -93,6 +93,16 @@ export function AgentsCard({
             ? 'Agents CAN put posts on the schedule. A mistake by an agent can post something for real.'
             : 'On (recommended). An agent that asks to schedule gets a clear "drafts_only" error and nothing is created. You review drafts in the Queue and schedule them yourself.'}
         </div>
+
+        <div className="mt-3" />
+        <Check checked={s.agentMayChangeStudio} onChange={(v) => save({ agentMayChangeStudio: v })}>
+          <b>Agents may change Studio settings</b>
+        </Check>
+        <div className="ml-6 text-[12px] text-muted">
+          {s.agentMayChangeStudio
+            ? 'Agents CAN change Studio spend caps, add or remove Bible skills (a removed skill is saved to a backup file first), retry flagged tasks, rebuild episodes and pause or resume a brand. Retries and rebuilds spend money. Every change is written to the Activity Log.'
+            : 'Off (recommended). Agents can still read Studio spend and see flagged tasks, but an attempt to change anything gets a clear "studio_locked" error and nothing changes.'}
+        </div>
       </div>
 
       <div className="mt-4 space-y-3 rounded-md border border-line p-4">

@@ -511,6 +511,7 @@ async function boot(): Promise<void> {
       appVersion: app.getVersion(),
       stats,
       episodes: () => studio.episodes,
+      studio: () => studio,
       health: () =>
         buildHealth({
           db,

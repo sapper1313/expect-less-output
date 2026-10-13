@@ -2,6 +2,7 @@ import { z } from 'zod'
 import {
   ActivityOut,
   ActivityQuery,
+  AddSkillBody,
   BrandOut,
   BrandStatsOut,
   BrandStatsQuery,
@@ -9,6 +10,8 @@ import {
   CalendarQuery,
   CreatePostBody,
   EpisodeIdParams,
+  EpisodeParams,
+  FlaggedOut,
   EpisodeOut,
   EpisodesOut,
   ListEpisodesQuery,
@@ -18,8 +21,18 @@ import {
   NextOpenOut,
   NextOpenQuery,
   PostOut,
+  PauseBody,
+  PauseOut,
   PostStatsOut,
+  RebuildBody,
+  RemoveSkillOut,
   RetryOut,
+  SetStudioCapsBody,
+  SkillParams,
+  SkillsOut,
+  StudioSpendOut,
+  TaskOut,
+  TaskParams,
   UpdatePostBody,
 } from './agentSchemas'
 
@@ -39,6 +52,8 @@ export interface RouteDef {
   tool?: string
   /** True when the route can put something on the schedule (checked against the drafts-only setting). */
   schedules?: boolean
+  /** True when the route changes Studio settings or work (checked against "Agents may change Studio settings"). */
+  studioWrite?: boolean
 }
 
 export const ROUTES: RouteDef[] = [
@@ -199,5 +214,114 @@ export const ROUTES: RouteDef[] = [
     response: HealthOut,
     success: 200,
     tool: 'get_health',
+  },
+  {
+    id: 'studioSpend',
+    method: 'GET',
+    path: '/v1/studio/spend',
+    summary: 'Studio spend this month and every spend cap with what is left.',
+    response: StudioSpendOut,
+    success: 200,
+    tool: 'get_studio_spend',
+  },
+  {
+    id: 'setStudioCaps',
+    method: 'PATCH',
+    path: '/v1/studio/caps',
+    summary: 'Change Studio spend caps: the monthly total, AI text, per episode, and per brand.',
+    description:
+      'Needs "Agents may change Studio settings". Amounts are dollars from 0 to 9999, or null for no cap. Returns the new caps.',
+    body: SetStudioCapsBody,
+    response: StudioSpendOut,
+    success: 200,
+    tool: 'set_studio_caps',
+    studioWrite: true,
+  },
+  {
+    id: 'listSkills',
+    method: 'GET',
+    path: '/v1/brands/{id}/skills',
+    summary: "The skill files imported into a brand's Bible (names and sizes, not the text).",
+    params: IdParams,
+    response: SkillsOut,
+    success: 200,
+    tool: 'list_bible_skills',
+  },
+  {
+    id: 'addSkill',
+    method: 'POST',
+    path: '/v1/brands/{id}/skills',
+    summary: "Import a skill file (Markdown text) into a brand's Bible.",
+    description:
+      'Needs "Agents may change Studio settings". The Writer receives every skill on every call.',
+    params: IdParams,
+    body: AddSkillBody,
+    response: SkillsOut,
+    success: 201,
+    tool: 'add_bible_skill',
+    studioWrite: true,
+  },
+  {
+    id: 'removeSkill',
+    method: 'POST',
+    path: '/v1/brands/{id}/skills/{skill_id}/remove',
+    summary: "Remove a skill from a brand's Bible. Its text is saved to a backup file first.",
+    description:
+      'Needs "Agents may change Studio settings". The result says where the backup file is.',
+    params: SkillParams,
+    response: RemoveSkillOut,
+    success: 200,
+    tool: 'remove_bible_skill',
+    studioWrite: true,
+  },
+  {
+    id: 'listFlagged',
+    method: 'GET',
+    path: '/v1/studio/flagged',
+    summary: 'Studio tasks that need a look (flagged or stopped), with the reason.',
+    response: FlaggedOut,
+    success: 200,
+    tool: 'list_flagged_tasks',
+  },
+  {
+    id: 'retryFlagged',
+    method: 'POST',
+    path: '/v1/studio/flagged/{task_id}/retry',
+    summary: 'Try a flagged or stopped Studio task again.',
+    description:
+      'Needs "Agents may change Studio settings". Retrying a writing task spends money again.',
+    params: TaskParams,
+    response: TaskOut,
+    success: 200,
+    tool: 'retry_flagged_task',
+    studioWrite: true,
+  },
+  {
+    id: 'rebuildEpisode',
+    method: 'POST',
+    path: '/v1/studio/episodes/{episode_id}/rebuild',
+    summary: 'Throw away an episode script and write it again from the current Bible.',
+    description:
+      'Needs "Agents may change Studio settings". Episodes that already have a video are never rebuilt. Writing spends money.',
+    params: EpisodeParams,
+    body: RebuildBody,
+    response: TaskOut,
+    success: 200,
+    tool: 'rebuild_episode',
+    studioWrite: true,
+  },
+  {
+    id: 'setStudioBrandPaused',
+    method: 'POST',
+    path: '/v1/studio/brands/{id}/pause',
+    summary:
+      "Pause or resume a brand's Studio work (writing, production and posting from the Studio).",
+    description: 'Needs "Agents may change Studio settings".',
+    params: IdParams,
+    body: PauseBody,
+    response: PauseOut,
+    success: 200,
+    tool: 'set_studio_brand_paused',
+    studioWrite: true,
   },
 ]

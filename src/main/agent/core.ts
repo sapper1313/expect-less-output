@@ -23,6 +23,7 @@ export type ErrorCode =
   | 'unauthorized'
   | 'forbidden'
   | 'drafts_only'
+  | 'studio_locked'
   | 'not_found'
   | 'validation'
   | 'bad_request'
@@ -42,6 +43,17 @@ export class AgentError extends Error {
   }
 }
 
+export const STUDIO_LOCKED_MESSAGE =
+  'Agents can read Studio spend and flagged tasks but cannot change anything there right now. The owner can turn on "Agents may change Studio settings" in Settings, Agent API.'
+
+/** Studio changes (spend caps, Bible skills, retries, rebuilds, pauses) are off unless the owner allows them. */
+export function requireStudioWrite(s: AgentServices): void {
+  if (!s.settings.get().agentMayChangeStudio)
+    throw new AgentError(403, 'studio_locked', STUDIO_LOCKED_MESSAGE, {
+      setting: 'agentMayChangeStudio',
+    })
+}
+
 export const DRAFTS_ONLY_MESSAGE =
   'Agents are limited to drafts right now. Create the post with status "draft" and let the owner schedule it, or the owner can turn on "Agents may schedule" in Settings.'
 
@@ -58,6 +70,19 @@ export interface AgentServices {
   stats?: import('../stats/service').StatsService
   /** The studio Library, read only. Missing in the Inbox watcher. */
   episodes?: () => import('../studio/library').EpisodeLibrary
+  /** The Studio actions agents may use. Writes need "Agents may change Studio settings". Missing in the Inbox watcher. */
+  studio?: () => Pick<
+    import('../studio/studio').Studio,
+    | 'spendSummary'
+    | 'setConfig'
+    | 'setBrand'
+    | 'bible'
+    | 'importSkill'
+    | 'removeSkillWithBackup'
+    | 'flagged'
+    | 'resolveFlag'
+    | 'rebuildEpisode'
+  >
   now?: () => number
 }
 

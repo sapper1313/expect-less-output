@@ -203,16 +203,14 @@ export class Thumbnailer {
       if (cfg.thumbnailEngine.generateImages && !c.use_video_frame && c.image_prompt) {
         const dollars = cfg.prices.image
         this.d.spend.check({ brandId: ep.brandId, episodeId, vendor: 'xai', dollars, mock })
-        const r = await this.d
-          .image()
-          .generate(
-            {
-              model: cfg.modelIds.image,
-              prompt: c.image_prompt,
-              aspectRatio: isLong ? '16:9' : '9:16',
-            },
-            bg,
-          )
+        const r = await this.d.image().generate(
+          {
+            model: cfg.modelIds.image,
+            prompt: c.image_prompt,
+            aspectRatio: isLong ? '16:9' : '9:16',
+          },
+          bg,
+        )
         this.d.spend.record({
           brandId: ep.brandId,
           episodeId,

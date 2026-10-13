@@ -29,6 +29,7 @@ export const DEFAULT_SETTINGS: Settings = {
   agentApiEnabled: false,
   agentApiPort: 47821,
   agentMaySchedule: false,
+  agentMayChangeStudio: false,
   inboxBrandIds: [],
   inboxAutoScheduleBrandIds: [],
   llmProvider: 'none',

@@ -9,10 +9,15 @@ import { StatsService } from '../src/main/stats/service'
 import { SecretStore } from '../src/main/services/secrets'
 import { fakeCrypto } from './googleHelpers'
 import { makeEnv } from './helpers'
+import { makeStudioEnv } from './studio/helpers'
 
 /** The real agent server on a random port, over the same services the app uses. */
-export async function makeAgentEnv(patch: Record<string, unknown> = {}) {
-  const env = makeEnv()
+export async function makeAgentEnv(
+  patch: Record<string, unknown> = {},
+  opts: { studio?: boolean } = {},
+) {
+  // The Studio adds its own brand (Wonder Hollow), so it is only built when a test needs it.
+  const env = (opts.studio ? makeStudioEnv() : makeEnv()) as ReturnType<typeof makeStudioEnv>
   env.settings.set({ agentApiEnabled: true, agentApiPort: 0, ...patch } as never)
   const secrets = new SecretStore(join(mkdtempSync(join(tmpdir(), 'elo-ag-')), 's.bin'), fakeCrypto)
   const services: AgentServices = {
@@ -22,6 +27,7 @@ export async function makeAgentEnv(patch: Record<string, unknown> = {}) {
     scheduler: env.scheduler,
     log: env.log,
     appVersion: '9.9.9',
+    ...(opts.studio ? { studio: () => env.studio, episodes: () => env.studio.episodes } : {}),
     stats: new StatsService({
       db: env.db,
       log: env.log,
