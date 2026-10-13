@@ -29,7 +29,7 @@ Scenes are numbered 1, 2, 3 in order. Each has 10 seconds of content. Use genera
 
 /** Episodes with more scenes than this are written in parts, so no single answer can run out of room. */
 export const PARTS_ABOVE_SCENES = 20
-export const SCENES_PER_PART = 12
+export const SCENES_PER_PART = 10
 
 const OUTLINE_SHAPE = `{"title":"","idea":"","logline":"","life_lesson":"","math_lesson":"","runtime_target_seconds":420,"counted_objects":[{"name":"acorns","quantity":5,"scenes":[4,5,6]}],"beats":[{"n":1,"beat":"one short sentence about what happens in this scene"}],"youtube":{"title":"","description":"","tags":[""]},"thumbnail_brief":"","summary":"","tags":[""],"key_lines":[""]}
 There is one beat for every scene, numbered 1, 2, 3 in order. Counted objects name the scene numbers where they are counted. Keep every field short.`
@@ -58,9 +58,13 @@ export interface WriterDeps {
 const Input = z.object({ slotDate: z.string(), episodeId: z.string().optional() })
 const Output = z.object({ episodeId: z.string(), status: z.string(), attempts: z.number() })
 
+/** True when a call failed because the answer did not fit in its limit. */
+const isCutOff = (e: unknown) => e instanceof Error && /cut off/i.test(e.message)
+
 /**
- * Writes a long episode in parts: a plan with one beat per scene, then the scenes a dozen at a time. Every part is
- * its own small answer, so a 7 minute episode with 45 scenes cannot be cut off the way one huge answer can.
+ * Writes a long episode in parts: a plan with one beat per scene, then the scenes ten at a time. Every part is
+ * its own small answer, so a 7 minute episode with 45 scenes cannot be cut off the way one huge answer can. A part
+ * that still runs out of room is split in half and written again, so one long scene never costs the whole episode.
  */
 export async function writeInParts(
   d: WriterDeps,
@@ -73,53 +77,78 @@ export async function writeInParts(
   },
 ): Promise<HollowDraftData> {
   const { base, system, userLines, sceneCount } = args
-  const outline = await d.gateway.json(
-    {
-      ...base,
-      system: `${system}\nAnswer only with JSON in this shape:\n${OUTLINE_SHAPE}\nPlan exactly ${sceneCount} scenes, so the content adds up to more than ${args.minSeconds} seconds.`,
-      user: userLines.join('\n'),
-      maxTokens: 12000,
-    } as never,
-    HollowOutline,
-  )
-  const beats = [...outline.beats].sort((a, b) => a.n - b.n).map((b, i) => ({ ...b, n: i + 1 }))
-  const scenes: HollowDraftData['scenes'] = []
+  let outline: z.infer<typeof HollowOutline> | null = null
+  for (const maxTokens of [20000, 32000]) {
+    try {
+      outline = await d.gateway.json(
+        {
+          ...base,
+          system: `${system}\nAnswer only with JSON in this shape:\n${OUTLINE_SHAPE}\nPlan exactly ${sceneCount} scenes, so the content adds up to more than ${args.minSeconds} seconds. Each beat is at most 20 words.`,
+          user: userLines.join('\n'),
+          maxTokens,
+        } as never,
+        HollowOutline,
+      )
+      break
+    } catch (e) {
+      if (!isCutOff(e) || maxTokens === 32000) throw e
+    }
+  }
+  if (!outline) throw new RetryableError('The writer could not plan the episode.')
+  const plan = outline
+  const beats = [...plan.beats].sort((a, b) => a.n - b.n).map((b, i) => ({ ...b, n: i + 1 }))
+  const planText = beats.map((b) => `${b.n}. ${b.beat}`).join('\n')
+
+  type Scene = HollowDraftData['scenes'][number]
+  /** Scenes from..to, split in half if the answer is cut off. */
+  const writePart = async (
+    from: number,
+    to: number,
+    before: Scene | undefined,
+  ): Promise<Scene[]> => {
+    try {
+      const part = await d.gateway.json(
+        {
+          ...base,
+          system: `${system}\nYou are writing part of one episode. The plan below is fixed. Answer only with JSON in this shape:\n${SCENE_SHAPE}`,
+          user: [
+            `Episode: ${plan.title}. ${plan.logline}`,
+            `Life lesson: ${plan.life_lesson}. Math lesson: ${plan.math_lesson}.`,
+            `Counted objects: ${JSON.stringify(plan.counted_objects)}`,
+            `The whole plan:\n${planText}`,
+            before
+              ? `The scene just before this part (number ${before.n}) ends like this: ${before.action} ${before.dialogue.map((l) => `${l.speaker}: ${l.line}`).join(' ')}`
+              : '',
+            `Write only scenes ${from} to ${to}, numbered ${from} to ${to}, exactly one scene for each beat.`,
+          ]
+            .filter(Boolean)
+            .join('\n'),
+          maxTokens: 20000,
+        } as never,
+        SceneBatch,
+      )
+      const got = part.scenes.filter((sc) => sc.n >= from && sc.n <= to).sort((a, b) => a.n - b.n)
+      if (got.length < to - from + 1)
+        throw new RetryableError(
+          `The writer returned ${got.length} of the ${to - from + 1} scenes asked for (scenes ${from} to ${to}).`,
+        )
+      return got
+    } catch (e) {
+      if (!isCutOff(e) || to - from < 1) throw e
+      const mid = Math.floor((from + to) / 2)
+      const first = await writePart(from, mid, before)
+      const second = await writePart(mid + 1, to, first[first.length - 1])
+      return [...first, ...second]
+    }
+  }
+
+  const scenes: Scene[] = []
   for (let from = 1; from <= beats.length; from += SCENES_PER_PART) {
     const to = Math.min(beats.length, from + SCENES_PER_PART - 1)
-    const plan = beats.map((b) => `${b.n}. ${b.beat}`).join('\n')
-    const last = scenes[scenes.length - 1]
-    const part = await d.gateway.json(
-      {
-        ...base,
-        system: `${system}\nYou are writing part of one episode. The plan below is fixed. Answer only with JSON in this shape:\n${SCENE_SHAPE}`,
-        user: [
-          `Episode: ${outline.title}. ${outline.logline}`,
-          `Life lesson: ${outline.life_lesson}. Math lesson: ${outline.math_lesson}.`,
-          `Counted objects: ${JSON.stringify(outline.counted_objects)}`,
-          `The whole plan:\n${plan}`,
-          last
-            ? `The scene just before this part (number ${last.n}) ends like this: ${last.action} ${last.dialogue.map((l) => `${l.speaker}: ${l.line}`).join(' ')}`
-            : '',
-          `Write only scenes ${from} to ${to}, numbered ${from} to ${to}, exactly one scene for each beat.`,
-        ]
-          .filter(Boolean)
-          .join('\n'),
-        maxTokens: 16000,
-      } as never,
-      SceneBatch,
-    )
-    const wanted = new Map(beats.map((b) => [b.n, b]))
-    const got = part.scenes
-      .filter((sc) => sc.n >= from && sc.n <= to && wanted.has(sc.n))
-      .sort((a, b) => a.n - b.n)
-    if (got.length < to - from + 1)
-      throw new RetryableError(
-        `The writer returned ${got.length} of the ${to - from + 1} scenes asked for (scenes ${from} to ${to}).`,
-      )
-    scenes.push(...got)
+    scenes.push(...(await writePart(from, to, scenes[scenes.length - 1])))
   }
   // The plan's beats are not part of the finished draft (the schema drops them).
-  return HollowDraft.parse({ ...outline, scenes })
+  return HollowDraft.parse({ ...plan, scenes })
 }
 
 /** One Show Writer instance per brand: the same module, loaded with that brand's bible on every call. */

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.4 Long episodes: smaller parts that heal themselves
+
+- The scenes are now written 10 at a time (was 12), with more room for each answer. The plan call has more room too, and is asked again with even more if it is still cut off.
+- A part that is cut off is split in half and written again, so one long scene no longer costs the whole attempt. Before, a single cut off part threw away every part already written.
+- Script QC, the Math Checker and the safety check have more room (16,000 tokens, was 8,000). One QC answer had been cut off at the old limit.
+
 ## 0.9.3 Long episodes are written in parts
 
 - A long episode (more than 20 scenes, for example the 7 minute Wonder Hollow episodes) is no longer written as one huge answer, which kept running out of room ("The answer was cut off because it was too long"). The Writer now makes a short plan with one line for every scene, then writes the scenes 12 at a time, each part seeing the whole plan and the end of the part before it. Every part is a small answer, so the length of an episode no longer matters.

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { RetryableError } from '../../src/main/studio/agents/framework'
 import {
   PARTS_ABOVE_SCENES,
   SCENES_PER_PART,
@@ -74,17 +75,59 @@ describe('long episodes are written in parts', () => {
     expect(draft.scenes.map((s) => s.n)).toEqual(Array.from({ length: 44 }, (_, i) => i + 1))
     expect(draft.title).toBe('Acorn Math')
     expect(g.calls).toHaveLength(1 + Math.ceil(44 / SCENES_PER_PART))
-    expect(Math.max(...g.calls.map((c) => c.maxTokens))).toBeLessThanOrEqual(16000)
+    expect(Math.max(...g.calls.map((c) => c.maxTokens))).toBeLessThanOrEqual(20000)
     // each part sees the whole plan and the end of the part before it
     expect(g.calls[2].user).toContain('1. Beat 1')
-    expect(g.calls[2].user).toContain('Action 12')
+    expect(g.calls[2].user).toContain(`Action ${SCENES_PER_PART}`)
   })
 
   it('refuses a part that comes back short, so the writer tries again', async () => {
     const g = fakeGateway(30, (from, to) =>
-      from === 13 ? [from] : Array.from({ length: to - from + 1 }, (_, i) => from + i),
+      from === SCENES_PER_PART + 1
+        ? [from]
+        : Array.from({ length: to - from + 1 }, (_, i) => from + i),
     )
-    await expect(run(g, 30)).rejects.toThrow(/1 of the 12 scenes/)
+    await expect(run(g, 30)).rejects.toThrow(new RegExp(`1 of the ${SCENES_PER_PART} scenes`))
+  })
+
+  it('splits a part in half when its answer is cut off, instead of failing the episode', async () => {
+    const g = fakeGateway(20)
+    const real = g.gateway.json.bind(g.gateway)
+    // any part of more than 4 scenes runs out of room
+    g.gateway.json = async (req) => {
+      const m = /Write only scenes (\d+) to (\d+)/.exec(req.user)
+      if (m && Number(m[2]) - Number(m[1]) + 1 > 4)
+        throw new RetryableError(
+          'The answer was cut off because it was too long. It will be tried again.',
+        )
+      return real(req)
+    }
+    const draft = await run(g, 20)
+    expect(draft.scenes.map((s) => s.n)).toEqual(Array.from({ length: 20 }, (_, i) => i + 1))
+    const sizes = g.calls
+      .map((c) => /Write only scenes (\d+) to (\d+)/.exec(c.user))
+      .filter(Boolean)
+      .map((m) => Number(m![2]) - Number(m![1]) + 1)
+    expect(Math.min(...sizes)).toBeLessThanOrEqual(4)
+  })
+
+  it('writes the plan again with more room when it is cut off', async () => {
+    const g = fakeGateway(12)
+    const real = g.gateway.json.bind(g.gateway)
+    let planCalls = 0
+    g.gateway.json = async (req) => {
+      if (req.system.includes('Plan exactly')) {
+        planCalls++
+        if (req.maxTokens < 32000)
+          throw new RetryableError(
+            'The answer was cut off because it was too long. It will be tried again.',
+          )
+      }
+      return real(req)
+    }
+    const draft = await run(g, 12)
+    expect(planCalls).toBe(2)
+    expect(draft.scenes).toHaveLength(12)
   })
 
   it('only kicks in above the scene limit', () => {

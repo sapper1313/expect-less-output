@@ -109,7 +109,7 @@ export class ScriptQc {
         taskId: ctx.taskId,
         system: `You are Script QC for "${ctx.brandName}". Check the script against the series bible below and these rules.\n${STYLE_RULES}\nAlso check: voice match, a clear hook, nothing that conflicts with platform policies, correct format. Answer only with JSON: {"pass": boolean, "fixes": ["plain fix", ...]}. Be brief: at most 5 fixes, each one short sentence, and no other text.\n\n${bibleMd}`,
         user: `${ctxLine({ task: 'script_qc', brand: ctx.brandName })}\n${JSON.stringify(draft)}`,
-        maxTokens: 8000,
+        maxTokens: 16000,
       },
       FixAnswer,
     )
@@ -171,7 +171,7 @@ export class MathChecker {
           system:
             'You find numeric claims in a script. For each calculation or total stated, give the sentence, an arithmetic expression using only numbers and + - * / ^ ( ), and the claimed result. Do NOT compute anything yourself. If the script gives steps for a phone or computer, list menus or features that may be outdated. Answer only with JSON: {"claims":[{"text":"","expression":"","claimed":0}],"outdated":["..."]}.',
           user: `${ctxLine({ task: 'math_extract', brand: ctx.brandName })}\n${text}`,
-          maxTokens: 8000,
+          maxTokens: 16000,
         },
         Extracted,
         { lint: false },
@@ -274,7 +274,7 @@ export class HollowSafetyChecker {
         taskId: ctx.taskId,
         system: `You are the Safety Checker for a made for kids show. Fail anything frightening, violent, mature, unsafe to imitate, with real people or real brands, product placement, bad language, a negative tone, or an unclear lesson. Answer only with JSON: {"pass": boolean, "issues": [{"where": "", "problem": "", "fix": ""}]}.\n\n${bibleMd}`,
         user: `${ctxLine({ task: 'safety', brand: ctx.brandName })}\n${JSON.stringify(draft)}`,
-        maxTokens: 8000,
+        maxTokens: 16000,
       },
       SafetyAnswer,
     )
