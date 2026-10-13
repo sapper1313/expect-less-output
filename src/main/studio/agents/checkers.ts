@@ -11,7 +11,7 @@ import { isHollow, type HollowDraftData, type ShortDraftData } from '@shared/stu
 import type { SeriesBibleData } from '@shared/studio/bible'
 import type { StudioConfigService } from '../configService'
 import type { LlmGateway } from './llm'
-import { STYLE_RULES, ctxLine } from './prompts'
+import { QC_SCOPE, STYLE_RULES, ctxLine } from './prompts'
 
 type Draft = ShortDraftData | HollowDraftData
 
@@ -107,7 +107,7 @@ export class ScriptQc {
         brandId: ctx.brandId,
         episodeId: ctx.episodeId,
         taskId: ctx.taskId,
-        system: `You are Script QC for "${ctx.brandName}". Check the script against the series bible below and these rules.\n${STYLE_RULES}\nAlso check: voice match, a clear hook, nothing that conflicts with platform policies, correct format. Answer only with JSON: {"pass": boolean, "fixes": ["plain fix", ...]}. Be brief: at most 5 fixes, each one short sentence, and no other text.\n\n${bibleMd}`,
+        system: `You are Script QC for "${ctx.brandName}". Check the script against the series bible below and these rules.\n${STYLE_RULES}\n${QC_SCOPE}\nAlso check: voice match, a clear hook, nothing that conflicts with platform policies, correct format. Answer only with JSON: {"pass": boolean, "fixes": ["plain fix", ...]}. Be brief: at most 5 fixes, each one short sentence, and no other text.\n\n${bibleMd}`,
         user: `${ctxLine({ task: 'script_qc', brand: ctx.brandName })}\n${JSON.stringify(draft)}`,
         maxTokens: 16000,
       },

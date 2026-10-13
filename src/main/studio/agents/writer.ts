@@ -18,7 +18,7 @@ import type { Holidays } from '../holidays'
 import type { RepetitionGuard } from '../repetition'
 import { AgentDef, FlagNow, RetryableError } from './framework'
 import type { LlmGateway } from './llm'
-import { STYLE_RULES, ctxLine } from './prompts'
+import { LENGTH_PRECEDENCE, STYLE_RULES, ctxLine } from './prompts'
 import type { HollowSafetyChecker, MathChecker, ScriptQc } from './checkers'
 
 const SHORT_SHAPE = `{"title":"","idea":"","hook":"the line said or shown in the first 2 seconds","script":"the full script","clips":[{"n":1,"seconds":15,"prompt":"a prompt for the video model","dialogue":["spoken line"]}],"caption":"","hashtags":["#tag"],"youtube":{"title":"","description":"","tags":[""]},"summary":"one or two sentences","tags":[""],"key_lines":["two or three of the most distinctive lines"]}
@@ -74,9 +74,12 @@ export async function writeInParts(
     userLines: string[]
     sceneCount: number
     minSeconds: number
+    /** Problems from the last try. Every part must apply them, not only the plan. */
+    feedback?: string[]
   },
 ): Promise<HollowDraftData> {
   const { base, system, userLines, sceneCount } = args
+  const fixes = args.feedback ?? []
   let outline: z.infer<typeof HollowOutline> | null = null
   for (const maxTokens of [20000, 32000]) {
     try {
@@ -118,6 +121,9 @@ export async function writeInParts(
             `The whole plan:\n${planText}`,
             before
               ? `The scene just before this part (number ${before.n}) ends like this: ${before.action} ${before.dialogue.map((l) => `${l.speaker}: ${l.line}`).join(' ')}`
+              : '',
+            fixes.length
+              ? `Fix these problems from the last try wherever they fall in your scenes:\n${fixes.map((f) => `- ${f}`).join('\n')}`
               : '',
             `Write only scenes ${from} to ${to}, numbered ${from} to ${to}, exactly one scene for each beat.`,
           ]
@@ -284,7 +290,7 @@ export function makeWriterAgent(
         ].filter(Boolean)
         const sceneCount = Math.ceil(bible.minSeconds / 10) + 2
         const inParts = long && sceneCount > PARTS_ABOVE_SCENES
-        const baseSystem = `You are the Show Writer for "${brandName}". Follow the series bible exactly. Write the whole episode.\n${STYLE_RULES}`
+        const baseSystem = `You are the Show Writer for "${brandName}". Follow the series bible exactly. Write the whole episode.\n${STYLE_RULES}\n${LENGTH_PRECEDENCE}`
         const draft = inParts
           ? await writeInParts(d, {
               base: { agent: 'Show Writer', brandId, episodeId, taskId: ctx.task.id },
@@ -292,6 +298,7 @@ export function makeWriterAgent(
               userLines,
               sceneCount,
               minSeconds: bible.minSeconds,
+              feedback: [...feedback],
             })
           : await d.gateway.json(
               {

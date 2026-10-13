@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.5 The bible beats the skill on length, and QC checks the script only
+
+- Imported skill files can describe a production routine that disagrees with the bible (the Wonder Hollow skill says "plan every episode as 12 clips of 12 to 14 seconds", the bible asks for 7 minutes). Script QC had been failing every long draft with "regroup into 12 clips", which can never pass. Now the bible's Length targets and Formats win over a skill's clip count, and a skill's beat table is treated as story structure, not a clip count. The Writer gets the same rule.
+- Script QC no longer asks for things a script cannot fix: reference image files, asset lists, a separate COUNT PLAN section (the counted objects list is the count plan), or a different runtime. It fails a script only for a real problem: a broken bible rule, a wrong count, something unsafe for the audience, or an off voice line.
+- When the Writer redoes a long episode, every part now gets the problems from the last try, not only the plan. Before, a fix such as "rewrite scenes 4 and 5" could be lost when those scenes were written in a later part.
+
 ## 0.9.4 Long episodes: smaller parts that heal themselves
 
 - The scenes are now written 10 at a time (was 12), with more room for each answer. The plan call has more room too, and is asked again with even more if it is still cut off.

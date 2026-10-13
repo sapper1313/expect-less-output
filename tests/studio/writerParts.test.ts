@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { ScriptQc } from '../../src/main/studio/agents/checkers'
+import { QC_SCOPE, LENGTH_PRECEDENCE } from '../../src/main/studio/agents/prompts'
+import { SeriesBible } from '../../src/shared/studio/bible'
+import { HollowDraft } from '../../src/shared/studio/drafts'
 import { RetryableError } from '../../src/main/studio/agents/framework'
 import {
   PARTS_ABOVE_SCENES,
@@ -58,13 +62,14 @@ function fakeGateway(count: number, partScenes?: (from: number, to: number) => n
   }
 }
 
-const run = (g: ReturnType<typeof fakeGateway>, count: number) =>
+const run = (g: ReturnType<typeof fakeGateway>, count: number, feedback?: string[]) =>
   writeInParts({ gateway: g.gateway } as never, {
     base: { agent: 'Show Writer', brandId: 1, episodeId: 'e', taskId: 1 },
     system: 'You are the Show Writer.',
     userLines: ['Posting date: 2026-06-03.'],
     sceneCount: count,
     minSeconds: 420,
+    feedback,
   })
 
 describe('long episodes are written in parts', () => {
@@ -133,5 +138,59 @@ describe('long episodes are written in parts', () => {
   it('only kicks in above the scene limit', () => {
     expect(PARTS_ABOVE_SCENES).toBeLessThan(44)
     expect(Math.ceil(150 / 10) + 2).toBeLessThanOrEqual(PARTS_ABOVE_SCENES) // a 3 minute episode keeps the single call
+  })
+})
+
+describe('feedback and QC scope', () => {
+  it('every part of a rewrite sees the problems from the last try', async () => {
+    const g = fakeGateway(24)
+    await run(g, 24, ['Rewrite scenes 4 and 5 so Biscuit does not go out alone at dusk.'])
+    const parts = g.calls.filter((c) => c.user.includes('Write only scenes'))
+    expect(parts.length).toBeGreaterThan(1)
+    for (const p of parts) expect(p.user).toContain('does not go out alone at dusk')
+  })
+
+  it('Script QC is told the bible decides length and that it checks the script only', async () => {
+    let system = ''
+    const gateway = {
+      async json(req: { system: string }) {
+        system = req.system
+        return { pass: true, fixes: [] }
+      },
+    }
+    const qc = new ScriptQc({
+      cfg: { get: () => ({ roboticPhrases: [] }) } as never,
+      gateway: gateway as never,
+    })
+    const draft = HollowDraft.parse({
+      title: 'T',
+      idea: 'i',
+      logline: 'l',
+      life_lesson: 'l',
+      math_lesson: 'm',
+      runtime_target_seconds: 420,
+      scenes: Array.from({ length: 44 }, (_, i) => ({
+        n: i + 1,
+        content_seconds: 10,
+        generate_seconds: 10,
+        setting: 's',
+        action: 'a',
+        grok_prompt: 'p',
+      })),
+      youtube: { title: 't', description: 'd' },
+      summary: 's',
+    })
+    const bible = SeriesBible.parse({ minSeconds: 420, maxSeconds: 570 })
+    const r = await qc.run(draft, bible, '# bible', {
+      brandId: 1,
+      brandName: 'B',
+      episodeId: 'e',
+      taskId: 1,
+    } as never)
+    expect(r.pass).toBe(true)
+    expect(system).toContain(QC_SCOPE)
+    expect(QC_SCOPE).toContain(LENGTH_PRECEDENCE)
+    expect(QC_SCOPE).toMatch(/Never ask for the episode to be regrouped/)
+    expect(QC_SCOPE).toMatch(/COUNT PLAN/)
   })
 })
