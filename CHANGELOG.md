@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.8 Better Telegram commands
+
+- New commands for the Telegram bot: `/last` (last post per platform for every brand, and the next one), `/stats` and `/stats 30`, `/today`, `/spend` (with every cap), `/flags` and `/brands`. The numbers come straight from the app's records, not from a language model.
+- `/pause` and `/resume` can now take a brand name (`/resume The Math of It`, part of the name is enough). They still need a YES before anything changes. Without a name they pause or resume everything, as before.
+- Plain questions such as "when was the last post" and "analytics" are answered from the records. Other questions still go to your text model.
+- The phone dashboard, an iCloud report file and a weekly summary are saved in `docs/PHONE_DASHBOARD_PLAN.md` for when the dedicated server is ready.
+
 ## 0.9.7 Prompt caching for long episodes
 
 - The Writer now uses Anthropic prompt caching for the scene parts of a long episode. The bible (about 30,000 tokens) is the same in every part, so the first part writes it to the cache and the later parts read it for a tenth of the price. A new attempt within five minutes reuses it too. This cuts the writing cost of a 7 minute episode by roughly 15 to 20 percent.

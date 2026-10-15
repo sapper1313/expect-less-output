@@ -583,3 +583,24 @@ When it is off, any change an agent tries gets a clear `studio_locked` answer an
 - Every change is written to the **Activity Log** (for example "Agent API changed Studio spend caps").
 - The same rules apply to the bots Muse and Grok, because they use the same local API and token.
 - Example to ask Claude: "Set the Studio monthly cap to 400 dollars and the per episode cap to 40, then show me the caps."
+
+## 19. Check on everything from your phone (Telegram)
+
+If Telegram is set up (Settings, Alerts and backup), text your bot from anywhere. These answers come straight from the app's records, so the numbers are real.
+
+| Send | You get |
+| --- | --- |
+| `/last` | The last post on each platform for every brand (Eastern time), and the next scheduled post |
+| `/stats` or `/stats 30` | Views, likes and comments for videos published in the last 7 or 30 days, per brand and in total, plus the best video |
+| `/today` | What is scheduled in the next 3 days, what failed in the last day, and what is flagged in the Studio |
+| `/spend` | This month's spending and every cap with what is left |
+| `/flags` | What is flagged in the Studio, with the reason |
+| `/brands` | Every brand and whether it is paused |
+| `/pause` or `/resume` | Pause or resume the whole studio |
+| `/pause The Math of It` | Pause or resume one brand. Part of the name is enough, for example `/resume math` |
+
+Pausing and resuming always asks first. Reply **YES** to go ahead. Anything else cancels.
+
+You can also ask in plain words. "When was the last post?" and "show me the analytics" are answered from the records. Other questions go to your own text model, which only knows what the app tells it.
+
+The phone dashboard, the iCloud report and the weekly summary are saved for when the new server is ready. See `docs/PHONE_DASHBOARD_PLAN.md`.

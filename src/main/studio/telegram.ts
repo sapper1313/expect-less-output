@@ -3,6 +3,8 @@
  * paired with a one time code from the app. Questions are answered from a plain text snapshot of the studio, by the
  * owner's own model. The only things it can change are pause and resume, and only after the owner says YES.
  */
+import type { TelegramReports } from './telegramReports'
+
 export interface TelegramState {
   enabled: boolean
   chatIds: number[]
@@ -18,6 +20,13 @@ export interface TelegramDeps {
   snapshot: () => Promise<{ text: string; status: string; latest: string }>
   ask: (system: string, user: string) => Promise<string>
   setPaused: (paused: boolean) => Promise<void>
+  /** Plain text answers read from the app's records (last posts, stats, spend). When missing, only the older commands work. */
+  reports?: Pick<
+    TelegramReports,
+    'last' | 'stats' | 'today' | 'spend' | 'flags' | 'brandList' | 'findBrand'
+  >
+  /** Pause or resume one brand. */
+  setBrandPaused?: (brandId: number, paused: boolean) => Promise<void>
   log: (m: string) => void
   code?: () => string
   now?: () => number
@@ -40,7 +49,10 @@ const SYSTEM = [
 export class TelegramAssistant {
   private timer: ReturnType<typeof setInterval> | null = null
   private busy = false
-  private pending = new Map<number, 'pause' | 'resume'>()
+  private pending = new Map<
+    number,
+    { action: 'pause' | 'resume'; brand: { id: number; name: string } | null }
+  >()
   private warned = new Map<number, number>()
   constructor(private d: TelegramDeps) {}
 
@@ -175,27 +187,85 @@ export class TelegramAssistant {
     const pend = this.pending.get(chatId)
     if (pend && (lower === 'yes' || lower === 'y')) {
       this.pending.delete(chatId)
-      await this.d.setPaused(pend === 'pause')
+      if (pend.brand && this.d.setBrandPaused) {
+        await this.d.setBrandPaused(pend.brand.id, pend.action === 'pause')
+        await this.send(
+          chatId,
+          pend.action === 'pause'
+            ? `Done. ${pend.brand.name} is paused.`
+            : `Done. ${pend.brand.name} is running again.`,
+        )
+        return
+      }
+      await this.d.setPaused(pend.action === 'pause')
       await this.send(
         chatId,
-        pend === 'pause'
+        pend.action === 'pause'
           ? 'Done. The whole studio is paused.'
           : 'Done. The studio is running again.',
       )
       return
     }
     this.pending.delete(chatId)
-    if (lower === '/start' || lower === '/help')
+    const cmd = /^\/(\w+)(?:@\w+)?\s*([\s\S]*)$/.exec(text)
+    const name = cmd ? cmd[1].toLowerCase() : ''
+    const arg = cmd ? cmd[2].trim() : ''
+    const r = this.d.reports
+    if (name === 'start' || name === 'help')
       return this.send(
         chatId,
-        'Ask me things like "how is the last post doing?" or "how much have I spent?". Quick commands: /status, /latest, /spend, /flags, /pause, /resume.',
+        r
+          ? [
+              'Ask me anything, or use a command:',
+              '/last: the last post for every brand, and the next one',
+              '/stats: views and likes for the last 7 days (/stats 30 for 30 days)',
+              '/today: what is coming in the next 3 days and what needs a look',
+              "/spend: this month's spending and every cap",
+              '/flags: what is flagged in the Studio',
+              '/brands: the brands and which are paused',
+              '/pause or /resume: everything. Add a brand to do one, for example /resume The Math of It',
+              '/status and /latest: the studio overview',
+            ].join('\n')
+          : 'Ask me things like "how is the last post doing?" or "how much have I spent?". Quick commands: /status, /latest, /spend, /flags, /pause, /resume.',
       )
-    if (lower === '/pause' || lower === '/resume') {
-      this.pending.set(chatId, lower === '/pause' ? 'pause' : 'resume')
+    if (name === 'pause' || name === 'resume') {
+      const action = name === 'pause' ? 'pause' : 'resume'
+      if (arg && r && this.d.setBrandPaused) {
+        const f = r.findBrand(arg)
+        if (!f.brand) return this.send(chatId, f.problem ?? 'I could not find that brand.')
+        const paused = (f.brand as { paused?: boolean }).paused
+        if (action === 'pause' && paused === true)
+          return this.send(chatId, `${f.brand.name} is already paused.`)
+        if (action === 'resume' && paused === false)
+          return this.send(chatId, `${f.brand.name} is already running.`)
+        this.pending.set(chatId, { action, brand: { id: f.brand.id, name: f.brand.name } })
+        return this.send(chatId, `Reply YES to ${action} ${f.brand.name}. Anything else cancels.`)
+      }
+      this.pending.set(chatId, { action, brand: null })
       return this.send(
         chatId,
-        `Reply YES to ${lower === '/pause' ? 'pause everything' : 'resume everything'}. Anything else cancels.`,
+        `Reply YES to ${action === 'pause' ? 'pause everything' : 'resume everything'}. Anything else cancels.`,
       )
+    }
+    if (r) {
+      if (name === 'last') return this.send(chatId, r.last())
+      if (name === 'stats') return this.send(chatId, r.stats(/30|month/i.test(arg) ? 30 : 7))
+      if (name === 'today') return this.send(chatId, r.today())
+      if (name === 'spend') return this.send(chatId, r.spend())
+      if (name === 'flags') return this.send(chatId, r.flags())
+      if (name === 'brands') return this.send(chatId, r.brandList())
+      // Plain questions that have an exact answer in the records are answered from the records, not by a model.
+      if (!cmd) {
+        if (
+          /\bwhen\b.*\b(post|posted|upload|uploaded|publish|published)\b/i.test(text) ||
+          /^\s*last posts?\??\s*$/i.test(text)
+        )
+          return this.send(chatId, r.last())
+        if (/\b(analytics|stats|statistics)\b/i.test(text))
+          return this.send(chatId, r.stats(/30|month/i.test(text) ? 30 : 7))
+        if (/\b(what'?s|whats|what is)\b.*\b(scheduled|coming|next|today)\b/i.test(text))
+          return this.send(chatId, r.today())
+      }
     }
     const snap = await this.d.snapshot()
     if (lower === '/status') return this.send(chatId, snap.status)

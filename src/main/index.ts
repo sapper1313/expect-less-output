@@ -28,6 +28,7 @@ import { MetaCommentSource, YoutubeCommentSource } from './studio/comments/realS
 import { healthRows } from './services/health'
 import { buildHealth } from './agent/health'
 import { StatsService } from './stats/service'
+import { TelegramReports } from './studio/telegramReports'
 import { FacebookLister, ImportService, InstagramLister, YoutubeLister } from './stats/imported'
 import {
   FacebookStatsProvider,
@@ -666,6 +667,27 @@ async function boot(): Promise<void> {
     },
     ask: (system, user) => studio.assistantAsk(system, user),
     setPaused: (p) => studio.pauseAll(p),
+    reports: new TelegramReports({
+      db,
+      brands: () =>
+        studio.cfg
+          .listBrandConfigs()
+          .map((b) => ({ id: b.brandId, name: b.name, paused: b.config.paused })),
+      spend: () => studio.spend.summary(),
+      flagged: () =>
+        studio.tasks.list({ status: ['flagged', 'stopped'] }).map((t) => ({
+          taskId: t.id,
+          brandName: t.brandId
+            ? (studio.cfg.listBrandConfigs().find((b) => b.brandId === t.brandId)?.name ?? null)
+            : null,
+          title: t.episodeId ? (studio.episodes.find(t.episodeId)?.title ?? null) : null,
+          error: t.error,
+        })),
+      brandStats: (brandId, range) => stats.brandSummary(brandId, range),
+    }),
+    setBrandPaused: async (id, paused) => {
+      await studio.setBrand(id, { paused })
+    },
     log: (m) => log.log('info', m),
   })
   telegramRef = telegram
