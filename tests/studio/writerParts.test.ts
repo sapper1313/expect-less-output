@@ -44,11 +44,11 @@ const scene = (n: number) => ({
 
 /** A stand in for the gateway: the plan, then whatever scenes the test wants for each part. */
 function fakeGateway(count: number, partScenes?: (from: number, to: number) => number[]) {
-  const calls: Array<{ user: string; system: string; maxTokens: number }> = []
+  const calls: Array<{ user: string; system: string; maxTokens: number; cachePrefix?: string }> = []
   return {
     calls,
     gateway: {
-      async json(req: { user: string; system: string; maxTokens: number }) {
+      async json(req: { user: string; system: string; maxTokens: number; cachePrefix?: string }) {
         calls.push(req)
         if (req.system.includes('Plan exactly')) return outline(count)
         const m = /Write only scenes (\d+) to (\d+)/.exec(req.user)!
@@ -84,6 +84,19 @@ describe('long episodes are written in parts', () => {
     // each part sees the whole plan and the end of the part before it
     expect(g.calls[2].user).toContain('1. Beat 1')
     expect(g.calls[2].user).toContain(`Action ${SCENES_PER_PART}`)
+  })
+
+  it('caches the bible for the scene parts only', async () => {
+    const g = fakeGateway(30)
+    await run(g, 30)
+    const plan = g.calls.filter((c) => c.system.includes('Plan exactly'))
+    const parts = g.calls.filter((c) => c.user.includes('Write only scenes'))
+    expect(plan.every((c) => c.cachePrefix === undefined)).toBe(true) // used once, so no cache write
+    expect(parts.length).toBeGreaterThan(1)
+    for (const c of parts) {
+      expect(c.cachePrefix).toBe('You are the Show Writer.')
+      expect(c.system.startsWith(c.cachePrefix!)).toBe(true)
+    }
   })
 
   it('refuses a part that comes back short, so the writer tries again', async () => {

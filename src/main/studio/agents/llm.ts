@@ -18,6 +18,13 @@ export interface LlmRequest {
   taskId?: number | null
   /** Base64 JPEG frames for vision calls through Claude. */
   images?: string[]
+  /**
+   * The start of `system` that stays exactly the same across several calls close together in time (for example the
+   * bible for every part of one long episode). Anthropic caches it, and cached reading costs a tenth of the price.
+   * Only set it when the same prefix is about to be sent again within a few minutes, because writing the cache costs
+   * a quarter more than a normal call.
+   */
+  cachePrefix?: string
   /** When set, the model must answer by filling this JSON schema (tool use), so the answer is always valid JSON. */
   jsonSchema?: Record<string, unknown>
 }
@@ -34,6 +41,26 @@ export interface LlmClient {
 
 /** Rough token count used for the cap check before a call, and by the mock client. */
 export const approxTokens = (s: string) => Math.ceil(s.length / 4)
+
+/** What Anthropic charges for cache: writing is 1.25 times the input price, reading is 0.1 times. */
+export const CACHE_WRITE_FACTOR = 1.25
+export const CACHE_READ_FACTOR = 0.1
+
+interface AnthropicUsage {
+  input_tokens?: number
+  output_tokens?: number
+  cache_creation_input_tokens?: number
+  cache_read_input_tokens?: number
+}
+
+/** Input tokens counted at their price, so the ledger and the caps stay right when the cache is used. */
+export function billedInputTokens(u: AnthropicUsage | undefined): number {
+  return Math.round(
+    (u?.input_tokens ?? 0) +
+      (u?.cache_creation_input_tokens ?? 0) * CACHE_WRITE_FACTOR +
+      (u?.cache_read_input_tokens ?? 0) * CACHE_READ_FACTOR,
+  )
+}
 
 export class AnthropicClient implements LlmClient {
   constructor(
@@ -61,6 +88,17 @@ export class AnthropicClient implements LlmClient {
   }
 
   async complete(req: LlmRequest & { model: string; maxTokens: number }): Promise<LlmResponse> {
+    const systemFor = (r: LlmRequest, withTool: boolean) => {
+      const tail = withTool ? '\n\nGive your answer by calling the submit_answer tool.' : ''
+      if (r.cachePrefix && r.system.startsWith(r.cachePrefix) && r.cachePrefix.length > 0)
+        return [
+          { type: 'text', text: r.cachePrefix, cache_control: { type: 'ephemeral' } },
+          ...(r.system.length > r.cachePrefix.length || tail
+            ? [{ type: 'text', text: r.system.slice(r.cachePrefix.length) + tail }]
+            : []),
+        ]
+      return `${r.system}${tail}`
+    }
     const content: unknown[] = []
     for (const img of req.images ?? [])
       content.push({
@@ -75,9 +113,7 @@ export class AnthropicClient implements LlmClient {
         body: JSON.stringify({
           model: req.model,
           max_tokens: req.maxTokens,
-          system: withTool
-            ? `${req.system}\n\nGive your answer by calling the submit_answer tool.`
-            : req.system,
+          system: systemFor(req, withTool),
           messages: [{ role: 'user', content }],
           // Some models only accept "auto", not a forced tool, so the tool is offered and asked for.
           ...(withTool && req.jsonSchema
@@ -109,7 +145,7 @@ export class AnthropicClient implements LlmClient {
     const data = (await res.json()) as {
       content?: Array<{ type: string; text?: string; input?: unknown }>
       stop_reason?: string
-      usage?: { input_tokens?: number; output_tokens?: number }
+      usage?: AnthropicUsage
     }
     const tool = (data.content ?? []).find((c) => c.type === 'tool_use')
     if (req.jsonSchema && data.stop_reason === 'max_tokens')
@@ -117,7 +153,7 @@ export class AnthropicClient implements LlmClient {
         'The answer was cut off because it was too long. It will be tried again.',
         undefined,
         {
-          inputTokens: data.usage?.input_tokens ?? 0,
+          inputTokens: billedInputTokens(data.usage),
           outputTokens: data.usage?.output_tokens ?? 0,
         },
       )
@@ -129,7 +165,7 @@ export class AnthropicClient implements LlmClient {
           .join('')
     return {
       text,
-      inputTokens: data.usage?.input_tokens ?? 0,
+      inputTokens: billedInputTokens(data.usage),
       outputTokens: data.usage?.output_tokens ?? 0,
     }
   }

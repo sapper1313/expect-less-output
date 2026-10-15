@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.7 Prompt caching for long episodes
+
+- The Writer now uses Anthropic prompt caching for the scene parts of a long episode. The bible (about 30,000 tokens) is the same in every part, so the first part writes it to the cache and the later parts read it for a tenth of the price. A new attempt within five minutes reuses it too. This cuts the writing cost of a 7 minute episode by roughly 15 to 20 percent.
+- The plan call is not cached (it runs once, and writing the cache costs a quarter more). Short form writing is not cached either, because each brand writes about once a day, so the cache would expire before it was reused.
+- The spend ledger and the caps count cached tokens at their real price (writes 1.25 times, reads 0.1 times), so the numbers on the Spend tab stay honest.
+
 ## Unreleased Wonder Hollow keeps to Wednesday and Friday, and a video keeps its own text
 
 - Wonder Hollow Workshop is a Wednesday and Friday show (it was seeded as Tuesday and Friday). Production windows are Sunday and Monday for Wednesday, Wednesday and Thursday for Friday. A new migration (014) moves the saved settings of this brand to that schedule and to YouTube only. No post is changed.

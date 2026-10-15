@@ -114,6 +114,8 @@ export async function writeInParts(
         {
           ...base,
           system: `${system}\nYou are writing part of one episode. The plan below is fixed. Answer only with JSON in this shape:\n${SCENE_SHAPE}`,
+          // Every part of this episode sends the same bible, so it is cached after the first part.
+          cachePrefix: system,
           user: [
             `Episode: ${plan.title}. ${plan.logline}`,
             `Life lesson: ${plan.life_lesson}. Math lesson: ${plan.math_lesson}.`,
