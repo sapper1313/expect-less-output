@@ -57,6 +57,19 @@ describe('sign in (against the fake Google)', () => {
     expect(() => g.service.finishConnect(r.sessionId, 'UC_B')).toThrow(/expired/)
   })
 
+  it('a new Connect click replaces a sign-in that was left open instead of failing', async () => {
+    const g = await env()
+    const deps = (g.service as unknown as { d: { openBrowser: (u: string) => Promise<void> } }).d
+    const real = deps.openBrowser
+    deps.openBrowser = async () => {} // the owner closed the browser tab
+    const first = g.service.connect(2)
+    await new Promise((r) => setTimeout(r, 50))
+    deps.openBrowser = real
+    const second = g.service.connect(2)
+    await expect(first).rejects.toThrow(/canceled/)
+    expect((await second).status).toBe('connected')
+  })
+
   it('refuses a channel already linked to another brand', async () => {
     const g = await env()
     await connectBrand(g, 1)

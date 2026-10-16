@@ -137,10 +137,8 @@ export class TikTokService {
   async connect(brandId: number): Promise<Account> {
     const acct = this.account(brandId)
     const { key, secret, redirect } = this.creds()
-    if (this.pending)
-      throw new Error(
-        'A TikTok sign-in is already open. Finish it in your browser or cancel it first.',
-      )
+    // A new click replaces a sign-in that was left open.
+    this.pending?.cancel()
     const state = randomBytes(16).toString('hex')
     const verifier = randomBytes(48).toString('base64url')
     const challenge = createHash('sha256').update(verifier).digest('base64url')

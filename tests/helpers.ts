@@ -29,7 +29,8 @@ export function makeEnv(
   seedIfEmpty(db)
   const root = mkdtempSync(join(tmpdir(), 'elo-test-'))
   const settings = new SettingsService(db)
-  settings.set({ mediaRoot: root })
+  // The app starts with no alert number. The tests use one so the alert paths can be exercised.
+  settings.set({ mediaRoot: root, alertIMessageEnabled: true, alertIMessageNumber: '+18046340444' })
   const library = new Library(() => settings.get().mediaRoot)
   const log = new ActivityLog(db)
   const posts = new PostService(db, library, opts.media ?? null, log)

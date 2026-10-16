@@ -110,10 +110,8 @@ export class MetaService {
 
   async connect(): Promise<MetaStatus> {
     const { id, secret } = this.creds()
-    if (this.server)
-      throw new Error(
-        'A Meta sign-in is already open. Finish it in your browser or cancel it first.',
-      )
+    // A new click replaces a sign-in that was left open.
+    if (this.server) this.cancelActive?.()
     const state = randomBytes(16).toString('hex')
 
     await new Promise<void>((resolve, reject) => {

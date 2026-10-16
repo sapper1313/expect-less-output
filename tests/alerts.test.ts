@@ -143,7 +143,13 @@ describe('iMessage sender', () => {
 describe('AlertService', () => {
   const dir = mkdtempSync(join(tmpdir(), 'elo-alerts-'))
   const make = (patch: Partial<Settings> = {}, startMs = Date.UTC(2026, 5, 2, 18, 0, 0)) => {
-    const settings: Settings = { ...DEFAULT_SETTINGS, mediaRoot: dir, ...patch }
+    const settings: Settings = {
+      ...DEFAULT_SETTINGS,
+      alertIMessageEnabled: true,
+      alertIMessageNumber: '+18046340444',
+      mediaRoot: dir,
+      ...patch,
+    }
     const clock = { ms: startMs }
     const sent: string[] = []
     const local: string[][] = []

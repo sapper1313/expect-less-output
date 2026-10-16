@@ -152,10 +152,9 @@ export class YoutubeService {
 
   async connect(brandId: number): Promise<ConnectResult> {
     const acct = this.account(brandId)
-    if (this.server)
-      throw new Error(
-        'A YouTube sign-in is already open. Finish it in your browser or cancel it first.',
-      )
+    // Clicking Connect or Reconnect again means the owner wants a fresh sign-in. A sign-in left open by an earlier
+    // click (a closed browser tab, a failed attempt) must never block it for the next five minutes.
+    if (this.server) this.cancelActive?.()
     if (!this.d.secrets.has(SECRET_CLIENT_ID) || !this.d.secrets.has(SECRET_CLIENT_SECRET)) {
       throw new Error(
         'Save the Google Client ID and Client Secret first (Connections screen, Google credentials).',

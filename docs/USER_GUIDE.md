@@ -2,6 +2,8 @@
 
 This guide is for you, the owner. Every step is meant to be followed exactly, one at a time.
 
+**The left menu follows the work (version 0.10.0).** Home, then **Create and schedule** (Schedule, Calendar, Queue), **Make** (Studio), **Results** (Analytics), **Set up** (Channels, Settings), and **Records** (Activity Log). Older sections of this guide say **New Post**, **Bulk Upload**, **Brands**, **Connections** and **Stats**. They are now: **Schedule** (tab One video), **Schedule** (tab Many videos), **Channels** (tab Channel setup), **Channels** (tab Connections) and **Analytics**. Times are chosen with hour, minute and AM or PM drop-downs, not typed.
+
 Phase note: Stats (Phase 7) are covered in section 17. YouTube (Phase 2), Facebook Pages and Instagram (Phase 3) are real now. TikTok (Phase 4) is real now too. A dry run waits a few seconds and says it worked, and never contacts the platform. Their real connections come in later phases.
 
 ---
@@ -67,7 +69,7 @@ If macOS still refuses: open **System Settings**, then **Privacy and Security**,
 
 ## 5. Test a dry run post
 
-1. Click **New Post** in the left list.
+1. Click **Schedule** in the left list (tab **One video**).
 2. Drag a vertical video (MP4 or MOV) onto the box, or click **Choose a video**.
 3. Pick the brand. The title and caption fill in for you.
 4. Leave all four platforms ticked. They say "dry run".
@@ -87,7 +89,7 @@ If macOS still refuses: open **System Settings**, then **Privacy and Security**,
 
 ## 6. Everyday use
 
-- **Schedule many videos at once:** click **Bulk Upload**, pick the brand, choose the videos, click **Assign slots**, fix anything in the table, then click **Fine.**
+- **Schedule many videos at once:** click **Schedule**, then the tab **Many videos**, pick the brand, choose the videos, click **Assign slots**, fix anything in the table, then click **Fine.**
 - **Move a post:** on the **Calendar**, drag it to another day. Confirm the question.
 - **Edit a post:** click it on the Calendar or in the Queue.
 - **Brand times:** open **Brands**. Each brand has weekday and weekend posting times in Eastern time.
@@ -138,7 +140,7 @@ Each connected channel has a **Mode** box on its card.
 ### Test a private upload
 
 1. On **Connections**, set the brand's mode to **Test private**.
-2. Click **New Post**. Pick a short vertical video and that brand. Keep only **YouTube** ticked. Tick the **AI** box for YouTube if you want to test it.
+2. Click **Schedule**. Pick a short vertical video and that brand. Keep only **YouTube** ticked. Tick the **AI** box for YouTube if you want to test it.
 3. Under **When**, choose **Pick a different time...** and set it 5 minutes from now.
 4. Click **Fine.**
 5. Wait. The app checks every 30 seconds, so allow a minute past the time. Open the post to see the upload progress.
@@ -191,7 +193,7 @@ Keep the keys in your `ELO Keys` folder, outside the project. Never share them.
 
 ### Post a test Reel to Facebook and Instagram
 
-1. Click **New Post**. Pick a short vertical MP4 or MOV (Facebook needs 3 to 90 seconds). If it is longer the app tells you and will not schedule it.
+1. Click **Schedule**. Pick a short vertical MP4 or MOV (Facebook needs 3 to 90 seconds). If it is longer the app tells you and will not schedule it.
 2. Pick the brand. Tick **Facebook** and **Instagram**. They show a **live** label.
 3. Optional: type a number in **Instagram cover frame** to pick the cover picture (1500 means 1.5 seconds in).
 4. Under **When**, choose **Pick a different time...** and set it 30 minutes from now.
@@ -240,7 +242,7 @@ Your TikTok app starts in **Sandbox**. That is fine for Drafts mode. Direct post
 
 ### Send a test draft and finish it in the TikTok app
 
-1. Click **New Post**. Pick a short vertical video and the brand. Keep only **TikTok** ticked.
+1. Click **Schedule**. Pick a short vertical video and the brand. Keep only **TikTok** ticked.
 2. Under **TikTok** you will see "Post to TikTok as" and the account name. In Drafts mode TikTok asks for privacy and settings later, in its own app.
 3. Under **When**, choose **Pick a different time...** and set it 5 minutes from now.
 4. Click **Fine.**
@@ -268,7 +270,7 @@ Only do this after TikTok has approved the Direct Post audit.
 1. On **Connections**, in the **TikTok credentials** box click **Replace**, tick **Also ask for video.publish**, and click **Save**.
 2. On each brand's card, click **Reconnect** and approve the new permission.
 3. Change **Mode** to **Direct post**. The app asks "Has TikTok approved your Direct Post audit?" Click **Yes, it is approved**.
-4. From now on, **New Post** shows the full TikTok screen. You must choose each time:
+4. From now on, **Schedule** shows the full TikTok screen. You must choose each time:
    - **Who can view this video.** Nothing is pre-selected. The choices come from TikTok for that account.
    - **Comment, Duet, Stitch.** All start unticked. Some may be greyed out because they are off in the TikTok app.
    - **Disclose commercial content** (off by default). Branded content cannot be private.
@@ -341,7 +343,8 @@ Open the app, find the post (Calendar or Queue) and click **Retry**.
 - **Duplicate a post** (to post it again): open the post and click **Duplicate**. You get a new draft with its own copy of the video.
 - **Search the Queue:** type in the search box at the top of the Queue. It looks at the title, caption and file name.
 - **See what each platform will get:** open a post. The box "What each platform will get" shows the final text, with the template and hashtags already applied.
-- **Pause one brand:** open **Brands**, pick the brand, tick **Pause this brand**. Its posts wait. Untick it to resume. A post less than your grace time late (Settings) goes out; older ones are held as missed and you are alerted. **Pause the scheduler** in the menu bar pauses everything.
+- **Pause one brand:** open **Channels**, tab **Channel setup**, pick the brand, tick **Pause this brand**. This is the only place to pause a brand. It stops posting and the Studio's writing and production for that brand. Untick it to resume. A post less than your grace time late (Settings) goes out; older ones are held as missed and you are alerted.
+- **Pause everything:** the pause button at the bottom of the left menu, or **Pause everything** in the menu bar icon. It pauses the Studio and the posting scheduler together.
 - **Health panel:** on **Connections**, the **Health** box lists every connected account, its status, mode, last check and when its login runs out.
 - **Stuck posts:** when the app starts or the Mac wakes, anything stuck uploading for over 30 minutes goes back in the queue, and anything still being processed gets checked right away.
 
@@ -472,7 +475,7 @@ The token only lives in that config file or command. Anyone who can read it can 
 
 ## 16. Text assist with a local AI (Phase 6)
 
-Adds **Suggest titles**, **Suggest captions** and **Suggest hashtags** buttons to New Post and the post editor. They stay hidden until you turn this on. Only the brand name, title and caption are sent, never your videos or keys, and only to a model on this Mac.
+Adds **Suggest titles**, **Suggest captions** and **Suggest hashtags** buttons to Schedule and the post editor. They stay hidden until you turn this on. Only the brand name, title and caption are sent, never your videos or keys, and only to a model on this Mac.
 
 1. Install and start a local model server:
    - **Ollama:** install it from ollama.com, then in Terminal run `ollama pull llama3.1` (or any model), and keep Ollama running.
@@ -492,7 +495,7 @@ The app reads views, likes, comments and shares for videos it posted. It never r
 
 - **Queue:** the Views, Likes, Comments and Shares columns show totals for each posted video. Hover a number to see it per platform.
 - **Edit post:** open a posted video. The **Stats** section shows each platform with a line chart of views over time.
-- **Stats** (left menu): pick a brand (or All brands) and **Last 7 days** or **Last 30 days**. You get totals per platform for videos published in that time.
+- **Analytics** (left menu, tab **Numbers**): pick a brand (or All brands) and **Last 7 days** or **Last 30 days**. You get totals per platform for videos published in that time.
 - Click **Refresh stats** to read the numbers right now. Otherwise the app reads them by itself every 6 hours for the first 7 days of a video, then once a day until day 30, then stops.
 
 ### What each platform gives
@@ -528,7 +531,7 @@ With MCP connected you can ask "How did last week's Trash Panda posts do?". The 
 
 ### Videos that were on your channels before the app
 
-1. Open **Stats** and pick a brand (or All brands).
+1. Open **Analytics** and pick a brand (or All brands).
 2. Click **Import existing videos**. The app lists the videos on each connected YouTube channel, Instagram account and Facebook Page, and reads their numbers. A big channel can take a minute.
 3. They appear under **Existing videos** and count in the totals. Choose **All time** to include the oldest ones.
 4. After that they are refreshed once a day for 90 days after they were published. Older ones keep the numbers from when you imported. Click **Import existing videos** again any time to pick up new uploads you made outside the app, and **Refresh stats** to re-read everything now.
@@ -538,7 +541,7 @@ Your logins stay as they are. YouTube already has the permission it needs, so yo
 
 ### Best times to post
 
-1. Open **Stats**. Under the totals is **Best times to post (Eastern time)**.
+1. Open **Analytics**. Under the totals is **Best times to post (Eastern time)**.
 2. It shows your **Top hours**, a bar chart of typical views for each hour, and a day by hour grid where darker means more views. Hover a square for the numbers.
 3. Pick a platform in the box on that card. With one brand and one platform it shows real views. With more it shows "times your typical video", so a big channel and a small one can be compared fairly.
 4. Only videos at least 7 days old are used, so a new video does not look worse than it is. It needs at least 10 such videos, and an hour needs 2 videos to be ranked. Click **Import existing videos** first to give it more to work with.
@@ -604,3 +607,16 @@ Pausing and resuming always asks first. Reply **YES** to go ahead. Anything else
 You can also ask in plain words. "When was the last post?" and "show me the analytics" are answered from the records. Other questions go to your own text model, which only knows what the app tells it.
 
 The phone dashboard, the iCloud report and the weekly summary are saved for when the new server is ready. See `docs/PHONE_DASHBOARD_PLAN.md`.
+
+## 20. What changed in 0.10.0 (a quick tour)
+
+- **One place to schedule.** **Schedule** has two tabs, One video and Many videos. On the **Calendar**, click a day or the **New post** button to start a post on that day. The **Queue** lists and moves what is scheduled, and the Studio and the Inbox folder schedule by themselves.
+- **Time pickers.** Anywhere you set a time (posting slots, quiet hours, the Studio run time, a post's time, Bulk rows, Queue rescheduling) you pick the hour, minute and AM or PM from drop-downs and the date from a calendar pop-up.
+- **Forms keep what you typed.** Channel setup (slots and defaults), Schedule and the Bible no longer snap back to the saved version while the app refreshes in the background.
+- **One pause for a brand** (Channels, Channel setup) and one **Pause everything** (bottom of the left menu).
+- **Analytics** has two tabs: **Numbers** (totals, best times, existing videos, Export CSV) and **What's working** (the old Studio Insights, now counting every video, not only Studio episodes).
+- **Existing videos are listed automatically** for every connected account, soon after it connects and then once a day. The Home cards show the newest existing video when it is newer than your last post.
+- **Get set up** checklist on Home for a new install (connect, posting times, existing videos, alerts, first post). **Hide** removes it.
+- **Export CSV** on Analytics and the Queue saves a spreadsheet.
+- **Reconnect works reliably.** Some networks hand out IPv6 addresses that never connect, which made Reconnect fail at random. The app now uses IPv4 first and asks again after a dropped connection, and an error now says the real reason, for example "timed out".
+- The calendar's **+ more** pop-up is solid and readable.

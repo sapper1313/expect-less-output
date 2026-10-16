@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.10.0 Workflow menu, one place to schedule, reliability and QA
+
+- **Reconnect fixed.** The Mac's network had IPv6 addresses that resolve but never connect, so connections to Google and Meta timed out after 10 seconds about one time in eight ("fetch failed"). Lookups now prefer IPv4 (0 failures in 36 test calls, slowest 199 ms), calls that are safe to repeat are tried again after a network failure, and errors name the real cause.
+- **Forms no longer revert.** Channel setup (slots and defaults), Schedule and Bulk keep your edits while the app reloads in the background (a shared `useDraft`).
+- **Time pickers** (hour, minute, AM or PM drop-downs and a date pop-up) replace every typed time.
+- **One pause:** a brand is paused only on Channel setup (it pauses posting and the Studio together). Pause everything is the left menu button and the menu bar icon.
+- **One place to schedule:** Schedule (One video, Many videos). The Calendar starts a post from a clicked day or the New post button. The old New Post and Bulk Upload menu items are gone.
+- **Menu and tabs follow the work:** Home, Create and schedule, Make, Results, Set up, Records. Studio tabs run Overview, Research, Bible, Library, Flagged, Publishing, Comments, Spend, Director's Log. Studio Insights moved into Analytics (What's working) and now counts every video.
+- **Existing videos** are listed automatically for new accounts and then daily. Home shows the newest existing video for channels where the app has posted nothing newer (only one channel showed stats before).
+- **New:** setup checklist on Home, Export CSV (Analytics and Queue).
+- **Calendar + more pop-up** is solid. Buttons no longer wrap their text.
+- **Privacy for a sale:** the owner's phone number is no longer a built-in default. New installs start with iMessage off and no number. An install already in use keeps its number (migration 015).
+- **QA:** `scripts/e2e/tour.mjs` (every screen and tab, 69 checks) and `scripts/e2e/interactive.mjs` (scheduling, rescheduling, editing, settings and draft-keeping flows). Test timeout raised for ffmpeg tests.
+
 ## 0.9.8 Better Telegram commands
 
 - New commands for the Telegram bot: `/last` (last post per platform for every brand, and the next one), `/stats` and `/stats 30`, `/today`, `/spend` (with every cap), `/flags` and `/brands`. The numbers come straight from the app's records, not from a language model.
