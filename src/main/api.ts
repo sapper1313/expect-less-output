@@ -173,17 +173,9 @@ export function buildApi(d: ApiDeps): Api {
     log: { list: async (filter) => d.log.list(filter) },
     scheduler: {
       status: async () => d.scheduler.status(),
-      pause: async () => {
-        d.settings.set({ schedulerPaused: true })
-        d.log.log('info', 'Scheduler paused.')
-        d.emit()
-      },
-      resume: async () => {
-        d.settings.set({ schedulerPaused: false })
-        d.log.log('info', 'Scheduler resumed.')
-        d.emit()
-        void d.scheduler.tick()
-      },
+      // One pause for the whole app: the Studio and the posting scheduler together.
+      pause: async () => d.studio.pauseAll(true),
+      resume: async () => d.studio.pauseAll(false),
       simulateFailure: async (platform: Platform | null, kind = 'transient') => {
         d.settings.set({ dryRunFailPlatform: platform, dryRunFailKind: kind })
         d.emit()

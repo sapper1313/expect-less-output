@@ -4,6 +4,7 @@ import { OAuth2Client } from 'google-auth-library'
 import { youtube, type youtube_v3 } from '@googleapis/youtube'
 import { AdapterError } from '../adapters/types'
 import { classifyGoogleError, isNetworkError } from './errors'
+import { describeNetworkError } from '../network'
 import type { GoogleUrls } from './config'
 import type { QuotaTracker } from './quota'
 import type { TokenManager } from './tokens'
@@ -65,7 +66,7 @@ export class YoutubeClient implements YoutubeClientLike {
         if (status === 401 && attempt === 0) continue
         if (!status && isNetworkError(err))
           throw new AdapterError(
-            `Could not reach YouTube: ${e.message ?? 'network error'}`,
+            `Could not reach YouTube: ${describeNetworkError(err)}`,
             'transient',
           )
         const reason = e.response?.data?.error?.errors?.[0]?.reason ?? e.errors?.[0]?.reason ?? ''
@@ -457,10 +458,7 @@ export class YoutubeClient implements YoutubeClientLike {
       const e = err as { response?: { status?: number; data?: any }; message?: string }
       const status = e.response?.status ?? 0
       if (!status && isNetworkError(err))
-        throw new AdapterError(
-          `Could not reach YouTube: ${e.message ?? 'network error'}`,
-          'transient',
-        )
+        throw new AdapterError(`Could not reach YouTube: ${describeNetworkError(err)}`, 'transient')
       throw classifyGoogleError(
         status,
         e.response?.data?.error?.errors?.[0]?.reason ?? '',

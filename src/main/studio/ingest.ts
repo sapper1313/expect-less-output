@@ -123,7 +123,9 @@ export function makeIngestHooks(d: IngestDeps): IngestHooks {
         // Only the four platforms the scheduler posts to. Bluesky is handled by the Publisher.
         const accounts = new Set(
           (
-            d.db.prepare('SELECT platform FROM accounts WHERE brand_id = ?').all(ep.brandId) as Array<{
+            d.db
+              .prepare('SELECT platform FROM accounts WHERE brand_id = ?')
+              .all(ep.brandId) as Array<{
               platform: string
             }>
           ).map((a) => a.platform),

@@ -132,6 +132,33 @@ h2,
 .fc a {
   color: inherit;
 }
+/* The "+ more" pop-up must be solid. The calendar's own page colour is transparent, which let the cells behind show through. */
+.fc .fc-popover {
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  z-index: 80;
+  min-width: 220px;
+  overflow: hidden;
+}
+.fc .fc-popover-header {
+  background: var(--surface2);
+  color: var(--ink);
+  padding: 6px 10px;
+  font-weight: 700;
+}
+.fc .fc-popover-body {
+  background: var(--bg);
+  padding: 6px;
+  max-height: 60vh;
+  overflow: auto;
+}
+.fc .fc-more-link {
+  font-weight: 700;
+  color: var(--accent);
+}
 
 /* ---------- Liquid glass (Home dashboard) ---------- */
 :root,

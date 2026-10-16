@@ -10,7 +10,7 @@ import { formatEastern, isoToLocalInput, localInputToIso } from '@shared/time'
 import type { SchedulingMode } from '@shared/types'
 import { api } from '../api'
 import { useLoad } from '../hooks'
-import { Check, Input, Select } from '../ui'
+import { Check, DateTimeSelect, Select } from '../ui'
 
 export function PlatformPicker({
   brandId,
@@ -110,12 +110,11 @@ export function SchedulePicker({
         </Select>
       )}
       {showCustom && (
-        <Input
-          type="datetime-local"
-          step={60}
+        <DateTimeSelect
+          step={1}
           value={isoToLocalInput(value)}
-          onChange={(e) => onChange(localInputToIso(e.target.value))}
-          aria-label="Date and time in Eastern"
+          onChange={(v) => onChange(localInputToIso(v))}
+          label="Date and time in Eastern"
         />
       )}
       {value && <div className="text-[12px] text-muted">{formatEastern(value)}</div>}

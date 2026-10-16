@@ -9,7 +9,7 @@ import {
 import type { KeyId, KeyStatus } from '@shared/studio/api'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
-import { Button, Card, Check, Field, Input, Select, Textarea, useBusy } from '../ui'
+import { Button, Card, Check, Field, Input, Select, Textarea, useBusy, TimeSelect } from '../ui'
 import { OperationsCards } from './StudioOperations'
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -610,11 +610,10 @@ function BrandRow({
           </Field>
         )}
         <Field label="Production run time (Eastern)">
-          <Input
+          <TimeSelect
             value={cfg.runTime}
-            onChange={(e) =>
-              /^\d{1,2}:\d{2}$/.test(e.target.value) && save({ runTime: e.target.value })
-            }
+            label="Production run time"
+            onChange={(v) => save({ runTime: v })}
           />
         </Field>
         <Field label="Script runway days">
@@ -670,9 +669,9 @@ function BrandRow({
         ))}
       </div>
       <div className="mt-3 flex flex-wrap gap-4">
-        <Check checked={cfg.paused} onChange={(v) => save({ paused: v })}>
-          Pause this brand
-        </Check>
+        <span className="self-center text-[12px] text-muted">
+          {cfg.paused ? 'Paused. ' : ''}Pause or resume this channel on Channel setup.
+        </span>
         <Check checked={cfg.aiDisclosure} onChange={(v) => save({ aiDisclosure: v })}>
           AI disclosure
         </Check>

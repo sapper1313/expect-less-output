@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { PLATFORMS, PLATFORM_LABELS } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
 import type { Brand, BrandDefaults, BrandSlot, HashtagSet } from '@shared/types'
 import { api } from '../api'
-import { useApp, useLoad } from '../hooks'
+import { useApp, useDraft, useLoad } from '../hooks'
 import {
   Button,
   Card,
@@ -15,6 +15,7 @@ import {
   Select,
   Textarea,
   useBusy,
+  TimeSelect,
 } from '../ui'
 
 const YT_CATEGORIES: Array<[string, string]> = [
@@ -148,21 +149,14 @@ function BrandEditor({ brand }: { brand: Brand }) {
           <div>
             <Check
               checked={paused}
-              onChange={(v) =>
-                run(() =>
-                  api.settings.set({
-                    pausedBrandIds: v
-                      ? [...(settings?.pausedBrandIds ?? []), brand.id]
-                      : (settings?.pausedBrandIds ?? []).filter((id) => id !== brand.id),
-                  }),
-                )
-              }
+              onChange={(v) => run(() => api.studio.setBrand(brand.id, { paused: v }))}
             >
               Pause this brand
             </Check>
             <div className="ml-6 text-[12px] text-muted">
-              Its posts stay scheduled but nothing goes out. When you resume, a post that is less
-              than your grace time late goes out; older ones are held as missed.
+              The one place to pause or resume this channel. Posts stay scheduled but nothing goes
+              out, and the Studio stops writing and making episodes for it. When you resume, a post
+              that is less than your grace time late goes out; older ones are held as missed.
             </div>
           </div>
           <div>
@@ -249,17 +243,17 @@ function SlotEditor({ brandId }: { brandId: number }) {
   const [busy, run] = useBusy()
   const { data } = useLoad(() => api.brands.getSlots(brandId), [brandId])
   const { data: rec } = useLoad(() => api.stats.recommendedSlots(brandId), [brandId])
-  const [slots, setSlots] = useState<SlotDraft[]>([])
-  const [dirty, setDirty] = useState(false)
-  useEffect(() => {
-    if (data) {
-      setSlots(data.map(({ dayType, timeLocal, enabled }) => ({ dayType, timeLocal, enabled })))
-      setDirty(false)
-    }
-  }, [data])
+  const fresh = useMemo<SlotDraft[] | null>(
+    () =>
+      data
+        ? data.map(({ dayType, timeLocal, enabled }) => ({ dayType, timeLocal, enabled }))
+        : null,
+    [data],
+  )
+  const { draft, setDraft, dirty } = useDraft<SlotDraft[]>(fresh, brandId)
+  const slots = draft ?? []
   const update = (next: SlotDraft[]) => {
-    setSlots(next)
-    setDirty(true)
+    setDraft(next)
   }
 
   const suggestions = (type: 'weekday' | 'weekend') => {
@@ -306,14 +300,12 @@ function SlotEditor({ brandId }: { brandId: number }) {
         {slots.map((s, i) =>
           s.dayType !== type ? null : (
             <div key={i} className="flex items-center gap-2">
-              <Input
-                type="time"
-                className="w-36"
+              <TimeSelect
                 value={s.timeLocal}
-                onChange={(e) =>
-                  update(slots.map((x, j) => (j === i ? { ...x, timeLocal: e.target.value } : x)))
+                onChange={(v) =>
+                  update(slots.map((x, j) => (j === i ? { ...x, timeLocal: v } : x)))
                 }
-                aria-label={`${label} time`}
+                label={`${label} time`}
               />
               <Check
                 checked={s.enabled}
@@ -354,7 +346,6 @@ function SlotEditor({ brandId }: { brandId: number }) {
           disabled={!dirty || busy}
           onClick={async () => {
             if (await run(() => api.brands.setSlots(brandId, slots))) {
-              setDirty(false)
               toast({ kind: 'success', headline: COPY.success, detail: 'Slots saved.' })
             }
           }}
@@ -384,10 +375,7 @@ function DefaultsEditor({ brandId }: { brandId: number }) {
     () => api.youtube.playlists(brandId).catch(() => []),
     [brandId],
   )
-  const [d, setD] = useState<BrandDefaults | null>(null)
-  useEffect(() => {
-    if (data) setD(data)
-  }, [data])
+  const { draft: d, setDraft: setD } = useDraft<BrandDefaults>(data, brandId)
   if (!d) return null
   const set = <K extends keyof BrandDefaults>(k: K, v: BrandDefaults[K]) => setD({ ...d, [k]: v })
   return (

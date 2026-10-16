@@ -246,7 +246,9 @@ export class Publisher {
     // Only platforms the brand has switched on AND has an account for. Bluesky has its own account list.
     const accounts = new Set(
       (
-        this.d.db.prepare('SELECT platform FROM accounts WHERE brand_id = ?').all(ep.brandId) as Array<{
+        this.d.db
+          .prepare('SELECT platform FROM accounts WHERE brand_id = ?')
+          .all(ep.brandId) as Array<{
           platform: string
         }>
       ).map((a) => a.platform),
@@ -326,7 +328,9 @@ export class Publisher {
       !!existing.scheduledAtUtc &&
       Date.parse(existing.scheduledAtUtc) > this.now() + 60_000 &&
       (!days ||
-        days.includes(DateTime.fromISO(existing.scheduledAtUtc, { zone: 'utc' }).setZone(ZONE).weekday))
+        days.includes(
+          DateTime.fromISO(existing.scheduledAtUtc, { zone: 'utc' }).setZone(ZONE).weekday,
+        ))
     const when = keepsTime ? existing!.scheduledAtUtc : this.slotFor(ep.brandId, ep.slotDate)
     const title = report.texts.youtube?.title ?? pkg.youtube.title ?? pkg.title
     const caption =

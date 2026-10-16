@@ -93,17 +93,6 @@ function Overview() {
         actions={
           <div className="flex gap-2">
             <Button
-              variant={ov.paused ? 'primary' : 'secondary'}
-              onClick={() =>
-                run(async () => {
-                  await api.studio.pauseAll(!ov.paused)
-                  reload()
-                })
-              }
-            >
-              {ov.paused ? 'Resume everything' : 'Pause everything'}
-            </Button>
-            <Button
               disabled={busy}
               onClick={() =>
                 run(async () => {
@@ -137,7 +126,7 @@ function Overview() {
         )}
         <div className="text-[13px] text-muted">
           {ov.paused
-            ? 'Everything is paused. Nothing new will start.'
+            ? 'Everything is paused. Nothing new will start. Resume with the button at the bottom of the left menu.'
             : `${ov.queued} waiting, ${ov.running} running, ${ov.openFlags} need you.`}{' '}
           Library: {ov.libraryEpisodes} episodes, {(ov.libraryBytes / 1024 / 1024).toFixed(1)} MB.
         </div>

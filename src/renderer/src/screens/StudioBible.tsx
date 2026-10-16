@@ -445,8 +445,9 @@ function HolidayCard() {
       </div>
       <div className="mt-2 flex gap-2">
         <Input
-          className="w-40"
-          placeholder="2026-12-31"
+          type="date"
+          aria-label="Date of the day"
+          className="w-44"
           value={date}
           onChange={(e) => setDate(e.target.value)}
         />

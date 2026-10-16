@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { nextDraft, type DraftMemory } from '@shared/draftSync'
 import type { AppEvent } from '@shared/types'
 
 interface ToastItem {
@@ -79,4 +80,25 @@ export function useLoad<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version, tick, ...deps])
   return { data, reload: () => setTick((t) => t + 1), error }
+}
+
+/**
+ * Form state that survives the app's background reloads. The data behind a form is reloaded all the time (every
+ * change anywhere in the app triggers it), so a form must not be reset to the saved copy while you are typing.
+ * The draft follows the saved data only while you have not edited it, or when you switch to another record (`id`).
+ */
+export function useDraft<T>(fresh: T | null, id: number | string | null = null) {
+  const mem = useRef<DraftMemory>({ id: null, json: '' })
+  const [draft, setDraft] = useState<T | null>(null)
+  const key = id === null ? null : typeof id === 'number' ? id : id.length
+  const freshJson = fresh ? JSON.stringify(fresh) : ''
+  useEffect(() => {
+    const prev = mem.current
+    mem.current = nextDraft(prev, key, fresh, null).memory
+    setDraft((cur) => nextDraft(prev, key, fresh, cur).draft)
+    // The saved data counts as changed only when its content changed, not when it was loaded again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [freshJson, key])
+  const dirty = !!draft && JSON.stringify(draft) !== mem.current.json
+  return { draft, setDraft, dirty }
 }

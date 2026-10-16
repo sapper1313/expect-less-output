@@ -18,6 +18,7 @@ import {
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'fs'
 import { join, normalize, sep } from 'path'
 import { pathToFileURL } from 'url'
+import { preferIpv4 } from './network'
 import { latestSchemaVersion, openDb } from './db'
 import { AlertService } from './alerts/service'
 import { AgentRuntime } from './agent/runtime'
@@ -78,6 +79,8 @@ const APP_NAME = 'Expect Less Output'
 app.setName(APP_NAME)
 // ELO_DATA_DIR lets tests run against a throwaway data folder.
 app.setPath('userData', process.env['ELO_DATA_DIR'] ?? join(app.getPath('appData'), APP_NAME))
+
+preferIpv4()
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -434,6 +437,13 @@ async function boot(): Promise<void> {
     alert: (headline, detail) => void alerts.alert({ kind: 'other', headline, detail }),
     alertItem: (item) => void alerts.alert(item),
     emit,
+    setSchedulerPaused: (p) => setSchedulerPaused(p),
+    setSchedulerBrandPaused: (id, p) => {
+      const cur = settings.get().pausedBrandIds ?? []
+      const next = p ? [...new Set([...cur, id])] : cur.filter((x) => x !== id)
+      if (next.length !== cur.length || next.some((x, i) => x !== cur[i]))
+        settings.set({ pausedBrandIds: next })
+    },
     startPaused: true,
     dataDir,
     postersDir,
@@ -547,13 +557,27 @@ async function boot(): Promise<void> {
     alert: (headline, detail) => notifier.failure(headline, detail, { kind: 'other' }),
   })
 
+  // One pause per brand. If the Studio or the scheduler had a brand paused, both have it paused from now on.
+  {
+    const ids = new Set(settings.get().pausedBrandIds ?? [])
+    const before = ids.size
+    for (const b of studio.cfg.listBrandConfigs()) if (b.config.paused) ids.add(b.brandId)
+    if (ids.size !== before) settings.set({ pausedBrandIds: [...ids] })
+    for (const b of studio.cfg.listBrandConfigs())
+      if (ids.has(b.brandId) && !b.config.paused) studio.cfg.setBrand(b.brandId, { paused: true })
+  }
+
   let trayApi: { refresh: () => void } | null = null
-  const setPaused = (paused: boolean) => {
+  const setSchedulerPaused = (paused: boolean) => {
     settings.set({ schedulerPaused: paused })
     log.log('info', paused ? 'Scheduler paused.' : 'Scheduler resumed.')
     trayApi?.refresh()
     emit()
     if (!paused) void scheduler.tick()
+  }
+  /** The one pause for the whole app: the Studio and the posting scheduler together. */
+  const setPaused = (paused: boolean) => {
+    void studio.pauseAll(paused)
   }
 
   const host: Host = {

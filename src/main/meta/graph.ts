@@ -2,6 +2,7 @@ import { createReadStream } from 'fs'
 import { Readable, Transform } from 'stream'
 import { AdapterError } from '../adapters/types'
 import { isNetworkError } from '../google/errors'
+import { describeNetworkError, withNetworkRetry } from '../network'
 import { GRAPH_VERSION, type MetaUrls } from './config'
 
 /** A Meta failure. `needsReauth` means the saved login no longer works. */
@@ -134,10 +135,17 @@ export class GraphClient {
     }
     let res: Response
     try {
-      res = await this.f(url, { method, headers, body })
+      // A read can safely be asked again. A write is sent once, so it is never done twice.
+      const send = () => this.f(url, { method, headers, body })
+      res = await (method === 'GET' ? withNetworkRetry(send, isNetworkError) : send())
     } catch (err) {
       if (isNetworkError(err))
-        throw new MetaApiError(`Could not reach Meta: ${(err as Error).message}`, 'transient', 0, 0)
+        throw new MetaApiError(
+          `Could not reach Meta: ${describeNetworkError(err)}`,
+          'transient',
+          0,
+          0,
+        )
       throw err
     }
     let json: any = null

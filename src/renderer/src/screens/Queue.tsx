@@ -19,6 +19,7 @@ import {
   StatusBadge,
   TargetChip,
   useBusy,
+  DateTimeSelect,
 } from '../ui'
 
 export function Queue() {
@@ -130,13 +131,7 @@ export function Queue() {
         {ids.length > 0 && (
           <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface p-3">
             <b>{ids.length} selected</b>
-            <Input
-              type="datetime-local"
-              className="w-56"
-              value={when}
-              onChange={(e) => setWhen(e.target.value)}
-              aria-label="New time in Eastern"
-            />
+            <DateTimeSelect value={when} onChange={setWhen} label="New time in Eastern" />
             <Button
               disabled={!when || busy}
               onClick={async () => {

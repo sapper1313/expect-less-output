@@ -214,14 +214,9 @@ export function SettingsScreen({ initialTab = 'general' }: { initialTab?: Settin
                 </Field>
               </div>
               <div className="mt-4 flex items-center gap-4">
-                <Check
-                  checked={s.schedulerPaused}
-                  onChange={(v) => (v ? api.scheduler.pause() : api.scheduler.resume())}
-                >
-                  Pause the scheduler
-                </Check>
                 <span className="text-[12px] text-muted">
-                  {status?.pendingCount ?? 0} post(s) waiting.
+                  {status?.pendingCount ?? 0} post(s) waiting. To pause everything, use the pause
+                  button at the bottom of the left menu or the menu bar icon.
                 </span>
               </div>
             </Card>

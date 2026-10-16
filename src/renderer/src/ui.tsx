@@ -42,6 +42,134 @@ export function Select(p: SelectHTMLAttributes<HTMLSelectElement>) {
   return <select {...p} className={cx(field, p.className)} />
 }
 
+const to12 = (h24: number) => (h24 % 12 === 0 ? 12 : h24 % 12)
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/**
+ * Pick a time of day with three drop-downs (hour, minute, AM or PM) instead of typing it.
+ * The value is 24 hour "HH:MM", the same as a time input, so it can replace one directly.
+ */
+export function TimeSelect({
+  value,
+  onChange,
+  step = 5,
+  disabled,
+  label = 'Time',
+  className,
+}: {
+  value: string
+  onChange: (v: string) => void
+  step?: number
+  disabled?: boolean
+  label?: string
+  className?: string
+}) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(value)
+  const h24 = m ? Number(m[1]) % 24 : 12
+  const min = m ? Number(m[2]) : 0
+  const pm = h24 >= 12
+  const emit = (hour12: number, minute: number, isPm: boolean) =>
+    onChange(`${pad((hour12 % 12) + (isPm ? 12 : 0))}:${pad(minute)}`)
+  // A minute that is not on the step (an older saved time) stays selectable.
+  const minutes = Array.from({ length: Math.ceil(60 / step) }, (_, i) => i * step)
+  if (!minutes.includes(min)) {
+    minutes.push(min)
+    minutes.sort((a, b) => a - b)
+  }
+  const cell = 'w-auto min-w-[64px] px-2'
+  return (
+    <div
+      className={cx('inline-flex items-center gap-1.5', className)}
+      role="group"
+      aria-label={label}
+    >
+      <Select
+        className={cell}
+        aria-label={`${label}, hour`}
+        disabled={disabled}
+        value={to12(h24)}
+        onChange={(e) => emit(Number(e.target.value), min, pm)}
+      >
+        {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+          <option key={h} value={h}>
+            {h}
+          </option>
+        ))}
+      </Select>
+      <span className="text-muted">:</span>
+      <Select
+        className={cell}
+        aria-label={`${label}, minute`}
+        disabled={disabled}
+        value={min}
+        onChange={(e) => emit(to12(h24), Number(e.target.value), pm)}
+      >
+        {minutes.map((x) => (
+          <option key={x} value={x}>
+            {pad(x)}
+          </option>
+        ))}
+      </Select>
+      <Select
+        className={cell}
+        aria-label={`${label}, AM or PM`}
+        disabled={disabled}
+        value={pm ? 'PM' : 'AM'}
+        onChange={(e) => emit(to12(h24), min, e.target.value === 'PM')}
+      >
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </Select>
+    </div>
+  )
+}
+
+/**
+ * Pick a date (calendar pop-up) and a time (drop-downs). The value is "yyyy-MM-ddTHH:mm", the same as a
+ * datetime-local input, so it can replace one directly. Empty until a date is chosen.
+ */
+export function DateTimeSelect({
+  value,
+  onChange,
+  step = 5,
+  disabled,
+  label = 'Date and time',
+  className,
+}: {
+  value: string
+  onChange: (v: string) => void
+  step?: number
+  disabled?: boolean
+  label?: string
+  className?: string
+}) {
+  const [d, t] = value ? value.split('T') : ['', '']
+  const [time, setTime] = useState(t || '12:00')
+  const shown = t || time
+  return (
+    <div className={cx('flex flex-wrap items-center gap-2', className)}>
+      <Input
+        type="date"
+        className="w-auto"
+        aria-label={`${label}, date`}
+        disabled={disabled}
+        value={d}
+        onChange={(e) => (e.target.value ? onChange(`${e.target.value}T${shown}`) : onChange(''))}
+      />
+      <TimeSelect
+        value={shown}
+        step={step}
+        disabled={disabled}
+        label={`${label}, time`}
+        onChange={(v) => {
+          setTime(v)
+          if (d) onChange(`${d}T${v}`)
+        }}
+      />
+    </div>
+  )
+}
+
 export function Field({
   label,
   hint,

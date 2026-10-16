@@ -30,8 +30,8 @@ export function createTray(d: TrayDeps): { refresh: () => void } {
         { type: 'separator' },
         { label: next, enabled: false },
         st.paused
-          ? { label: 'Resume scheduler', click: () => d.setPaused(false) }
-          : { label: 'Pause scheduler', click: () => d.setPaused(true) },
+          ? { label: 'Resume everything', click: () => d.setPaused(false) }
+          : { label: 'Pause everything', click: () => d.setPaused(true) },
         { type: 'separator' },
         { label: 'Quit', click: d.requestQuit },
       ]),

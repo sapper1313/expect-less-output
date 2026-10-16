@@ -18,6 +18,7 @@ import {
   TargetChip,
   Textarea,
   useBusy,
+  DateTimeSelect,
 } from '../ui'
 import { PlatformPicker } from './pickers'
 import { PostStatsPanel } from './StatsPanel'
@@ -281,12 +282,12 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
             )}
           </div>
           <Field label="When (Eastern time)">
-            <Input
-              type="datetime-local"
-              step={60}
+            <DateTimeSelect
+              step={1}
               disabled={locked}
               value={isoToLocalInput(draft.scheduledAtUtc)}
-              onChange={(e) => set('scheduledAtUtc', localInputToIso(e.target.value))}
+              onChange={(v) => set('scheduledAtUtc', localInputToIso(v))}
+              label="When"
             />
           </Field>
           {draft.scheduledAtUtc && (

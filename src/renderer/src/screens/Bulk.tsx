@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PLATFORMS, PLATFORM_LABELS, captionCounters, type Platform } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
 import { applyCaptionTemplate, naturalCompare, titleFromFilename } from '@shared/text'
@@ -22,6 +22,7 @@ import {
   Select,
   Textarea,
   useBusy,
+  DateTimeSelect,
 } from '../ui'
 import { isVideo } from './NewPost'
 
@@ -78,8 +79,10 @@ export function Bulk({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     if (brands?.length && brandId === null) setBrandId(brands[0].id)
   }, [brands, brandId])
+  const defaultsFor = useRef<number | null>(null)
   useEffect(() => {
-    if (!defaults) return
+    if (!defaults || defaultsFor.current === defaults.brandId) return
+    defaultsFor.current = defaults.brandId
     setSetId(defaults.defaultHashtagSetId)
     setBulkCaption(defaults.captionTemplate)
     void api.accounts
@@ -391,11 +394,10 @@ export function Bulk({ onDone }: { onDone: () => void }) {
                           </div>
                         </td>
                         <td className="w-52 p-3">
-                          <Input
-                            type="datetime-local"
+                          <DateTimeSelect
                             value={isoToLocalInput(r.when)}
-                            onChange={(e) => patch(i, { when: localInputToIso(e.target.value) })}
-                            aria-label="Time"
+                            onChange={(v) => patch(i, { when: localInputToIso(v) })}
+                            label={`Row ${i + 1} time`}
                           />
                           <div className="mt-1 text-[11px] text-muted">{formatEastern(r.when)}</div>
                           {r.when && dup.has(r.when) && (

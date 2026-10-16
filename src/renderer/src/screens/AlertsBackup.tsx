@@ -4,7 +4,7 @@ import { formatEastern } from '@shared/time'
 import type { AlertChannel, AlertTestResult, RestorePreview, Settings } from '@shared/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
-import { Button, Card, Check, Confirm, Field, Input, useBusy } from '../ui'
+import { Button, Card, Check, Confirm, Field, Input, useBusy, TimeSelect } from '../ui'
 
 /** A text box that saves when you click away, so typing is never interrupted by a reload. */
 function TextSetting({
@@ -183,17 +183,17 @@ export function AlertsCard({
         </Check>
         <div className="grid gap-4 md:grid-cols-3">
           <Field label="Start (Eastern)">
-            <Input
-              type="time"
+            <TimeSelect
               value={s.alertQuietStart}
-              onChange={(e) => e.target.value && save({ alertQuietStart: e.target.value })}
+              label="Quiet hours start"
+              onChange={(v) => save({ alertQuietStart: v })}
             />
           </Field>
           <Field label="End (Eastern)">
-            <Input
-              type="time"
+            <TimeSelect
               value={s.alertQuietEnd}
-              onChange={(e) => e.target.value && save({ alertQuietEnd: e.target.value })}
+              label="Quiet hours end"
+              onChange={(v) => save({ alertQuietEnd: v })}
             />
           </Field>
         </div>

@@ -94,6 +94,10 @@ export interface StudioDeps {
   emit: () => void
   /** Reads thumbnail results from YouTube Analytics. Mock mode uses simulated numbers. */
   analytics?: AnalyticsReader
+  /** Pausing in the Studio also pauses the posting scheduler, so there is one pause for the whole app. */
+  setSchedulerPaused?: (paused: boolean) => void
+  /** The same for one brand. */
+  setSchedulerBrandPaused?: (brandId: number, paused: boolean) => void
   /** First run: start with everything paused, so nothing begins until the owner presses Resume. */
   startPaused?: boolean
   dataDir?: string
@@ -1599,6 +1603,7 @@ export class Studio implements StudioApi {
   }
   async pauseAll(paused: boolean) {
     this.cfg.set({ paused })
+    this.d.setSchedulerPaused?.(paused)
     this.audit.write({ agent: 'Director', action: paused ? 'pause_all' : 'resume_all' })
     this.d.emit()
   }
@@ -1621,6 +1626,7 @@ export class Studio implements StudioApi {
 
   async setBrand(brandId: number, patch: Partial<StudioBrandConfig>) {
     const c = this.cfg.setBrand(brandId, patch)
+    if (patch.paused !== undefined) this.d.setSchedulerBrandPaused?.(brandId, patch.paused)
     this.d.emit()
     return c
   }

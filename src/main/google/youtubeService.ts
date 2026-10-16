@@ -1,3 +1,5 @@
+import { withNetworkRetry } from '../network'
+import { isNetworkError } from './errors'
 import { createServer, type Server } from 'http'
 import { randomBytes, randomUUID } from 'crypto'
 import { CodeChallengeMethod } from 'google-auth-library'
@@ -248,14 +250,22 @@ export class YoutubeService {
                 send(400, page('Something is off.', 'Google did not send a code.'))
                 return
               }
-              const { tokens } = await oauth.getToken({ code, codeVerifier })
+              // The code can only be used once, but a failed connection never reached Google, so asking again is safe.
+              const { tokens } = await withNetworkRetry(
+                () => oauth.getToken({ code, codeVerifier }),
+                isNetworkError,
+              )
               if (!tokens.refresh_token) {
                 throw new Error(
                   'Google did not give a long-lived sign-in. Remove "Expect Less Output" at myaccount.google.com/permissions, then connect again.',
                 )
               }
               if (!tokens.access_token) throw new Error('Google did not return an access token.')
-              const channels = await this.d.client.channelsForToken(tokens.access_token)
+              const accessToken = tokens.access_token
+              const channels = await withNetworkRetry(
+                () => this.d.client.channelsForToken(accessToken),
+                isNetworkError,
+              )
               if (channels.length === 0)
                 throw new Error(
                   'That Google account has no YouTube channel. Pick the right account and try again.',

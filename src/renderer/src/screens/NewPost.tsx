@@ -78,8 +78,11 @@ export function NewPost({ onDone }: { onDone: () => void }) {
   }, [brands, brandId])
 
   // When the brand changes: reset the things that come from brand defaults.
+  // Only when a different brand's defaults arrive. A background reload of the same brand must not wipe what you chose.
+  const defaultsFor = useRef<number | null>(null)
   useEffect(() => {
-    if (!defaults) return
+    if (!defaults || defaultsFor.current === defaults.brandId) return
+    defaultsFor.current = defaults.brandId
     setSetId(defaults.defaultHashtagSetId)
     setAi(defaults.aiFlag)
     setCaptionTouched(false)

@@ -3,6 +3,7 @@ import type { Db } from '../db'
 import type { SecretStore } from '../services/secrets'
 import { AdapterError } from '../adapters/types'
 import { isNetworkError } from './errors'
+import { describeNetworkError } from '../network'
 import { SECRET_CLIENT_ID, SECRET_CLIENT_SECRET, refreshTokenKey, type GoogleUrls } from './config'
 
 interface Cached {
@@ -124,7 +125,7 @@ export class TokenManager {
       }
       if (isNetworkError(err) || !code)
         throw new AdapterError(
-          `Could not reach Google to refresh the sign-in: ${e.message ?? 'network error'}`,
+          `Could not reach Google to refresh the sign-in: ${describeNetworkError(err)}`,
           'transient',
         )
       throw new AdapterError(`Google would not refresh the sign-in (${code}).`, 'transient')
