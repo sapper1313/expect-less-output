@@ -830,11 +830,20 @@ export class Studio implements StudioApi {
   }
 
   async insightsFor(brandId: number) {
+    // The numbers are worked out fresh every time, so they never wait for the nightly run. Only the plain
+    // language summary (which costs a model call) is the stored one.
     const st = this.analytics.stored(brandId)
-    return { summary: st.summary, updatedUtc: st.updatedUtc, insights: st.insights }
+    return {
+      summary: st.summary,
+      updatedUtc: st.updatedUtc,
+      insights: this.analytics.insights(brandId, (id) => this.episodeDetails(id)),
+    }
   }
   async refreshInsights() {
-    await this.retention.refreshRecent()
+    // Watch time needs the YouTube Analytics permission. Without it the rest must still run.
+    await this.retention
+      .refreshRecent()
+      .catch((e) => this.d.log.log('warn', `Watch time was not read: ${(e as Error).message}`))
     const r = await this.analytics.daily((id) => this.episodeDetails(id))
     this.d.emit()
     return r

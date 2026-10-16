@@ -191,3 +191,17 @@ describe('ImportService', () => {
     expect(stats.brandSummary(1, '7d').posts).toBe(1)
   })
 })
+
+describe('automatic import', () => {
+  it('imports a newly connected account once, then again only after a day', async () => {
+    const s = setup()
+    const r1 = await s.imported.importDue()
+    expect(r1.added).toBeGreaterThan(0)
+    const again = await s.imported.importDue()
+    expect(again.found).toBe(0) // nothing is due yet
+    s.env.clock.ms += 2 * HOUR
+    expect((await s.imported.importDue()).found).toBe(0)
+    s.env.clock.ms += DAY
+    expect((await s.imported.importDue()).found).toBeGreaterThan(0) // a day later it looks again
+  })
+})

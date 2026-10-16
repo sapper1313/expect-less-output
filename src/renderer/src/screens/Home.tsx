@@ -182,7 +182,8 @@ function ChannelCard({ c, go }: { c: HomeChannel; go: (t: GoTarget) => void }) {
         {c.latest ? (
           <>
             <div className="text-[11px] glass-dim">
-              Latest post · {c.latest.postedAtUtc ? formatEastern(c.latest.postedAtUtc, false) : ''}
+              {c.latest.existing ? 'Latest video' : 'Latest post'} ·{' '}
+              {c.latest.postedAtUtc ? formatEastern(c.latest.postedAtUtc, false) : ''}
             </div>
             <div className="mb-2 truncate text-[13px] font-semibold">{c.latest.title}</div>
             <div className="grid grid-cols-4 gap-2">

@@ -214,6 +214,8 @@ export class StatsService {
   /** The scheduled pass. Safe to call often, it only touches what is due. */
   async refreshDue(): Promise<{ fetched: number; unavailable: number }> {
     const mine = await this.refresh({})
+    // New and returning accounts get their existing videos listed first, so the numbers below include them.
+    if (this.d.imported) await this.d.imported.importDue().catch(() => undefined)
     const old = this.d.imported ? await this.d.imported.refresh({}) : { fetched: 0, unavailable: 0 }
     return { fetched: mine.fetched + old.fetched, unavailable: mine.unavailable + old.unavailable }
   }

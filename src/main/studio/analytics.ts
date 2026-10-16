@@ -84,25 +84,55 @@ export class Analytics {
     return n
   }
 
-  /** Per episode totals from the newest numbers of every platform. */
+  /**
+   * Every video of a brand with numbers: episodes the Studio made, other posts made in the app, and videos that were
+   * already on the channel (found by Import existing videos). Insights used to look only at Studio episodes, so a
+   * brand with many videos but no Studio episodes always showed "not enough videos".
+   */
   private episodeViews(brandId: number) {
-    const rows = this.d.db
-      .prepare(
-        `SELECT e.id, e.title, e.tags, e.slot_date, e.scheduled_at_utc, e.package_path, p.scheduled_at_utc AS post_at,
-          COALESCE((SELECT SUM(v) FROM (
-             SELECT (SELECT views FROM post_stats s WHERE s.post_target_id = t.id ORDER BY s.id DESC LIMIT 1) AS v FROM post_targets t WHERE t.post_id = p.id)), 0)
-          + COALESCE((SELECT SUM(v) FROM (
-             SELECT (SELECT views FROM social_stats s WHERE s.social_post_id = sp.id ORDER BY s.id DESC LIMIT 1) AS v FROM social_posts sp WHERE sp.episode_id = e.id)), 0) AS views
-         FROM episodes e JOIN posts p ON p.id = e.post_id WHERE e.brand_id = ? AND p.status = 'posted'`,
-      )
-      .all(brandId) as Array<{
+    type Row = {
       id: string
       title: string
       tags: string
       post_at: string | null
       views: number
-    }>
-    return rows
+      seconds: number
+    }
+    const q = this.d.db
+    const eps = (
+      q
+        .prepare(
+          `SELECT e.id, e.title, e.tags, p.scheduled_at_utc AS post_at,
+          COALESCE((SELECT SUM(v) FROM (
+             SELECT (SELECT views FROM post_stats s WHERE s.post_target_id = t.id ORDER BY s.id DESC LIMIT 1) AS v FROM post_targets t WHERE t.post_id = p.id)), 0)
+          + COALESCE((SELECT SUM(v) FROM (
+             SELECT (SELECT views FROM social_stats s WHERE s.social_post_id = sp.id ORDER BY s.id DESC LIMIT 1) AS v FROM social_posts sp WHERE sp.episode_id = e.id)), 0) AS views
+         FROM episodes e JOIN posts p ON p.id = e.post_id WHERE e.brand_id = ? AND p.status = 'posted'`,
+        )
+        .all(brandId) as Array<Omit<Row, 'seconds'>>
+    ).map((r) => ({ ...r, seconds: 0 }))
+    const posts = (
+      q
+        .prepare(
+          `SELECT 'post:' || p.id AS id, p.title AS title, '' AS tags, p.scheduled_at_utc AS post_at,
+             COALESCE((SELECT SUM(v) FROM (
+               SELECT (SELECT views FROM post_stats s WHERE s.post_target_id = t.id ORDER BY s.id DESC LIMIT 1) AS v FROM post_targets t WHERE t.post_id = p.id)), 0) AS views,
+             COALESCE(json_extract(p.video_meta_json, '$.durationSeconds'), 0) AS seconds
+           FROM posts p
+           WHERE p.brand_id = ? AND p.status = 'posted' AND NOT EXISTS (SELECT 1 FROM episodes e WHERE e.post_id = p.id)`,
+        )
+        .all(brandId) as Row[]
+    )
+    const found = q
+      .prepare(
+        `SELECT 'video:' || v.id AS id, v.title AS title, '' AS tags, v.published_at_utc AS post_at,
+           COALESCE((SELECT views FROM imported_stats WHERE imported_id = v.id ORDER BY id DESC LIMIT 1), 0) AS views,
+           0 AS seconds
+         FROM imported_videos v
+         WHERE v.brand_id = ? AND EXISTS (SELECT 1 FROM imported_stats WHERE imported_id = v.id)`,
+      )
+      .all(brandId) as Row[]
+    return [...eps, ...posts, ...found]
   }
 
   insights(
@@ -158,8 +188,8 @@ export class Analytics {
             ? '36 to 60 seconds'
             : 'over a minute'
     out.lengths = avg(
-      eps,
-      (e) => bucket(details(e.id).seconds),
+      eps.filter((e) => (e.seconds || details(e.id).seconds) > 0),
+      (e) => bucket(e.seconds || details(e.id).seconds),
       (e) => e.views,
     )
       .map((x) => ({ bucket: x.k, videos: x.n, avgViews: x.avg }))

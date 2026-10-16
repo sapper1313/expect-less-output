@@ -10,7 +10,10 @@ export interface HomeConnection {
 }
 
 export interface HomeLatest {
-  postId: number
+  /** The post this came from, or null for a video that was on the channel before the app. */
+  postId: number | null
+  /** True for a video found on the channel (not posted through the app). */
+  existing?: boolean
   title: string
   platforms: string[]
   postedAtUtc: string | null

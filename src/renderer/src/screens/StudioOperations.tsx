@@ -160,7 +160,11 @@ export function StudioInsights() {
         {data?.summary ? (
           <p className="text-[14px]">{data.summary}</p>
         ) : (
-          <Empty>Not enough posted videos yet. At least three are needed.</Empty>
+          <Empty>
+            {i && i.videos > 0
+              ? `${i.videos} video${i.videos === 1 ? '' : 's'} with numbers so far. The written summary needs at least three, then press Collect numbers now.`
+              : 'No videos with numbers yet. Press Collect numbers now, or use Import existing videos on the Stats screen to bring in the videos already on your channels.'}
+          </Empty>
         )}
         {data?.updatedUtc && (
           <div className="mt-2 text-[11px] text-muted">

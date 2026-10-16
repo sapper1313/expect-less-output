@@ -138,7 +138,42 @@ export async function buildHomeSummary(d: HomeDeps): Promise<HomeSummary> {
       })
     const last = posted.find((p) => p.brandId === b.brandId)
     let latest: HomeChannel['latest'] = null
-    if (last) {
+    // A video that was already on the channel (found by Import existing videos) counts too, if it is newer.
+    const found = d.db
+      .prepare(
+        `SELECT v.platform AS platform, v.title AS title, v.published_at_utc AS at,
+           (SELECT views FROM imported_stats WHERE imported_id = v.id ORDER BY id DESC LIMIT 1) AS views,
+           (SELECT likes FROM imported_stats WHERE imported_id = v.id ORDER BY id DESC LIMIT 1) AS likes,
+           (SELECT comments FROM imported_stats WHERE imported_id = v.id ORDER BY id DESC LIMIT 1) AS comments,
+           (SELECT shares FROM imported_stats WHERE imported_id = v.id ORDER BY id DESC LIMIT 1) AS shares
+         FROM imported_videos v WHERE v.brand_id = ? AND v.published_at_utc IS NOT NULL
+         ORDER BY v.published_at_utc DESC LIMIT 1`,
+      )
+      .get(b.brandId) as
+      | {
+          platform: string
+          title: string
+          at: string
+          views: number | null
+          likes: number | null
+          comments: number | null
+          shares: number | null
+        }
+      | undefined
+    const lastAt = last?.scheduledAtUtc ?? ''
+    if (found && (!last || found.at > lastAt)) {
+      latest = {
+        postId: null,
+        existing: true,
+        title: found.title || '(no title)',
+        platforms: [found.platform],
+        postedAtUtc: found.at,
+        views: found.views,
+        likes: found.likes,
+        comments: found.comments,
+        shares: found.shares,
+      }
+    } else if (last) {
       const t = d.postStats(last.id).totals
       latest = {
         postId: last.id,

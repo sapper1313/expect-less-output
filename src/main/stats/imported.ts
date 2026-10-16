@@ -182,13 +182,14 @@ export class ImportService {
   }
 
   /** Finds the videos already on each connected channel and reads their numbers. */
-  async importExisting(brandId: number | null): Promise<ImportResult> {
+  async importExisting(brandId: number | null, onlyAccountIds?: number[]): Promise<ImportResult> {
     const result: ImportResult = { found: 0, added: 0, problems: [] }
     if (this.running) return result
     this.running = true
     try {
       const at = new Date(this.now()).toISOString()
       for (const a of this.accounts(brandId)) {
+        if (onlyAccountIds && !onlyAccountIds.includes(a.id)) continue
         const lister = this.d.listers[a.platform]
         if (!lister) {
           result.problems.push({
@@ -209,6 +210,7 @@ export class ImportService {
         }
         try {
           const listed = await lister.list(a)
+          this.markImported(a.id, at)
           result.found += listed.length
           const known = this.d.db.prepare(
             'SELECT 1 FROM post_targets WHERE platform = ? AND external_id = ?',
@@ -251,6 +253,56 @@ export class ImportService {
     }
     await this.refresh({ brandId, force: false })
     this.d.emit?.()
+    return result
+  }
+
+  private static KEY = 'imports.lastByAccount'
+
+  private lastImports(): Record<string, string> {
+    const r = this.d.db
+      .prepare('SELECT value_json FROM settings WHERE key = ?')
+      .get(ImportService.KEY) as { value_json: string } | undefined
+    try {
+      return r ? (JSON.parse(r.value_json) as Record<string, string>) : {}
+    } catch {
+      return {}
+    }
+  }
+
+  private markImported(accountId: number, at: string): void {
+    const all = { ...this.lastImports(), [String(accountId)]: at }
+    this.d.db
+      .prepare(
+        'INSERT INTO settings (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json',
+      )
+      .run(ImportService.KEY, JSON.stringify(all))
+  }
+
+  /**
+   * Keeps the library of existing videos current without anyone pressing a button: a newly connected account is
+   * imported soon after it connects, and every connected account is looked at again once a day so videos uploaded
+   * outside the app show up too.
+   */
+  async importDue(): Promise<ImportResult> {
+    const last = this.lastImports()
+    const nowMs = this.now()
+    const due = this.accounts(null).filter(
+      (a) =>
+        this.d.listers[a.platform] &&
+        a.status === 'connected' &&
+        (!last[String(a.id)] || nowMs - new Date(last[String(a.id)]).getTime() >= DAY),
+    )
+    if (due.length === 0) return { found: 0, added: 0, problems: [] }
+    const result: ImportResult = { found: 0, added: 0, problems: [] }
+    for (const brandId of new Set(due.map((a) => a.brandId))) {
+      const r = await this.importExisting(
+        brandId,
+        due.filter((a) => a.brandId === brandId).map((a) => a.id),
+      )
+      result.found += r.found
+      result.added += r.added
+      result.problems.push(...r.problems)
+    }
     return result
   }
 
