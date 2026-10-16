@@ -9,12 +9,15 @@ const exe = join(
 const { app, page } = await launch({ executablePath: exe })
 const info = await invoke(page, 'app.info')
 console.log('version', info.version)
-await nav(page, 'Connections')
+await nav(page, 'Channels')
+await page.click('main button:has-text("Connections")')
 await sleep(800)
 console.log('Connections cards:', (await page.locator('section h2').allTextContents()).join(' | '))
 await nav(page, 'Settings')
 await sleep(500)
 console.log('Settings cards:', (await page.locator('section h2').allTextContents()).join(' | '))
+await page.click('main button:has-text("Alerts and backup")')
+await sleep(500)
 console.log(
   'Backup buttons:',
   await page.getByRole('button', { name: 'Export backup' }).count(),
@@ -35,7 +38,7 @@ try {
   console.log('launch at login put back to:', await read(), '(was', before + ')')
 }
 await shot(page, 'packaged-settings')
-await nav(page, 'Stats')
+await nav(page, 'Analytics')
 await sleep(800)
 console.log(
   'Stats screen:',

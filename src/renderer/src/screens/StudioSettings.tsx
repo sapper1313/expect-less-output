@@ -547,7 +547,8 @@ function BrandRow({
       <div className="mb-2 flex items-center justify-between">
         <b>{name}</b>
         <span className="text-[12px] text-muted">
-          {long ? 'Long, 16:9, YouTube only' : 'Short, 9:16'}. Next due: {nextDue ?? 'none'}
+          {long ? 'Long, 16:9, YouTube only' : 'Short, 9:16'}. Next due: {nextDue ?? 'none'}. Time
+          of day comes from the posting times on Channel setup.
         </span>
       </div>
       <div className="grid gap-3 md:grid-cols-3">

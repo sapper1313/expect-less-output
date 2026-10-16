@@ -47,7 +47,7 @@ export function makeVideos(dir, names, seconds = 4) {
 export async function launch({ dataDir, mediaRoot, executablePath } = {}) {
   const data = dataDir ?? mkdtempSync(join(tmpdir(), 'elo-data-'))
   const media = mediaRoot ?? mkdtempSync(join(tmpdir(), 'elo-media-'))
-  const env = { ...process.env, ELO_DATA_DIR: data, ELO_MEDIA_ROOT: media }
+  const env = { ...process.env, ELO_DATA_DIR: data, ELO_MEDIA_ROOT: media, ELO_E2E: '1' }
   const app = await electron.launch(
     executablePath ? { executablePath, env } : { args: [ROOT], cwd: ROOT, env },
   )

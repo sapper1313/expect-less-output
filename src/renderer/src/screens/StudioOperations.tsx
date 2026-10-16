@@ -163,7 +163,7 @@ export function StudioInsights() {
           <Empty>
             {i && i.videos > 0
               ? `${i.videos} video${i.videos === 1 ? '' : 's'} with numbers so far. The written summary needs at least three, then press Collect numbers now.`
-              : 'No videos with numbers yet. Press Collect numbers now, or use Import existing videos on the Stats screen to bring in the videos already on your channels.'}
+              : 'No videos with numbers yet. Press Collect numbers now, or use Import existing videos on the Analytics screen to bring in the videos already on your channels.'}
           </Empty>
         )}
         {data?.updatedUtc && (

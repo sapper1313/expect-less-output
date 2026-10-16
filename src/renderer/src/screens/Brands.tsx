@@ -355,7 +355,9 @@ function SlotEditor({ brandId }: { brandId: number }) {
       }
     >
       <div className="mb-3 text-[12px] text-muted">
-        {rec && !rec.enough ? COPY.stats.slotNotEnough : COPY.stats.slotNote}
+        {rec && !rec.enough ? COPY.stats.slotNotEnough : COPY.stats.slotNote} A new post can take
+        the next open time here, and the Studio posts its episodes at the first time of the day.
+        Which days the Studio posts is set under Studio settings per channel.
       </div>
       <div className="grid gap-6 md:grid-cols-2">
         {list('weekday', 'Weekdays (Mon to Fri)')}

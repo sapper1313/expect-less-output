@@ -7,7 +7,7 @@ import { useApp, useLoad } from '../hooks'
 import { BrandDot, Button, Card, Empty, PageHeader, Select, Textarea, useBusy } from '../ui'
 import { StudioBible } from './StudioBible'
 import { StudioPublishing } from './StudioPublishing'
-import { StudioComments, StudioInsights } from './StudioOperations'
+import { StudioComments } from './StudioOperations'
 import { StudioLibrary } from './StudioLibrary'
 import { StudioResearch } from './StudioResearch'
 import { StudioSpend } from './StudioSpend'
@@ -18,22 +18,21 @@ export type Tab =
   | 'library'
   | 'publishing'
   | 'comments'
-  | 'insights'
   | 'research'
   | 'spend'
   | 'log'
   | 'flagged'
+/** In the order the work happens: look, plan, make, check, publish, answer, then the money and the record. */
 const TABS: Array<[Tab, string]> = [
   ['overview', 'Overview'],
+  ['research', 'Research'],
   ['bible', 'Bible'],
   ['library', 'Library'],
+  ['flagged', 'Flagged'],
   ['publishing', 'Publishing'],
   ['comments', 'Comments'],
-  ['insights', 'Insights'],
-  ['research', 'Research'],
   ['spend', 'Spend'],
   ['log', "Director's Log"],
-  ['flagged', 'Flagged'],
 ]
 
 export function Studio({ initialTab = 'overview' }: { initialTab?: Tab }) {
@@ -70,7 +69,6 @@ export function Studio({ initialTab = 'overview' }: { initialTab?: Tab }) {
         {tab === 'library' && <StudioLibrary />}
         {tab === 'publishing' && <StudioPublishing />}
         {tab === 'comments' && <StudioComments />}
-        {tab === 'insights' && <StudioInsights />}
         {tab === 'research' && <StudioResearch />}
         {tab === 'spend' && <StudioSpend />}
         {tab === 'log' && <DirectorLog />}

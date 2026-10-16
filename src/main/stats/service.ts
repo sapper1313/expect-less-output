@@ -1,6 +1,7 @@
+import { DateTime } from 'luxon'
 import type { Db } from '../db'
 import type { ActivityLog } from '../services/activity'
-import { PLATFORMS } from '@shared/platformLimits'
+import { PLATFORMS, PLATFORM_LABELS } from '@shared/platformLimits'
 import type {
   Account,
   BrandStats,
@@ -364,6 +365,63 @@ export class StatsService {
     }).filter((p) => p.videos + p.unavailable > 0)
     const totals = platforms.reduce<StatsNumbers>((acc, p) => addAll(acc, p), EMPTY)
     return { brandId, range, posts: posts.size + old.length, platforms, totals }
+  }
+
+  /** One row per video and platform with its latest numbers, for a spreadsheet. */
+  exportRows(
+    brandId: number | null,
+    range: StatsRange,
+  ): Array<Record<string, string | number | null>> {
+    const days = range === '7d' ? 7 : range === '30d' ? 30 : 36500
+    const since = new Date(this.now() - days * DAY).toISOString()
+    const eastern = (iso: string | null) =>
+      iso
+        ? DateTime.fromISO(iso, { zone: 'utc' })
+            .setZone('America/New_York')
+            .toFormat('yyyy-LL-dd HH:mm')
+        : ''
+    const mine = this.d.db
+      .prepare(
+        `SELECT b.name AS brand, t.platform AS platform, p.title AS title, t.posted_at_utc AS at, t.external_url AS link,
+           (SELECT views FROM post_stats WHERE post_target_id = t.id ORDER BY id DESC LIMIT 1) AS views,
+           (SELECT likes FROM post_stats WHERE post_target_id = t.id ORDER BY id DESC LIMIT 1) AS likes,
+           (SELECT comments FROM post_stats WHERE post_target_id = t.id ORDER BY id DESC LIMIT 1) AS comments,
+           (SELECT shares FROM post_stats WHERE post_target_id = t.id ORDER BY id DESC LIMIT 1) AS shares
+         FROM post_targets t JOIN posts p ON p.id = t.post_id JOIN brands b ON b.id = p.brand_id
+         LEFT JOIN accounts a ON a.id = t.account_id
+         WHERE t.status = 'posted' AND t.posted_at_utc >= ? AND (a.mode IS NULL OR a.mode != 'dry_run')
+           ${brandId ? 'AND p.brand_id = ?' : ''}`,
+      )
+      .all(...(brandId ? [since, brandId] : [since])) as any[]
+    const found = this.d.db
+      .prepare(
+        `SELECT b.name AS brand, v.platform AS platform, v.title AS title, v.published_at_utc AS at, v.url AS link,
+           (SELECT views FROM imported_stats WHERE imported_id = v.id ORDER BY id DESC LIMIT 1) AS views,
+           (SELECT likes FROM imported_stats WHERE imported_id = v.id ORDER BY id DESC LIMIT 1) AS likes,
+           (SELECT comments FROM imported_stats WHERE imported_id = v.id ORDER BY id DESC LIMIT 1) AS comments,
+           (SELECT shares FROM imported_stats WHERE imported_id = v.id ORDER BY id DESC LIMIT 1) AS shares
+         FROM imported_videos v JOIN brands b ON b.id = v.brand_id
+         WHERE (v.published_at_utc IS NULL OR v.published_at_utc >= ?) ${brandId ? 'AND v.brand_id = ?' : ''}`,
+      )
+      .all(...(brandId ? [since, brandId] : [since])) as any[]
+    const out = [
+      ...mine.map((r) => ({ ...r, source: 'Posted by ELO' })),
+      ...found.map((r) => ({ ...r, source: 'Existing video' })),
+    ]
+    return out
+      .sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')))
+      .map((r) => ({
+        Brand: r.brand,
+        Platform: PLATFORM_LABELS[r.platform as Platform] ?? r.platform,
+        Title: r.title,
+        'Published (Eastern)': eastern(r.at),
+        Views: r.views,
+        Likes: r.likes,
+        Comments: r.comments,
+        Shares: r.shares,
+        Source: r.source,
+        Link: r.link ?? '',
+      }))
   }
 
   /** Videos with numbers and a go-live time, for the best time analysis. */

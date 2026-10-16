@@ -26,7 +26,13 @@ import {
 
 export const isVideo = (p: string) => /\.(mp4|mov)$/i.test(p)
 
-export function NewPost({ onDone }: { onDone: () => void }) {
+export function NewPost({
+  onDone,
+  initialWhen = null,
+}: {
+  onDone: () => void
+  initialWhen?: string | null
+}) {
   const { toast } = useApp()
   const [busy, run] = useBusy()
   const { data: settings } = useLoad(() => api.settings.get())
@@ -49,7 +55,7 @@ export function NewPost({ onDone }: { onDone: () => void }) {
     instagram: false,
     tiktok: false,
   })
-  const [when, setWhen] = useState<string | null>(null)
+  const [when, setWhen] = useState<string | null>(initialWhen)
   const { data: defaults } = useLoad(
     () => (brandId ? api.brands.getDefaults(brandId) : Promise.resolve(null)),
     [brandId],

@@ -6,12 +6,42 @@ import type { HomeSummary } from '../../src/shared/home'
 const summary: HomeSummary = {
   generatedUtc: '2026-10-10T16:00:00.000Z',
   stages: [{ key: 'writing', label: 'Being written', count: 1 }],
-  channels: [{ brandId: 1, name: 'Trash Panda', color: '#fff', paused: false, runwayDays: 5, nextDue: '2026-10-12', pipeline: { writing: 1, ready: 0, making: 0, scheduled: 1, flagged: 0 }, connections: [{ platform: 'youtube', label: 'YouTube', state: 'ok', note: 'Connected' }], latest: { postId: 9, title: 'Ctrl-Enter tip', platforms: ['youtube'], postedAtUtc: '2026-10-10T12:00:00Z', views: 111, likes: 4, comments: 2, shares: 0 } }],
+  channels: [
+    {
+      brandId: 1,
+      name: 'Trash Panda',
+      color: '#fff',
+      paused: false,
+      runwayDays: 5,
+      nextDue: '2026-10-12',
+      pipeline: { writing: 1, ready: 0, making: 0, scheduled: 1, flagged: 0 },
+      connections: [{ platform: 'youtube', label: 'YouTube', state: 'ok', note: 'Connected' }],
+      latest: {
+        postId: 9,
+        title: 'Ctrl-Enter tip',
+        platforms: ['youtube'],
+        postedAtUtc: '2026-10-10T12:00:00Z',
+        views: 111,
+        likes: 4,
+        comments: 2,
+        shares: 0,
+      },
+    },
+  ],
   upcoming: [],
   recent: [],
-  spend: { month: '2026-10', total: 12.5, projected: 40, capLabel: 'Global', capValue: 150, percent: 8, mock: false },
+  spend: {
+    month: '2026-10',
+    total: 12.5,
+    projected: 40,
+    capLabel: 'Global',
+    capValue: 150,
+    percent: 8,
+    mock: false,
+  },
   badges: { studio: 0, queue: 0, channels: 0 },
   needsYou: [],
+  setup: [],
 }
 
 function rig(opts: { token?: string | null; state?: Partial<TelegramState> } = {}) {
@@ -29,14 +59,20 @@ function rig(opts: { token?: string | null; state?: Partial<TelegramState> } = {
     if (method === 'sendMessage') sent.push(body)
     return new Response(JSON.stringify({ ok: true, result: { username: 'elo_bot' } }))
   }) as unknown as typeof fetch
-  const ask = vi.fn(async (system: string, user: string) => (system && user ? 'Trash Panda is at 111 views.' : ''))
+  const ask = vi.fn(async (system: string, user: string) =>
+    system && user ? 'Trash Panda is at 111 views.' : '',
+  )
   const setPaused = vi.fn(async () => undefined)
   const t = new TelegramAssistant({
     token: () => (opts.token === undefined ? 'TOKEN' : opts.token),
     fetchImpl,
     load: () => state,
     save: (s) => (state = s),
-    snapshot: async () => ({ text: homeSnapshotText(summary), status: 'STATUS', latest: latestLines(summary) }),
+    snapshot: async () => ({
+      text: homeSnapshotText(summary),
+      status: 'STATUS',
+      latest: latestLines(summary),
+    }),
     ask,
     setPaused,
     log: () => undefined,
@@ -69,7 +105,9 @@ describe('Telegram assistant', () => {
   it('answers quick commands without the model and keeps secrets out of the facts', async () => {
     const r = rig({ state: { chatIds: [7] } })
     await r.say(7, '/latest')
-    expect(r.sent.at(-1)?.text).toBe('Trash Panda: "Ctrl-Enter tip" has 111 views, 4 likes, 2 comments.')
+    expect(r.sent.at(-1)?.text).toBe(
+      'Trash Panda: "Ctrl-Enter tip" has 111 views, 4 likes, 2 comments.',
+    )
     await r.say(7, '/spend')
     expect(r.sent.at(-1)?.text).toMatch(/\$12\.50 of a \$150 cap/)
     expect(r.ask).not.toHaveBeenCalled()

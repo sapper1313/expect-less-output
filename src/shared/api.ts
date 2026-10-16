@@ -89,6 +89,7 @@ export interface Api {
   media: {
     pickVideos(multiple: boolean): Promise<string[]>
     pickImages(multiple: boolean): Promise<string[]>
+    saveCsv(defaultName: string, text: string): Promise<string | null>
     inspect(path: string): Promise<MediaInspection>
   }
   slots: {
@@ -185,6 +186,11 @@ export interface Api {
     imported(brandId: number | null, range: StatsRange): Promise<ImportedVideo[]>
     bestTimes(brandId: number | null, platform: Platform | null): Promise<BestTimes>
     recommendedSlots(brandId: number): Promise<RecommendedSlots>
+    /** The numbers for every video as spreadsheet rows. */
+    exportRows(
+      brandId: number | null,
+      range: StatsRange,
+    ): Promise<Array<Record<string, string | number | null>>>
   }
   agent: {
     status(): Promise<AgentStatus>

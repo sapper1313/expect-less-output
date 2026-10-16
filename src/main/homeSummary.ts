@@ -9,6 +9,7 @@ import {
   type HomePost,
   type HomeStage,
   type HomeSummary,
+  type SetupStep,
 } from '@shared/home'
 
 export interface HomeDeps {
@@ -24,6 +25,13 @@ export interface HomeDeps {
   spend: () => Promise<SpendSummary>
   mockMode: () => boolean
   postStats: (id: number) => PostStats
+  /** The app settings, to see whether alerts are set up. */
+  settings?: () => {
+    alertIMessageEnabled: boolean
+    alertIMessageNumber: string
+    alertEmailEnabled: boolean
+    alertEmailTo: string
+  }
 }
 
 const LABEL: Record<string, string> = {
@@ -243,6 +251,67 @@ export async function buildHomeSummary(d: HomeDeps): Promise<HomeSummary> {
   const badConns = channels
     .flatMap((c) => c.connections.map((x) => ({ c, x })))
     .filter(({ x }) => x.state === 'bad' || x.state === 'warn')
+  const setting = (key: string): unknown => {
+    const r = d.db.prepare('SELECT value_json FROM settings WHERE key = ?').get(key) as
+      { value_json: string } | undefined
+    try {
+      return r ? JSON.parse(r.value_json) : null
+    } catch {
+      return null
+    }
+  }
+  const n = (sql: string) => (d.db.prepare(sql).get() as { n: number }).n
+  const liveAccounts = n(
+    "SELECT COUNT(*) AS n FROM accounts WHERE mode != 'dry_run' AND status = 'connected'",
+  )
+  const brandsWithoutSlots = n(
+    `SELECT COUNT(*) AS n FROM brands b WHERE b.archived = 0
+       AND EXISTS (SELECT 1 FROM accounts a WHERE a.brand_id = b.id AND a.mode != 'dry_run')
+       AND NOT EXISTS (SELECT 1 FROM brand_slots s WHERE s.brand_id = b.id AND s.enabled = 1)`,
+  )
+  const telegram = setting('studio.telegram') as { chatIds?: number[] } | null
+  const st = d.settings?.()
+  const alertsOn =
+    (!!st?.alertIMessageEnabled && !!st.alertIMessageNumber.trim()) ||
+    (!!st?.alertEmailEnabled && !!st.alertEmailTo.trim()) ||
+    (telegram?.chatIds?.length ?? 0) > 0
+  const setup: SetupStep[] = [
+    {
+      key: 'connect',
+      label: 'Connect your accounts',
+      detail: 'Sign in to YouTube, Facebook, Instagram and TikTok for each channel.',
+      done: liveAccounts > 0,
+      go: { screen: 'channels', channelsTab: 'connections' },
+    },
+    {
+      key: 'slots',
+      label: 'Set your posting times',
+      detail: 'Choose the times each channel posts, so a new post can take the next open time.',
+      done: liveAccounts > 0 && brandsWithoutSlots === 0,
+      go: { screen: 'channels', channelsTab: 'setup' },
+    },
+    {
+      key: 'import',
+      label: 'Bring in your existing videos',
+      detail: 'Adds the videos already on your channels so the numbers cover everything.',
+      done: n('SELECT COUNT(*) AS n FROM imported_videos') > 0,
+      go: { screen: 'stats', statsTab: 'numbers' },
+    },
+    {
+      key: 'alerts',
+      label: 'Turn on alerts',
+      detail: 'Get a message when something fails. iMessage, email or the Telegram bot.',
+      done: alertsOn,
+      go: { screen: 'settings', settingsTab: 'alerts' },
+    },
+    {
+      key: 'firstPost',
+      label: 'Schedule your first post',
+      detail: 'Pick a video, check each platform and choose a time.',
+      done: n('SELECT COUNT(*) AS n FROM posts') > 0,
+      go: { screen: 'schedule' },
+    },
+  ]
   const needsYou: string[] = []
   if (d.openFlags())
     needsYou.push(`${d.openFlags()} studio item${d.openFlags() === 1 ? '' : 's'} flagged`)
@@ -272,5 +341,6 @@ export async function buildHomeSummary(d: HomeDeps): Promise<HomeSummary> {
     },
     badges: { studio: d.openFlags(), queue: failedPosts, channels: badConns.length },
     needsYou,
+    setup,
   }
 }

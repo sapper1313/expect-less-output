@@ -1,3 +1,4 @@
+import { writeFileSync } from 'fs'
 import type { Api } from '@shared/api'
 import type { Platform, Settings } from '@shared/types'
 import type { ActivityLog } from './services/activity'
@@ -41,7 +42,10 @@ export interface Host {
   quit(): void
   appInfo(): { version: string; dataDir: string; dbPath: string; encryptionAvailable: boolean }
   applySettings(prev: Settings, next: Settings): void
-  pickSavePath(defaultName: string): Promise<string | null>
+  pickSavePath(
+    defaultName: string,
+    filter?: { name: string; extensions: string[] },
+  ): Promise<string | null>
   pickZip(): Promise<string | null>
   relaunch(): void
 }
@@ -149,6 +153,13 @@ export function buildApi(d: ApiDeps): Api {
     media: {
       pickVideos: async (multiple) => d.host.pickVideos(multiple),
       pickImages: async (multiple) => d.host.pickImages(multiple),
+      /** Asks where to save, then writes the text there. Returns the path, or null when cancelled. */
+      saveCsv: async (defaultName, text) => {
+        const path = await d.host.pickSavePath(defaultName, { name: 'CSV', extensions: ['csv'] })
+        if (!path) return null
+        writeFileSync(path, text, 'utf8')
+        return path
+      },
       inspect: async (path) => d.media.inspect(path),
     },
     slots: {
@@ -294,6 +305,7 @@ export function buildApi(d: ApiDeps): Api {
       imported: async (brandId, range) => d.imported.list(brandId, range),
       bestTimes: async (brandId, platform) => d.stats.bestTimes(brandId, platform),
       recommendedSlots: async (brandId) => d.stats.recommendedSlots(brandId),
+      exportRows: async (brandId, range) => d.stats.exportRows(brandId, range),
       brandSummary: async (brandId, range) => d.stats.brandSummary(brandId, range),
     },
     agent: {
@@ -315,6 +327,7 @@ export function buildApi(d: ApiDeps): Api {
       summary: async () =>
         buildHomeSummary({
           db: d.db,
+          settings: () => d.settings.get(),
           now: () => Date.now(),
           posts: (f) => d.posts.list(f),
           health: () =>

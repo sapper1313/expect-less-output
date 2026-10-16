@@ -1,12 +1,73 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { formatEastern } from '@shared/time'
-import type { HealthState, HomeChannel, HomePost, HomeStage } from '@shared/home'
+import type { HealthState, HomeChannel, HomePost, HomeStage, HomeSummary } from '@shared/home'
 import { api } from '../api'
 import { useLoad } from '../hooks'
 
 export type GoTarget = {
-  screen: 'calendar' | 'queue' | 'studio' | 'channels' | 'newPost' | 'stats' | 'settings'
+  screen:
+    'calendar' | 'queue' | 'studio' | 'channels' | 'newPost' | 'schedule' | 'stats' | 'settings'
   studioTab?: string
+  channelsTab?: string
+  settingsTab?: string
+  statsTab?: string
+}
+
+function SetupChecklist({ steps, go }: { steps: HomeSummary['setup']; go: (t: GoTarget) => void }) {
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem('elo.setupHidden') === '1'
+    } catch {
+      return false
+    }
+  })
+  const done = steps.filter((s) => s.done).length
+  if (hidden || done === steps.length) return null
+  return (
+    <div className="glass p-4" role="region" aria-label="Get set up">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="text-[13px] font-bold">
+          Get set up: {done} of {steps.length} done
+        </div>
+        <button
+          className="text-[12px] glass-dim underline"
+          onClick={() => {
+            try {
+              localStorage.setItem('elo.setupHidden', '1')
+            } catch {
+              // not saved
+            }
+            setHidden(true)
+          }}
+        >
+          Hide
+        </button>
+      </div>
+      <div className="space-y-1.5">
+        {steps.map((s) => (
+          <div key={s.key} className="flex items-center justify-between gap-3 text-[13px]">
+            <div className="flex items-start gap-2">
+              <span aria-hidden className={s.done ? 'text-green-400' : 'glass-dim'}>
+                {s.done ? '✓' : '○'}
+              </span>
+              <div>
+                <div className={s.done ? 'glass-dim line-through' : 'font-semibold'}>{s.label}</div>
+                {!s.done && <div className="text-[12px] glass-dim">{s.detail}</div>}
+              </div>
+            </div>
+            {!s.done && (
+              <button
+                className="glass glass-sm glass-btn shrink-0 px-3 py-1 text-[12px] font-semibold"
+                onClick={() => go(s.go as GoTarget)}
+              >
+                Do this
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 const STAGE_COLOR: Record<HomeStage['key'], string> = {
@@ -236,7 +297,7 @@ export function Home({
           <div className="flex gap-2">
             <button
               className="glass glass-sm glass-btn px-4 py-2 text-[13px] font-semibold"
-              onClick={() => go({ screen: 'newPost' })}
+              onClick={() => go({ screen: 'schedule' })}
             >
               ＋ New post
             </button>
@@ -248,6 +309,8 @@ export function Home({
             </button>
           </div>
         </div>
+
+        <SetupChecklist steps={data.setup} go={go} />
 
         {data.needsYou.length > 0 && (
           <div

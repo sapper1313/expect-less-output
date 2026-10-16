@@ -111,18 +111,16 @@ export class Analytics {
         )
         .all(brandId) as Array<Omit<Row, 'seconds'>>
     ).map((r) => ({ ...r, seconds: 0 }))
-    const posts = (
-      q
-        .prepare(
-          `SELECT 'post:' || p.id AS id, p.title AS title, '' AS tags, p.scheduled_at_utc AS post_at,
+    const posts = q
+      .prepare(
+        `SELECT 'post:' || p.id AS id, p.title AS title, '' AS tags, p.scheduled_at_utc AS post_at,
              COALESCE((SELECT SUM(v) FROM (
                SELECT (SELECT views FROM post_stats s WHERE s.post_target_id = t.id ORDER BY s.id DESC LIMIT 1) AS v FROM post_targets t WHERE t.post_id = p.id)), 0) AS views,
              COALESCE(json_extract(p.video_meta_json, '$.durationSeconds'), 0) AS seconds
            FROM posts p
            WHERE p.brand_id = ? AND p.status = 'posted' AND NOT EXISTS (SELECT 1 FROM episodes e WHERE e.post_id = p.id)`,
-        )
-        .all(brandId) as Row[]
-    )
+      )
+      .all(brandId) as Row[]
     const found = q
       .prepare(
         `SELECT 'video:' || v.id AS id, v.title AS title, '' AS tags, v.published_at_utc AS post_at,

@@ -5,7 +5,7 @@ import { AppProvider, useLoad } from './hooks'
 import { Toasts } from './ui'
 import { Calendar } from './screens/Calendar'
 import { Queue } from './screens/Queue'
-import { Stats } from './screens/Stats'
+import { Stats, type AnalyticsTab } from './screens/Stats'
 import { Studio, type Tab as StudioTab } from './screens/Studio'
 import { Home, type GoTarget } from './screens/Home'
 import { Channels, type ChannelsTab } from './screens/Channels'
@@ -14,8 +14,7 @@ import { PostEditor } from './components/PostEditor'
 import { SearchPalette } from './components/SearchPalette'
 import { EpisodePeek } from './screens/StudioLibrary'
 import type { SearchHit } from '@shared/search'
-import { NewPost } from './screens/NewPost'
-import { Bulk } from './screens/Bulk'
+import { Schedule, type ScheduleMode } from './screens/Schedule'
 import { About, Activity, SettingsScreen, type SettingsTab } from './screens/Simple'
 import { TikTokDemo } from './screens/TikTokDemo'
 import logoWide from './assets/logo-wide.png'
@@ -28,29 +27,24 @@ type Screen =
   | 'queue'
   | 'stats'
   | 'studio'
-  | 'newPost'
-  | 'bulk'
+  | 'schedule'
   | 'activity'
   | 'settings'
   | 'about'
 const SHORTCUTS: Partial<Record<Screen, string>> = {
-  newPost: '⌘N',
-  bulk: '⇧⌘N',
+  schedule: '⌘N',
   home: '⌘0',
   calendar: '⌘1',
   queue: '⌘2',
 }
-const NAV: Screen[] = [
-  'home',
-  'calendar',
-  'queue',
-  'studio',
-  'stats',
-  'newPost',
-  'bulk',
-  'channels',
-  'activity',
-  'settings',
+/** The menu follows the work: see how things are, create and schedule, make with the Studio, check results, set up. */
+const NAV_GROUPS: Array<{ label: string; items: Screen[] }> = [
+  { label: '', items: ['home'] },
+  { label: 'Create and schedule', items: ['schedule', 'calendar', 'queue'] },
+  { label: 'Make', items: ['studio'] },
+  { label: 'Results', items: ['stats'] },
+  { label: 'Set up', items: ['channels', 'settings'] },
+  { label: 'Records', items: ['activity'] },
 ]
 
 function Shell() {
@@ -63,14 +57,25 @@ function Shell() {
   const [searching, setSearching] = useState(false)
   const [peekEpisode, setPeekEpisode] = useState<string | null>(null)
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('general')
-  const [newPostKey, setNewPostKey] = useState(0)
-  const setScreen = (s: Screen | 'connections' | 'brands') => {
+  const [statsTab, setStatsTab] = useState<AnalyticsTab>('numbers')
+  const [scheduleKey, setScheduleKey] = useState(0)
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('one')
+  const [scheduleWhen, setScheduleWhen] = useState<string | null>(null)
+  /** Opens the Schedule screen fresh, optionally on a time (from the calendar). */
+  const openSchedule = (mode: ScheduleMode = 'one', when: string | null = null) => {
+    setScheduleMode(mode)
+    setScheduleWhen(when)
+    setScheduleKey((k) => k + 1)
+    setScreenRaw('schedule')
+  }
+  const setScreen = (s: Screen | 'connections' | 'brands' | 'newPost' | 'bulk') => {
     if (s === 'connections' || s === 'brands') {
       setChannelsTab(s === 'connections' ? 'connections' : 'setup')
       setScreenRaw('channels')
       return
     }
-    if (s === 'newPost' && screen !== 'newPost') setNewPostKey((k) => k + 1)
+    if (s === 'newPost' || s === 'bulk') return openSchedule(s === 'bulk' ? 'many' : 'one')
+    if (s === 'schedule' && screen !== 'schedule') return openSchedule('one')
     setScreenRaw(s)
   }
   const pick = (h: SearchHit) => {
@@ -78,11 +83,15 @@ function Shell() {
     const t = h.target
     if (t.settingsTab) setSettingsTab(t.settingsTab as SettingsTab)
     if (t.channelsTab) setChannelsTab(t.channelsTab as ChannelsTab)
+    if (t.statsTab) setStatsTab(t.statsTab as AnalyticsTab)
     go({ screen: t.screen as GoTarget['screen'], studioTab: t.studioTab })
     if (t.episodeId) setPeekEpisode(t.episodeId)
     if (t.postId) setDetailPost(t.postId)
   }
   const go = (t: GoTarget) => {
+    if (t.channelsTab) setChannelsTab(t.channelsTab as ChannelsTab)
+    if (t.settingsTab) setSettingsTab(t.settingsTab as SettingsTab)
+    if (t.statsTab) setStatsTab(t.statsTab as AnalyticsTab)
     if (t.screen === 'studio') {
       setStudioTab((t.studioTab as StudioTab) ?? 'overview')
       setStudioKey((k) => k + 1)
@@ -130,11 +139,10 @@ function Shell() {
       }
       if (k === 'n' && !e.shiftKey) {
         e.preventDefault()
-        setNewPostKey((n) => n + 1)
-        setScreenRaw('newPost')
+        openSchedule('one')
       } else if (k === 'n' && e.shiftKey) {
         e.preventDefault()
-        setScreenRaw('bulk')
+        openSchedule('many')
       } else if (k === '0' && !e.shiftKey) {
         e.preventDefault()
         setScreenRaw('home')
@@ -178,31 +186,42 @@ function Shell() {
           <span>Search everything</span>
           <span className="text-[11px] opacity-70">⌘K</span>
         </button>
-        <nav className="no-drag flex-1 space-y-0.5 px-3">
-          {NAV.map((s) => (
-            <button
-              key={s}
-              onClick={() => setScreen(s)}
-              className={`w-full rounded-md px-3 py-2 text-left text-[13px] font-semibold ${screen === s ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}
-            >
-              <span className="flex items-center justify-between">
-                {COPY.nav[s]}
-                <span className="flex items-center gap-2">
-                  {!!badge[s] && (
-                    <span
-                      title="Needs a look"
-                      className="dot-pulse flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
-                    >
-                      {badge[s]}
-                    </span>
-                  )}
-                  {SHORTCUTS[s] && (
-                    <span className="text-[11px] font-normal opacity-60">{SHORTCUTS[s]}</span>
-                  )}
+        <nav className="no-drag flex-1 space-y-0.5 overflow-y-auto px-3" aria-label="Main">
+          {NAV_GROUPS.flatMap((g) => [
+            g.label ? (
+              <div
+                key={`h-${g.label}`}
+                className="px-3 pb-0.5 pt-3 text-[10px] font-bold uppercase tracking-wider text-muted"
+              >
+                {g.label}
+              </div>
+            ) : null,
+            ...g.items.map((s) => (
+              <button
+                key={s}
+                onClick={() => setScreen(s)}
+                aria-current={screen === s ? 'page' : undefined}
+                className={`w-full rounded-md px-3 py-2 text-left text-[13px] font-semibold ${screen === s ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}
+              >
+                <span className="flex items-center justify-between">
+                  {COPY.nav[s]}
+                  <span className="flex items-center gap-2">
+                    {!!badge[s] && (
+                      <span
+                        title="Needs a look"
+                        className="dot-pulse flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+                      >
+                        {badge[s]}
+                      </span>
+                    )}
+                    {SHORTCUTS[s] && (
+                      <span className="text-[11px] font-normal opacity-60">{SHORTCUTS[s]}</span>
+                    )}
+                  </span>
                 </span>
-              </span>
-            </button>
-          ))}
+              </button>
+            )),
+          ])}
         </nav>
         {meta?.connected && meta.expiringSoon && (
           <button
@@ -260,12 +279,18 @@ function Shell() {
           </div>
         )}
         {screen === 'home' && <Home go={go} openPost={setDetailPost} />}
-        {screen === 'calendar' && <Calendar />}
+        {screen === 'calendar' && <Calendar onNewPost={(when) => openSchedule('one', when)} />}
         {screen === 'queue' && <Queue />}
-        {screen === 'stats' && <Stats />}
+        {screen === 'stats' && <Stats key={statsTab} initialTab={statsTab} />}
         {screen === 'studio' && <Studio key={studioKey} initialTab={studioTab} />}
-        {screen === 'newPost' && <NewPost key={newPostKey} onDone={() => setScreen('calendar')} />}
-        {screen === 'bulk' && <Bulk onDone={() => setScreen('calendar')} />}
+        {screen === 'schedule' && (
+          <Schedule
+            key={scheduleKey}
+            initialMode={scheduleMode}
+            initialWhen={scheduleWhen}
+            onDone={() => setScreen('calendar')}
+          />
+        )}
         {screen === 'channels' && <Channels key={channelsTab} initialTab={channelsTab} />}
         {screen === 'activity' && <Activity />}
         {screen === 'settings' && <SettingsScreen key={settingsTab} initialTab={settingsTab} />}

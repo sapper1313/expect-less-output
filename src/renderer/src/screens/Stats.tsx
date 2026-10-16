@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { PLATFORM_LABELS } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
+import { toCsv } from '@shared/csv'
 import { formatEastern } from '@shared/time'
 import type { StatsRange } from '@shared/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { fmt } from '../components/StatsPanel'
 import { BestTimes } from '../components/BestTimes'
+import { StudioInsights } from './StudioOperations'
 import { Button, Card, Empty, PageHeader, Select, useBusy } from '../ui'
 
-export function Stats() {
+function StatsNumbers() {
   const { toast } = useApp()
   const [busy, run] = useBusy()
   const { data: brands } = useLoad(() => api.brands.list())
@@ -39,6 +41,25 @@ export function Stats() {
           }}
         >
           Refresh stats
+        </Button>
+        <Button
+          disabled={busy}
+          onClick={async () => {
+            const rows = await api.stats.exportRows(brandId, range)
+            if (!rows.length) {
+              toast({ kind: 'info', headline: 'Nothing to export in this range yet.' })
+              return
+            }
+            const cols = Object.keys(rows[0])
+            const stamp = new Date().toISOString().slice(0, 10)
+            const path = await api.media.saveCsv(
+              `ELO analytics ${range} ${stamp}.csv`,
+              toCsv(cols, rows),
+            )
+            if (path) toast({ kind: 'success', headline: 'Saved.', detail: path })
+          }}
+        >
+          Export CSV
         </Button>
         <Button
           disabled={busy}
@@ -183,6 +204,42 @@ export function Stats() {
               </tbody>
             </table>
           </Card>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export type AnalyticsTab = 'numbers' | 'working'
+
+/** Results: the numbers for every video, and what is working (the Studio's insights). */
+export function Stats({ initialTab = 'numbers' }: { initialTab?: AnalyticsTab }) {
+  const [tab, setTab] = useState<AnalyticsTab>(initialTab)
+  const tabs: Array<[AnalyticsTab, string]> = [
+    ['numbers', 'Numbers'],
+    ['working', "What's working"],
+  ]
+  return (
+    <div className="flex h-full flex-col">
+      <div className="no-drag flex gap-1 px-8 pt-7">
+        {tabs.map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            aria-pressed={tab === id}
+            className={`rounded-md px-3 py-1.5 text-[13px] font-semibold ${tab === id ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="min-h-0 flex-1">
+        {tab === 'numbers' ? (
+          <StatsNumbers />
+        ) : (
+          <div className="h-full overflow-auto px-8 pb-10 pt-4">
+            <StudioInsights />
+          </div>
         )}
       </div>
     </div>

@@ -8,10 +8,12 @@ export interface SearchTarget {
     | 'studio'
     | 'channels'
     | 'newPost'
+    | 'schedule'
     | 'stats'
     | 'settings'
     | 'activity'
   studioTab?: string
+  statsTab?: string
   channelsTab?: string
   settingsTab?: string
   episodeId?: string
@@ -60,9 +62,9 @@ export const PAGES: Array<{ title: string; words: string; target: SearchTarget }
     target: { screen: 'studio', studioTab: 'comments' },
   },
   {
-    title: 'Studio: Insights',
-    words: 'insights analytics retention watch time',
-    target: { screen: 'studio', studioTab: 'insights' },
+    title: "Analytics: What's working (insights)",
+    words: 'insights analytics retention watch time working best topics hours',
+    target: { screen: 'stats', statsTab: 'working' },
   },
   {
     title: 'Studio: Research (Title Lab, competitors, trends)',

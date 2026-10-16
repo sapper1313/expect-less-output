@@ -605,10 +605,10 @@ async function boot(): Promise<void> {
     async openPath(p) {
       await shell.openPath(p)
     },
-    async pickSavePath(defaultName) {
+    async pickSavePath(defaultName, filter) {
       const r = await dialog.showSaveDialog({
         defaultPath: join(app.getPath('documents'), defaultName),
-        filters: [{ name: 'Zip', extensions: ['zip'] }],
+        filters: [filter ?? { name: 'Zip', extensions: ['zip'] }],
       })
       return r.canceled || !r.filePath ? null : r.filePath
     },
@@ -860,6 +860,8 @@ async function boot(): Promise<void> {
   // Command+Q works like closing the window: the app keeps running from the menu bar. Only Quit in the
   // menu bar icon menu really stops it, so a stray Command+Q cannot stop your scheduled posts.
   app.on('before-quit', (e) => {
+    // The automated test runs close the app for real. Nobody else sets this.
+    if (process.env.ELO_E2E === '1') quitting = true
     if (!quitting) {
       e.preventDefault()
       mainWindow?.hide()

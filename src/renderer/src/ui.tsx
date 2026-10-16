@@ -19,7 +19,7 @@ type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 }
 export function Button({ variant = 'secondary', className, ...p }: BtnProps) {
   const base =
-    'inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-[13px] font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed no-drag'
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md px-3.5 py-2 text-[13px] font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed no-drag'
   const styles = {
     fine: 'bg-fine text-[#111] hover:brightness-110 px-6 py-2.5 text-[15px]',
     primary: 'bg-accent text-[#111] hover:brightness-110',
@@ -76,7 +76,7 @@ export function TimeSelect({
     minutes.push(min)
     minutes.sort((a, b) => a - b)
   }
-  const cell = 'w-auto min-w-[64px] px-2'
+  const cell = 'w-auto min-w-[72px] px-2'
   return (
     <div
       className={cx('inline-flex items-center gap-1.5', className)}

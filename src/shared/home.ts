@@ -71,6 +71,16 @@ export interface HomeSummary {
   badges: { studio: number; queue: number; channels: number }
   /** Plain lines about what needs the owner. */
   needsYou: string[]
+  /** First run checklist: what is left to set up. */
+  setup: SetupStep[]
+}
+
+export interface SetupStep {
+  key: 'connect' | 'slots' | 'import' | 'alerts' | 'firstPost'
+  label: string
+  detail: string
+  done: boolean
+  go: { screen: string; channelsTab?: string; settingsTab?: string; statsTab?: string }
 }
 
 export const EPISODE_STAGE: Record<string, HomeStage['key']> = {

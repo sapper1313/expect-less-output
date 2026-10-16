@@ -8,12 +8,12 @@ import luxon3Plugin from '@fullcalendar/luxon3'
 import type { DatesSetArg, EventDropArg } from '@fullcalendar/core'
 import type { CalendarItem, CalendarKind } from '@shared/studio/types'
 import { COPY } from '@shared/copy'
-import { ZONE, formatEastern } from '@shared/time'
+import { ZONE, formatEastern, localInputToIso } from '@shared/time'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { PostEditor } from '../components/PostEditor'
 import { ItemDetail, PostDetail } from '../components/ItemDetail'
-import { PLATFORM_SHORT, PageHeader, Select, Confirm, useBusy } from '../ui'
+import { Button, PLATFORM_SHORT, PageHeader, Select, Confirm, useBusy } from '../ui'
 import { EpisodePeek } from './StudioLibrary'
 
 const STATUS_DOT: Record<string, string> = {
@@ -54,7 +54,7 @@ const POST_KIND: Record<string, CalendarKind> = {
   missed: 'failed',
 }
 
-export function Calendar() {
+export function Calendar({ onNewPost }: { onNewPost?: (whenUtc: string | null) => void } = {}) {
   const { toast } = useApp()
   const [, run] = useBusy()
   const [brandId, setBrandId] = useState<number | 'all'>('all')
@@ -133,6 +133,11 @@ export function Calendar() {
   return (
     <div className="flex h-full flex-col">
       <PageHeader title={COPY.nav.calendar}>
+        {onNewPost && (
+          <Button variant="primary" onClick={() => onNewPost(null)}>
+            New post
+          </Button>
+        )}
         <Select
           className="w-40"
           value={platform}
@@ -195,6 +200,7 @@ export function Calendar() {
           }
           height="100%"
           events={[...events, ...studioEvents]}
+          dateClick={(d) => onNewPost?.(localInputToIso(`${d.dateStr.slice(0, 10)}T12:00`))}
           editable
           eventStartEditable
           eventDurationEditable={false}

@@ -29,11 +29,12 @@ export const COPY = {
     channels: 'Channels',
     calendar: 'Calendar',
     queue: 'Queue',
-    stats: 'Stats',
+    stats: 'Analytics',
     studio: 'Studio',
+    schedule: 'Schedule',
     newPost: 'New Post',
     bulk: 'Bulk Upload',
-    brands: 'Brands',
+    brands: 'Channel setup',
     connections: 'Connections',
     activity: 'Activity Log',
     settings: 'Settings',
@@ -56,7 +57,7 @@ export const COPY = {
     slotNote:
       'Suggested from how your own videos did (Eastern time). Click Add to put a time in the list, then Save slots.',
     slotNotEnough:
-      'Suggestions appear once the app has numbers for at least 10 videos that are a week old or more. Use Import existing videos on the Stats screen.',
+      'Suggestions appear once the app has numbers for at least 10 videos that are a week old or more. Use Import existing videos on the Analytics screen.',
     importProblems: 'Imported with problems',
     importedNote:
       'Videos that were on your channels before this app. They are read once and then every day for 90 days after they were published.',

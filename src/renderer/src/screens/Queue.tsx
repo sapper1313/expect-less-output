@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { PLATFORMS, PLATFORM_LABELS } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
+import { toCsv } from '@shared/csv'
 import { formatEastern, localInputToIso } from '@shared/time'
 import type { PostFilter } from '@shared/types'
 import { api } from '../api'
@@ -60,7 +61,27 @@ export function Queue() {
 
   return (
     <div className="h-full overflow-auto pb-10">
-      <PageHeader title={COPY.nav.queue} />
+      <PageHeader title={COPY.nav.queue}>
+        <Button
+          disabled={!posts?.length}
+          onClick={async () => {
+            const rows = (posts ?? []).map((p) => ({
+              Title: p.title || p.fileName,
+              Brand: p.brandName,
+              'Scheduled (Eastern)': p.scheduledAtUtc ? formatEastern(p.scheduledAtUtc, false) : '',
+              Status: p.status.replace('_', ' '),
+              Platforms: p.targets.map((t) => PLATFORM_LABELS[t.platform]).join(' and '),
+            }))
+            const path = await api.media.saveCsv(
+              `ELO queue ${new Date().toISOString().slice(0, 10)}.csv`,
+              toCsv(Object.keys(rows[0] ?? { Title: '' }), rows),
+            )
+            if (path) toast({ kind: 'success', headline: 'Saved.', detail: path })
+          }}
+        >
+          Export CSV
+        </Button>
+      </PageHeader>
       <div className="space-y-4 px-8">
         <div className="flex flex-wrap items-end gap-3">
           <Input
