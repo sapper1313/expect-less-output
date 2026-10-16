@@ -29,7 +29,7 @@ Status tags used below: **EXISTS** (nothing to build, maybe a test), **EXTEND** 
 | 10 | "Calendar entries" and "queue items" are separate stores that can disagree | The calendar is **computed from the `posts` table** (plus Studio episodes). There is no separate calendar store, so "orphan calendar entry" cannot occur in the way the draft describes. | R3 is rewritten to checks that can really fail. |
 | 11 | Retry 3 tries, 5/15/60 minutes | Retry exists: 3 retries after 2, 10 and 30 minutes (4 attempts), then the post is marked failed and an alert is sent. Already never double-posts (per target state and locks). | EXTEND: make the backoff a setting, default as the draft asks. |
 | 12 | Titles/descriptions/tags come only from the sidecar | True for **plain drops** already (the sidecar's `title` and `caption` are used). **Studio episodes** (the `episode_id` path) take their text from the episode package ELO wrote. | Pipeline drops use the sidecar text only. See section 3. |
-| 13 | `ELO_API_TOKEN` in Settings > Agents | The token is **generated in Settings, Agent API**, shown once, and can be regenerated. `ELO_API_TOKEN` is only the name of the variable the MCP server reads. | Nothing to build. Use "Regenerate token" for rotation. |
+| 13 | `ELO_API_TOKEN` in Settings > Agents | The token is **generated in Settings, Agent API**, shown once, and can be regenerated. `ELO_API_TOKEN` is only the name of the variable the MCP server reads. | Nothing to build. Use "Make a new token" for rotation. |
 | 14 | Settings > Pipeline | There is no Pipeline tab. Settings has General, Studio, AI models and Local AI, Alerts and backup, Agent API, Testing tools. Per-channel switches live on **Channels, Channel setup**. | New switches go where they belong (section 5), plus one new read-only **Inbox** screen. |
 
 ---
@@ -220,7 +220,7 @@ Run on startup, after every schedule change, hourly, and on a **Reconcile now** 
 | Claude API enabled | NEW | R1. |
 | Local LLM | EXISTS / EXTEND | R6. |
 | Drop intake enabled | **EXISTS** per channel | "Watch this channel's Inbox folder" is the intake switch. Add a global one (`pipeline.intake.enabled`) so one tick stops all seven. |
-| Agent API enabled, rotate token | **EXISTS** | Settings, Agent API (Turn on, Regenerate token). |
+| Agent API enabled, rotate token | **EXISTS** | Settings, Agent API (Turn on, Make a new token). |
 | Duplicate detection | NEW | 3.4. |
 | Sidecar validation strict | NEW | `pipeline.sidecar.strict` (default on). Off means warnings are logged instead of rejected, for testing only. |
 | Require approval block | NEW | `pipeline.requireApproval` (default on). |
