@@ -25,6 +25,7 @@ export function pipelineSetup(
 ) {
   const env = opts.env ?? makeEnv(opts.startMs ?? Date.UTC(2026, 9, 19, 14, 0, 0))
   env.settings.set({
+    agentMaySchedule: true,
     inboxBrandIds: [1, 2, 3, 4, 5, 6, 7],
     inboxAutoScheduleBrandIds: [1, 2, 3, 4, 5, 6, 7],
     ...(opts.patch ?? {}),
@@ -67,6 +68,7 @@ export function pipelineSetup(
     s: services,
     library: env.library,
     pipeline,
+    drops,
     alert: (h, d) => alerts.push([h, d]),
     now: () => env.clock.ms,
   })

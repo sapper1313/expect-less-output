@@ -117,6 +117,8 @@ export class PipelineIntake {
   /** Why a drop for this channel would wait instead of being scheduled, or null when it can be scheduled now. */
   waitingReason(brandId: number, platforms?: string[]): string | null {
     const s = this.d.settings.get()
+    if (!s.agentMaySchedule)
+      return 'Agents may create drafts only is on in Settings, so nothing is scheduled automatically.'
     if (!s.inboxAutoScheduleBrandIds.includes(brandId))
       return 'Automatic scheduling is off for this channel.'
     if ((s.pausedBrandIds ?? []).includes(brandId)) return 'The channel is paused.'

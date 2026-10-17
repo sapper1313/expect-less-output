@@ -50,6 +50,7 @@ import type { EditPatch } from './platformEdit'
 import type { StudioApi } from './studio/api'
 import type {
   AuditRow,
+  BotInfo,
   ChannelRules,
   DropFilter,
   DropRow,
@@ -209,6 +210,19 @@ export interface Api {
     /** Makes a new token and returns it. This is the only time it is shown. */
     generateToken(): Promise<{ token: string }>
     mcpConfig(): Promise<McpConfig>
+    bots(): Promise<BotInfo[]>
+    /** Makes a bot with its own token. The token is shown only in this answer. */
+    createBot(
+      name: string,
+      channels: string[],
+      role: 'writer' | 'orchestrator',
+    ): Promise<{ bot: BotInfo; token: string }>
+    newBotToken(id: number): Promise<{ token: string }>
+    updateBot(
+      id: number,
+      patch: { channels?: string[]; role?: 'writer' | 'orchestrator' },
+    ): Promise<BotInfo>
+    revokeBot(id: number): Promise<void>
   }
   studio: StudioApi
   pipeline: {

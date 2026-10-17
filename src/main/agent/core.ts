@@ -84,6 +84,23 @@ export interface AgentServices {
     | 'rebuildEpisode'
   >
   now?: () => number
+  /** The drop log. Missing in tests that do not need it. */
+  drops?: import('../pipeline/dropLog').DropLog
+  /** The reconcile check. Missing in tests that do not need it. */
+  reconciler?: import('../pipeline/reconcile').Reconciler
+  /** The app-wide audit log. */
+  audit?: import('../pipeline/auditEvents').AuditEvents
+  /** Per bot tokens. Without it only the owner's token works. */
+  bots?: import('./bots').BotStore
+  /** Puts a drop into a channel Inbox and returns the decision. */
+  pipeline?: {
+    receive(
+      channelSlug: string,
+      sidecar: Record<string, unknown>,
+      filePath: string | null,
+      actor: string,
+    ): Promise<import('@shared/pipeline').DropRow | null>
+  }
 }
 
 const ALLOWED_VIDEO = ['.mp4', '.mov']
@@ -409,8 +426,12 @@ export function listFilter(q: {
   from?: string
   to?: string
   search?: string
+  origin?: string
+  held?: string
 }): PostFilter {
   return {
+    origin: q.origin as PostFilter['origin'],
+    held: q.held === undefined ? undefined : q.held === 'true',
     brandId: q.brand_id ?? null,
     status: (q.status as PostFilter['status']) ?? 'all',
     fromUtc: q.from ? toUtc(q.from) : undefined,

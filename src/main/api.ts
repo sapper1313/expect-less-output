@@ -2,6 +2,7 @@ import type { AuditEvents } from './pipeline/auditEvents'
 import type { DropLog } from './pipeline/dropLog'
 import type { PipelineIntake } from './pipeline/intake'
 import type { InboxService } from './pipeline/inboxService'
+import type { BotStore } from './agent/bots'
 import { writeFileSync } from 'fs'
 import type { Api } from '@shared/api'
 import type { Platform, Settings } from '@shared/types'
@@ -84,6 +85,7 @@ export interface ApiDeps {
   drops: DropLog
   pipeline: PipelineIntake
   inbox: InboxService
+  bots: BotStore
   /** Throws when a paused channel may not be resumed yet. */
   beforeResume: (brandId: number) => void
   afterResume: (brandId: number) => void
@@ -385,6 +387,35 @@ export function buildApi(d: ApiDeps): Api {
       status: async () => d.agent.status(),
       generateToken: async () => ({ token: d.agent.generateToken() }),
       mcpConfig: async () => d.agent.mcpConfig(),
+      bots: async () => d.bots.list(),
+      createBot: async (name, channels, role) => {
+        const r = d.bots.create(name, channels, role)
+        d.audit.write({
+          actor: 'josh',
+          action: 'bot.create',
+          target: r.bot.name,
+          after: { channels, role },
+        })
+        d.emit()
+        return r
+      },
+      newBotToken: async (id) => {
+        const r = d.bots.regenerate(id)
+        d.audit.write({ actor: 'josh', action: 'bot.newToken', target: r.bot.name })
+        return { token: r.token }
+      },
+      updateBot: async (id, patch) => {
+        const b = d.bots.update(id, patch)
+        d.audit.write({ actor: 'josh', action: 'bot.update', target: b.name, after: patch })
+        d.emit()
+        return b
+      },
+      revokeBot: async (id) => {
+        const b = d.bots.get(id)
+        d.bots.revoke(id)
+        d.audit.write({ actor: 'josh', action: 'bot.revoke', target: b?.name ?? String(id) })
+        d.emit()
+      },
     },
     studio: d.studio,
     search: { query: async (q) => searchAll(d.db, q) },

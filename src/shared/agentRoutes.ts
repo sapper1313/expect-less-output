@@ -8,7 +8,13 @@ import {
   BrandStatsQuery,
   CalendarOut,
   CalendarQuery,
+  CreateDropBody,
+  CreateDropOut,
   CreatePostBody,
+  DropOut,
+  DropParams,
+  ListDropsQuery,
+  ReconcileOut,
   EpisodeIdParams,
   EpisodeParams,
   FlaggedOut,
@@ -52,6 +58,8 @@ export interface RouteDef {
   tool?: string
   /** True when the route can put something on the schedule (checked against the drafts-only setting). */
   schedules?: boolean
+  /** True when a bot token (not only the owner's token) may call the route. Reads are always allowed. */
+  bot?: boolean
   /** True when the route changes Studio settings or work (checked against "Agents may change Studio settings"). */
   studioWrite?: boolean
 }
@@ -76,6 +84,49 @@ export const ROUTES: RouteDef[] = [
     response: NextOpenOut,
     success: 200,
     tool: 'get_next_open_slots',
+  },
+  {
+    id: 'listDrops',
+    method: 'GET',
+    path: '/v1/drops',
+    summary: 'The drop log: every video a bot dropped and what ELO decided.',
+    query: ListDropsQuery,
+    response: z.object({ drops: z.array(DropOut) }),
+    success: 200,
+    tool: 'list_drops',
+  },
+  {
+    id: 'getDrop',
+    method: 'GET',
+    path: '/v1/drops/{id}',
+    summary: 'One drop, by its drop_id.',
+    params: DropParams,
+    response: DropOut,
+    success: 200,
+    tool: 'get_drop',
+  },
+  {
+    id: 'createDrop',
+    method: 'POST',
+    path: '/v1/drops',
+    summary:
+      'Register a finished video with its pipeline sidecar. Same as dropping both in the channel Inbox.',
+    description:
+      'The first thing to know: the schedule is set in the app. A drop never sets, asks for or promises a posting time (preferred_slot is ignored). The video is checked, logged, and scheduled by the channel rules, or it waits in the Inbox view.',
+    body: CreateDropBody,
+    response: CreateDropOut,
+    success: 201,
+    tool: 'create_drop',
+    bot: true,
+  },
+  {
+    id: 'reconcile',
+    method: 'GET',
+    path: '/v1/reconcile',
+    summary: 'Things that do not add up between slots, the calendar and the queue. Read only.',
+    response: ReconcileOut,
+    success: 200,
+    tool: 'get_reconcile_issues',
   },
   {
     id: 'createPost',

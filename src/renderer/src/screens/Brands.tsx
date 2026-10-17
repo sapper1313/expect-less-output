@@ -198,13 +198,12 @@ function BrandEditor({ brand }: { brand: Brand }) {
               </Check>
               <div className="ml-6 text-[12px] text-muted">
                 A video dropped in the Inbox goes live at the next open slot with no review. Leave
-                this off to get drafts you check first. Finished videos from the bot pipeline (they
-                carry an approval) are scheduled this way even while agents are limited to drafts.
+                this off to get drafts you check first. This applies to every Inbox video, including
+                finished videos from the bot pipeline.
                 {autoOn && !settings?.agentMaySchedule && (
                   <span className="text-warn">
                     {' '}
-                    Plain videos with no pipeline file still need "Agents may create drafts only"
-                    unticked in Settings.
+                    This does nothing yet. Untick "Agents may create drafts only" in Settings.
                   </span>
                 )}
               </div>

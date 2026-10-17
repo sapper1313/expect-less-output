@@ -4,6 +4,8 @@ import { formatEastern } from '@shared/time'
 import type { PostOut } from '@shared/agentSchemas'
 import type { Brand, Post } from '@shared/types'
 import { PLATFORMS } from '@shared/platformLimits'
+import type { DropRow } from '@shared/pipeline'
+import type { Caller } from './bots'
 import {
   AgentError,
   agentCancelPost,
@@ -31,6 +33,10 @@ export function postOut(p: Post, warnings?: string[]): PostJson {
     file_name: p.fileName,
     duration_seconds:
       typeof p.videoMeta.durationSeconds === 'number' ? p.videoMeta.durationSeconds : null,
+    origin: p.origin,
+    episode_id: p.episodeRef,
+    source_bot: p.sourceBot,
+    hold_reason: p.holdReason,
     targets: p.targets.map((t) => ({
       id: t.id,
       platform: t.platform,
@@ -108,6 +114,41 @@ interface Ctx {
   params: any
   query: any
   body: any
+  /** Who is calling: the owner's token or one bot's token. */
+  caller: Caller
+}
+
+function needDrops(s: AgentServices) {
+  if (!s.drops)
+    throw new AgentError(400, 'bad_request', 'The drop log is not available in this build.')
+  return s.drops
+}
+
+/** A bot sees only its own channels. The owner sees everything. */
+function botMaySee(caller: Caller, channel: string | null): boolean {
+  return caller.kind === 'owner' || (!!channel && caller.bot.channels.includes(channel))
+}
+
+function dropOut(d: DropRow) {
+  return {
+    drop_id: d.dropId,
+    received_at: d.receivedAt,
+    source_bot: d.sourceBot,
+    file_name: d.fileName,
+    file_size: d.fileSize,
+    sha256: d.sha256,
+    channel: d.channel,
+    episode_id: d.episodeId,
+    title: d.title,
+    sidecar_valid: d.sidecarValid,
+    result: d.result,
+    reason: d.reason,
+    scheduled_slot: d.scheduledSlot,
+    post_id: d.postId,
+    approved_by: d.approvedBy,
+    approved_at: d.approvedAt,
+    notes: d.notes,
+  }
 }
 
 /** One handler per route id. A test makes sure every route has one. */
@@ -115,21 +156,88 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
   listBrands: ({ s }) => ({ brands: s.brands.list(true).map((b) => brandOut(s, b)) }),
 
   nextOpenSlots: ({ s, query }) => {
-    try {
-      s.brands.get(query.brand_id)
-    } catch {
-      throw new AgentError(404, 'not_found', `No brand with id ${query.brand_id}.`)
+    let brand: Brand | null = null
+    if (query.channel) {
+      brand = s.brands.bySlug(query.channel)
+      if (!brand)
+        throw new AgentError(404, 'not_found', `No channel with the slug ${query.channel}.`)
+    } else {
+      try {
+        brand = s.brands.get(query.brand_id as number)
+      } catch {
+        throw new AgentError(404, 'not_found', `No brand with id ${query.brand_id}.`)
+      }
     }
-    const slots = s.posts.nextSlots(
-      query.brand_id,
-      query.count,
-      query.from ? toUtc(query.from) : undefined,
-    )
+    const fromUtc = query.from ? toUtc(query.from) : undefined
+    let slots = s.posts.nextSlots(brand.id, query.count, fromUtc)
+    if (query.days) {
+      const end = new Date(
+        (fromUtc ? new Date(fromUtc).getTime() : Date.now()) + query.days * 86_400_000,
+      ).toISOString()
+      slots = slots.filter((x) => x <= end)
+    }
     return {
-      brand_id: query.brand_id,
+      brand_id: brand.id,
+      channel: brand.slug,
       slots: slots.map((at) => ({ at, eastern: formatEastern(at) })),
     }
   },
+
+  listDrops: ({ s, query, caller }) => {
+    const drops = needDrops(s).list({
+      channel: query.channel,
+      bot: query.bot,
+      result: query.result,
+      limit: query.limit,
+    })
+    return { drops: drops.filter((d) => botMaySee(caller, d.channel)).map(dropOut) }
+  },
+
+  getDrop: ({ s, params, caller }) => {
+    const d = needDrops(s).byDropId(params.id)
+    if (!d || !botMaySee(caller, d.channel))
+      throw new AgentError(404, 'not_found', `No drop ${params.id}.`)
+    return dropOut(d)
+  },
+
+  createDrop: async ({ s, body, caller }) => {
+    if (!s.pipeline)
+      throw new AgentError(400, 'bad_request', 'Drops are not available in this build.')
+    const channel = typeof body.sidecar.channel === 'string' ? body.sidecar.channel : ''
+    if (!channel)
+      throw new AgentError(400, 'validation', 'The sidecar needs a channel.', [
+        { path: 'sidecar.channel', message: 'Required.' },
+      ])
+    if (caller.kind === 'bot' && !caller.bot.channels.includes(channel)) {
+      s.audit?.write({
+        actor: caller.actor,
+        action: 'api.denied',
+        target: `drops/${channel}`,
+        after: { reason: 'channel not allowed' },
+      })
+      throw new AgentError(403, 'forbidden', `${caller.actor} may not drop into ${channel}.`)
+    }
+    const drop = await s.pipeline.receive(
+      channel,
+      body.sidecar,
+      body.file_path ?? null,
+      caller.actor,
+    )
+    return { received: true, drop: drop ? dropOut(drop) : null }
+  },
+
+  reconcile: ({ s, caller }) => ({
+    issues: (s.reconciler?.open() ?? [])
+      .map((i) => ({
+        kind: i.kind,
+        channel: i.brandId ? (s.brands.get(i.brandId).slug ?? null) : null,
+        post_id: i.postId,
+        detail: i.detail,
+        first_seen: i.firstSeen,
+        last_seen: i.lastSeen,
+      }))
+      .filter((i) => botMaySee(caller, i.channel)),
+  }),
 
   createPost: async ({ s, body }) => {
     const post = await agentCreatePost(s, body, { source: 'api' })

@@ -5,6 +5,7 @@ import { ROUTES, type RouteDef } from '@shared/agentRoutes'
 import { buildOpenApi } from '@shared/openapi'
 import { AgentError, type AgentServices } from './core'
 import { HANDLERS } from './handlers'
+import { OWNER, type Caller } from './bots'
 
 export interface AgentRequest {
   method: string
@@ -68,9 +69,18 @@ export async function handleAgentRequest(
     )
   const auth = String(req.headers.authorization ?? '')
   const given = auth.startsWith('Bearer ') ? auth.slice(7).trim() : ''
+  let caller: Caller = OWNER
   if (!given || !safeEqual(given, expected)) {
-    onDenied('wrong or missing token')
-    return err(401, 'unauthorized', 'Missing or wrong token. Send "Authorization: Bearer <token>".')
+    const bot = given ? (s.bots?.authenticate(given) ?? null) : null
+    if (!bot) {
+      onDenied('wrong or missing token')
+      return err(
+        401,
+        'unauthorized',
+        'Missing or wrong token. Send "Authorization: Bearer <token>".',
+      )
+    }
+    caller = { kind: 'bot', actor: `agent:${bot.name}`, bot }
   }
 
   let url: URL
@@ -101,6 +111,20 @@ export async function handleAgentRequest(
       ? err(405, 'method_not_allowed', `${req.method} is not available for ${url.pathname}.`)
       : err(404, 'not_found', `No such endpoint: ${url.pathname}.`)
   const { route } = matched
+  // A bot token may read, drop videos and use its own Upcoming entries. Nothing else.
+  if (caller.kind === 'bot' && route.method !== 'GET' && !route.bot) {
+    s.audit?.write({
+      actor: caller.actor,
+      action: 'api.denied',
+      target: `${route.method} ${url.pathname}`,
+      after: { reason: 'bot tokens cannot use this endpoint' },
+    })
+    return err(
+      403,
+      'forbidden',
+      'A bot token can read, drop videos and use Upcoming. This endpoint needs the owner token.',
+    )
+  }
 
   try {
     const params = route.params ? route.params.parse(matched.params) : {}
@@ -120,7 +144,7 @@ export async function handleAgentRequest(
       body = route.body.parse(raw)
     }
     const handler = HANDLERS[route.id]
-    const result = await handler({ s, params, query, body })
+    const result = await handler({ s, params, query, body, caller })
     return { status: route.success, body: result }
   } catch (e) {
     if (e instanceof ZodError)

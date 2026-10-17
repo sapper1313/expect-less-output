@@ -313,3 +313,14 @@ export interface AuditRow {
   before: unknown
   after: unknown
 }
+
+// ---------- bots ----------
+
+export interface BotInfo {
+  id: number
+  name: string
+  channels: string[]
+  role: 'writer' | 'orchestrator'
+  createdAt: string
+  revokedAt: string | null
+}

@@ -1,5 +1,6 @@
 import {
   closeSync,
+  copyFileSync,
   createWriteStream,
   existsSync,
   mkdirSync,
@@ -17,11 +18,13 @@ import { Readable, Transform } from 'stream'
 import { pipeline } from 'stream/promises'
 import { ZodError } from 'zod'
 import { CreatePostBody, type CreatePostInput } from '@shared/agentSchemas'
-import { AgentError, agentCreatePost, type AgentServices } from './core'
+import { AgentError, agentCreatePost, validateVideoFile, type AgentServices } from './core'
 import { moveFile, uniquePath } from '../services/library'
 import type { Library } from '../services/library'
 import type { IngestHooks } from '../studio/ingest'
 import { PipelineIntake } from '../pipeline/intake'
+import type { DropLog } from '../pipeline/dropLog'
+import type { DropRow } from '@shared/pipeline'
 
 const VIDEO = ['.mp4', '.mov']
 /** A file that has not changed size for this long is finished copying. */
@@ -40,6 +43,8 @@ export interface InboxDeps {
   studio?: IngestHooks
   /** Takes sidecars that carry schema_version (the bot pipeline). Without it they are treated as plain sidecars. */
   pipeline?: PipelineIntake
+  /** The drop log, so an API drop can return the decision. */
+  drops?: DropLog
   /** Called once for each rejected file. */
   alert: (headline: string, detail: string) => void
   now?: () => number
@@ -75,6 +80,70 @@ export class InboxWatcher {
 
   stop(): void {
     if (this.timer) clearInterval(this.timer)
+  }
+
+  /**
+   * A drop that came through the API. The video and the sidecar are put in the channel's Inbox with a .ready marker,
+   * exactly as if a bot had copied them there, and the Inbox is read at once. Returns the decision when it is made.
+   */
+  async receive(
+    channelSlug: string,
+    sidecar: Record<string, unknown>,
+    filePath: string | null,
+    actor: string,
+  ): Promise<DropRow | null> {
+    const brand = this.d.s.brands.bySlug(channelSlug)
+    if (!brand) throw new AgentError(404, 'not_found', `No channel with the slug ${channelSlug}.`)
+    const videoFile = typeof sidecar.video_file === 'string' ? sidecar.video_file : ''
+    if (
+      !videoFile ||
+      videoFile !== basename(videoFile) ||
+      !VIDEO.includes(extname(videoFile).toLowerCase())
+    )
+      throw new AgentError(
+        400,
+        'validation',
+        'The sidecar needs video_file, a plain .mp4 or .mov file name.',
+        [{ path: 'sidecar.video_file', message: 'Required.' }],
+      )
+    const dir = this.inboxDir(brand.name)
+    mkdirSync(join(dir, 'Rejected'), { recursive: true })
+    const stem = videoFile.slice(0, videoFile.length - extname(videoFile).length)
+    const target = join(dir, videoFile)
+    if (existsSync(target) || existsSync(join(dir, `${stem}.json`)))
+      throw new AgentError(
+        409,
+        'conflict',
+        `${videoFile} is already waiting in the ${brand.name} Inbox.`,
+      )
+    if (filePath) {
+      validateVideoFile(filePath)
+      if (basename(filePath) !== videoFile)
+        throw new AgentError(
+          400,
+          'validation',
+          `file_path ends in ${basename(filePath)} but video_file says ${videoFile}. They must be the same name.`,
+        )
+      copyFileSync(filePath, target)
+      // Sidecar and marker last, so the watcher never sees half a drop.
+      writeFileSync(join(dir, `${stem}.json`), JSON.stringify(sidecar, null, 2))
+      writeFileSync(join(dir, `${stem}.ready`), '')
+    } else {
+      if (typeof sidecar.video_url !== 'string')
+        throw new AgentError(400, 'validation', 'Give file_path, or put video_url in the sidecar.')
+      writeFileSync(join(dir, `${stem}.json`), JSON.stringify(sidecar, null, 2))
+    }
+    this.d.s.log.log(
+      'info',
+      `Drop received through the API from ${actor}: ${videoFile} for ${brand.name}.`,
+    )
+    // The Inbox only reads channels it is switched on for.
+    await this.scan()
+    const id = typeof sidecar.episode_id === 'string' ? sidecar.episode_id : null
+    return id && this.d.drops
+      ? (this.d.drops.list({ channel: channelSlug, limit: 20 }).find((r) => r.episodeId === id) ??
+          null)
+      : null
   }
 
   inboxDir(brandName: string): string {

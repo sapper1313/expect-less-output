@@ -156,6 +156,12 @@ export class PostService {
       where.push('p.brand_id = ?')
       args.push(filter.brandId)
     }
+    if (filter.origin) {
+      where.push('p.origin = ?')
+      args.push(filter.origin)
+    }
+    if (filter.held === true) where.push('p.hold_reason IS NOT NULL')
+    if (filter.held === false) where.push('p.hold_reason IS NULL')
     const st = filter.status
     if (st && st !== 'all') {
       if (st === 'upcoming')

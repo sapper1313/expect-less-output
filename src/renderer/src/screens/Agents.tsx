@@ -363,3 +363,133 @@ function StudioLocalText() {
     </>
   )
 }
+
+const CHANNELS = [
+  'trash-panda',
+  'clock-out-early',
+  'teach-your-parents-tech',
+  'math-of-it',
+  'wonder-hollow',
+  'backup-heroes',
+  'complaint-department',
+]
+
+/** One token per bot, so the app knows who is calling. A bot's token can read, drop videos and use Upcoming. Nothing else. */
+export function BotsCard() {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
+  const { data: bots, reload } = useLoad(() => api.agent.bots())
+  const [name, setName] = useState('')
+  const [role, setRole] = useState<'writer' | 'orchestrator'>('writer')
+  const [channels, setChannels] = useState<string[]>([])
+  const [shown, setShown] = useState<{ name: string; token: string } | null>(null)
+  return (
+    <Card title="Bots">
+      <p className="mb-3 text-[13px] text-muted">
+        Give each bot its own token. The token is shown once. A bot can read, drop finished videos
+        into its own channels and use its own Upcoming entries. It cannot change settings, post or
+        delete. Your own token above keeps full access.
+      </p>
+      {shown && (
+        <div className="mb-3 rounded-md border border-warn p-3 text-[13px]">
+          <b>Token for {shown.name}.</b> Copy it now. It is not shown again.
+          <pre className="mt-2 overflow-x-auto rounded bg-bg p-2 text-[11px]">{shown.token}</pre>
+          <Button
+            onClick={async () => {
+              await navigator.clipboard.writeText(shown.token)
+              toast({ kind: 'success', headline: 'Copied.' })
+            }}
+          >
+            Copy token
+          </Button>{' '}
+          <Button variant="ghost" onClick={() => setShown(null)}>
+            Done
+          </Button>
+        </div>
+      )}
+      <div className="space-y-2">
+        {bots
+          ?.filter((b) => !b.revokedAt)
+          .map((b) => (
+            <div
+              key={b.id}
+              className="flex flex-wrap items-center gap-3 rounded-md border border-line p-3 text-[13px]"
+            >
+              <b className="w-32">{b.name}</b>
+              <span className="text-muted">{b.role}</span>
+              <span className="min-w-0 flex-1 text-muted">
+                {b.channels.join(', ') || 'no channels'}
+              </span>
+              <Button
+                disabled={busy}
+                onClick={async () => {
+                  const r = await run(() => api.agent.newBotToken(b.id))
+                  if (r) setShown({ name: b.name, token: r.token })
+                }}
+              >
+                Make a new token
+              </Button>
+              <Button
+                variant="danger"
+                disabled={busy}
+                onClick={async () => {
+                  await run(() => api.agent.revokeBot(b.id))
+                  reload()
+                }}
+              >
+                Revoke
+              </Button>
+            </div>
+          ))}
+        {bots && !bots.some((b) => !b.revokedAt) && (
+          <div className="text-[13px] text-muted">No bots yet.</div>
+        )}
+      </div>
+      <div className="mt-4 space-y-3 rounded-md border border-line p-3">
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Bot name" hint="Lowercase, like grok-bot, kids-comedy or beth.">
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
+          <Field
+            label="Role"
+            hint="A writer works on its channels. An orchestrator (B.E.T.H.) can move any entry forward."
+          >
+            <Select
+              value={role}
+              onChange={(e) => setRole(e.target.value as 'writer' | 'orchestrator')}
+            >
+              <option value="writer">writer</option>
+              <option value="orchestrator">orchestrator</option>
+            </Select>
+          </Field>
+        </div>
+        <div className="grid gap-1 md:grid-cols-2">
+          {CHANNELS.map((c) => (
+            <Check
+              key={c}
+              checked={channels.includes(c)}
+              onChange={(v) => setChannels(v ? [...channels, c] : channels.filter((x) => x !== c))}
+            >
+              {c}
+            </Check>
+          ))}
+        </div>
+        <Button
+          variant="primary"
+          disabled={busy || !name.trim()}
+          onClick={async () => {
+            const r = await run(() => api.agent.createBot(name, channels, role))
+            if (r) {
+              setShown({ name: r.bot.name, token: r.token })
+              setName('')
+              setChannels([])
+              reload()
+            }
+          }}
+        >
+          Add bot
+        </Button>
+      </div>
+    </Card>
+  )
+}

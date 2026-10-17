@@ -22,6 +22,7 @@ import { preferIpv4 } from './network'
 import { DropLog } from './pipeline/dropLog'
 import { AuditEvents } from './pipeline/auditEvents'
 import { PipelineIntake } from './pipeline/intake'
+import { BotStore } from './agent/bots'
 import { InboxService } from './pipeline/inboxService'
 import { Reconciler } from './pipeline/reconcile'
 import { realPlatforms, verifyPipelinePost } from './pipeline/verify'
@@ -620,6 +621,7 @@ async function boot(): Promise<void> {
   })
 
   // Agents: the local API, the watched Inbox folders and the MCP server file.
+  const bots = new BotStore(db)
   const agent = new AgentRuntime(
     {
       settings,
@@ -629,6 +631,11 @@ async function boot(): Promise<void> {
       log,
       appVersion: app.getVersion(),
       stats,
+      drops: dropLog,
+      reconciler,
+      audit: auditEvents,
+      bots,
+      pipeline: { receive: (c, sc, f, a) => inbox.receive(c, sc, f, a) },
       episodes: () => studio.episodes,
       studio: () => studio,
       health: () =>
@@ -663,6 +670,7 @@ async function boot(): Promise<void> {
     library,
     studio: studio.ingest,
     pipeline,
+    drops: dropLog,
     alert: (headline, detail) => notifier.failure(headline, detail, { kind: 'other' }),
   })
 
@@ -830,6 +838,7 @@ async function boot(): Promise<void> {
     drops: dropLog,
     pipeline,
     inbox: inboxService,
+    bots,
     beforeResume,
     afterResume,
     telegram,

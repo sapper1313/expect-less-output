@@ -335,6 +335,9 @@ export interface PostFilter {
   platform?: Platform | null
   fromUtc?: string
   toUtc?: string
+  origin?: 'manual' | 'inbox' | 'api'
+  /** true: only held posts. false: leave held posts out. */
+  held?: boolean
 }
 
 export interface MediaInspection {

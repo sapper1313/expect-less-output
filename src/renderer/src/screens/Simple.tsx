@@ -9,7 +9,7 @@ import { useApp, useLoad } from '../hooks'
 import { Button, Card, Check, Empty, Field, Input, PageHeader, Select } from '../ui'
 import logoStacked from '../assets/logo-stacked.jpg'
 import { AlertsCard, BackupCard } from './AlertsBackup'
-import { AgentsCard, TextAssistCard } from './Agents'
+import { AgentsCard, BotsCard, TextAssistCard } from './Agents'
 import { StudioSettings } from './StudioSettings'
 import { TelegramCard } from './TelegramCard'
 import { StudioLocalAi } from './StudioLocalAi'
@@ -380,7 +380,12 @@ export function SettingsScreen({ initialTab = 'general' }: { initialTab?: Settin
             <BackupCard />
           </>
         )}
-        {tab === 'api' && <AgentsCard s={s} save={save} />}
+        {tab === 'api' && (
+          <>
+            <AgentsCard s={s} save={save} />
+            <BotsCard />
+          </>
+        )}
         {tab === 'testing' && (
           <>
             <Card title="Testing tools (dry run)">

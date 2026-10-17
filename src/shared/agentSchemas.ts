@@ -138,16 +138,33 @@ export const ListPostsQuery = z.object({
   from: ZonedTime.optional(),
   to: ZonedTime.optional(),
   search: z.string().max(200).optional(),
+  origin: z.enum(['manual', 'inbox', 'api']).optional().meta({
+    description: 'inbox lists the posts that arrived through an Inbox folder (bot drops).',
+  }),
+  held: z.enum(['true', 'false']).optional().meta({
+    description: 'true lists only posts held back from posting. false leaves them out.',
+  }),
   limit: z.coerce.number().int().min(1).max(500).default(200),
 })
 
-export const NextOpenQuery = z.object({
-  brand_id: id,
-  count: z.coerce.number().int().min(1).max(50).default(3),
-  from: ZonedTime.optional().meta({
-    description: 'Start looking after this time. Defaults to now.',
-  }),
-})
+export const NextOpenQuery = z
+  .object({
+    brand_id: id.optional(),
+    channel: z.string().min(1).optional().meta({
+      description: 'The channel slug, for example clock-out-early. Use this or brand_id.',
+    }),
+    count: z.coerce.number().int().min(1).max(60).default(3),
+    days: z.coerce.number().int().min(1).max(60).optional().meta({
+      description: 'Only slots in the next N days (the most that fit in count).',
+    }),
+    from: ZonedTime.optional().meta({
+      description: 'Start looking after this time. Defaults to now.',
+    }),
+  })
+  .refine((q) => q.brand_id !== undefined || q.channel !== undefined, {
+    message: 'Give brand_id or channel.',
+    path: ['channel'],
+  })
 
 export const CalendarQuery = z.object({
   brand_id: id.optional(),
@@ -190,7 +207,10 @@ const SlotOut = z.object({
 export const BrandOut = z.object({
   id: z.number().int(),
   name: z.string(),
-  slug: z.string().nullable().meta({ description: 'Short stable name bots use for the channel, like clock-out-early.' }),
+  slug: z
+    .string()
+    .nullable()
+    .meta({ description: 'Short stable name bots use for the channel, like clock-out-early.' }),
   color: z.string(),
   archived: z.boolean(),
   paused: z.boolean(),
@@ -242,6 +262,13 @@ export const PostOut = z.object({
   scheduled_at_eastern: z.string().nullable(),
   file_name: z.string(),
   duration_seconds: z.number().nullable(),
+  origin: z.enum(['manual', 'inbox', 'api']),
+  episode_id: z
+    .string()
+    .nullable()
+    .meta({ description: 'The id a bot gave this episode (pipeline posts).' }),
+  source_bot: z.string().nullable(),
+  hold_reason: z.string().nullable().meta({ description: 'Why the post is held back, or null.' }),
   targets: z.array(TargetOut),
   warnings: z.array(z.string()).optional(),
   created_at: z.string(),
@@ -250,6 +277,7 @@ export const PostOut = z.object({
 
 export const NextOpenOut = z.object({
   brand_id: z.number().int(),
+  channel: z.string().nullable(),
   slots: z.array(z.object({ at: z.string().meta({ description: 'UTC' }), eastern: z.string() })),
 })
 
@@ -522,3 +550,72 @@ export const RebuildBody = z
 
 export const PauseBody = z.object({ paused: z.boolean() }).strict()
 export const PauseOut = z.object({ brand_id: z.number().int(), paused: z.boolean() })
+
+// ---------- bot pipeline ----------
+
+export const DropOut = z.object({
+  drop_id: z.string(),
+  received_at: z.string(),
+  source_bot: z.string().nullable(),
+  file_name: z.string(),
+  file_size: z.number().nullable(),
+  sha256: z.string().nullable(),
+  channel: z.string().nullable(),
+  episode_id: z.string().nullable(),
+  title: z.string().nullable(),
+  sidecar_valid: z.boolean(),
+  result: z.enum(['accepted', 'rejected', 'duplicate', 'held']),
+  reason: z.string().nullable(),
+  scheduled_slot: z.string().nullable(),
+  post_id: z.number().nullable(),
+  approved_by: z.string().nullable(),
+  approved_at: z.string().nullable(),
+  notes: z.string().nullable(),
+})
+
+export const ListDropsQuery = z.object({
+  channel: z.string().optional(),
+  bot: z.string().optional(),
+  result: z.enum(['accepted', 'rejected', 'duplicate', 'held']).optional(),
+  limit: z.coerce.number().int().min(1).max(500).default(100),
+})
+
+export const DropParams = z.object({ id: z.string().min(1) })
+
+export const CreateDropBody = z
+  .object({
+    sidecar: z.record(z.string(), z.unknown()).meta({
+      description:
+        'The pipeline sidecar (see docs/sidecar.schema.json). Its channel decides the Inbox. It may carry video_url instead of a file.',
+    }),
+    file_path: z.string().min(1).optional().meta({
+      description:
+        'Absolute path to the finished .mp4 on this Mac. It is copied into the channel Inbox. The original stays.',
+    }),
+  })
+  .strict()
+  .meta({
+    description:
+      'A drop is the same as putting the video and the sidecar in the channel Inbox. The schedule is whatever is set in the app. A drop never sets, asks for or promises a time.',
+  })
+
+export const CreateDropOut = z.object({
+  received: z.boolean(),
+  drop: DropOut.nullable().meta({
+    description:
+      'The decision, when it is made by the time the call returns. Otherwise read GET /v1/drops.',
+  }),
+})
+
+export const ReconcileOut = z.object({
+  issues: z.array(
+    z.object({
+      kind: z.string(),
+      channel: z.string().nullable(),
+      post_id: z.number().nullable(),
+      detail: z.string(),
+      first_seen: z.string(),
+      last_seen: z.string(),
+    }),
+  ),
+})

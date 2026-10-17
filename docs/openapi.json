@@ -48,6 +48,11 @@
                           "name": {
                             "type": "string"
                           },
+                          "slug": {
+                            "nullable": true,
+                            "description": "Short stable name bots use for the channel, like clock-out-early.",
+                            "type": "string"
+                          },
                           "color": {
                             "type": "string"
                           },
@@ -196,6 +201,7 @@
                         "required": [
                           "id",
                           "name",
+                          "slug",
                           "color",
                           "archived",
                           "paused",
@@ -254,12 +260,22 @@
           {
             "name": "brand_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "integer",
               "minimum": 0,
               "exclusiveMinimum": true,
               "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "The channel slug, for example clock-out-early. Use this or brand_id.",
+              "type": "string",
+              "minLength": 1
             }
           },
           {
@@ -270,7 +286,18 @@
               "default": 3,
               "type": "integer",
               "minimum": 1,
-              "maximum": 50
+              "maximum": 60
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Only slots in the next N days (the most that fit in count).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60
             }
           },
           {
@@ -298,6 +325,10 @@
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
                     },
+                    "channel": {
+                      "nullable": true,
+                      "type": "string"
+                    },
                     "slots": {
                       "type": "array",
                       "items": {
@@ -321,6 +352,7 @@
                   },
                   "required": [
                     "brand_id",
+                    "channel",
                     "slots"
                   ],
                   "additionalProperties": false
@@ -334,6 +366,645 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/drops": {
+      "get": {
+        "operationId": "listDrops",
+        "summary": "The drop log: every video a bot dropped and what ELO decided.",
+        "x-mcp-tool": "list_drops",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bot",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "result",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "accepted",
+                "rejected",
+                "duplicate",
+                "held"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "drops": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "drop_id": {
+                            "type": "string"
+                          },
+                          "received_at": {
+                            "type": "string"
+                          },
+                          "source_bot": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "file_name": {
+                            "type": "string"
+                          },
+                          "file_size": {
+                            "nullable": true,
+                            "type": "number"
+                          },
+                          "sha256": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "channel": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "episode_id": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "title": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "sidecar_valid": {
+                            "type": "boolean"
+                          },
+                          "result": {
+                            "type": "string",
+                            "enum": [
+                              "accepted",
+                              "rejected",
+                              "duplicate",
+                              "held"
+                            ]
+                          },
+                          "reason": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "scheduled_slot": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "post_id": {
+                            "nullable": true,
+                            "type": "number"
+                          },
+                          "approved_by": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "approved_at": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "notes": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "drop_id",
+                          "received_at",
+                          "source_bot",
+                          "file_name",
+                          "file_size",
+                          "sha256",
+                          "channel",
+                          "episode_id",
+                          "title",
+                          "sidecar_valid",
+                          "result",
+                          "reason",
+                          "scheduled_slot",
+                          "post_id",
+                          "approved_by",
+                          "approved_at",
+                          "notes"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "drops"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createDrop",
+        "summary": "Register a finished video with its pipeline sidecar. Same as dropping both in the channel Inbox.",
+        "description": "The first thing to know: the schedule is set in the app. A drop never sets, asks for or promises a posting time (preferred_slot is ignored). The video is checked, logged, and scheduled by the channel rules, or it waits in the Inbox view.",
+        "x-mcp-tool": "create_drop",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sidecar": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "The pipeline sidecar (see docs/sidecar.schema.json). Its channel decides the Inbox. It may carry video_url instead of a file."
+                  },
+                  "file_path": {
+                    "description": "Absolute path to the finished .mp4 on this Mac. It is copied into the channel Inbox. The original stays.",
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "sidecar"
+                ],
+                "additionalProperties": false,
+                "description": "A drop is the same as putting the video and the sidecar in the channel Inbox. The schedule is whatever is set in the app. A drop never sets, asks for or promises a time."
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "received": {
+                      "type": "boolean"
+                    },
+                    "drop": {
+                      "nullable": true,
+                      "description": "The decision, when it is made by the time the call returns. Otherwise read GET /v1/drops.",
+                      "type": "object",
+                      "properties": {
+                        "drop_id": {
+                          "type": "string"
+                        },
+                        "received_at": {
+                          "type": "string"
+                        },
+                        "source_bot": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "file_name": {
+                          "type": "string"
+                        },
+                        "file_size": {
+                          "nullable": true,
+                          "type": "number"
+                        },
+                        "sha256": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "channel": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "episode_id": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "title": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "sidecar_valid": {
+                          "type": "boolean"
+                        },
+                        "result": {
+                          "type": "string",
+                          "enum": [
+                            "accepted",
+                            "rejected",
+                            "duplicate",
+                            "held"
+                          ]
+                        },
+                        "reason": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "scheduled_slot": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "post_id": {
+                          "nullable": true,
+                          "type": "number"
+                        },
+                        "approved_by": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "approved_at": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "notes": {
+                          "nullable": true,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "drop_id",
+                        "received_at",
+                        "source_bot",
+                        "file_name",
+                        "file_size",
+                        "sha256",
+                        "channel",
+                        "episode_id",
+                        "title",
+                        "sidecar_valid",
+                        "result",
+                        "reason",
+                        "scheduled_slot",
+                        "post_id",
+                        "approved_by",
+                        "approved_at",
+                        "notes"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "received",
+                    "drop"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/drops/{id}": {
+      "get": {
+        "operationId": "getDrop",
+        "summary": "One drop, by its drop_id.",
+        "x-mcp-tool": "get_drop",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "drop_id": {
+                      "type": "string"
+                    },
+                    "received_at": {
+                      "type": "string"
+                    },
+                    "source_bot": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "file_name": {
+                      "type": "string"
+                    },
+                    "file_size": {
+                      "nullable": true,
+                      "type": "number"
+                    },
+                    "sha256": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "channel": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "episode_id": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "title": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "sidecar_valid": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "string",
+                      "enum": [
+                        "accepted",
+                        "rejected",
+                        "duplicate",
+                        "held"
+                      ]
+                    },
+                    "reason": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "scheduled_slot": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "post_id": {
+                      "nullable": true,
+                      "type": "number"
+                    },
+                    "approved_by": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "approved_at": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "notes": {
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "drop_id",
+                    "received_at",
+                    "source_bot",
+                    "file_name",
+                    "file_size",
+                    "sha256",
+                    "channel",
+                    "episode_id",
+                    "title",
+                    "sidecar_valid",
+                    "result",
+                    "reason",
+                    "scheduled_slot",
+                    "post_id",
+                    "approved_by",
+                    "approved_at",
+                    "notes"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such post.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/reconcile": {
+      "get": {
+        "operationId": "reconcile",
+        "summary": "Things that do not add up between slots, the calendar and the queue. Read only.",
+        "x-mcp-tool": "get_reconcile_issues",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string"
+                          },
+                          "channel": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "post_id": {
+                            "nullable": true,
+                            "type": "number"
+                          },
+                          "detail": {
+                            "type": "string"
+                          },
+                          "first_seen": {
+                            "type": "string"
+                          },
+                          "last_seen": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "channel",
+                          "post_id",
+                          "detail",
+                          "first_seen",
+                          "last_seen"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "issues"
+                  ],
+                  "additionalProperties": false
                 }
               }
             }
@@ -556,6 +1227,28 @@
                       "nullable": true,
                       "type": "number"
                     },
+                    "origin": {
+                      "type": "string",
+                      "enum": [
+                        "manual",
+                        "inbox",
+                        "api"
+                      ]
+                    },
+                    "episode_id": {
+                      "nullable": true,
+                      "description": "The id a bot gave this episode (pipeline posts).",
+                      "type": "string"
+                    },
+                    "source_bot": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "hold_reason": {
+                      "nullable": true,
+                      "description": "Why the post is held back, or null.",
+                      "type": "string"
+                    },
                     "targets": {
                       "type": "array",
                       "items": {
@@ -641,6 +1334,10 @@
                     "scheduled_at_eastern",
                     "file_name",
                     "duration_seconds",
+                    "origin",
+                    "episode_id",
+                    "source_bot",
+                    "hold_reason",
                     "targets",
                     "created_at",
                     "updated_at"
@@ -753,6 +1450,33 @@
             }
           },
           {
+            "name": "origin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "inbox lists the posts that arrived through an Inbox folder (bot drops).",
+              "type": "string",
+              "enum": [
+                "manual",
+                "inbox",
+                "api"
+              ]
+            }
+          },
+          {
+            "name": "held",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "true lists only posts held back from posting. false leaves them out.",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -824,6 +1548,28 @@
                           "duration_seconds": {
                             "nullable": true,
                             "type": "number"
+                          },
+                          "origin": {
+                            "type": "string",
+                            "enum": [
+                              "manual",
+                              "inbox",
+                              "api"
+                            ]
+                          },
+                          "episode_id": {
+                            "nullable": true,
+                            "description": "The id a bot gave this episode (pipeline posts).",
+                            "type": "string"
+                          },
+                          "source_bot": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "hold_reason": {
+                            "nullable": true,
+                            "description": "Why the post is held back, or null.",
+                            "type": "string"
                           },
                           "targets": {
                             "type": "array",
@@ -910,6 +1656,10 @@
                           "scheduled_at_eastern",
                           "file_name",
                           "duration_seconds",
+                          "origin",
+                          "episode_id",
+                          "source_bot",
+                          "hold_reason",
                           "targets",
                           "created_at",
                           "updated_at"
@@ -1038,6 +1788,28 @@
                       "nullable": true,
                       "type": "number"
                     },
+                    "origin": {
+                      "type": "string",
+                      "enum": [
+                        "manual",
+                        "inbox",
+                        "api"
+                      ]
+                    },
+                    "episode_id": {
+                      "nullable": true,
+                      "description": "The id a bot gave this episode (pipeline posts).",
+                      "type": "string"
+                    },
+                    "source_bot": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "hold_reason": {
+                      "nullable": true,
+                      "description": "Why the post is held back, or null.",
+                      "type": "string"
+                    },
                     "targets": {
                       "type": "array",
                       "items": {
@@ -1123,6 +1895,10 @@
                     "scheduled_at_eastern",
                     "file_name",
                     "duration_seconds",
+                    "origin",
+                    "episode_id",
+                    "source_bot",
+                    "hold_reason",
                     "targets",
                     "created_at",
                     "updated_at"
@@ -1355,6 +2131,28 @@
                       "nullable": true,
                       "type": "number"
                     },
+                    "origin": {
+                      "type": "string",
+                      "enum": [
+                        "manual",
+                        "inbox",
+                        "api"
+                      ]
+                    },
+                    "episode_id": {
+                      "nullable": true,
+                      "description": "The id a bot gave this episode (pipeline posts).",
+                      "type": "string"
+                    },
+                    "source_bot": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "hold_reason": {
+                      "nullable": true,
+                      "description": "Why the post is held back, or null.",
+                      "type": "string"
+                    },
                     "targets": {
                       "type": "array",
                       "items": {
@@ -1440,6 +2238,10 @@
                     "scheduled_at_eastern",
                     "file_name",
                     "duration_seconds",
+                    "origin",
+                    "episode_id",
+                    "source_bot",
+                    "hold_reason",
                     "targets",
                     "created_at",
                     "updated_at"
@@ -1581,6 +2383,28 @@
                       "nullable": true,
                       "type": "number"
                     },
+                    "origin": {
+                      "type": "string",
+                      "enum": [
+                        "manual",
+                        "inbox",
+                        "api"
+                      ]
+                    },
+                    "episode_id": {
+                      "nullable": true,
+                      "description": "The id a bot gave this episode (pipeline posts).",
+                      "type": "string"
+                    },
+                    "source_bot": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "hold_reason": {
+                      "nullable": true,
+                      "description": "Why the post is held back, or null.",
+                      "type": "string"
+                    },
                     "targets": {
                       "type": "array",
                       "items": {
@@ -1666,6 +2490,10 @@
                     "scheduled_at_eastern",
                     "file_name",
                     "duration_seconds",
+                    "origin",
+                    "episode_id",
+                    "source_bot",
+                    "hold_reason",
                     "targets",
                     "created_at",
                     "updated_at"
@@ -1810,6 +2638,28 @@
                           "nullable": true,
                           "type": "number"
                         },
+                        "origin": {
+                          "type": "string",
+                          "enum": [
+                            "manual",
+                            "inbox",
+                            "api"
+                          ]
+                        },
+                        "episode_id": {
+                          "nullable": true,
+                          "description": "The id a bot gave this episode (pipeline posts).",
+                          "type": "string"
+                        },
+                        "source_bot": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "hold_reason": {
+                          "nullable": true,
+                          "description": "Why the post is held back, or null.",
+                          "type": "string"
+                        },
                         "targets": {
                           "type": "array",
                           "items": {
@@ -1895,6 +2745,10 @@
                         "scheduled_at_eastern",
                         "file_name",
                         "duration_seconds",
+                        "origin",
+                        "episode_id",
+                        "source_bot",
+                        "hold_reason",
                         "targets",
                         "created_at",
                         "updated_at"

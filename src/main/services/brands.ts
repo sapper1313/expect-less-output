@@ -58,9 +58,12 @@ export class BrandService {
     if (patch.slug !== undefined) {
       slug = patch.slug.trim().toLowerCase()
       if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug))
-        throw new Error('A slug uses lowercase letters, numbers and single dashes, like clock-out-early.')
+        throw new Error(
+          'A slug uses lowercase letters, numbers and single dashes, like clock-out-early.',
+        )
       const other = this.bySlug(slug)
-      if (other && other.id !== id) throw new Error(`The slug ${slug} is already used by ${other.name}.`)
+      if (other && other.id !== id)
+        throw new Error(`The slug ${slug} is already used by ${other.name}.`)
     }
     this.db
       .prepare('UPDATE brands SET name = ?, color = ?, slug = ? WHERE id = ?')
