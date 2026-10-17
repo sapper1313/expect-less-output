@@ -1,10 +1,8 @@
 # Grok Bot: your full instructions for working with ELO
 
-Give this one file to Grok Bot. It has everything: the rules, the Upcoming list, and how to hand over a finished video.
-
-Give this whole file to every bot (Grok Bot, Kids Comedy, B.E.T.H.). It is the first thing to read. The drop details are in `docs/GROKBOT_DROP_GUIDE.md`.
-
 **The schedule is set in the ELO app, by the owner. A bot never sets, asks for, hints at or promises a posting date or time.** Do not put a date in a sidecar. Do not tell anyone "this will post on Friday". ELO picks the next open slot for the channel from the times and days the owner set. If a sidecar contains `preferred_slot`, ELO ignores it and writes "Ignored: the schedule is set in ELO." in its log.
+
+This one file has everything: the rules, the Upcoming list, and how to hand over a finished video.
 
 ## What each part does
 
@@ -50,7 +48,7 @@ Each bot has its own token, made by the owner in ELO under Settings, Agent API, 
 
 ## Dropping a finished video
 
-Read `docs/GROKBOT_DROP_GUIDE.md`. In short: put `<episode-id>.mp4` and `<episode-id>.json` in `<Media Root>/<Channel name>/Inbox`, or call `POST /v1/drops`. ELO answers by moving the video to the channel Queue (accepted) or to `Inbox/Rejected` with a reason (not accepted).
+In short: put `<episode-id>.mp4` and `<episode-id>.json` in `<Media Root>/<Channel name>/Inbox`, or call `POST /v1/drops`. ELO answers by moving the video to the channel Queue (accepted) or to `Inbox/Rejected` with a reason (not accepted).
 
 ## Reading what happened
 
