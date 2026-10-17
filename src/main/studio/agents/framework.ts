@@ -323,6 +323,8 @@ export interface RunnerDeps {
   now?: () => number
   /** Called once when a task becomes FLAGGED so the owner is told. */
   onFlag?: (task: AgentTask, reason: string) => void
+  /** Task types that must not start right now (writing and production when Studio production is off). */
+  blockedTypes?: () => string[]
 }
 
 export class AgentRunner {
@@ -355,6 +357,7 @@ export class AgentRunner {
     const types = [...this.agents.entries()]
       .filter(([, a]) => !this.disabled.has(a.name))
       .map(([t]) => t)
+      .filter((t) => !this.d.blockedTypes?.().includes(t))
     const due = this.d.tasks.due(types).filter((t) => {
       if (t.brandId && this.d.config.getBrand(t.brandId).paused) return false
       return true

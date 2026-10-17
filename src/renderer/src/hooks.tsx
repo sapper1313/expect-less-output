@@ -1,3 +1,4 @@
+import { api } from './api'
 import {
   createContext,
   useCallback,
@@ -101,4 +102,10 @@ export function useDraft<T>(fresh: T | null, id: number | string | null = null) 
   }, [freshJson, key])
   const dirty = !!draft && JSON.stringify(draft) !== mem.current.json
   return { draft, setDraft, dirty }
+}
+
+/** True while Studio writing and production are off, because bots write and render the episodes. */
+export function useWritingOff(): boolean {
+  const { data } = useLoad(() => api.settings.get())
+  return !!data && !data.studioProductionEnabled
 }

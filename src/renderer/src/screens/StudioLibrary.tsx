@@ -3,7 +3,7 @@ import { EPISODE_STATUSES, type EpisodeStatus } from '@shared/studio/types'
 import { api } from '../api'
 import { VideoPlayer } from '../components/VideoPlayer'
 import { EpisodeExtras } from '../components/EpisodeExtras'
-import { useApp, useLoad } from '../hooks'
+import { useApp, useLoad, useWritingOff } from '../hooks'
 import { Button, Card, Dialog, Empty, Input, Select, useBusy } from '../ui'
 import { ClipActions } from './Studio'
 
@@ -106,6 +106,7 @@ export function EpisodePeek(p: { id: string; onClose: () => void }) {
 }
 
 function EpisodeView({ id, onClose }: { id: string; onClose: () => void }) {
+  const writingOff = useWritingOff()
   const { toast } = useApp()
   const [, run] = useBusy()
   const { data, reload } = useLoad(() => api.studio.episode(id), [id])
@@ -263,6 +264,8 @@ function EpisodeView({ id, onClose }: { id: string; onClose: () => void }) {
             actions={
               row.status === 'Ready for production' ? (
                 <Button
+                  disabled={writingOff}
+                  title={writingOff ? 'Writing comes from bots.' : undefined}
                   onClick={() =>
                     run(async () => {
                       await api.studio.produceNow(id)

@@ -33,6 +33,8 @@ export interface DirectorDeps {
   audit: AuditLog
   alert: (headline: string, detail: string) => void
   now?: () => number
+  /** False means ELO no longer writes or produces episodes. The runway, production and missed slot planners stay quiet. */
+  productionEnabled?: () => boolean
   /** Called at the end of every tick. The watchdog heartbeat file is written from here. */
   onTick?: () => void
 }
@@ -211,6 +213,7 @@ function episodesOn(db: Db, brandId: number, date: string) {
 
 /** Keeps N days of scripts ahead. Asks the Writer for every uncovered posting date. No alert: this is the Director's job. */
 const runwayPlanner: Planner = (ctx, d, notes) => {
+  if (d.productionEnabled && !d.productionEnabled()) return []
   const horizon = addDays(ctx.today, ctx.config.runwayDays)
   const created: AgentTask[] = []
   for (const date of dueDates(ctx.config, ctx.today, horizon)) {
@@ -298,6 +301,7 @@ const upkeepPlanner: Planner = (ctx, d) => {
  * a time, and for weekly brands not before the production window opens.
  */
 const productionPlanner: Planner = (ctx, d, notes) => {
+  if (d.productionEnabled && !d.productionEnabled()) return []
   const b = ctx.config
   if (!(b.path === 'auto' || (b.format === 'long' && b.hollowViaApi))) return []
   const et = DateTime.fromMillis(ctx.nowMs, { zone: 'America/New_York' })
@@ -344,6 +348,7 @@ const productionPlanner: Planner = (ctx, d, notes) => {
 
 /** Tells the owner when a posting slot will be missed, or when a package is still not READY after its window opened. */
 const missedSlotWatcher: Planner = (ctx, d, notes) => {
+  if (d.productionEnabled && !d.productionEnabled()) return []
   const isPackage = ctx.config.path === 'package'
   const tomorrow = addDays(ctx.today, 1)
   const etHour = DateTime.fromMillis(ctx.nowMs, { zone: 'America/New_York' }).hour

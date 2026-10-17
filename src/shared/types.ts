@@ -52,6 +52,37 @@ export interface Settings {
   llmAllowLan: boolean
   /** Also ask TikTok for the video.list permission, so stats can be read. */
   tiktokRequestStatsScope: boolean
+  // Pipeline (bots write and render, ELO takes drops, schedules and posts)
+  /** Master switch for every call to the Claude API. Off means writing comes from bots. */
+  claudeApiEnabled: boolean
+  /** Off stops the Director's production planning, Show Writer, Producer and idea refill. */
+  studioProductionEnabled: boolean
+  /** Off means the Inbox watcher leaves files untouched. */
+  pipelineIntakeEnabled: boolean
+  /** Reject sidecars with any problem. Off means small problems are noted and the drop still goes through. */
+  pipelineStrict: boolean
+  /** A sidecar must carry the approval block. */
+  pipelineRequireApproval: boolean
+  /** Reject a drop whose checksum or channel plus episode is already known. */
+  pipelineDuplicateDetection: boolean
+  /** Names a sidecar's source_bot may have. */
+  pipelineSourceBots: string[]
+  /** Which events send a notification: accepted, rejected, scheduled, posted, failed, reconcile, summary. */
+  pipelineNotifyKinds: string[]
+  /** Minutes between posting tries after a failure. */
+  retryMinutes: number[]
+  /** Dates (YYYY-MM-DD, Eastern) no channel posts on. */
+  blackoutDates: string[]
+  /** Smallest gap in minutes between two posts anywhere. 0 is off. */
+  minGapMinutes: number
+  /** Let the reconcile check fix the clear cases itself. It never deletes. */
+  reconcileAutoFix: boolean
+  /** Days a posted video file is kept before it is deleted. 0 keeps it forever. */
+  retentionDays: number
+  /** Days of queue a channel needs before the low queue alert fires. */
+  lowQueueDays: number
+  /** Nothing goes to any platform. Posts are marked done in the app only. */
+  globalDryRun: boolean
 }
 
 export interface Brand {

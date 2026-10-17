@@ -3,7 +3,7 @@ import { formatEastern } from '@shared/time'
 import { describeFlag } from '@shared/studio/flagText'
 import type { DirectorActionView } from '../../../main/studio/directorChat'
 import { api } from '../api'
-import { useApp, useLoad } from '../hooks'
+import { useApp, useLoad, useWritingOff } from '../hooks'
 import { BrandDot, Button, Card, Empty, PageHeader, Select, Textarea, useBusy } from '../ui'
 import { StudioBible } from './StudioBible'
 import { StudioPublishing } from './StudioPublishing'
@@ -38,6 +38,7 @@ const TABS: Array<[Tab, string]> = [
 export function Studio({ initialTab = 'overview' }: { initialTab?: Tab }) {
   const [tab, setTab] = useState<Tab>(initialTab)
   const { data: ov } = useLoad(() => api.studio.overview())
+  const writingOff = useWritingOff()
   return (
     <div className="flex h-full flex-col">
       <PageHeader title="Studio">
@@ -47,6 +48,12 @@ export function Studio({ initialTab = 'overview' }: { initialTab?: Tab }) {
           </span>
         )}
       </PageHeader>
+      {writingOff && (
+        <div className="mx-8 mb-3 rounded-md border border-line bg-surface px-3 py-2 text-[13px] text-muted">
+          Writing and production are off. Bots write and render the episodes and drop them in the
+          Inbox. The Library, Comments, Spend and the Director's Log still work.
+        </div>
+      )}
       <div className="flex gap-1 px-8 pb-3">
         {TABS.map(([id, label]) => (
           <button

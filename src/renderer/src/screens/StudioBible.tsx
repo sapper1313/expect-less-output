@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { nextDraft, type DraftMemory } from '@shared/draftSync'
 import type { SeriesBibleData } from '@shared/studio/bible'
 import { api } from '../api'
-import { useApp, useLoad } from '../hooks'
+import { useApp, useLoad, useWritingOff } from '../hooks'
 import { Button, Card, Check, Field, Input, Select, Textarea, useBusy } from '../ui'
 
 const lines = (v: string) =>
@@ -12,6 +12,7 @@ const lines = (v: string) =>
     .filter(Boolean)
 
 export function StudioBible() {
+  const writingOff = useWritingOff()
   const { toast } = useApp()
   const [, run] = useBusy()
   const { data: brands } = useLoad(() => api.studio.brands())
@@ -88,6 +89,8 @@ export function StudioBible() {
           Export Markdown
         </Button>
         <Button
+          disabled={writingOff}
+          title={writingOff ? 'Writing comes from bots.' : undefined}
           onClick={() =>
             run(async () => {
               await api.studio.writeNow(id)

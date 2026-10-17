@@ -236,8 +236,12 @@ export interface GatewayDeps {
   spend: SpendService
   /** Returns the mock client in mock mode, the real client otherwise. */
   client: () => LlmClient
+  /** False means the Claude API master switch is off. Local models and mock mode still work. */
+  claudeEnabled?: () => boolean
   now?: () => number
 }
+
+export const CLAUDE_OFF_MESSAGE = 'Writing comes from bots.'
 
 function extractJson(text: string): unknown {
   const t = text.trim()
@@ -271,6 +275,8 @@ export class LlmGateway {
     const mock = cfg.mockMode
     const model = this.modelFor(req.agent, req.model)
     const maxTokens = req.maxTokens ?? 4000
+    if (!mock && !isLocalModel(model) && this.d.claudeEnabled && !this.d.claudeEnabled())
+      throw new Error(CLAUDE_OFF_MESSAGE)
     const estIn = approxTokens(req.system + req.user) + (req.images?.length ?? 0) * 1500
     this.d.spend.check({
       brandId: req.brandId,

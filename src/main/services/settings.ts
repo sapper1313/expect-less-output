@@ -37,6 +37,21 @@ export const DEFAULT_SETTINGS: Settings = {
   llmModel: '',
   llmAllowLan: false,
   tiktokRequestStatsScope: false,
+  claudeApiEnabled: false,
+  studioProductionEnabled: false,
+  pipelineIntakeEnabled: true,
+  pipelineStrict: true,
+  pipelineRequireApproval: true,
+  pipelineDuplicateDetection: true,
+  pipelineSourceBots: ['grok-bot', 'kids-comedy', 'beth'],
+  pipelineNotifyKinds: ['accepted', 'rejected', 'scheduled', 'posted', 'failed', 'reconcile'],
+  retryMinutes: [5, 15, 60],
+  blackoutDates: [],
+  minGapMinutes: 0,
+  reconcileAutoFix: false,
+  retentionDays: 30,
+  lowQueueDays: 3,
+  globalDryRun: false,
 }
 
 export class SettingsService {

@@ -4,6 +4,7 @@ import { join } from 'path'
 import { SecretStore } from '../../src/main/services/secrets'
 import { Studio } from '../../src/main/studio/studio'
 import { fakeCrypto } from '../googleHelpers'
+import { SettingsService } from '../../src/main/services/settings'
 import { makeEnv } from '../helpers'
 
 export function makeStudioEnv(opts: { fetchImpl?: typeof fetch; startMs?: number } = {}) {
@@ -23,6 +24,8 @@ export function makeStudioEnv(opts: { fetchImpl?: typeof fetch; startMs?: number
     now: () => env.clock.ms,
     fetchImpl: opts.fetchImpl,
   })
+  // The older tests behave like an install that already used the Claude API. New switch tests turn it off.
+  new SettingsService(env.db).set({ claudeApiEnabled: true, studioProductionEnabled: true })
   studio.cfg.set({ libraryDir: join(dir, 'Library'), backupDir: join(dir, 'Backups') })
   return { ...env, dir, secrets, secretFile, studio, alerts }
 }

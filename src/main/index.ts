@@ -746,6 +746,10 @@ async function boot(): Promise<void> {
 
   apiRef = api
   telegram.start()
+  log.log(
+    'info',
+    `Claude API is ${settings.get().claudeApiEnabled ? 'ON' : 'OFF'}. Studio production is ${settings.get().studioProductionEnabled ? 'ON' : 'OFF'}.`,
+  )
 
   // Once, the first time the app starts with an Ollama machine set up: turn the Suggest buttons on with it.
   const textAssistMark = join(dataDir, 'text-assist-autosetup.done')

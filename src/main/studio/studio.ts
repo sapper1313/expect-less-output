@@ -1,3 +1,4 @@
+import { SettingsService } from '../services/settings'
 import { z } from 'zod'
 import { Analytics } from './analytics'
 import { CommentsAgent } from './comments/agent'
@@ -232,6 +233,7 @@ export class Studio implements StudioApi {
       config: this.cfg,
       spend: this.spend,
       client: () => (this.cfg.get().mockMode ? this.mockLlm : this.routedLlm),
+      claudeEnabled: () => new SettingsService(d.db).get().claudeApiEnabled,
       now,
     })
     this.research = new Research({
@@ -303,6 +305,7 @@ export class Studio implements StudioApi {
       now,
     })
     this.runner = new AgentRunner({
+      blockedTypes: () => (this.productionOn() ? [] : ['write_episode', 'produce_episode']),
       tasks: this.tasks,
       audit: this.audit,
       config: this.cfg,
@@ -524,6 +527,7 @@ export class Studio implements StudioApi {
       audit: this.audit,
       alert: d.alert,
       now,
+      productionEnabled: () => this.productionOn(),
       onTick: () => this.heartbeat(),
     })
     this.ingest = makeIngestHooks({
@@ -1257,6 +1261,7 @@ export class Studio implements StudioApi {
   }
   /** Asks the Writer for an episode right now, for a date (default: the next free posting date). */
   async writeNow(brandId: number, slotDate?: string) {
+    if (!this.productionOn()) throw new Error('Writing comes from bots.')
     const b = this.cfg.getBrand(brandId)
     const date =
       slotDate ?? nextDue(b, todayEastern(this.now())) ?? addDays(todayEastern(this.now()), 1)
@@ -1551,6 +1556,7 @@ export class Studio implements StudioApi {
   }
 
   async produceNow(episodeId: string) {
+    if (!this.productionOn()) throw new Error('Writing comes from bots.')
     const ep = this.episodes.get(episodeId)
     const t = this.tasks.create({
       type: 'produce_episode',
@@ -1731,11 +1737,18 @@ export class Studio implements StudioApi {
     return this.keyStatus()
   }
 
+  /** False when episodes are written and produced by bots, so ELO's own writing and production stay off. */
+  productionOn(): boolean {
+    return new SettingsService(this.d.db).get().studioProductionEnabled
+  }
+
   /** A cheap, harmless authenticated call. Shows plain success or the plain error. Mock mode makes no network call. */
   async testKey(id: KeyId): Promise<TestResult> {
     if (!this.d.secrets.has(KEY_NAMES[id].secret))
       return { ok: false, message: 'No key is saved yet.' }
     let result: TestResult
+    if (id === 'anthropic' && !new SettingsService(this.d.db).get().claudeApiEnabled)
+      return { ok: false, message: 'Claude API is off. Turn it on in Settings, under Pipeline.' }
     if (this.cfg.get().mockMode) {
       result = {
         ok: true,
@@ -1858,6 +1871,7 @@ export class Studio implements StudioApi {
   }
   /** Throws the old script away and writes it again from the current bible. Episodes with a video are never rebuilt. */
   async rebuildEpisode(id: string, note = '') {
+    if (!this.productionOn()) throw new Error('Writing comes from bots.')
     const ep = this.episodes.find(id)
     if (!ep) throw new Error('That episode was not found.')
     if (!REBUILDABLE.includes(ep.status) || ep.videoPath || ep.postId)
