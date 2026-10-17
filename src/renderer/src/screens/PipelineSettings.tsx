@@ -270,6 +270,45 @@ export function PipelineSettings({ s, save }: { s: Settings; save: Save }) {
         </div>
       </Card>
 
+      <Card title="Upcoming episodes">
+        <div className="space-y-3">
+          <Switch
+            checked={s.upcomingEnabled}
+            onChange={(v) => save({ upcomingEnabled: v })}
+            label="Use the Upcoming list"
+            hint="Off hides the Upcoming screen and leaves the shared file alone."
+          />
+          <Switch
+            checked={s.upcomingLiveWatch}
+            onChange={(v) => save({ upcomingLiveWatch: v })}
+            label="Watch the file for changes as they happen"
+            hint="Off means the file is only checked on a timer."
+          />
+          <div className="grid gap-4 md:grid-cols-2">
+            <NumberSetting
+              label="Check the file every (seconds)"
+              value={s.upcomingPollSeconds}
+              min={2}
+              max={600}
+              onSave={(v) => save({ upcomingPollSeconds: v })}
+            />
+            <Field
+              label="File location"
+              hint="Blank uses Shared/upcoming.json inside the Media Root."
+            >
+              <Input
+                defaultValue={s.upcomingFilePath}
+                placeholder="Media Root / Shared / upcoming.json"
+                onBlur={(e) =>
+                  e.target.value !== s.upcomingFilePath &&
+                  void save({ upcomingFilePath: e.target.value.trim() })
+                }
+              />
+            </Field>
+          </div>
+        </div>
+      </Card>
+
       <Card title="Tell me when">
         <p className="mb-3 text-[13px] text-muted">
           These go to the same places as your other alerts (screen, iMessage, email, Telegram).

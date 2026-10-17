@@ -16,6 +16,7 @@ import { EpisodePeek } from './screens/StudioLibrary'
 import type { SearchHit } from '@shared/search'
 import { Schedule, type ScheduleMode } from './screens/Schedule'
 import { Inbox } from './screens/Inbox'
+import { Upcoming } from './screens/Upcoming'
 import { About, Activity, SettingsScreen, type SettingsTab } from './screens/Simple'
 import { TikTokDemo } from './screens/TikTokDemo'
 import logoWide from './assets/logo-wide.png'
@@ -27,6 +28,7 @@ type Screen =
   | 'calendar'
   | 'queue'
   | 'inbox'
+  | 'upcoming'
   | 'stats'
   | 'studio'
   | 'schedule'
@@ -42,6 +44,7 @@ const SHORTCUTS: Partial<Record<Screen, string>> = {
 /** The menu follows the work: see how things are, create and schedule, make with the Studio, check results, set up. */
 const NAV_GROUPS: Array<{ label: string; items: Screen[] }> = [
   { label: '', items: ['home'] },
+  { label: 'Plan', items: ['upcoming'] },
   { label: 'Create and schedule', items: ['schedule', 'inbox', 'calendar', 'queue'] },
   { label: 'Make', items: ['studio'] },
   { label: 'Results', items: ['stats'] },
@@ -107,10 +110,12 @@ function Shell() {
   const { data: studio } = useLoad(() => api.studio.overview())
   const { data: home } = useLoad(() => api.home.summary())
   const { data: inboxCounts } = useLoad(() => api.pipeline.counts())
+  const { data: reviewCount } = useLoad(() => api.upcoming.needsReview())
   const badge: Partial<Record<Screen, number>> = {
     studio: home?.badges.studio,
     queue: home?.badges.queue,
     inbox: inboxCounts?.badge,
+    upcoming: reviewCount ?? 0,
     channels: home?.badges.channels,
   }
 
@@ -191,41 +196,46 @@ function Shell() {
           <span className="text-[11px] opacity-70">⌘K</span>
         </button>
         <nav className="no-drag flex-1 space-y-0.5 overflow-y-auto px-3" aria-label="Main">
-          {NAV_GROUPS.flatMap((g) => [
-            g.label ? (
-              <div
-                key={`h-${g.label}`}
-                className="px-3 pb-0.5 pt-3 text-[10px] font-bold uppercase tracking-wider text-muted"
-              >
-                {g.label}
-              </div>
-            ) : null,
-            ...g.items.map((s) => (
-              <button
-                key={s}
-                onClick={() => setScreen(s)}
-                aria-current={screen === s ? 'page' : undefined}
-                className={`w-full rounded-md px-3 py-2 text-left text-[13px] font-semibold ${screen === s ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}
-              >
-                <span className="flex items-center justify-between">
-                  {COPY.nav[s]}
-                  <span className="flex items-center gap-2">
-                    {!!badge[s] && (
-                      <span
-                        title="Needs a look"
-                        className="dot-pulse flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
-                      >
-                        {badge[s]}
-                      </span>
-                    )}
-                    {SHORTCUTS[s] && (
-                      <span className="text-[11px] font-normal opacity-60">{SHORTCUTS[s]}</span>
-                    )}
+          {NAV_GROUPS.map((g) => ({
+            ...g,
+            items: g.items.filter((s) => s !== 'upcoming' || settings?.upcomingEnabled !== false),
+          }))
+            .filter((g) => g.items.length)
+            .flatMap((g) => [
+              g.label ? (
+                <div
+                  key={`h-${g.label}`}
+                  className="px-3 pb-0.5 pt-3 text-[10px] font-bold uppercase tracking-wider text-muted"
+                >
+                  {g.label}
+                </div>
+              ) : null,
+              ...g.items.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setScreen(s)}
+                  aria-current={screen === s ? 'page' : undefined}
+                  className={`w-full rounded-md px-3 py-2 text-left text-[13px] font-semibold ${screen === s ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}
+                >
+                  <span className="flex items-center justify-between">
+                    {COPY.nav[s]}
+                    <span className="flex items-center gap-2">
+                      {!!badge[s] && (
+                        <span
+                          title="Needs a look"
+                          className="dot-pulse flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+                        >
+                          {badge[s]}
+                        </span>
+                      )}
+                      {SHORTCUTS[s] && (
+                        <span className="text-[11px] font-normal opacity-60">{SHORTCUTS[s]}</span>
+                      )}
+                    </span>
                   </span>
-                </span>
-              </button>
-            )),
-          ])}
+                </button>
+              )),
+            ])}
         </nav>
         {meta?.connected && meta.expiringSoon && (
           <button
@@ -286,6 +296,7 @@ function Shell() {
         {screen === 'calendar' && <Calendar onNewPost={(when) => openSchedule('one', when)} />}
         {screen === 'queue' && <Queue />}
         {screen === 'inbox' && <Inbox />}
+        {screen === 'upcoming' && <Upcoming openQueue={() => setScreen('queue')} />}
         {screen === 'stats' && <Stats key={statsTab} initialTab={statsTab} />}
         {screen === 'studio' && <Studio key={studioKey} initialTab={studioTab} />}
         {screen === 'schedule' && (

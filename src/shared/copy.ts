@@ -30,6 +30,7 @@ export const COPY = {
     calendar: 'Calendar',
     queue: 'Queue',
     inbox: 'Inbox',
+    upcoming: 'Upcoming',
     stats: 'Analytics',
     studio: 'Studio',
     schedule: 'Schedule',
