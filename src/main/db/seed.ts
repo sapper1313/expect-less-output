@@ -65,6 +65,22 @@ export function seedIfEmpty(db: Db): void {
 
 /** Creates slots, defaults and dry-run accounts for a brand. Safe to call for new brands. */
 export function initBrandRows(db: Db, brandId: number): void {
+  db.prepare('INSERT OR IGNORE INTO channel_rules (brand_id) VALUES (?)').run(brandId)
+  // A new channel watches its Inbox and schedules drops by itself until the owner turns that off.
+  for (const key of ['inboxBrandIds', 'inboxAutoScheduleBrandIds']) {
+    const row = db.prepare('SELECT value_json FROM settings WHERE key = ?').get(key) as
+      { value_json: string } | undefined
+    let ids: number[] = []
+    try {
+      ids = row ? (JSON.parse(row.value_json) as number[]) : []
+    } catch {
+      ids = []
+    }
+    if (!ids.includes(brandId))
+      db.prepare(
+        'INSERT INTO settings (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json',
+      ).run(key, JSON.stringify([...ids, brandId]))
+  }
   const addSlot = db.prepare(
     'INSERT INTO brand_slots (brand_id, day_type, time_local, enabled) VALUES (?, ?, ?, 1)',
   )

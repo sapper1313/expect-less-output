@@ -14,10 +14,12 @@ const HOUR = 60 * MIN
 
 describe('scheduler rules (pure)', () => {
   it('has the 2, 10, 30 minute backoff and stops after 3 retries', () => {
-    expect(BACKOFF_MINUTES).toEqual([2, 10, 30])
-    expect(backoffMs(1, false)).toBe(2 * MIN)
-    expect(backoffMs(2, false)).toBe(10 * MIN)
-    expect(backoffMs(3, false)).toBe(30 * MIN)
+    expect(BACKOFF_MINUTES).toEqual([5, 15, 60])
+    expect(backoffMs(1, false)).toBe(5 * MIN)
+    expect(backoffMs(2, false)).toBe(15 * MIN)
+    expect(backoffMs(3, false)).toBe(60 * MIN)
+    expect(backoffMs(2, false, [1, 2])).toBe(2 * MIN)
+    expect(backoffMs(3, false, [1, 2])).toBeNull()
     expect(backoffMs(4, false)).toBeNull()
   })
   it('decides missed posts', () => {

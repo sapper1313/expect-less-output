@@ -87,3 +87,15 @@ export class SettingsService {
     return this.get()
   }
 }
+
+/** Reads one setting straight from the database, for code that has no SettingsService. */
+export function readSetting<K extends keyof Settings>(db: Db, key: K): Settings[K] {
+  const row = db.prepare('SELECT value_json FROM settings WHERE key = ?').get(key) as
+    { value_json: string } | undefined
+  if (!row) return DEFAULT_SETTINGS[key]
+  try {
+    return JSON.parse(row.value_json) as Settings[K]
+  } catch {
+    return DEFAULT_SETTINGS[key]
+  }
+}

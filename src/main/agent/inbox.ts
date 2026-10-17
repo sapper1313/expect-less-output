@@ -21,6 +21,7 @@ import { AgentError, agentCreatePost, type AgentServices } from './core'
 import { moveFile, uniquePath } from '../services/library'
 import type { Library } from '../services/library'
 import type { IngestHooks } from '../studio/ingest'
+import { PipelineIntake } from '../pipeline/intake'
 
 const VIDEO = ['.mp4', '.mov']
 /** A file that has not changed size for this long is finished copying. */
@@ -37,6 +38,8 @@ export interface InboxDeps {
   library: Library
   /** Studio hooks for sidecars that name an episode. Without episode_id they are never called. */
   studio?: IngestHooks
+  /** Takes sidecars that carry schema_version (the bot pipeline). Without it they are treated as plain sidecars. */
+  pipeline?: PipelineIntake
   /** Called once for each rejected file. */
   alert: (headline: string, detail: string) => void
   now?: () => number
@@ -84,6 +87,7 @@ export class InboxWatcher {
     this.running = true
     let handled = 0
     try {
+      if (!this.d.s.settings.get().pipelineIntakeEnabled) return 0
       const enabled = new Set(this.d.s.settings.get().inboxBrandIds)
       for (const b of this.d.s.brands.list(false)) {
         if (!enabled.has(b.id)) continue
@@ -123,18 +127,22 @@ export class InboxWatcher {
   ): Promise<boolean> {
     const now = this.now()
     const prev = this.seen.get(full)
-    if (!prev || prev.size !== size) {
-      this.seen.set(full, { size, since: now, firstSeen: prev?.firstSeen ?? now })
-      return false // still arriving, look again next time
-    }
-    if (now - prev.since < STABLE_MS) return false
     const stem = name.slice(0, name.length - extname(name).length)
     const sidecar = join(dir, `${stem}.json`)
+    // A .ready file next to the video says the copy is finished, so the wait is skipped.
+    const ready = existsSync(join(dir, `${stem}.ready`)) && existsSync(sidecar)
+    if (!ready) {
+      if (!prev || prev.size !== size) {
+        this.seen.set(full, { size, since: now, firstSeen: prev?.firstSeen ?? now })
+        return false // still arriving, look again next time
+      }
+      if (now - prev.since < STABLE_MS) return false
+    }
     const hasSidecar = existsSync(sidecar)
     const cfg = this.d.s.settings.get()
     // Automatic scheduling only works while agents are allowed to schedule.
     const auto = cfg.agentMaySchedule && cfg.inboxAutoScheduleBrandIds.includes(brandId)
-    if (!hasSidecar && now - prev.firstSeen < SIDECAR_GRACE_MS) return false
+    if (!hasSidecar && now - (prev?.firstSeen ?? now) < SIDECAR_GRACE_MS) return false
 
     let body: CreatePostInput
     let episodeId: string | null = null
@@ -150,6 +158,19 @@ export class InboxWatcher {
             'bad_request',
             'The .json file next to the video is not valid JSON.',
           )
+        }
+        if (this.d.pipeline && PipelineIntake.handles(raw)) {
+          const brand = this.d.s.brands.get(brandId)
+          await this.d.pipeline.process({
+            brand,
+            videoPath: full,
+            sidecarPath: sidecar,
+            raw,
+            inboxDir: dir,
+          })
+          rmSync(join(dir, `${stem}.ready`), { force: true })
+          this.seen.delete(full)
+          return true
         }
         const obj = { ...(raw as object) } as Record<string, unknown>
         // video_url only says where the video came from. By now the video is a file in the Inbox.

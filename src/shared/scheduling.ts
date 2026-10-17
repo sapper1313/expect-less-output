@@ -1,17 +1,22 @@
 import type { PostStatus, TargetStatus } from './types'
 
-/** Minutes between retries after the 1st, 2nd and 3rd failure. */
-export const BACKOFF_MINUTES = [2, 10, 30]
+/** Minutes between retries after the 1st, 2nd and 3rd failure. The Settings screen can change them. */
+export const BACKOFF_MINUTES = [5, 15, 60]
 /** Seconds used instead when the "fast backoff" test setting is on. */
 export const FAST_BACKOFF_SECONDS = [5, 10, 15]
 export const MAX_ATTEMPTS = BACKOFF_MINUTES.length + 1
 /** A target this late or less is just a normal tick, not a "missed" post. */
 export const ON_TIME_TOLERANCE_MINUTES = 5
 
-export function backoffMs(failedAttempts: number, fast: boolean): number | null {
+export function backoffMs(
+  failedAttempts: number,
+  fast: boolean,
+  minutes: number[] = BACKOFF_MINUTES,
+): number | null {
   const idx = failedAttempts - 1
-  if (idx < 0 || idx >= BACKOFF_MINUTES.length) return null
-  return fast ? FAST_BACKOFF_SECONDS[idx] * 1000 : BACKOFF_MINUTES[idx] * 60_000
+  const list = minutes.length ? minutes : BACKOFF_MINUTES
+  if (idx < 0 || idx >= list.length) return null
+  return fast ? (FAST_BACKOFF_SECONDS[idx] ?? 15) * 1000 : list[idx] * 60_000
 }
 
 export type MissedDecision = 'on_time' | 'post_late' | 'missed'

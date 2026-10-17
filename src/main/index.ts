@@ -19,6 +19,12 @@ import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'fs'
 import { join, normalize, sep } from 'path'
 import { pathToFileURL } from 'url'
 import { preferIpv4 } from './network'
+import { DropLog } from './pipeline/dropLog'
+import { AuditEvents } from './pipeline/auditEvents'
+import { PipelineIntake } from './pipeline/intake'
+import { verifyPipelinePost } from './pipeline/verify'
+import { probe as probeVideo } from './studio/ffmpeg'
+import type { AlertKind } from './alerts/format'
 import { latestSchemaVersion, openDb } from './db'
 import { AlertService } from './alerts/service'
 import { AgentRuntime } from './agent/runtime'
@@ -425,6 +431,36 @@ async function boot(): Promise<void> {
     adapterFor,
     notifier,
     emit,
+    preflight: (postId) => verifyPipelinePost(db, library, postId),
+  })
+  const dropLog = new DropLog(db, join(dataDir, 'logs', 'drops.jsonl'))
+  const auditEvents = new AuditEvents(db)
+  const PIPELINE_KIND: Record<string, string> = {
+    drop_accepted: 'accepted',
+    drop_rejected: 'rejected',
+    scheduled: 'scheduled',
+    posted: 'posted',
+    reconcile: 'reconcile',
+    low_queue: 'low_queue',
+    summary: 'summary',
+  }
+  const pipelineNotify = (kind: AlertKind, headline: string, detail: string) => {
+    const want = PIPELINE_KIND[kind]
+    if (want && !settings.get().pipelineNotifyKinds.includes(want)) return
+    void alerts.alert({ kind, headline, detail })
+  }
+  const pipeline = new PipelineIntake({
+    db,
+    settings,
+    brands,
+    posts,
+    library,
+    drops: dropLog,
+    audit: auditEvents,
+    log,
+    notify: pipelineNotify,
+    probe: (p) => probeVideo(p),
+    onChange: emit,
   })
 
   let telegramRef: TelegramAssistant | null = null
@@ -555,6 +591,7 @@ async function boot(): Promise<void> {
     },
     library,
     studio: studio.ingest,
+    pipeline,
     alert: (headline, detail) => notifier.failure(headline, detail, { kind: 'other' }),
   })
 

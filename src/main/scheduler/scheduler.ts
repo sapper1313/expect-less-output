@@ -35,6 +35,11 @@ export interface SchedulerDeps {
   notifier: Notifier
   now?: () => number
   emit?: () => void
+  /**
+   * Called right before a target is sent. Returns a reason to hold the post instead (a pipeline post whose file or
+   * title no longer matches what was dropped), or null to go ahead.
+   */
+  preflight?: (postId: number) => Promise<string | null>
 }
 
 interface DueRow {
@@ -139,6 +144,7 @@ export class Scheduler {
          JOIN posts p ON p.id = t.post_id
          JOIN brands b ON b.id = p.brand_id
          WHERE p.status IN ('scheduled','in_progress','partial')
+           AND p.hold_reason IS NULL
            AND p.scheduled_at_utc IS NOT NULL
            AND t.status = 'pending' AND t.lock_token IS NULL
            AND (t.next_attempt_at_utc IS NULL OR t.next_attempt_at_utc <= ?)`,
@@ -331,6 +337,22 @@ export class Scheduler {
     this.inFlight.add(row.id)
     const label = PLATFORM_LABELS[row.platform]
     try {
+      const why = this.d.preflight ? await this.d.preflight(row.post_id) : null
+      if (why) {
+        this.d.db
+          .prepare('UPDATE post_targets SET lock_token = NULL, locked_at_utc = NULL WHERE id = ?')
+          .run(row.id)
+        this.d.db.prepare('UPDATE posts SET hold_reason = ? WHERE id = ?').run(why, row.post_id)
+        this.d.log.log('error', `Held before posting "${row.title}" (${row.brand_name}): ${why}`, {
+          postId: row.post_id,
+        })
+        this.d.notifier.failure(
+          'A post was held.',
+          `${row.brand_name}, "${row.title}": ${why} Nothing was posted.`,
+          { kind: 'other' },
+        )
+        return
+      }
       const ctx = this.buildContext(row)
       const adapter = this.d.adapterFor(row.platform, ctx.account, ctx.settings)
       if (ctx.account) await adapter.refreshIfNeeded(ctx.account)
@@ -362,6 +384,19 @@ export class Scheduler {
         `${label}: ${result.status === 'handed_off' ? 'handed off early' : result.status} for "${row.title}" (${row.brand_name}).`,
         { postId: row.post_id, platform: row.platform },
       )
+      const sent = this.d.db
+        .prepare('SELECT episode_ref, checksum, video_path FROM posts WHERE id = ?')
+        .get(row.post_id) as {
+        episode_ref: string | null
+        checksum: string | null
+        video_path: string
+      }
+      if (sent.episode_ref)
+        this.d.log.log(
+          'info',
+          `Sent to ${label}: episode ${sent.episode_ref}, title "${row.title}", file ${sent.video_path.split('/').pop()}, sha256 ${sent.checksum ?? 'unknown'}.`,
+          { postId: row.post_id, platform: row.platform },
+        )
       this.afterTargetChange(row.post_id)
     } catch (err) {
       this.handleFailure(row, err)
@@ -456,7 +491,9 @@ export class Scheduler {
       }
     }
     const delay =
-      kind === 'transient' ? backoffMs(t.attempts, this.d.getSettings().fastBackoff) : null
+      kind === 'transient'
+        ? backoffMs(t.attempts, this.d.getSettings().fastBackoff, this.d.getSettings().retryMinutes)
+        : null
     if (delay !== null) {
       const next = new Date(this.now() + delay).toISOString()
       this.d.db

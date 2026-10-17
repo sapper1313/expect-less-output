@@ -227,6 +227,16 @@ export interface Post {
   createdAt: string
   updatedAt: string
   targets: PostTarget[]
+  /** The episode id a bot gave this post (pipeline posts). Unique per channel. */
+  episodeRef: string | null
+  /** inbox for anything that arrived through the Inbox folder, manual otherwise. */
+  origin: 'manual' | 'inbox' | 'api'
+  /** Why the post is held back from posting. Null means not held. */
+  holdReason: string | null
+  checksum: string | null
+  sourceBot: string | null
+  sidecarTitle: string | null
+  videoBasename: string | null
 }
 
 export type TikTokMode = 'drafts' | 'direct'
@@ -299,6 +309,16 @@ export interface PostInput {
   scheduledAtUtc: string | null
   targets: PostTargetInput[]
   status: 'draft' | 'scheduled'
+  /** Set for posts that arrive through the Inbox. */
+  origin?: 'manual' | 'inbox' | 'api'
+  pipeline?: {
+    episodeRef: string
+    checksum: string
+    sidecarTitle: string
+    sourceBot: string
+    videoBasename: string
+    holdReason?: string | null
+  }
 }
 
 export interface PostUpdate {

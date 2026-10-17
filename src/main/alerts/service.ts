@@ -9,6 +9,8 @@ import { formatAlert, formatBatch, type AlertItem } from './format'
 import { sendIMessage, type IMessageResult } from './imessage'
 
 export const EMAIL_PASSWORD_KEY = 'alert.email_app_password'
+/** Kinds that report good news or progress, so they are written to the log as information. */
+const INFO_KINDS = ['test', 'drop_accepted', 'scheduled', 'posted', 'summary']
 export const BATCH_LIMIT = 3
 export const BATCH_WINDOW_MS = 5 * 60_000
 
@@ -49,7 +51,7 @@ export class AlertService {
 
   async alert(item: AlertItem): Promise<void> {
     this.d.showLocal(item.headline, item.detail)
-    this.d.log(item.kind === 'test' ? 'info' : 'error', `Alert: ${formatAlert(item)}`)
+    this.d.log(INFO_KINDS.includes(item.kind) ? 'info' : 'error', `Alert: ${formatAlert(item)}`)
     await this.remote(item)
   }
 

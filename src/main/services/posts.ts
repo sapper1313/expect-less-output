@@ -5,6 +5,7 @@ import type { ActivityLog } from './activity'
 import type { MediaService } from './media'
 import { getNextOpenSlots, type SlotDef } from '@shared/slots'
 import { derivePostStatus } from '@shared/scheduling'
+import { readSetting } from './settings'
 import { durationProblem } from '@shared/platformLimits'
 import { tiktokSettingsProblem } from '@shared/tiktok'
 import { DateTime } from 'luxon'
@@ -36,6 +37,13 @@ interface PostRow {
   status: PostStatus
   created_at: string
   updated_at: string
+  episode_ref: string | null
+  origin: 'manual' | 'inbox' | 'api'
+  hold_reason: string | null
+  checksum: string | null
+  source_bot: string | null
+  sidecar_title: string | null
+  video_basename: string | null
 }
 
 const POST_SELECT = `SELECT p.*, b.name AS brand_name, b.color AS brand_color
@@ -101,6 +109,13 @@ export class PostService {
       createdAt: r.created_at,
       updatedAt: r.updated_at,
       targets,
+      episodeRef: r.episode_ref,
+      origin: r.origin,
+      holdReason: r.hold_reason,
+      checksum: r.checksum,
+      sourceBot: r.source_bot,
+      sidecarTitle: r.sidecar_title,
+      videoBasename: r.video_basename,
     }
   }
 
@@ -182,13 +197,60 @@ export class PostService {
         )
         .all(brandId, ...RESERVING) as Array<{ t: string }>
     ).map((r) => r.t)
+    const rules = this.channelRules(brandId)
+    const sent = (
+      this.db
+        .prepare(
+          "SELECT scheduled_at_utc AS t FROM posts WHERE brand_id = ? AND scheduled_at_utc IS NOT NULL AND status = 'posted'",
+        )
+        .all(brandId) as Array<{ t: string }>
+    ).map((r) => r.t)
+    const minGap = readSetting(this.db, 'minGapMinutes')
+    const others = minGap
+      ? (
+          this.db
+            .prepare(
+              `SELECT scheduled_at_utc AS t FROM posts WHERE brand_id != ? AND scheduled_at_utc IS NOT NULL
+               AND status IN (${RESERVING.map(() => '?').join(',')})`,
+            )
+            .all(brandId, ...RESERVING) as Array<{ t: string }>
+        ).map((r) => r.t)
+      : []
     return getNextOpenSlots({
       slots,
       taken: [...taken, ...extraTaken],
       count,
       from: fromUtc ?? new Date().toISOString(),
       weekdays: this.postDays(brandId),
+      blackoutDates: [
+        ...new Set([...readSetting(this.db, 'blackoutDates'), ...rules.blackoutDates]),
+      ],
+      maxPerDay: rules.maxPerDay,
+      minGapMinutes: minGap,
+      gapWith: others,
+      alsoCounted: sent,
     })
+  }
+
+  /** The limits that belong to one channel. A channel with no row has the defaults. */
+  channelRules(brandId: number): {
+    maxPerDay: number
+    blackoutDates: string[]
+    lowQueueDays: number | null
+  } {
+    const r = this.db.prepare('SELECT * FROM channel_rules WHERE brand_id = ?').get(brandId) as
+      { max_per_day: number; blackout_json: string; low_queue_days: number | null } | undefined
+    let blackoutDates: string[] = []
+    try {
+      blackoutDates = r ? (JSON.parse(r.blackout_json) as string[]) : []
+    } catch {
+      blackoutDates = []
+    }
+    return {
+      maxPerDay: r?.max_per_day ?? 1,
+      blackoutDates,
+      lowQueueDays: r?.low_queue_days ?? null,
+    }
   }
 
   /**
@@ -333,8 +395,9 @@ export class PostService {
       const ids = this.db.transaction(() => {
         const out: number[] = []
         const ins = this.db.prepare(
-          `INSERT INTO posts (brand_id, video_path, video_meta_json, poster_path, title, caption, scheduled_at_utc, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO posts (brand_id, video_path, video_meta_json, poster_path, title, caption, scheduled_at_utc, status,
+             origin, episode_ref, checksum, sidecar_title, source_bot, video_basename, hold_reason)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         for (const p of prepared) {
           const id = Number(
@@ -347,6 +410,13 @@ export class PostService {
               p.input.caption,
               p.input.scheduledAtUtc,
               p.input.status,
+              p.input.origin ?? 'manual',
+              p.input.pipeline?.episodeRef ?? null,
+              p.input.pipeline?.checksum ?? null,
+              p.input.pipeline?.sidecarTitle ?? null,
+              p.input.pipeline?.sourceBot ?? null,
+              p.input.pipeline ? (p.rel.split('/').pop() ?? null) : null,
+              p.input.pipeline?.holdReason ?? null,
             ).lastInsertRowid,
           )
           this.insertTargets(id, p.input.brandId, p.input.targets)
@@ -373,6 +443,16 @@ export class PostService {
       }
       throw err
     }
+  }
+
+  /** Holds a post back from posting (null releases it). A held post stays where it is and the scheduler skips it. */
+  setHold(id: number, reason: string | null): void {
+    this.db
+      .prepare(
+        "UPDATE posts SET hold_reason = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?",
+      )
+      .run(reason, id)
+    this.emit()
   }
 
   async create(input: PostInput): Promise<Post> {
@@ -422,6 +502,9 @@ export class PostService {
           'UPDATE posts SET title = ?, caption = ?, scheduled_at_utc = ?, status = ?, updated_at = ? WHERE id = ?',
         )
         .run(title, caption, when, status, new Date().toISOString(), id)
+      // The owner or an agent changed the title on purpose, so the text kept with a bot's drop moves with it.
+      if (cur.episodeRef && patch.title !== undefined)
+        this.db.prepare('UPDATE posts SET sidecar_title = ? WHERE id = ?').run(title, id)
       if (patch.targets) {
         const keep = new Set(patch.targets.map((t) => t.platform))
         for (const t of cur.targets) {

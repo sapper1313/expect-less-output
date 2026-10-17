@@ -15,6 +15,16 @@ export interface NextSlotsInput {
   from: string | Date
   /** ISO weekdays (1 Monday to 7 Sunday) a post may land on. Omit or leave empty for every day. */
   weekdays?: number[]
+  /** Dates (YYYY-MM-DD in the zone) nothing is placed on. */
+  blackoutDates?: string[]
+  /** Most posts on one day for this brand. 0 or missing means no limit. */
+  maxPerDay?: number
+  /** Smallest gap in minutes to any post in `gapWith` (all channels) or `taken`. 0 or missing means none. */
+  minGapMinutes?: number
+  /** Times used by other channels, only looked at for the minimum gap. */
+  gapWith?: string[]
+  /** Times that count toward the daily limit but do not reserve a slot (posts already sent). */
+  alsoCounted?: string[]
   zone?: string
 }
 
@@ -34,10 +44,26 @@ export function getNextOpenSlots(input: NextSlotsInput): string[] {
 
   const result: string[] = []
   const seen = new Set<number>()
+  const blackout = new Set(input.blackoutDates ?? [])
+  const cap = input.maxPerDay && input.maxPerDay > 0 ? input.maxPerDay : 0
+  const gapMs = (input.minGapMinutes ?? 0) * 60_000
+  const perDay = new Map<string, number>()
+  const dayKeyOf = (ms: number) => DateTime.fromMillis(ms, { zone }).toFormat('yyyy-MM-dd')
+  for (const t of [...input.taken, ...(input.alsoCounted ?? [])]) {
+    const k = dayKeyOf(new Date(t).getTime())
+    perDay.set(k, (perDay.get(k) ?? 0) + 1)
+  }
+  const gapTimes = gapMs
+    ? [...input.taken, ...(input.gapWith ?? [])].map((t) => new Date(t).getTime())
+    : []
   let day = DateTime.fromMillis(fromMs, { zone }).startOf('day')
 
   for (let i = 0; i < MAX_DAYS_AHEAD && result.length < count; i++) {
     if (input.weekdays?.length && !input.weekdays.includes(day.weekday)) {
+      day = day.plus({ days: 1 }).startOf('day')
+      continue
+    }
+    if (blackout.has(day.toFormat('yyyy-MM-dd'))) {
       day = day.plus({ days: 1 }).startOf('day')
       continue
     }
@@ -55,7 +81,12 @@ export function getNextOpenSlots(input: NextSlotsInput): string[] {
     for (const ms of times) {
       const key = minuteKey(ms)
       if (ms <= fromMs || seen.has(key) || takenMs.has(key)) continue
+      const dk = day.toFormat('yyyy-MM-dd')
+      if (cap && (perDay.get(dk) ?? 0) >= cap) continue
+      if (gapMs && gapTimes.some((g) => Math.abs(g - ms) < gapMs)) continue
       seen.add(key)
+      perDay.set(dk, (perDay.get(dk) ?? 0) + 1)
+      if (gapMs) gapTimes.push(ms)
       result.push(new Date(ms).toISOString())
       if (result.length >= count) break
     }

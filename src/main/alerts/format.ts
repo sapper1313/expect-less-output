@@ -1,7 +1,22 @@
 import { formatEastern } from '@shared/time'
 
 export type AlertKind =
-  'failure' | 'missed' | 'reauth' | 'expiry' | 'cap' | 'media_root' | 'other' | 'test'
+  | 'failure'
+  | 'missed'
+  | 'reauth'
+  | 'expiry'
+  | 'cap'
+  | 'media_root'
+  | 'other'
+  | 'test'
+  // Bot pipeline events
+  | 'drop_accepted'
+  | 'drop_rejected'
+  | 'scheduled'
+  | 'posted'
+  | 'reconcile'
+  | 'low_queue'
+  | 'summary'
 
 export interface AlertItem {
   kind: AlertKind
