@@ -1,3 +1,6 @@
+import type { AuditEvents } from './pipeline/auditEvents'
+import type { DropLog } from './pipeline/dropLog'
+import type { PipelineIntake } from './pipeline/intake'
 import { writeFileSync } from 'fs'
 import type { Api } from '@shared/api'
 import type { Platform, Settings } from '@shared/types'
@@ -76,6 +79,12 @@ export interface ApiDeps {
   maxSchema: number
   host: Host
   emit: () => void
+  audit: AuditEvents
+  drops: DropLog
+  pipeline: PipelineIntake
+  /** Throws when a paused channel may not be resumed yet. */
+  beforeResume: (brandId: number) => void
+  afterResume: (brandId: number) => void
 }
 
 async function llmProvider(c: Settings, studio: Studio): Promise<OpenAICompatibleProvider> {
@@ -111,8 +120,18 @@ export function buildApi(d: ApiDeps): Api {
       get: async () => d.settings.get(),
       set: async (patch) => {
         const prev = d.settings.get()
+        const resumed = patch.pausedBrandIds
+          ? (prev.pausedBrandIds ?? []).filter((id) => !patch.pausedBrandIds!.includes(id))
+          : []
+        for (const id of resumed) d.beforeResume(id)
         const next = d.settings.set(patch)
+        for (const [k, v] of Object.entries(patch)) {
+          const before = (prev as unknown as Record<string, unknown>)[k]
+          if (JSON.stringify(before) !== JSON.stringify(v))
+            d.audit.write({ actor: 'josh', action: 'settings.change', target: k, before, after: v })
+        }
         d.host.applySettings(prev, next)
+        for (const id of resumed) d.afterResume(id)
         d.emit()
         return next
       },

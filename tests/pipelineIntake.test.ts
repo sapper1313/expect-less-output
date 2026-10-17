@@ -246,3 +246,32 @@ describe('waiting drops and resume (tests 20, 21)', () => {
     ).toContain('schema_version')
   })
 })
+
+describe('Wonder Hollow Wednesday and Friday (test 3)', () => {
+  it('three drops on a Monday land on Wednesday, Friday and the next Wednesday', async () => {
+    const { makeStudioEnv, hollowId } = await import('./studio/helpers')
+    const e = makeStudioEnv({ startMs: Date.UTC(2026, 9, 19, 14, 0, 0) })
+    const id = hollowId(e)
+    const t = pipelineSetup({ env: e, live: [[id, 'youtube']] })
+    const slug = e.brands.get(id).slug!
+    expect(slug).toBe('wonder-hollow')
+    for (const n of [1, 2, 3]) {
+      t.drop('Wonder Hollow Workshop', slug, n, { platforms: ['youtube'] })
+      e.clock.ms += 1000
+    }
+    await t.settle()
+    await t.settle()
+    await t.settle()
+    const days = e.posts
+      .list({ brandId: id })
+      .map((p) =>
+        new Date(p.scheduledAtUtc!).toLocaleDateString('en-US', {
+          weekday: 'short',
+          timeZone: 'America/New_York',
+          month: 'numeric',
+          day: 'numeric',
+        }),
+      )
+    expect(days).toEqual(['Wed, 10/21', 'Fri, 10/23', 'Wed, 10/28'])
+  })
+})

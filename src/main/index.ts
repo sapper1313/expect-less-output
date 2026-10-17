@@ -22,7 +22,7 @@ import { preferIpv4 } from './network'
 import { DropLog } from './pipeline/dropLog'
 import { AuditEvents } from './pipeline/auditEvents'
 import { PipelineIntake } from './pipeline/intake'
-import { verifyPipelinePost } from './pipeline/verify'
+import { realPlatforms, verifyPipelinePost } from './pipeline/verify'
 import { probe as probeVideo } from './studio/ffmpeg'
 import type { AlertKind } from './alerts/format'
 import { latestSchemaVersion, openDb } from './db'
@@ -463,6 +463,23 @@ async function boot(): Promise<void> {
     onChange: emit,
   })
 
+  const beforeResume = (brandId: number) => {
+    if (!settings.get().globalDryRun && realPlatforms(db, brandId).length === 0)
+      throw new Error(
+        'Connect an account first. Open Connections, connect at least one platform for this channel, then resume it.',
+      )
+  }
+  const afterResume = (brandId: number) =>
+    void pipeline
+      .scheduleWaiting(brandId)
+      .then((r) => {
+        if (r.message) log.log('info', `Resumed channel ${brandId}. ${r.message}`)
+      })
+      .catch((e) =>
+        log.log('error', `Waiting drops could not be scheduled: ${(e as Error).message}`),
+      )
+      .finally(() => emit())
+
   let telegramRef: TelegramAssistant | null = null
   let apiRef: ReturnType<typeof buildApi> | null = null
   const studio = new Studio({
@@ -474,6 +491,8 @@ async function boot(): Promise<void> {
     alert: (headline, detail) => void alerts.alert({ kind: 'other', headline, detail }),
     alertItem: (item) => void alerts.alert(item),
     emit,
+    beforeResume,
+    afterResume,
     setSchedulerPaused: (p) => setSchedulerPaused(p),
     setSchedulerBrandPaused: (id, p) => {
       const cur = settings.get().pausedBrandIds ?? []
@@ -755,6 +774,11 @@ async function boot(): Promise<void> {
   telegramRef = telegram
 
   const api = buildApi({
+    audit: auditEvents,
+    drops: dropLog,
+    pipeline,
+    beforeResume,
+    afterResume,
     telegram,
     editor,
     settings,

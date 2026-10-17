@@ -99,6 +99,10 @@ export interface StudioDeps {
   setSchedulerPaused?: (paused: boolean) => void
   /** The same for one brand. */
   setSchedulerBrandPaused?: (brandId: number, paused: boolean) => void
+  /** Called before a paused channel is resumed. Throws to refuse (a channel with no real account cannot resume). */
+  beforeResume?: (brandId: number) => void
+  /** Called after a channel was resumed. Schedules the drops that waited. */
+  afterResume?: (brandId: number) => void
   /** First run: start with everything paused, so nothing begins until the owner presses Resume. */
   startPaused?: boolean
   dataDir?: string
@@ -1640,8 +1644,11 @@ export class Studio implements StudioApi {
   }
 
   async setBrand(brandId: number, patch: Partial<StudioBrandConfig>) {
+    const resuming = patch.paused === false && this.cfg.getBrand(brandId).paused
+    if (resuming) this.d.beforeResume?.(brandId)
     const c = this.cfg.setBrand(brandId, patch)
     if (patch.paused !== undefined) this.d.setSchedulerBrandPaused?.(brandId, patch.paused)
+    if (resuming) this.d.afterResume?.(brandId)
     this.d.emit()
     return c
   }

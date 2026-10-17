@@ -30,7 +30,13 @@ export function makeEnv(
   const root = mkdtempSync(join(tmpdir(), 'elo-test-'))
   const settings = new SettingsService(db)
   // The app starts with no alert number. The tests use one so the alert paths can be exercised.
-  settings.set({ mediaRoot: root, alertIMessageEnabled: true, alertIMessageNumber: '+18046340444' })
+  // The retry times are fixed here so the retry tests stay readable. The app's own default is 5, 15 and 60.
+  settings.set({
+    mediaRoot: root,
+    alertIMessageEnabled: true,
+    alertIMessageNumber: '+18046340444',
+    retryMinutes: [2, 10, 30],
+  })
   const library = new Library(() => settings.get().mediaRoot)
   const log = new ActivityLog(db)
   const posts = new PostService(db, library, opts.media ?? null, log)
