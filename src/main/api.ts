@@ -192,10 +192,62 @@ export function buildApi(d: ApiDeps): Api {
       get: async (id) => d.posts.get(id),
       create: async (input) => d.posts.create(input),
       createMany: async (inputs) => d.posts.createMany(inputs),
-      update: async (id, patch) => d.posts.update(id, patch),
-      reschedule: async (ids, when) => d.posts.reschedule(ids, when),
-      cancel: async (ids) => d.posts.cancel(ids),
-      remove: async (ids, alsoDeleteFile) => d.posts.remove(ids, alsoDeleteFile),
+      update: async (id, patch) => {
+        const before = d.posts.get(id)
+        const out = d.posts.update(id, patch)
+        if (
+          before &&
+          patch.scheduledAtUtc !== undefined &&
+          patch.scheduledAtUtc !== before.scheduledAtUtc
+        )
+          d.audit.write({
+            actor: 'josh',
+            action: 'post.reschedule',
+            target: `${before.brandName}/${before.episodeRef ?? id}`,
+            before: before.scheduledAtUtc,
+            after: patch.scheduledAtUtc,
+          })
+        return out
+      },
+      reschedule: async (ids, when) => {
+        const before = ids.map((id) => d.posts.get(id)?.scheduledAtUtc ?? null)
+        d.posts.reschedule(ids, when)
+        ids.forEach((id, i) =>
+          d.audit.write({
+            actor: 'josh',
+            action: 'post.reschedule',
+            target: `post ${id}`,
+            before: before[i],
+            after: when,
+          }),
+        )
+      },
+      swap: async (a, b) => {
+        const [pa, pb] = [d.posts.get(a)?.scheduledAtUtc, d.posts.get(b)?.scheduledAtUtc]
+        d.posts.swapTimes(a, b)
+        d.audit.write({
+          actor: 'josh',
+          action: 'post.swap',
+          target: `post ${a} and post ${b}`,
+          before: [pa, pb],
+          after: [pb, pa],
+        })
+      },
+      cancel: async (ids) => {
+        d.posts.cancel(ids)
+        for (const id of ids)
+          d.audit.write({ actor: 'josh', action: 'post.cancel', target: `post ${id}` })
+      },
+      remove: async (ids, alsoDeleteFile) => {
+        d.posts.remove(ids, alsoDeleteFile)
+        for (const id of ids)
+          d.audit.write({
+            actor: 'josh',
+            action: 'post.delete',
+            target: `post ${id}`,
+            after: { alsoDeleteFile },
+          })
+      },
       retryTarget: async (id) => d.scheduler.retryTarget(id),
       markPosted: async (id, url) => d.scheduler.markPosted(id, url),
       duplicate: async (id) => d.posts.duplicate(id),

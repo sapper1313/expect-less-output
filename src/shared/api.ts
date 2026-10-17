@@ -78,7 +78,7 @@ export interface Api {
   brands: {
     list(includeArchived?: boolean): Promise<Brand[]>
     create(name: string, color: string): Promise<Brand>
-    update(id: number, patch: { name?: string; color?: string }): Promise<Brand>
+    update(id: number, patch: { name?: string; color?: string; slug?: string }): Promise<Brand>
     archive(id: number, archived: boolean): Promise<void>
     getSlots(brandId: number): Promise<BrandSlot[]>
     setSlots(
@@ -113,6 +113,8 @@ export interface Api {
     createMany(inputs: PostInput[]): Promise<Post[]>
     update(id: number, patch: PostUpdate): Promise<Post>
     reschedule(ids: number[], scheduledAtUtc: string): Promise<void>
+    /** Two scheduled posts trade times. */
+    swap(a: number, b: number): Promise<void>
     cancel(ids: number[]): Promise<void>
     remove(ids: number[], alsoDeleteFile: boolean): Promise<void>
     retryTarget(targetId: number): Promise<void>

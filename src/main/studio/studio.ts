@@ -100,6 +100,10 @@ export interface StudioDeps {
   /** The same for one brand. */
   setSchedulerBrandPaused?: (brandId: number, paused: boolean) => void
   /** Called before a paused channel is resumed. Throws to refuse (a channel with no real account cannot resume). */
+  /** Called for every posted video file the Archivist removes (for the audit log). */
+  onRetentionDelete?: (info: { postId: number; title: string; path: string; bytes: number }) => void
+  /** Called for every Studio setting the owner changes (for the audit log). */
+  onSettingChange?: (key: string, before: unknown, after: unknown) => void
   beforeResume?: (brandId: number) => void
   /** Called after a channel was resumed. Schedules the drops that waited. */
   afterResume?: (brandId: number) => void
@@ -300,6 +304,7 @@ export class Studio implements StudioApi {
       audit: this.audit,
       now,
       workDir: (id) => this.workDir(id),
+      onDelete: (info) => d.onRetentionDelete?.(info),
     })
     this.localAi = new LocalAi({
       cfg: this.cfg,
@@ -1579,8 +1584,12 @@ export class Studio implements StudioApi {
     return this.cfg.get()
   }
   async setConfig(patch: Parameters<StudioApi['setConfig']>[0]) {
+    const prevAll = this.cfg.get() as unknown as Record<string, unknown>
     const before = this.cfg.get().local
     const c = this.cfg.set(patch)
+    for (const [k, v] of Object.entries(patch))
+      if (JSON.stringify(prevAll[k]) !== JSON.stringify(v))
+        this.d.onSettingChange?.(`studio.${k}`, prevAll[k], v)
     // A new host address or model name means the speeds and the checklist may have changed, so the self test runs again by itself.
     const l = c.local
     if (

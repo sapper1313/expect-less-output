@@ -427,7 +427,13 @@ async function boot(): Promise<void> {
     account: Account | null,
     targetSettings?: Record<string, unknown>,
   ): PlatformAdapter =>
-    pickAdapter(platform, account, targetSettings, { dry: dryRuns, real: realAdapters })
+    pickAdapter(
+      platform,
+      account,
+      targetSettings,
+      { dry: dryRuns, real: realAdapters },
+      settings.get().globalDryRun,
+    )
 
   const scheduler = new Scheduler({
     db,
@@ -439,6 +445,7 @@ async function boot(): Promise<void> {
     notifier,
     emit,
     preflight: (postId) => verifyPipelinePost(db, library, postId),
+    audit: (e) => auditEvents.write(e),
   })
   const dropLog = new DropLog(db, join(dataDir, 'logs', 'drops.jsonl'))
   const auditEvents = new AuditEvents(db)
@@ -529,6 +536,15 @@ async function boot(): Promise<void> {
     emit,
     beforeResume,
     afterResume,
+    onSettingChange: (key, before, after) =>
+      auditEvents.write({ actor: 'josh', action: 'settings.change', target: key, before, after }),
+    onRetentionDelete: (i) =>
+      auditEvents.write({
+        actor: 'system',
+        action: 'retention.delete',
+        target: `post ${i.postId}`,
+        after: { title: i.title, file: i.path.split('/').pop(), bytes: i.bytes },
+      }),
     setSchedulerPaused: (p) => setSchedulerPaused(p),
     setSchedulerBrandPaused: (id, p) => {
       const cur = settings.get().pausedBrandIds ?? []

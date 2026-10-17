@@ -51,12 +51,20 @@ export class BrandService {
     return this.get(id)
   }
 
-  update(id: number, patch: { name?: string; color?: string }): Brand {
+  update(id: number, patch: { name?: string; color?: string; slug?: string }): Brand {
     const cur = this.get(id)
     const name = patch.name?.trim() || cur.name
+    let slug = cur.slug
+    if (patch.slug !== undefined) {
+      slug = patch.slug.trim().toLowerCase()
+      if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug))
+        throw new Error('A slug uses lowercase letters, numbers and single dashes, like clock-out-early.')
+      const other = this.bySlug(slug)
+      if (other && other.id !== id) throw new Error(`The slug ${slug} is already used by ${other.name}.`)
+    }
     this.db
-      .prepare('UPDATE brands SET name = ?, color = ? WHERE id = ?')
-      .run(name, patch.color ?? cur.color, id)
+      .prepare('UPDATE brands SET name = ?, color = ?, slug = ? WHERE id = ?')
+      .run(name, patch.color ?? cur.color, slug, id)
     this.onBrandFolder(name)
     return this.get(id)
   }

@@ -18,43 +18,68 @@ import { AgentModelsCard, ModelGuideCard } from './StudioModels'
 const LEVEL_STYLE = { info: 'text-muted', warn: 'text-warn', error: 'text-bad' }
 
 export function Activity() {
+  const [tab, setTab] = useState<'log' | 'audit'>('log')
   const [filter, setFilter] = useState<LogFilter>({ level: 'all', platform: null })
   const { data } = useLoad(() => api.log.list({ ...filter, limit: 500 }), [JSON.stringify(filter)])
   return (
     <div className="h-full overflow-auto pb-10">
       <PageHeader title={COPY.nav.activity} />
       <div className="space-y-4 px-8">
-        <div className="flex gap-3">
-          <Select
-            className="w-40"
-            aria-label="Level"
-            value={filter.level ?? 'all'}
-            onChange={(e) => setFilter({ ...filter, level: e.target.value as LogFilter['level'] })}
-          >
-            <option value="all">All levels</option>
-            <option value="info">Info</option>
-            <option value="warn">Warnings</option>
-            <option value="error">Errors</option>
-          </Select>
-          <Select
-            className="w-44"
-            aria-label="Platform"
-            value={filter.platform ?? ''}
-            onChange={(e) =>
-              setFilter({ ...filter, platform: (e.target.value || null) as LogFilter['platform'] })
-            }
-          >
-            <option value="">All platforms</option>
-            {PLATFORMS.map((p) => (
-              <option key={p} value={p}>
-                {PLATFORM_LABELS[p]}
-              </option>
-            ))}
-          </Select>
+        <div className="flex gap-1">
+          {(
+            [
+              ['log', 'Activity log'],
+              ['audit', 'Audit log'],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`rounded-md px-3 py-1.5 text-[13px] font-semibold ${tab === id ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-        {data && data.length === 0 ? (
+        {tab === 'audit' && <AuditLog />}
+        {tab === 'log' && (
+          <div className="flex gap-3">
+            <Select
+              className="w-40"
+              aria-label="Level"
+              value={filter.level ?? 'all'}
+              onChange={(e) =>
+                setFilter({ ...filter, level: e.target.value as LogFilter['level'] })
+              }
+            >
+              <option value="all">All levels</option>
+              <option value="info">Info</option>
+              <option value="warn">Warnings</option>
+              <option value="error">Errors</option>
+            </Select>
+            <Select
+              className="w-44"
+              aria-label="Platform"
+              value={filter.platform ?? ''}
+              onChange={(e) =>
+                setFilter({
+                  ...filter,
+                  platform: (e.target.value || null) as LogFilter['platform'],
+                })
+              }
+            >
+              <option value="">All platforms</option>
+              {PLATFORMS.map((p) => (
+                <option key={p} value={p}>
+                  {PLATFORM_LABELS[p]}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
+        {tab === 'log' && data && data.length === 0 ? (
           <Empty>{COPY.emptyLog}</Empty>
-        ) : (
+        ) : tab === 'log' ? (
           <div className="overflow-hidden rounded-lg border border-line font-mono text-[12px]">
             {data?.map((e) => (
               <div
@@ -72,8 +97,85 @@ export function Activity() {
               </div>
             ))}
           </div>
-        )}
+        ) : null}
       </div>
+    </div>
+  )
+}
+
+function AuditLog() {
+  const { toast } = useApp()
+  const [actor, setActor] = useState('')
+  const { data } = useLoad(() => api.pipeline.audit({ actor: actor || undefined }), [actor])
+  return (
+    <div className="space-y-3">
+      <div className="flex items-end gap-3">
+        <Select
+          className="w-52"
+          aria-label="Who"
+          value={actor}
+          onChange={(e) => setActor(e.target.value)}
+        >
+          <option value="">Everyone</option>
+          <option value="josh">josh</option>
+          <option value="system">system</option>
+          {['grok-bot', 'kids-comedy', 'beth'].map((b) => (
+            <option key={b} value={`agent:${b}`}>
+              agent:{b}
+            </option>
+          ))}
+        </Select>
+        <Button
+          onClick={async () => {
+            const text = await api.pipeline.auditCsv({ actor: actor || undefined })
+            const path = await api.media.saveCsv(
+              `ELO audit log ${new Date().toISOString().slice(0, 10)}.csv`,
+              text,
+            )
+            if (path) toast({ kind: 'success', headline: 'Saved.', detail: path })
+          }}
+        >
+          Export CSV
+        </Button>
+      </div>
+      <p className="text-[12px] text-muted">
+        Every setting change, schedule edit, rejection, post, file removal and Upcoming write, with
+        who did it and what it was before.
+      </p>
+      {data && data.length === 0 ? (
+        <Empty>Nothing has been recorded yet.</Empty>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-line text-[12px]">
+          <table className="w-full text-left">
+            <thead className="bg-surface2 text-[11px] uppercase text-muted">
+              <tr>
+                <th className="px-3 py-2">When</th>
+                <th className="px-3 py-2">Who</th>
+                <th className="px-3 py-2">What</th>
+                <th className="px-3 py-2">Target</th>
+                <th className="px-3 py-2">Before</th>
+                <th className="px-3 py-2">After</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data?.map((e) => (
+                <tr key={e.id} className="border-t border-line align-top">
+                  <td className="px-3 py-2">{formatEastern(e.at, false)}</td>
+                  <td className="px-3 py-2">{e.actor}</td>
+                  <td className="px-3 py-2 font-semibold">{e.action}</td>
+                  <td className="px-3 py-2">{e.target}</td>
+                  <td className="max-w-xs break-words px-3 py-2 text-muted">
+                    {e.before === null ? '' : JSON.stringify(e.before)}
+                  </td>
+                  <td className="max-w-xs break-words px-3 py-2">
+                    {e.after === null ? '' : JSON.stringify(e.after)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

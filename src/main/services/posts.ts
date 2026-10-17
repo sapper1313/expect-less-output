@@ -552,6 +552,31 @@ export class PostService {
     return this.get(id) as Post
   }
 
+  /** Two scheduled posts trade times. Both must still be waiting to go out. */
+  swapTimes(a: number, b: number): void {
+    const pa = this.get(a)
+    const pb = this.get(b)
+    if (!pa || !pb) throw new Error('Post not found.')
+    if (a === b) throw new Error('Pick two different posts.')
+    for (const p of [pa, pb])
+      if (p.status !== 'scheduled' || !p.scheduledAtUtc)
+        throw new Error(`"${p.title}" is not scheduled, so its time cannot be swapped.`)
+    if (this.realHandedOff(a).length || this.realHandedOff(b).length)
+      throw new Error(
+        'One of these posts is already scheduled inside YouTube. Cancel it there first, then swap.',
+      )
+    this.db.transaction(() => {
+      const upd = this.db.prepare(
+        'UPDATE posts SET scheduled_at_utc = ?, updated_at = ? WHERE id = ?',
+      )
+      const stamp = new Date().toISOString()
+      upd.run(pb.scheduledAtUtc, stamp, a)
+      upd.run(pa.scheduledAtUtc, stamp, b)
+    })()
+    this.log.log('info', `Swapped the times of "${pa.title}" and "${pb.title}".`)
+    this.emit()
+  }
+
   reschedule(ids: number[], scheduledAtUtc: string): void {
     for (const id of ids) this.update(id, { scheduledAtUtc })
     this.log.log('info', `Rescheduled ${ids.length} post(s) to ${scheduledAtUtc}.`)

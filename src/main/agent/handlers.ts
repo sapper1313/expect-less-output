@@ -56,6 +56,7 @@ function brandOut(s: AgentServices, b: Brand) {
   return {
     id: b.id,
     name: b.name,
+    slug: b.slug,
     color: b.color,
     archived: b.archived,
     paused: settings.pausedBrandIds.includes(b.id),

@@ -40,6 +40,8 @@ export interface SchedulerDeps {
    * title no longer matches what was dropped), or null to go ahead.
    */
   preflight?: (postId: number) => Promise<string | null>
+  /** Records a post going out or failing in the audit log. */
+  audit?: (e: { actor: string; action: string; target: string; after?: unknown }) => void
 }
 
 interface DueRow {
@@ -391,6 +393,18 @@ export class Scheduler {
         checksum: string | null
         video_path: string
       }
+      if (result.status === 'posted')
+        this.d.audit?.({
+          actor: 'system',
+          action: 'post.posted',
+          target: `${row.brand_name}/${sent.episode_ref ?? row.post_id}`,
+          after: {
+            platform: row.platform,
+            title: row.title,
+            file: sent.video_path.split('/').pop(),
+            sha256: sent.checksum,
+          },
+        })
       if (sent.episode_ref)
         this.d.log.log(
           'info',
@@ -520,6 +534,12 @@ export class Scheduler {
         "UPDATE post_targets SET status = 'failed', last_error = ?, next_attempt_at_utc = NULL, lock_token = NULL, locked_at_utc = NULL WHERE id = ?",
       )
       .run(reason, row.id)
+    this.d.audit?.({
+      actor: 'system',
+      action: 'post.failed',
+      target: `${row.brand_name}/${row.post_id}`,
+      after: { platform: row.platform, reason },
+    })
     this.d.log.log('error', `${label} failed for "${row.title}": ${reason}`, {
       postId: row.post_id,
       platform: row.platform,

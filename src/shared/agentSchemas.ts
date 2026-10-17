@@ -190,6 +190,7 @@ const SlotOut = z.object({
 export const BrandOut = z.object({
   id: z.number().int(),
   name: z.string(),
+  slug: z.string().nullable().meta({ description: 'Short stable name bots use for the channel, like clock-out-early.' }),
   color: z.string(),
   archived: z.boolean(),
   paused: z.boolean(),

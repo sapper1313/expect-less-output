@@ -42,7 +42,7 @@ export const DEFAULT_STUDIO_CONFIG: StudioConfig = {
     },
   },
   retakeMultiplier: 2.5,
-  retentionDays: 60,
+  retentionDays: 30,
   directorTickMinutes: 5,
   paidConcurrency: 2,
   retryCap: 3,

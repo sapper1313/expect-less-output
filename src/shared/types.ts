@@ -77,8 +77,6 @@ export interface Settings {
   minGapMinutes: number
   /** Let the reconcile check fix the clear cases itself. It never deletes. */
   reconcileAutoFix: boolean
-  /** Days a posted video file is kept before it is deleted. 0 keeps it forever. */
-  retentionDays: number
   /** Days of queue a channel needs before the low queue alert fires. */
   lowQueueDays: number
   /** Nothing goes to any platform. Posts are marked done in the app only. */

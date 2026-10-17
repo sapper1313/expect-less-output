@@ -35,6 +35,8 @@ export class Archivist {
       workDir?: (episodeId: string) => string
       audit: AuditLog
       now?: () => number
+      /** Called for every file removed, so the app-wide audit log can record it. */
+      onDelete?: (info: { postId: number; title: string; path: string; bytes: number }) => void
     },
   ) {}
 
@@ -132,6 +134,7 @@ export class Archivist {
       for (const f of it.files) {
         try {
           unlinkSync(f.path)
+          this.d.onDelete?.({ postId: it.postId, title: it.title, path: f.path, bytes: f.bytes })
         } catch {
           // already gone
         }

@@ -170,6 +170,24 @@ export function Queue() {
             >
               Reschedule
             </Button>
+            {ids.length === 2 && (
+              <Button
+                disabled={busy}
+                onClick={async () => {
+                  const ok = await run(async () => (await api.posts.swap(ids[0], ids[1]), true))
+                  if (ok) {
+                    toast({
+                      kind: 'success',
+                      headline: COPY.success,
+                      detail: 'The two posts traded times.',
+                    })
+                    setSel(new Set())
+                  }
+                }}
+              >
+                Swap times
+              </Button>
+            )}
             <Button variant="danger" onClick={() => setConfirm('cancel')}>
               Cancel posts
             </Button>

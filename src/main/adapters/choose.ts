@@ -10,7 +10,10 @@ export function pickAdapter<T>(
   account: Account | null,
   settings: Record<string, unknown> | undefined,
   adapters: { dry: Record<Platform, T>; real: Record<Platform, T> },
+  /** The global dry run switch: every platform behaves like the dry run adapter. */
+  globalDryRun = false,
 ): T {
+  if (globalDryRun) return adapters.dry[platform]
   if (settings?.mock === true) return adapters.dry[platform]
   if (account && account.mode !== 'dry_run') return adapters.real[platform]
   return adapters.dry[platform]

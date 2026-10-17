@@ -4,6 +4,7 @@ import { COPY } from '@shared/copy'
 import type { Brand, BrandDefaults, BrandSlot, HashtagSet } from '@shared/types'
 import { api } from '../api'
 import { useApp, useDraft, useLoad } from '../hooks'
+import { DateList } from './PipelineSettings'
 import {
   Button,
   Card,
@@ -197,11 +198,13 @@ function BrandEditor({ brand }: { brand: Brand }) {
               </Check>
               <div className="ml-6 text-[12px] text-muted">
                 A video dropped in the Inbox goes live at the next open slot with no review. Leave
-                this off to get drafts you check first.
+                this off to get drafts you check first. Finished videos from the bot pipeline (they
+                carry an approval) are scheduled this way even while agents are limited to drafts.
                 {autoOn && !settings?.agentMaySchedule && (
                   <span className="text-warn">
                     {' '}
-                    This does nothing yet. Untick "Agents may create drafts only" in Settings.
+                    Plain videos with no pipeline file still need "Agents may create drafts only"
+                    unticked in Settings.
                   </span>
                 )}
               </div>
@@ -218,6 +221,7 @@ function BrandEditor({ brand }: { brand: Brand }) {
           )}
         </div>
       </Card>
+      <PipelineRules brand={brand} />
       <SlotEditor brandId={brand.id} />
       <DefaultsEditor brandId={brand.id} />
       <HashtagEditor brandId={brand.id} />
@@ -589,6 +593,81 @@ function HashtagEditor({ brandId }: { brandId: number }) {
           }}
         />
       )}
+    </Card>
+  )
+}
+
+/** The limits that belong to one channel: its slug, how many posts a day, days it never posts, and how low the queue may run. */
+function PipelineRules({ brand }: { brand: Brand }) {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
+  const { data: rules, reload } = useLoad(() => api.pipeline.channelRules(brand.id), [brand.id])
+  const [slug, setSlug] = useState(brand.slug ?? '')
+  if (!rules) return null
+  const save = async (patch: Parameters<typeof api.pipeline.setChannelRules>[1]) => {
+    if (await run(() => api.pipeline.setChannelRules(brand.id, patch))) reload()
+  }
+  return (
+    <Card title="Pipeline rules">
+      <p className="mb-3 text-[13px] text-muted">
+        These control where the next open slot lands. A daily limit of 1 means only the first slot
+        of each day is used, even if you have more times set below.
+      </p>
+      <div className="grid items-end gap-4 md:grid-cols-[1fr_auto]">
+        <Field
+          label="Slug"
+          hint="The short name bots use in a sidecar, for example clock-out-early."
+        >
+          <Input value={slug} onChange={(e) => setSlug(e.target.value)} />
+        </Field>
+        <Button
+          disabled={busy || slug === (brand.slug ?? '')}
+          onClick={async () => {
+            if (await run(() => api.brands.update(brand.id, { slug })))
+              toast({ kind: 'success', headline: COPY.success, detail: 'Slug saved.' })
+          }}
+        >
+          Save slug
+        </Button>
+      </div>
+      <div className="mt-3 grid gap-4 md:grid-cols-3">
+        <Field label="Most posts a day" hint="0 means no limit.">
+          <Select
+            aria-label="Most posts a day"
+            value={rules.maxPerDay}
+            onChange={(e) => void save({ maxPerDay: Number(e.target.value) })}
+          >
+            {[0, 1, 2, 3, 4, 5].map((n) => (
+              <option key={n} value={n}>
+                {n === 0 ? 'No limit' : n}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Low queue alert (days)" hint="Blank uses the setting for every channel.">
+          <Select
+            aria-label="Low queue alert"
+            value={rules.lowQueueDays ?? ''}
+            onChange={(e) =>
+              void save({ lowQueueDays: e.target.value === '' ? null : Number(e.target.value) })
+            }
+          >
+            <option value="">Same as every channel</option>
+            {[1, 2, 3, 5, 7, 14].map((n) => (
+              <option key={n} value={n}>
+                {n} days
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </div>
+      <div className="mt-3">
+        <DateList
+          label="Days this channel never posts"
+          dates={rules.blackoutDates}
+          onChange={(d) => void save({ blackoutDates: d })}
+        />
+      </div>
     </Card>
   )
 }

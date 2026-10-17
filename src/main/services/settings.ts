@@ -49,7 +49,6 @@ export const DEFAULT_SETTINGS: Settings = {
   blackoutDates: [],
   minGapMinutes: 0,
   reconcileAutoFix: false,
-  retentionDays: 30,
   lowQueueDays: 3,
   globalDryRun: false,
 }
