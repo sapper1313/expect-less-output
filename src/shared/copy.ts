@@ -29,6 +29,7 @@ export const COPY = {
     channels: 'Channels',
     calendar: 'Calendar',
     queue: 'Queue',
+    inbox: 'Inbox',
     stats: 'Analytics',
     studio: 'Studio',
     schedule: 'Schedule',

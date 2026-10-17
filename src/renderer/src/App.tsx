@@ -15,6 +15,7 @@ import { SearchPalette } from './components/SearchPalette'
 import { EpisodePeek } from './screens/StudioLibrary'
 import type { SearchHit } from '@shared/search'
 import { Schedule, type ScheduleMode } from './screens/Schedule'
+import { Inbox } from './screens/Inbox'
 import { About, Activity, SettingsScreen, type SettingsTab } from './screens/Simple'
 import { TikTokDemo } from './screens/TikTokDemo'
 import logoWide from './assets/logo-wide.png'
@@ -25,6 +26,7 @@ type Screen =
   | 'tiktokDemo'
   | 'calendar'
   | 'queue'
+  | 'inbox'
   | 'stats'
   | 'studio'
   | 'schedule'
@@ -40,7 +42,7 @@ const SHORTCUTS: Partial<Record<Screen, string>> = {
 /** The menu follows the work: see how things are, create and schedule, make with the Studio, check results, set up. */
 const NAV_GROUPS: Array<{ label: string; items: Screen[] }> = [
   { label: '', items: ['home'] },
-  { label: 'Create and schedule', items: ['schedule', 'calendar', 'queue'] },
+  { label: 'Create and schedule', items: ['schedule', 'inbox', 'calendar', 'queue'] },
   { label: 'Make', items: ['studio'] },
   { label: 'Results', items: ['stats'] },
   { label: 'Set up', items: ['channels', 'settings'] },
@@ -104,9 +106,11 @@ function Shell() {
   const { data: report } = useLoad(() => api.backup.report())
   const { data: studio } = useLoad(() => api.studio.overview())
   const { data: home } = useLoad(() => api.home.summary())
+  const { data: inboxCounts } = useLoad(() => api.pipeline.counts())
   const badge: Partial<Record<Screen, number>> = {
     studio: home?.badges.studio,
     queue: home?.badges.queue,
+    inbox: inboxCounts?.badge,
     channels: home?.badges.channels,
   }
 
@@ -281,6 +285,7 @@ function Shell() {
         {screen === 'home' && <Home go={go} openPost={setDetailPost} />}
         {screen === 'calendar' && <Calendar onNewPost={(when) => openSchedule('one', when)} />}
         {screen === 'queue' && <Queue />}
+        {screen === 'inbox' && <Inbox />}
         {screen === 'stats' && <Stats key={statsTab} initialTab={statsTab} />}
         {screen === 'studio' && <Studio key={studioKey} initialTab={studioTab} />}
         {screen === 'schedule' && (
