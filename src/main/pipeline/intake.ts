@@ -521,7 +521,15 @@ export class PipelineIntake {
       this.recordHold(post, why)
       return { ok: false, message: `Held: ${why}`, held: true }
     }
-    const real = realPlatforms(this.d.db, post.brandId)
+    // TikTok is always Drafts mode in the pipeline. A channel set to Direct post leaves TikTok out, with a note.
+    const tiktokDirect = !!this.d.db
+      .prepare(
+        "SELECT 1 FROM accounts WHERE brand_id = ? AND platform = 'tiktok' AND mode = 'direct'",
+      )
+      .get(post.brandId)
+    const real = realPlatforms(this.d.db, post.brandId).filter(
+      (p) => !(p === 'tiktok' && tiktokDirect),
+    )
     const keep = post.targets.filter((t) => real.includes(t.platform))
     if (keep.length === 0)
       return {

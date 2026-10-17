@@ -1,114 +1,72 @@
-# Grok Bot guide: Wonder Hollow Workshop with Expect Less Output
+# Bot guide: how ELO works with the writing and rendering bots
 
-Give this whole file to Grok Bot. It says what Expect Less Output (ELO) does now, and what Grok Bot has to do.
+Give this whole file to every bot (Grok Bot, Kids Comedy, B.E.T.H.). It is the first thing to read. The drop details are in `docs/GROKBOT_DROP_GUIDE.md`.
 
-## The short version
+**The schedule is set in the ELO app, by the owner. A bot never sets, asks for, hints at or promises a posting date or time.** Do not put a date in a sidecar. Do not tell anyone "this will post on Friday". ELO picks the next open slot for the channel from the times and days the owner set. If a sidecar contains `preferred_slot`, ELO ignores it and writes "Ignored: the schedule is set in ELO." in its log.
 
-ELO writes each Wonder Hollow Workshop episode as a complete package: script, scene by scene video prompts, title, description and thumbnail brief. It checks the package, stores it, and waits.
+## What each part does
 
-Grok Bot takes the package, makes the clips on the owner's Grok account, binds them into one finished video, and hands the video back to ELO. ELO checks it, makes the thumbnail, writes the YouTube text, and schedules it for the next Wednesday or Friday.
+1. **Bots write** scripts and shot lists, and add the episode to the Upcoming list.
+2. **B.E.T.H. checks** scripts, queues renders and checks the finished videos.
+3. **The render script** (outside ELO) makes and stitches the video.
+4. **Josh approves** the finished video in chat, before ELO sees it.
+5. **A bot drops** the approved video and its sidecar (a small JSON file) into the channel's Inbox.
+6. **ELO checks, logs, schedules and posts.** ELO does not write scripts, make videos or review them.
 
-ELO does NOT make Wonder Hollow video through the API unless the owner switches that on later. Grok Bot makes it.
+## The channels
 
-## What ELO does for you (you do not need to do any of this)
+| Channel | Slug (use this in files) | Who works on it | Posts |
+| --- | --- | --- | --- |
+| Trash Panda | `trash-panda` | Grok Bot | Short |
+| Clock Out Early | `clock-out-early` | Grok Bot | Short |
+| Teach Your Parents Tech | `teach-your-parents-tech` | Grok Bot | Short |
+| The Math of It | `math-of-it` | Grok Bot | Short |
+| Wonder Hollow Workshop | `wonder-hollow` | Grok Bot | Long, Wednesday and Friday only |
+| Backup Heroes | `backup-heroes` | Kids Comedy | Short, waits until the owner connects an account |
+| The Complaint Department | `complaint-department` | Kids Comedy | Short, waits until the owner connects an account |
 
-1. **Writes the episode** in the Wonder Hollow voice: about 3 minutes, 3D animated, made for kids, one life lesson and one math lesson.
-2. **Checks it.** Every counted number is verified by running code, not by guessing. A safety check blocks anything frightening, unsafe, mature, or with real people or brands. A repetition check blocks a copy of an earlier episode.
-3. **Stores it** in the Library as `Ready for production`, and keeps a plain `.json` copy in `~/ELO/Library/hollow/ready/` (one file per episode, named by the episode id). The copy disappears from that folder once the episode moves on.
-4. **Plans the schedule.** Wonder Hollow posts on Wednesday and Friday. The production windows are Sunday and Monday (for Wednesday) and Wednesday and Thursday (for Friday). ELO makes sure a package is ready before a window opens, and the owner gets a message if a posting slot is going to be missed.
-5. **After your video arrives:** checks it, writes the YouTube title and description, makes a 1280 by 720 thumbnail under 2 MB, sets the made for kids and AI labels, and schedules it. YouTube only. Comments are off.
+Shorts are 9:16 and 5 to 180 seconds. Wonder Hollow is 16:9 and 60 to 720 seconds. Every video needs sound.
 
-## What Grok Bot has to do
+## The one episode id
 
-### Step 1: find an episode to make
+Every episode has one id for its whole life: `<slug>-<year>-<nnnn>`, for example `clock-out-early-2026-0007`. Use the same id in the Upcoming list, in the sidecar, and in the video file name. If you leave the id out when you add an entry to Upcoming, ELO picks the next free one and returns it.
 
-Ask the local ELO service. It runs on the owner's Mac while the app is open.
+## Your own token
 
-- Base address: `http://127.0.0.1:47821` (the port can be changed in ELO Settings, so ask the owner if it fails).
-- Header on every request: `Authorization: Bearer YOUR_TOKEN_HERE`. The owner makes the token in ELO, Settings, Agents (local API and MCP), after ticking **Turn on the local API**.
-- List the ones ready for you: `GET /v1/episodes?status=Ready%20for%20production`
-- Read one in full: `GET /v1/episodes/{id}`
+Each bot has its own token, made by the owner in ELO under Settings, Agent API, Bots. Send it as `Authorization: Bearer <token>` to `http://127.0.0.1:47821`. A bot token can read, drop videos into its own channels, and use Upcoming. It cannot change settings, schedule by hand or delete anything.
 
-These two calls are read only. You cannot change an episode through the API.
+## The Upcoming list
 
-If the API is not reachable, read the `.json` files in `~/ELO/Library/hollow/ready/` instead. They hold the same package.
+`GET /v1/upcoming` shows every episode in flight. `POST /v1/upcoming` adds one (on your own channels). `PATCH /v1/upcoming/{channel}/{episode_id}` edits or moves one. The statuses go in this order: `idea`, `scripted`, `queued`, `rendering`, `needs-review`, `dropped`.
 
-### Step 2: read the package
+- Move an entry forward as the work moves: `scripted` when the script is done, `queued` when a render is queued, `rendering` while it renders, `needs-review` when the video is ready for Josh.
+- You may edit the title, premise and notes only of entries you created. You may move any entry on your own channels forward and set `script_path` and `notes` on it.
+- Moving an entry backward needs B.E.T.H. (or Josh) and a note saying why.
+- Never set `dropped`. ELO does that when the video with the exact same episode id is accepted.
+- Always send `entry_revision` (the number you read) with a change. If someone changed the entry after you read it, different fields are merged. If you both changed the same field, ELO keeps both versions, flags a conflict (HTTP 409), and the owner sorts it out. Never retry a conflict by overwriting.
+- You can also edit `upcoming.json` directly (the file is `Shared/upcoming.json` in the Media Root), but ELO then checks what you changed. Raise `revision` and the entry's `entry_revision`, and set `updated_by` to your name. A change you are not allowed to make is flagged and the owner can put the file back.
 
-Important fields:
+## Dropping a finished video
 
-| Field | What it is |
+Read `docs/GROKBOT_DROP_GUIDE.md`. In short: put `<episode-id>.mp4` and `<episode-id>.json` in `<Media Root>/<Channel name>/Inbox`, or call `POST /v1/drops`. ELO answers by moving the video to the channel Queue (accepted) or to `Inbox/Rejected` with a reason (not accepted).
+
+## Reading what happened
+
+- `GET /v1/drops` and `GET /v1/drops/{id}`: the drop log, with the decision and the reason.
+- `GET /v1/posts?origin=inbox` and `?held=true`: the posts that came from drops, and the ones held back.
+- `GET /v1/slots/next-open?channel=<slug>&days=14`: the open slots. You can look. You cannot choose one.
+- `GET /v1/reconcile`: things that do not add up.
+
+## Things that can happen to a drop
+
+| Result | Meaning |
 | --- | --- |
-| `id` | The episode id. You need it when you hand the video back. |
-| `title`, `logline`, `life_lesson`, `math_lesson` | What the episode is about. |
-| `runtime_target_seconds` | About 180. Your finished video must land within 40 percent of this. |
-| `counted_objects` | A list of `{ name, quantity, scenes }`. Never change a quantity. |
-| `scenes[]` | The story, one object per scene (see below). |
-| `youtube` | Title, description and tags. ELO uses and polishes these, you do not need to. |
-| `thumbnail_brief` | For ELO's thumbnail step. You can ignore it. |
+| accepted and scheduled | It has a slot. Nothing more to do. |
+| accepted and waiting | The channel is paused, has no connected account, or the owner turned off automatic scheduling. The owner schedules it later. |
+| held | Something does not match (for example the file name does not contain the episode id). Nothing posts until the owner looks. |
+| rejected | The sidecar or the video is wrong. The reasons are in `<name>.error.txt` and `<name>.reason.json` in `Inbox/Rejected`. Fix it and drop again. |
+| duplicate | The same video or the same episode id is already in ELO. |
 
-Each scene has:
+## Older flow
 
-- `n`: the scene number. Make them in order.
-- `grok_prompt`: the complete prompt for the video model. Use it as written.
-- `content_seconds`: 10. This is how much of the scene is used in the final video.
-- `generate_seconds`: 10, or 15 when a transition handle helps the next scene start smoothly. If it is 15, generate 15 seconds, then use the first 10 seconds in the final video. Use the extra frames for a smooth cut or crossfade into the next scene. It is a handle, not 5 extra seconds of story.
-- `setting`, `characters`, `action`, `dialogue`, `camera`, `transition_in`, `transition_out`, `extension_note`: the details behind the prompt. Keep characters, rooms and props the same from scene to scene.
-- `objects_in_frame`: what must be visible.
-
-### Step 3: rules for the video
-
-1. **Counted objects are always on screen.** While the crew counts, the objects must be visible, they must look like they belong in the story world, and the exact quantity in `counted_objects` must be what is on screen. The crew counts out loud, one number at a time, in order. Do not skip or repeat a number.
-2. **Keep it kid safe.** Nothing scary, shocking, violent or mature. No real people, no real brands, no product placement. Positive tone.
-3. **Ending.** The closing is the crew singing a goodbye ("see you next time") that ends on the Hollow logo. No credits.
-4. **The shared opening** is already part of what you bind. ELO does not add it again unless the owner turned that setting on.
-5. **Shape.** 16:9, about 3 minutes, MP4 or MOV, with sound all the way through, no long black or frozen stretches.
-6. **No em dashes** in anything you write, including file names, notes and messages. Use commas, periods or the word "and".
-
-### Step 4: hand the video back
-
-Put these in the Wonder Hollow Workshop `Inbox` folder (inside the owner's ELO Media Root, usually `~/Movies/Expect Less Output/Wonder Hollow Workshop/Inbox`). Use one of two ways.
-
-**Way A, a video file plus a JSON file.** Save the finished video as `something.mp4`. Next to it save `something.json` (same name):
-
-```json
-{ "episode_id": "wonder-hollow-workshop-2026-0003" }
-```
-
-**Way B, a link.** Save just a JSON file, for example `something.json`:
-
-```json
-{ "episode_id": "wonder-hollow-workshop-2026-0003", "video_url": "https://example.com/the-video.mp4" }
-```
-
-ELO downloads it into the Inbox as `something.mp4`. The link must be http or https, point to a real MP4 or MOV, and be under 2 GB.
-
-Leave everything else out. ELO writes the YouTube title and description itself from the package, and picks the next Wednesday or Friday slot itself. Sending a title, a caption or a time in the JSON changes nothing, and a `scheduled_at` in the past makes the file get rejected.
-
-The folder must be one the owner has switched on as an Inbox for Wonder Hollow Workshop (ELO, Brands, tick **Watch this brand's Inbox folder**). If a video is not picked up after a minute, ask the owner to check that.
-
-Do not delete or rename files in the Inbox. ELO moves them itself.
-
-### Step 5: what to expect back
-
-- The episode moves to `Video received`, `Checking video`, then `Scheduled`. Read it again with `GET /v1/episodes/{id}` to see the status.
-- If the video fails a check, the episode becomes `Flagged` with a plain reason and the file moves to the Inbox `Rejected` folder with an explanation next to it. The usual reasons are:
-  - the video is not 16:9
-  - there is no sound
-  - the length is far from `runtime_target_seconds`
-  - a long black or frozen stretch
-  - the `episode_id` does not exist
-  Fix the problem, make the video again, and hand it back with the same `episode_id`.
-- Do not hand the same episode back twice.
-
-## Quick checklist for Grok Bot
-
-1. `GET /v1/episodes?status=Ready%20for%20production`, pick one.
-2. `GET /v1/episodes/{id}`, read every scene.
-3. Make each scene from its `grok_prompt`, in order, 10 seconds each (15 where `generate_seconds` says so, trimmed to 10).
-4. Keep counted objects on screen, exact quantity, counted aloud in order.
-5. End on the goodbye song and the Hollow logo. No credits.
-6. Export one 16:9 MP4 of about 3 minutes with sound.
-7. Put the video and a JSON file with the `episode_id` in the Wonder Hollow Workshop Inbox.
-8. Read the episode again to confirm it says `Scheduled`.
-9. Never invent facts, never change counts, never use em dashes, never ask for or repeat the API token anywhere except the request header.
+Before the pipeline, a sidecar with only `episode_id` and `video_url` handed a Studio episode back. That still works for episodes made inside ELO's Studio, but the Studio no longer writes or produces episodes, so use the pipeline sidecar.

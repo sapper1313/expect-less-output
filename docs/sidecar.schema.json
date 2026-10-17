@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Always \"1.0\"."
+    },
+    "channel": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The channel slug, for example clock-out-early. It must match the Inbox folder you dropped into."
+    },
+    "episode_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The one episode id, <slug>-<year>-<nnnn>, for example clock-out-early-2026-0007. The video file name must contain it."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Up to 100 characters."
+    },
+    "description": {
+      "type": "string",
+      "description": "The YouTube description and the Instagram and TikTok caption."
+    },
+    "tags": {
+      "description": "Up to 30. Sent as YouTube tags and added as hashtags where the caption lacks them.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "thumbnail_path": {
+      "description": "JPG or PNG next to the video, under 2 MB. Used as the YouTube thumbnail on long videos.",
+      "type": "string"
+    },
+    "video_file": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The video file name. It must equal the video file you dropped."
+    },
+    "platforms": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "youtube",
+          "facebook",
+          "instagram",
+          "tiktok"
+        ]
+      }
+    },
+    "preferred_slot": {
+      "description": "Accepted and ignored. The schedule is set in ELO. A bot never sets, requests or promises a posting time.",
+      "type": "string"
+    },
+    "approval": {
+      "type": "object",
+      "properties": {
+        "approved_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "approved_at": {
+          "type": "string",
+          "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+        }
+      },
+      "required": [
+        "approved_by",
+        "approved_at"
+      ],
+      "description": "Josh approves outside ELO before the drop. A sidecar without it is rejected."
+    },
+    "checksum": {
+      "type": "object",
+      "properties": {
+        "algo": {
+          "type": "string",
+          "const": "sha256"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$"
+        }
+      },
+      "required": [
+        "algo",
+        "value"
+      ]
+    },
+    "source_bot": {
+      "type": "string",
+      "minLength": 1
+    },
+    "render": {
+      "description": "Stored in the drop log only.",
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {}
+    },
+    "caption_overrides": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "ai_flags": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "boolean"
+      }
+    },
+    "tiktok": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {}
+    },
+    "thumb_offset_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    }
+  },
+  "required": [
+    "schema_version",
+    "channel",
+    "episode_id",
+    "title",
+    "description",
+    "video_file",
+    "platforms",
+    "approval",
+    "checksum",
+    "source_bot"
+  ],
+  "description": "The .json file that goes next to a finished video in a channel Inbox.",
+  "title": "ELO pipeline sidecar",
+  "$id": "https://expectlessmedia.com/schemas/sidecar-1.0.json"
+}

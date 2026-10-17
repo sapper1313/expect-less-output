@@ -187,3 +187,34 @@ describe('Studio production off keeps the rest running (test 22)', () => {
     expect(types.has('analytics_daily')).toBe(true)
   })
 })
+
+describe('TikTok (test 21)', () => {
+  it('goes to Drafts accounts and is skipped, with a note, where it is a dry run or set to Direct post', async () => {
+    const t = pipelineSetup({
+      live: [
+        [1, 'youtube'],
+        [1, 'tiktok'],
+        [2, 'youtube'],
+        [2, 'tiktok'],
+      ],
+    })
+    t.env.db
+      .prepare("UPDATE accounts SET mode = 'drafts' WHERE brand_id = 1 AND platform = 'tiktok'")
+      .run()
+    t.env.db
+      .prepare("UPDATE accounts SET mode = 'direct' WHERE brand_id = 2 AND platform = 'tiktok'")
+      .run()
+    t.drop(TP, 'trash-panda', 31, { platforms: ['youtube', 'tiktok'] })
+    t.drop('Clock Out Early', 'clock-out-early', 32, { platforms: ['youtube', 'tiktok'] })
+    t.drop('Teach Your Parents Tech', 'teach-your-parents-tech', 33, {
+      platforms: ['youtube', 'tiktok'],
+    })
+    await t.settle()
+    const by = (id: number) => t.env.posts.list({ brandId: id })[0].targets.map((x) => x.platform)
+    expect(by(1)).toEqual(['youtube', 'tiktok'])
+    expect(by(2)).toEqual(['youtube'])
+    const notes = t.drops.list().map((d) => d.notes ?? '')
+    expect(notes.filter((n) => /Skipped \(no real account\): tiktok/.test(n)).length).toBe(1)
+    expect(t.env.posts.list({ brandId: 3 })[0].status).toBe('draft') // channel 3 has no real account at all, so it waits
+  })
+})

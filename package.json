@@ -1,7 +1,7 @@
 {
   "name": "expect-less-output",
   "productName": "Expect Less Output",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "The algorithm has been fed.",
   "main": "./out/main/index.js",
   "author": "Expect Less Media",
@@ -17,7 +17,8 @@
     "icons": "node scripts/make-icons.mjs",
     "dist": "npm run icons && npm run build && npm run build:mcp && electron-builder --mac --arm64",
     "openapi": "node scripts/gen-openapi.mjs",
-    "build:mcp": "node scripts/build-mcp.mjs"
+    "build:mcp": "node scripts/build-mcp.mjs",
+    "schemas": "node scripts/gen-schemas.mjs"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.2.0",

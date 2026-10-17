@@ -1,98 +1,97 @@
-# Grok Bot: how to hand a finished Wonder Hollow video to ELO by link
+# Bot guide: dropping a finished video into ELO
 
-Give this whole file to Grok Bot. It covers only the last step: sending a finished video back. For how to read the episodes and make the video, see `docs/GROKBOT_GUIDE.md`.
+Give this whole file to every bot that hands videos to ELO. Read `docs/GROKBOT_GUIDE.md` first.
 
-## The idea in one minute
+**The schedule is set in the ELO app, by the owner. A bot never sets, asks for, hints at or promises a posting date or time.** A drop has no date in it. `preferred_slot` is accepted so old files do not break, but ELO ignores it.
 
-You do not copy the video file anywhere. You upload the finished video to a place that gives a direct link, then drop one small JSON file in the Wonder Hollow Workshop Inbox folder. ELO sees the file, downloads the video from your link, checks it, writes the YouTube text, makes the thumbnail, and schedules it.
+## The two files
 
-The JSON file is required. It is the only way ELO knows which episode the video belongs to.
+For one finished video you make two files with the same name apart from the ending:
 
-## Step 1: make a good link
+```
+clock-out-early-2026-0007.mp4
+clock-out-early-2026-0007.json
+```
 
-The link must be:
+Rules for the names:
 
-- **Direct.** Opening it must start downloading the video itself. A page that shows a video player, a "preview" page, or a "click to download" page does not work. For Google Drive, Dropbox and similar sites, use the real download link, not the share link.
-- **Public to anyone who has it.** ELO does not log in, accept cookies or click anything. A link that asks for a password or a sign in fails.
-- **http or https.**
-- **A real MP4 or MOV file.** ELO opens the first bytes of the download to check. A web page, a zip file or a WebM file is rejected.
-- **Under 2 GB.**
-- **Fast enough.** The whole download must finish in 10 minutes.
-- **Alive for at least 15 minutes after you drop the file.** A link that expires in a few minutes is risky. A signed link that lasts an hour is fine.
-- **Sent with the full file size.** If the server cuts the download short, ELO notices and rejects it.
+1. The video file name must contain the episode id (`clock-out-early-2026-0007`). If it does not, ELO holds the drop and does not schedule it.
+2. The `.json` file has the same name as the video, with `.json` at the end.
+3. Copy the video first and the `.json` last. ELO waits until both are there and the sizes stop changing for 5 seconds. To skip the wait, create an empty file called `clock-out-early-2026-0007.ready` after the other two.
 
-Links that carry a secret token are fine. ELO writes only the site name in its logs, never the full link.
+Put both in the channel's Inbox folder: `<Media Root>/<Channel name>/Inbox`, for example `~/Movies/Expect Less Output/Clock Out Early/Inbox`. The owner can also let you call `POST /v1/drops` (see the end).
 
-## Step 2: write the JSON file
-
-Save a file with this content. Use the real episode id from ELO (it looks like `wonder-hollow-workshop-2026-0003`):
+## The sidecar
 
 ```json
 {
-  "episode_id": "wonder-hollow-workshop-2026-0003",
-  "video_url": "https://example.com/the-video.mp4"
+  "schema_version": "1.0",
+  "channel": "clock-out-early",
+  "episode_id": "clock-out-early-2026-0007",
+  "title": "Find Any Chrome Tab Instantly",
+  "description": "Stop scrolling through forty tabs. Here is the trick. #productivity",
+  "tags": ["chrome", "productivity"],
+  "thumbnail_path": "clock-out-early-2026-0007_thumb.jpg",
+  "video_file": "clock-out-early-2026-0007.mp4",
+  "platforms": ["youtube", "tiktok", "instagram"],
+  "approval": { "approved_by": "Josh", "approved_at": "2026-10-16T15:30:00-04:00" },
+  "checksum": { "algo": "sha256", "value": "<64 hex characters of the mp4>" },
+  "source_bot": "grok-bot",
+  "render": { "model": "LTX-2.5", "resolution": "720x1280", "fps": 24, "duration_s": 29.8 }
 }
 ```
 
-Rules for the file:
+The full format is in `docs/sidecar.schema.json`. In plain words:
 
-1. The name ends in `.json`. A good name is the episode id, for example `wonder-hollow-workshop-2026-0003.json`.
-2. Use exactly those two fields. Anything else you add (a title, a caption, a time) is ignored. Do not send a `scheduled_at`: a time in the past makes the file get rejected, and ELO picks the next Tuesday or Friday itself.
-3. The `episode_id` must exist in ELO. Check it with `GET /v1/episodes/{id}` first.
-4. Do **not** also put a video file with the same name in the Inbox. If a video file with the same name is already there, ELO uses that file and ignores the link.
-
-## Step 3: put it in the Inbox
-
-Save the JSON file in the Wonder Hollow Workshop Inbox folder:
-
-```
-<ELO Media Root>/Wonder Hollow Workshop/Inbox
-```
-
-The usual place is `~/Movies/Expect Less Output/Wonder Hollow Workshop/Inbox`. If the owner moved the Media Root, ask them for the path. In ELO, **Brands** must also have **Watch this brand's Inbox folder** ticked for Wonder Hollow Workshop. If nothing happens after a minute, ask the owner to check that box.
-
-Write the file in one go. If you can, write it to a temporary name first and rename it to `.json` when it is complete. ELO waits until the file stops changing for about 5 seconds, so a normal save is also safe.
-
-Do not rename, move or delete anything else in the Inbox. ELO moves its own files.
-
-## Step 4: check that it worked
-
-1. Within about a minute, a video named after your JSON file (for example `wonder-hollow-workshop-2026-0003.mp4`) appears in the Inbox while ELO downloads it. Big files take longer.
-2. Read the episode again with `GET /v1/episodes/{id}`. The status moves `Video received`, then `Checking video`, then `Scheduled`.
-3. When it says `Scheduled`, you are done. Do not send it again.
-
-## When something goes wrong
-
-ELO moves the JSON file (and the video, if one arrived) to the `Rejected` folder inside the Inbox and writes a plain `.error.txt` next to it. The episode becomes `Flagged` when the problem is with the video itself.
-
-| Message | What it means | What to do |
+| Field | Needed | What it is |
 | --- | --- | --- |
-| video_url is not a valid web address | The link is broken or has a typo | Fix the link |
-| video_url must be an http or https address | Wrong kind of link | Use https |
-| The server answered 403 or 404 | The link needs a login, or it expired or never existed | Make a public direct link |
-| The download stopped early | The server cut the file short | Upload again and use a stable host |
-| The download came back empty | The link gave no file | Check the link in a private browser window |
-| The download is not an MP4 or MOV video | It was a web page, a zip, or another format | Export an MP4 or MOV, use the direct link |
-| The file is bigger than 2 GB | Too large | Export at a lower bit rate |
-| Could not download the video | Network trouble or more than 10 minutes | Try again |
-| No episode exists in the Library | Wrong `episode_id` | Check the id with `GET /v1/episodes` |
+| `schema_version` | yes | Always `"1.0"`. |
+| `channel` | yes | The channel slug. It must match the Inbox folder you used. |
+| `episode_id` | yes | `<slug>-<year>-<nnnn>`. Unique for the channel. |
+| `title` | yes | Up to 100 characters. |
+| `description` | yes | The YouTube description and the Instagram and TikTok caption. |
+| `tags` | no | Up to 30. They go to YouTube as tags, and are added as hashtags to the caption where the caption does not have them already. |
+| `thumbnail_path` | no | A JPG or PNG under 2 MB, next to the sidecar. Used as the YouTube thumbnail on long videos. |
+| `video_file` | yes | The exact name of the video you dropped. |
+| `platforms` | yes | Any of `youtube`, `facebook`, `instagram`, `tiktok`. A platform with no connected account is skipped and noted. TikTok always goes to Drafts. |
+| `approval` | yes | Who approved it and when (with a time zone). Without it the drop is rejected. |
+| `checksum` | yes | SHA-256 of the mp4. Make it with `shasum -a 256 file.mp4`. ELO checks it when the drop arrives, before it is scheduled, and again right before it posts. |
+| `source_bot` | yes | `grok-bot`, `kids-comedy` or `beth`. |
+| `render` | no | Anything about the render. Kept in the drop log only. |
+| `preferred_slot` | no | Ignored. Do not use it. |
 
-After a rejection, fix the problem and drop a new JSON file with the same `episode_id`. Do not hand the same episode in twice once it has been scheduled.
+Times need a zone, like `-04:00` or `Z`.
 
-If the video downloads but fails ELO's own check (not 16:9, no sound, far too short, a long black or frozen stretch), the episode shows `Flagged` with the reason. Make the video again and send a new link.
+## What ELO checks
 
-## The video itself
+1. The sidecar has every needed field and nothing unknown.
+2. `channel` matches the Inbox folder. `episode_id` looks right. `source_bot` is on the allowed list.
+3. `video_file` is the file you dropped, and the checksum matches it.
+4. The video shape: a short must be 9:16 and 5 to 180 seconds. Wonder Hollow must be 16:9 and 60 to 720 seconds. Every video needs sound.
+5. It is not a duplicate (same video, or same channel and episode id).
+6. The file name contains the episode id.
 
-- 16:9, MP4 or MOV, with sound all the way through.
-- About 3 minutes. A video that runs a little longer is fine.
-- The goodbye song ends on the Hollow logo, with no credits.
-- Counted objects are on screen with the exact quantity, counted aloud in order.
+An accepted video moves to the channel's Queue folder with its sidecar. ELO then schedules it with the next open slot, if the channel is running and has a connected account. Otherwise it waits in the Inbox screen.
 
-## Checklist
+## When a drop is not accepted
 
-1. Make the video, upload it, and test the link in a private browser window. It must start downloading right away.
-2. Write the JSON with `episode_id` and `video_url`.
-3. Save it in the Wonder Hollow Workshop Inbox.
-4. Watch the episode go to `Scheduled`.
-5. If it lands in `Rejected`, read the `.error.txt`, fix the problem, and drop a new JSON.
-6. Never use em dashes in anything you write. Never share the owner's API token anywhere except the request header.
+The video and sidecar go to `Inbox/Rejected`, with two files next to them:
+
+- `<name>.error.txt`: the reasons in plain words.
+- `<name>.reason.json`: the same reasons as data, with a `code` for each one (`bad_checksum`, `no_approval`, `wrong_channel`, `bad_format`, `bad_duration`, `no_audio`, `unknown_bot`, `duplicate_checksum`, `duplicate_episode`, and so on).
+
+Fix the cause, give the file a new name if the old one is still there, and drop it again. Never edit a file in `Rejected` in place. After a video is accepted, never change it. If you change the file, ELO notices the checksum changed and holds the post. Make a new episode id and drop again.
+
+## With a link instead of a file
+
+If the video is on the internet, drop only the `.json`, with an extra `"video_url": "https://..."`. ELO downloads it into the Inbox as `<same name>.mp4` and then checks it as above. The link must be direct, public, http or https, an MP4 or MOV, under 2 GB, and alive for at least 15 minutes. `video_file` must equal the name the download gets (`<json name>.mp4`).
+
+## With the API
+
+`POST /v1/drops` with your bot token and this body does the same as dropping the files:
+
+```json
+{ "sidecar": { "...the sidecar above..." }, "file_path": "/Users/me/renders/clock-out-early-2026-0007.mp4" }
+```
+
+`file_path` is copied into the Inbox; your original stays. The answer says `received: true` and, when it is already decided, the drop (`result`, `reason`, `scheduled_slot`). You can only drop into channels your token is allowed to use.

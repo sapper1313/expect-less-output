@@ -620,3 +620,52 @@ The phone dashboard, the iCloud report and the weekly summary are saved for when
 - **Export CSV** on Analytics and the Queue saves a spreadsheet.
 - **Reconnect works reliably.** Some networks hand out IPv6 addresses that never connect, which made Reconnect fail at random. The app now uses IPv4 first and asks again after a dropped connection, and an error now says the real reason, for example "timed out".
 - The calendar's **+ more** pop-up is solid and readable.
+
+## 21. The bot pipeline (0.11.0): Inbox, Upcoming and the new switches
+
+In this setup the bots write and make every episode. ELO only takes finished videos, schedules them with the times you set, and posts them. **The schedule is only ever what you set in the app. A bot never picks or promises a time.**
+
+### Turn off the writing (Settings, Pipeline)
+
+1. Open **Settings**, then the **Pipeline** tab.
+2. Untick **Allow ELO to use the Claude API**. ELO now makes no call to Anthropic at all. Models on your own computer (Ollama) still work. The key **Test** button says "Claude API is off".
+3. Untick **Let ELO write and produce episodes itself**. The Director stops planning episodes. The writing and production buttons in the Studio are greyed out ("Writing comes from bots."). Library, Comments, Spend and the Director's Log keep working.
+
+Both start switched **off** on a new install. On an install that was already in use they start **on**, so nothing changes until you untick them.
+
+### Upcoming (menu: Plan, Upcoming)
+
+A shared list of every episode in flight, from idea to dropped. **Board** shows one column per status. **Table** has filters, grouping and sorting. Click **Add idea** to add your own. Click a card to edit it, move it forward or back (back needs a note), copy its episode id, or open its script. The badge on the menu counts entries in **Needs review**. **Move my Studio ideas into Upcoming** copies your old ideas bank over once.
+
+Bots use the same list through the agent API with their own token. The rules are on the Bots card (Settings, Agent API): a bot edits only what it created, moves entries on its own channels forward, and never sets **Dropped**. ELO sets Dropped by itself when a video with the exact same episode id is accepted. If a bot edits the file directly in a way it should not, ELO flags it and **Restore previous** puts the file back. The file is `Shared/upcoming.json` in your Media Root.
+
+### The Inbox (menu: Create and schedule, Inbox)
+
+Bots drop a video and a small sidecar file in a channel's Inbox folder. ELO checks them (format, length, sound, checksum, approval, duplicates) and then either schedules the video at the channel's next open slot or lets it wait.
+
+- **Waiting**: accepted, no slot yet (the channel is paused, has no connected account, or automatic scheduling is off). Buttons: **Schedule (next slot)**, **Pick slot**, **Hold**, **Reject**, **Open file**.
+- **Held**: something did not match (for example the file name lacks the episode id, or the file changed after it was dropped). Nothing posts until you press **Release** or **Accept as it is**.
+- **Rejected**: what was refused and why. The files are in the channel's `Inbox/Rejected` folder with `.error.txt` and `.reason.json`.
+- **Log**: every drop ever received, with filters and **Export CSV**.
+- **Issues**: things that do not add up (two posts in one slot, a post on a blackout day, a changed file, a drop waiting over 7 days). ELO checks at start, every hour, after changes, and when you press **Reconcile now**. It reports and never deletes.
+
+A channel with no connected account (Backup Heroes, The Complaint Department for now) keeps its drops waiting. When you connect an account and untick **Pause this brand** on Channel setup, the waiting drops are scheduled in the order they arrived. If there is no connected account, the resume is refused with "Connect an account first".
+
+### New rules on Channel setup (Pipeline rules)
+
+- **Most posts a day**: starts at 1. With 1, only the first slot of each day is used, even if the channel has more times set.
+- **Days this channel never posts**: blackout dates. There is also a list for every channel in Settings, Pipeline.
+- **Low queue alert**: one alert when fewer than 3 days (changeable) of posts are scheduled ahead.
+- **Slug**: the short name bots use for the channel.
+
+### Other new switches (Settings, Pipeline)
+
+Take drops on or off, strict checks, require the approval block, refuse duplicates, which bots may drop, the wait between retries (5, 15 and 60 minutes), a gap between any two posts, **Dry run everything**, and which events send you a message. Posted videos are deleted after 30 days (it was 60). The Queue has a **Swap times** button when you select two posts.
+
+### Records, Audit log
+
+Every setting change, schedule edit, rejection, post, file removal and Upcoming change is written to the **Audit log** (Records, Audit log tab) with who did it and what it was before. **Export CSV** saves it.
+
+### Phone commands
+
+`/queue` is the same as `/today`. If your text model is offline, Telegram says so and lists the commands that still work. Send `add idea for trash panda: a raccoon files taxes` to add an idea to Upcoming. On **Settings, AI models and Local AI**, **Use the local model for chat and the Director** sets both to the model on your own computer, and a light shows if it is online.

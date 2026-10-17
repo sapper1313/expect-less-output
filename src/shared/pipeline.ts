@@ -324,3 +324,9 @@ export interface BotInfo {
   createdAt: string
   revokedAt: string | null
 }
+
+/** The JSON Schema files in docs/ are generated from the zod schemas above. */
+export function buildSidecarSchema(): Record<string, unknown> {
+  const j = z.toJSONSchema(PipelineSidecar, { io: 'input', unrepresentable: 'any' }) as Record<string, unknown>
+  return { ...j, title: 'ELO pipeline sidecar', $id: 'https://expectlessmedia.com/schemas/sidecar-1.0.json' }
+}

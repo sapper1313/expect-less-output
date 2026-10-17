@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.11.0 The bot pipeline: drops, Inbox, Upcoming and new switches
+
+Bots now write and make the episodes. ELO takes finished videos, schedules them with the times the owner set, and posts them. The schedule is only ever what is set in the app; a bot never picks or promises a time.
+
+- **Claude API switch** (Settings, Pipeline). Off means no call to Anthropic at all ("Writing comes from bots."). Local `ollama:` models still work. The key Test button says "Claude API is off". A startup log line states the setting.
+- **Studio production switch.** Off stops the Director's runway and production planners, the Show Writer, the Producer and manual write, produce and rebuild. Buttons are disabled with a tooltip and the Studio shows a banner. Comments, Analytics, Research, Spend, Telegram and the Library keep working. Both switches start off on a new install and on for an install already in use (migration 016).
+- **Channel slugs** (`trash-panda`, `clock-out-early`, `teach-your-parents-tech`, `math-of-it`, `wonder-hollow`, `backup-heroes`, `complaint-department`) shown in the agent API and editable on Channel setup (migration 017).
+- **Pipeline drops.** A sidecar with `schema_version` is checked (fields, channel, episode id, bot allowlist, approval, SHA-256, video format and length per channel, duplicates) and then logged, filed and scheduled by the existing next open slot. `preferred_slot` is ignored and logged. `.ready` marker, `.reason.json` next to `.error.txt`. A `docs/sidecar.schema.json` is generated from the code.
+- **Oct 13 safeguards.** Posts are keyed by `episode_ref` (unique per channel). The file name must contain the episode id. The file, checksum and title are checked when scheduling and again right before posting; a mismatch holds the post and tells the owner. The title, file and checksum sent are written to the Activity Log.
+- **Drop log** (`drops` table and `logs/drops.jsonl`), filterable and exportable.
+- **Inbox screen** with Waiting, Held, Rejected, Log and Issues tabs and a menu badge.
+- **Waiting rule.** A drop for a paused channel, a channel with no connected account, or with automatic scheduling off waits. Resuming a channel schedules its waiting drops in arrival order, and is refused with "Connect an account first" when no account is connected. A platform with no real account (or TikTok on Direct post) is skipped with a note; TikTok is Drafts only.
+- **Reconcile** (hourly, at start, after changes, and Reconcile now): double booking, over the daily limit, invalid slot, orphan post, open slot guard, file drift, waiting too long, stuck upload, and the Upcoming checks. Report only. Optional auto fix moves a second bot post out of a taken slot. Low queue alert replaces the Director's missed slot alert.
+- **Slot rules.** Daily limit per channel (default 1), blackout dates (global and per channel), minimum gap between posts. Retry waits are a setting (default 5, 15, 60 minutes).
+- **Upcoming** (menu Plan): the shared `Shared/upcoming.json` with a Board and Table, ownership rules, revisions and conflict handling, atomic writes, live watching with polling, Restore previous, and the one time move of Studio ideas. Agent API: `GET`, `POST`, `PATCH /v1/upcoming`.
+- **Bots** card: one token per bot (stored hashed), allowed channels, role, revoke. Bot tokens can read, drop and use Upcoming.
+- **Agent API:** `POST /v1/drops`, `GET /v1/drops`, `GET /v1/drops/{id}`, `GET /v1/reconcile`, slots by channel slug with `days`, posts filters `origin` and `held`. 29 MCP tools.
+- **Audit log** (Records): settings, schedule edits, swaps, cancels, deletes, rejections, posts, retention deletions, bot and Upcoming changes, with before and after. CSV export.
+- **Other:** Swap times in the Queue, Dry run everything, retention default 30 days with an audit row per file, `/queue` and an offline reply in Telegram, `add idea for <channel>: ...`, Use the local model for chat and the Director with a status light.
+- **Docs:** `GROKBOT_GUIDE.md` and `GROKBOT_DROP_GUIDE.md` rewritten for the pipeline, `upcoming.schema.json`, `openapi.json`, User Guide section 21.
+
 ## 0.10.0 Workflow menu, one place to schedule, reliability and QA
 
 - **Reconnect fixed.** The Mac's network had IPv6 addresses that resolve but never connect, so connections to Google and Meta timed out after 10 seconds about one time in eight ("fetch failed"). Lookups now prefer IPv4 (0 failures in 36 test calls, slowest 199 ms), calls that are safe to repeat are tried again after a network failure, and errors name the real cause.
