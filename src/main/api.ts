@@ -1,6 +1,7 @@
 import type { AuditEvents } from './pipeline/auditEvents'
 import type { DropLog } from './pipeline/dropLog'
 import type { PipelineIntake } from './pipeline/intake'
+import type { InboxService } from './pipeline/inboxService'
 import { writeFileSync } from 'fs'
 import type { Api } from '@shared/api'
 import type { Platform, Settings } from '@shared/types'
@@ -82,6 +83,7 @@ export interface ApiDeps {
   audit: AuditEvents
   drops: DropLog
   pipeline: PipelineIntake
+  inbox: InboxService
   /** Throws when a paused channel may not be resumed yet. */
   beforeResume: (brandId: number) => void
   afterResume: (brandId: number) => void
@@ -363,6 +365,7 @@ export function buildApi(d: ApiDeps): Api {
           postStats: (id) => d.stats.postStats(id),
         }),
     },
+    pipeline: d.inbox.api(),
     textAssist: {
       available: async () => d.settings.get().llmProvider !== 'none',
       status: async () => {

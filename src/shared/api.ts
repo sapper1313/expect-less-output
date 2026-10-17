@@ -48,6 +48,16 @@ import type { HomeSummary } from './home'
 import type { SearchHit } from './search'
 import type { EditPatch } from './platformEdit'
 import type { StudioApi } from './studio/api'
+import type {
+  AuditRow,
+  ChannelRules,
+  DropFilter,
+  DropRow,
+  InboxCounts,
+  InboxItem,
+  IssueRow,
+  ScheduleOutcome,
+} from './pipeline'
 
 export interface Api {
   app: {
@@ -199,6 +209,32 @@ export interface Api {
     mcpConfig(): Promise<McpConfig>
   }
   studio: StudioApi
+  pipeline: {
+    counts(): Promise<InboxCounts>
+    /** Accepted drops with no slot yet. */
+    waiting(): Promise<InboxItem[]>
+    held(): Promise<InboxItem[]>
+    /** Rejected and duplicate drops, newest first. */
+    rejected(): Promise<DropRow[]>
+    log(filter: DropFilter): Promise<DropRow[]>
+    logCsv(filter: DropFilter): Promise<string>
+    /** Gives the drop the channel's next open slot. */
+    schedule(postId: number): Promise<ScheduleOutcome>
+    /** The channel's open slots for this drop, to pick from. */
+    openSlots(postId: number, count: number): Promise<string[]>
+    pickSlot(postId: number, slotUtc: string): Promise<ScheduleOutcome>
+    hold(postId: number, reason: string): Promise<void>
+    /** Clears a hold after checking the file again. accept: take the file and title as they are now. */
+    release(postId: number, accept: boolean): Promise<ScheduleOutcome>
+    reject(postId: number, note: string): Promise<void>
+    openFile(postId: number): Promise<void>
+    issues(): Promise<IssueRow[]>
+    reconcileNow(): Promise<IssueRow[]>
+    audit(filter: { actor?: string; action?: string }): Promise<AuditRow[]>
+    auditCsv(filter: { actor?: string; action?: string }): Promise<string>
+    channelRules(brandId: number): Promise<ChannelRules>
+    setChannelRules(brandId: number, patch: Partial<ChannelRules>): Promise<ChannelRules>
+  }
   home: {
     summary(): Promise<HomeSummary>
   }

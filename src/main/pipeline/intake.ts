@@ -16,6 +16,7 @@ import {
   validatePipelineSidecar,
   type DropResult,
   type PipelineSidecarInput,
+  type ScheduleOutcome,
   type Reason,
 } from '@shared/pipeline'
 import type { DropInput, DropLog } from './dropLog'
@@ -47,19 +48,12 @@ export interface IntakeDeps {
   onChange?: () => void
 }
 
+export type { ScheduleOutcome }
 export type IntakeOutcome = {
   result: DropResult
   postId: number | null
   reasons: Reason[]
   scheduledAtUtc: string | null
-}
-
-export interface ScheduleOutcome {
-  ok: boolean
-  /** Plain words when it did not happen. */
-  message: string
-  scheduledAtUtc?: string
-  held?: boolean
 }
 
 const MAX_THUMB_BYTES = 2 * 1024 * 1024

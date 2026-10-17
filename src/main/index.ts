@@ -22,6 +22,8 @@ import { preferIpv4 } from './network'
 import { DropLog } from './pipeline/dropLog'
 import { AuditEvents } from './pipeline/auditEvents'
 import { PipelineIntake } from './pipeline/intake'
+import { InboxService } from './pipeline/inboxService'
+import { Reconciler } from './pipeline/reconcile'
 import { realPlatforms, verifyPipelinePost } from './pipeline/verify'
 import { probe as probeVideo } from './studio/ffmpeg'
 import type { AlertKind } from './alerts/format'
@@ -191,7 +193,12 @@ async function boot(): Promise<void> {
 
   const emit = () => send({ type: 'changed' })
   const brands = new BrandService(db, (name) => library.ensureBrandFolders(name))
-  const posts = new PostService(db, library, media, log, emit)
+  // The reconcile check runs a few seconds after any post changes, once for a burst of changes.
+  let reconcileSoon: () => void = () => {}
+  const posts = new PostService(db, library, media, log, () => {
+    emit()
+    reconcileSoon()
+  })
 
   const ensureAllFolders = () => {
     mkdirSync(settings.get().mediaRoot, { recursive: true })
@@ -469,6 +476,35 @@ async function boot(): Promise<void> {
         'Connect an account first. Open Connections, connect at least one platform for this channel, then resume it.',
       )
   }
+  const reconciler = new Reconciler({
+    db,
+    posts,
+    library,
+    settings,
+    notify: pipelineNotify,
+    reschedule: (id, slot) => void posts.update(id, { scheduledAtUtc: slot }),
+    log: (level, m) => log.log(level, m),
+    onChange: emit,
+  })
+  {
+    let t: NodeJS.Timeout | null = null
+    reconcileSoon = () => {
+      if (t) clearTimeout(t)
+      t = setTimeout(() => void reconciler.run().catch(() => {}), 8_000)
+    }
+  }
+  const inboxService = new InboxService({
+    db,
+    posts,
+    library,
+    settings,
+    intake: pipeline,
+    drops: dropLog,
+    audit: auditEvents,
+    reconciler,
+    openPath: async (p) => void (await shell.openPath(p)),
+    emit,
+  })
   const afterResume = (brandId: number) =>
     void pipeline
       .scheduleWaiting(brandId)
@@ -777,6 +813,7 @@ async function boot(): Promise<void> {
     audit: auditEvents,
     drops: dropLog,
     pipeline,
+    inbox: inboxService,
     beforeResume,
     afterResume,
     telegram,
@@ -900,6 +937,8 @@ async function boot(): Promise<void> {
   stats.start()
   void agent.apply()
   inbox.start()
+  setTimeout(() => void reconciler.run().catch(() => {}), 20_000)
+  setInterval(() => void reconciler.run().catch(() => {}), 3_600_000)
   studio.start()
   updateBlocker()
   log.log('info', 'App started.')

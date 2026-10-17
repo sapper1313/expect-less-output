@@ -37,20 +37,14 @@ export const PipelineSidecar = z
     description: z
       .string()
       .meta({ description: 'The YouTube description and the Instagram and TikTok caption.' }),
-    tags: z
-      .array(z.string())
-      .optional()
-      .meta({
-        description:
-          'Up to 30. Sent as YouTube tags and added as hashtags where the caption lacks them.',
-      }),
-    thumbnail_path: z
-      .string()
-      .optional()
-      .meta({
-        description:
-          'JPG or PNG next to the video, under 2 MB. Used as the YouTube thumbnail on long videos.',
-      }),
+    tags: z.array(z.string()).optional().meta({
+      description:
+        'Up to 30. Sent as YouTube tags and added as hashtags where the caption lacks them.',
+    }),
+    thumbnail_path: z.string().optional().meta({
+      description:
+        'JPG or PNG next to the video, under 2 MB. Used as the YouTube thumbnail on long videos.',
+    }),
     video_file: z
       .string()
       .min(1)
@@ -60,11 +54,9 @@ export const PipelineSidecar = z
       description:
         'Accepted and ignored. The schedule is set in ELO. A bot never sets, requests or promises a posting time.',
     }),
-    approval: z
-      .object({ approved_by: z.string().min(1), approved_at: zoned })
-      .meta({
-        description: 'Josh approves outside ELO before the drop. A sidecar without it is rejected.',
-      }),
+    approval: z.object({ approved_by: z.string().min(1), approved_at: zoned }).meta({
+      description: 'Josh approves outside ELO before the drop. A sidecar without it is rejected.',
+    }),
     checksum: z.object({
       algo: z.literal('sha256'),
       value: z.string().regex(/^[a-fA-F0-9]{64}$/, 'The checksum must be 64 hex characters.'),
@@ -253,4 +245,71 @@ export interface DropFilter {
   bot?: string
   result?: DropResult
   limit?: number
+}
+
+// ---------- what the Inbox screen shows ----------
+
+export interface ScheduleOutcome {
+  ok: boolean
+  /** Plain words about what happened or why it did not. */
+  message: string
+  scheduledAtUtc?: string
+  held?: boolean
+}
+
+export interface InboxItem {
+  postId: number
+  brandId: number
+  brandName: string
+  brandColor: string
+  channel: string | null
+  episodeId: string | null
+  title: string
+  sourceBot: string | null
+  /** When the drop arrived (UTC). */
+  droppedAt: string
+  durationSeconds: number | null
+  posterUrl: string | null
+  status: string
+  /** Why it waits (no account, paused, auto-schedule off) or why it is held. */
+  reason: string | null
+  fileName: string
+  paused: boolean
+}
+
+export interface InboxCounts {
+  waiting: number
+  held: number
+  issues: number
+  /** The number on the menu badge. */
+  badge: number
+}
+
+export interface ChannelRules {
+  maxPerDay: number
+  blackoutDates: string[]
+  lowQueueDays: number | null
+  minSeconds: number | null
+  maxSeconds: number | null
+}
+
+export interface IssueRow {
+  id: number
+  key: string
+  kind: string
+  brandId: number | null
+  postId: number | null
+  detail: string
+  firstSeen: string
+  lastSeen: string
+}
+
+export interface AuditRow {
+  id: number
+  at: string
+  actor: string
+  action: string
+  target: string
+  before: unknown
+  after: unknown
 }
