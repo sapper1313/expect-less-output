@@ -59,6 +59,7 @@ export class PostService {
     private media: MediaService | null,
     private log: ActivityLog,
     private emit: () => void = () => {},
+    private now: () => number = Date.now,
   ) {}
 
   // ---------- reading ----------
@@ -226,7 +227,7 @@ export class PostService {
       slots,
       taken: [...taken, ...extraTaken],
       count,
-      from: fromUtc ?? new Date().toISOString(),
+      from: fromUtc ?? new Date(this.now()).toISOString(),
       weekdays: this.postDays(brandId),
       blackoutDates: [
         ...new Set([...readSetting(this.db, 'blackoutDates'), ...rules.blackoutDates]),

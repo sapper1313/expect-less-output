@@ -209,7 +209,8 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
     let slots = s.posts.nextSlots(brand.id, query.count, fromUtc)
     if (query.days) {
       const end = new Date(
-        (fromUtc ? new Date(fromUtc).getTime() : Date.now()) + query.days * 86_400_000,
+        (fromUtc ? new Date(fromUtc).getTime() : s.now ? s.now() : Date.now()) +
+          query.days * 86_400_000,
       ).toISOString()
       slots = slots.filter((x) => x <= end)
     }

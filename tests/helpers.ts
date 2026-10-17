@@ -39,8 +39,15 @@ export function makeEnv(
   })
   const library = new Library(() => settings.get().mediaRoot)
   const log = new ActivityLog(db)
-  const posts = new PostService(db, library, opts.media ?? null, log)
   const clock = { ms: startMs }
+  const posts = new PostService(
+    db,
+    library,
+    opts.media ?? null,
+    log,
+    () => {},
+    () => clock.ms,
+  )
   const events = {
     failures: [] as string[][],
     successes: [] as string[][],

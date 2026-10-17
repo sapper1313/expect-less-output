@@ -102,4 +102,24 @@ describe('reconcile (tests 9, 23)', () => {
     expect(open.some((i) => i.kind === 'double_booking')).toBe(false)
     expect(t.env.posts.get(second.id)!.scheduledAtUtc).not.toBe(first.scheduledAtUtc)
   })
+
+  it('ignores posts whose time has passed, such as a partly posted one', async () => {
+    const t = pipelineSetup()
+    await t.env.makePost({ whenMs: t.env.clock.ms - 3 * 86_400_000, title: 'Old partial' })
+    await t.env.makePost({ whenMs: t.env.clock.ms - 3 * 86_400_000, title: 'Old partial 2' })
+    t.env.db.prepare("UPDATE posts SET status = 'partial'").run()
+    t.env.db
+      .prepare('UPDATE channel_rules SET blackout_json = ? WHERE brand_id = 1')
+      .run(
+        JSON.stringify([
+          new Date(t.env.clock.ms - 3 * 86_400_000).toLocaleDateString('en-CA', {
+            timeZone: 'America/New_York',
+          }),
+        ]),
+      )
+    const { r } = make(t)
+    const kinds = (await r.run()).map((i) => i.kind)
+    expect(kinds).not.toContain('double_booking')
+    expect(kinds).not.toContain('invalid_slot')
+  })
 })

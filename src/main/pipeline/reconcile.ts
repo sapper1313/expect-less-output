@@ -176,13 +176,14 @@ export class Reconciler {
     )
   }
 
+  /** Posts still waiting for their time. A post whose time has passed (posted, partly posted or failed) is history, not a booking. */
   private scheduled(): PostRow[] {
     return this.d.db
       .prepare(
         `SELECT id, brand_id, title, video_path, scheduled_at_utc, status, checksum, episode_ref, origin, created_at, hold_reason
-         FROM posts WHERE status IN ${RESERVING} AND scheduled_at_utc IS NOT NULL ORDER BY scheduled_at_utc, id`,
+         FROM posts WHERE status = 'scheduled' AND scheduled_at_utc IS NOT NULL AND scheduled_at_utc >= ? ORDER BY scheduled_at_utc, id`,
       )
-      .all() as PostRow[]
+      .all(new Date(this.now() - 60 * 60_000).toISOString()) as PostRow[]
   }
 
   private et(iso: string): string {
