@@ -23,7 +23,7 @@ const text = () => page.locator('main').innerText()
 await sleep(1500)
 
 // ---- every screen from the left menu
-const screens = ['Home', 'Schedule', 'Calendar', 'Queue', 'Studio', 'Analytics', 'Channels', 'Settings', 'Activity Log']
+const screens = ['Home', 'Upcoming', 'Schedule', 'Inbox', 'Calendar', 'Queue', 'Studio', 'Analytics', 'Channels', 'Settings', 'Activity Log']
 for (const s of screens) {
   await nav(page, s)
   await sleep(700)
@@ -51,8 +51,10 @@ await shot(page, 'tour-schedule-one')
 const tabs = {
   Studio: ['Overview', 'Research', 'Bible', 'Library', 'Flagged', 'Publishing', 'Comments', 'Spend', "Director's Log"],
   Channels: ['Channel setup', 'Connections', 'Studio settings per channel'],
-  Settings: ['General', 'Studio', 'AI models and Local AI', 'Alerts and backup', 'Agent API', 'Testing tools'],
+  Settings: ['General', 'Pipeline', 'Studio', 'AI models and Local AI', 'Alerts and backup', 'Agent API', 'Testing tools'],
   Analytics: ['Numbers', "What's working"],
+  Inbox: ['Waiting', 'Held', 'Rejected', 'Log', 'Issues'],
+  'Activity Log': ['Activity log', 'Audit log'],
 }
 for (const [screen, list] of Object.entries(tabs)) {
   await nav(page, screen)
@@ -76,6 +78,41 @@ const order = await page.locator('main button').allInnerTexts()
 const want = ['Overview', 'Research', 'Bible', 'Library', 'Flagged', 'Publishing', 'Comments', 'Spend']
 const idx = want.map((w) => order.findIndex((o) => o.startsWith(w)))
 check(idx.every((v, i) => v >= 0 && (i === 0 || v > idx[i - 1])), 'Studio tabs are in workflow order')
+
+// ---- the bot pipeline
+await nav(page, 'Settings')
+await page.click('main button:has-text("Pipeline")')
+await sleep(500)
+const claudeBox = page.locator('main label:has-text("Allow ELO to use the Claude API") input[type=checkbox]')
+check((await claudeBox.count()) === 1 && !(await claudeBox.isChecked()), 'a new install starts with the Claude API switched off')
+const prodBox = page.locator('main label:has-text("Let ELO write and produce episodes itself") input[type=checkbox]')
+check((await prodBox.count()) === 1 && !(await prodBox.isChecked()), 'and Studio production switched off')
+await shot(page, 'tour-settings-pipeline-full')
+await nav(page, 'Studio')
+await sleep(500)
+check((await text()).includes('Writing and production are off'), 'the Studio shows the banner while production is off')
+await nav(page, 'Channels')
+await page.click('main button:has-text("Channel setup")')
+await sleep(800)
+check((await text()).includes('Pipeline rules'), 'Channel setup has the Pipeline rules card')
+check((await page.locator('main input[value="trash-panda"]').count()) > 0, 'Channel setup shows the channel slug')
+const idea = await invoke(page, 'upcoming.add', { channel: 'trash-panda', working_title: 'Tour idea: raccoon taxes', premise: 'He files on time' })
+check(/^trash-panda-\d{4}-0001$/.test(idea.episode_id), 'adding an idea makes the next episode id', idea.episode_id)
+await nav(page, 'Upcoming')
+await sleep(900)
+check((await text()).includes('Tour idea: raccoon taxes'), 'Upcoming Board shows the new idea')
+await page.click('main button:has-text("Table")')
+await sleep(500)
+check((await text()).includes(idea.episode_id), 'Upcoming Table shows the episode id')
+await shot(page, 'tour-upcoming-table')
+await page.click('main button:has-text("Board")')
+await sleep(300)
+await nav(page, 'Activity Log')
+await page.click('main button:has-text("Audit log")')
+await sleep(700)
+check((await text()).includes('upcoming.add'), 'the Audit log records the new Upcoming entry')
+const nb = await page.locator('nav').innerText()
+check(nb.includes('Inbox') && nb.includes('Upcoming') && nb.toLowerCase().includes('plan'), 'the menu has Plan, Upcoming and Inbox')
 
 // ---- time pickers instead of typing
 await nav(page, 'Channels')

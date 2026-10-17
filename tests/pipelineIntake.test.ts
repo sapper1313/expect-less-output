@@ -211,6 +211,7 @@ describe('waiting drops and resume (tests 20, 21)', () => {
     const waiting = t.env.posts.list().filter((p) => p.brandId === id)
     expect(waiting.map((p) => p.status)).toEqual(['draft', 'draft'])
     expect(t.pipeline.waitingPostIds(id)).toHaveLength(2)
+    expect(t.pipeline.resumeProblem(id)).toMatch(/Connect an account first/)
     const refused = await t.pipeline.scheduleWaiting(id)
     expect(refused.scheduled).toBe(0)
     expect(refused.message).toMatch(/Connect an account first/)
@@ -219,6 +220,7 @@ describe('waiting drops and resume (tests 20, 21)', () => {
         "UPDATE accounts SET mode = 'live', status = 'connected' WHERE brand_id = ? AND platform = 'youtube'",
       )
       .run(id)
+    expect(t.pipeline.resumeProblem(id)).toBeNull()
     const ok = await t.pipeline.scheduleWaiting(id)
     expect(ok.scheduled).toBe(2)
     const after = t.env.posts.list().filter((p) => p.brandId === id)
@@ -262,16 +264,14 @@ describe('Wonder Hollow Wednesday and Friday (test 3)', () => {
     await t.settle()
     await t.settle()
     await t.settle()
-    const days = e.posts
-      .list({ brandId: id })
-      .map((p) =>
-        new Date(p.scheduledAtUtc!).toLocaleDateString('en-US', {
-          weekday: 'short',
-          timeZone: 'America/New_York',
-          month: 'numeric',
-          day: 'numeric',
-        }),
-      )
+    const days = e.posts.list({ brandId: id }).map((p) =>
+      new Date(p.scheduledAtUtc!).toLocaleDateString('en-US', {
+        weekday: 'short',
+        timeZone: 'America/New_York',
+        month: 'numeric',
+        day: 'numeric',
+      }),
+    )
     expect(days).toEqual(['Wed, 10/21', 'Fri, 10/23', 'Wed, 10/28'])
   })
 })

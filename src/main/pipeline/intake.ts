@@ -582,6 +582,17 @@ export class PipelineIntake {
     return { ok: true, message: `Scheduled for ${formatEastern(slot)}.`, scheduledAtUtc: slot }
   }
 
+  /**
+   * Why a paused channel cannot be resumed yet, or null. A channel with finished videos waiting for it and no real
+   * connected account cannot be resumed, because there is nowhere to send them.
+   */
+  resumeProblem(brandId: number): string | null {
+    if (this.d.settings.get().globalDryRun) return null
+    if (realPlatforms(this.d.db, brandId).length > 0) return null
+    if (this.waitingPostIds(brandId).length === 0) return null
+    return 'Connect an account first. Open Connections, connect at least one platform for this channel, then resume it. Videos are waiting for it.'
+  }
+
   /** What resume does for a channel: refuse with no real account, otherwise schedule the waiting drops in arrival order. */
   async scheduleWaiting(brandId: number): Promise<{ scheduled: number; message: string }> {
     const ids = this.waitingPostIds(brandId)

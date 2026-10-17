@@ -26,7 +26,7 @@ import { BotStore } from './agent/bots'
 import { InboxService } from './pipeline/inboxService'
 import { Reconciler } from './pipeline/reconcile'
 import { UpcomingService } from './pipeline/upcoming'
-import { realPlatforms, verifyPipelinePost } from './pipeline/verify'
+import { verifyPipelinePost } from './pipeline/verify'
 import { probe as probeVideo } from './studio/ffmpeg'
 import type { AlertKind } from './alerts/format'
 import { latestSchemaVersion, openDb } from './db'
@@ -496,10 +496,8 @@ async function boot(): Promise<void> {
   })
 
   const beforeResume = (brandId: number) => {
-    if (!settings.get().globalDryRun && realPlatforms(db, brandId).length === 0)
-      throw new Error(
-        'Connect an account first. Open Connections, connect at least one platform for this channel, then resume it.',
-      )
+    const problem = pipeline.resumeProblem(brandId)
+    if (problem) throw new Error(problem)
   }
   const reconciler = new Reconciler({
     db,
