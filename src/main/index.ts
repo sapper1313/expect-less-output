@@ -25,6 +25,7 @@ import { PipelineIntake } from './pipeline/intake'
 import { BotStore } from './agent/bots'
 import { InboxService } from './pipeline/inboxService'
 import { Reconciler } from './pipeline/reconcile'
+import { UpcomingService } from './pipeline/upcoming'
 import { realPlatforms, verifyPipelinePost } from './pipeline/verify'
 import { probe as probeVideo } from './studio/ffmpeg'
 import type { AlertKind } from './alerts/format'
@@ -464,6 +465,21 @@ async function boot(): Promise<void> {
     if (want && !settings.get().pipelineNotifyKinds.includes(want)) return
     void alerts.alert({ kind, headline, detail })
   }
+  const upcoming = new UpcomingService({
+    db,
+    settings,
+    brands,
+    audit: auditEvents,
+    notify: (h, d) => pipelineNotify('reconcile', h, d),
+    mediaRoot: () => settings.get().mediaRoot,
+    onChange: emit,
+    studioIdeas: () =>
+      brands
+        .list()
+        .flatMap((b) =>
+          studio.bibles.ideas(b.id).map((i) => ({ id: i.id, brandId: b.id, text: i.text })),
+        ),
+  })
   const pipeline = new PipelineIntake({
     db,
     settings,
@@ -476,6 +492,7 @@ async function boot(): Promise<void> {
     notify: pipelineNotify,
     probe: (p) => probeVideo(p),
     onChange: emit,
+    onAccepted: (i) => void upcoming.markDropped(i.channel, i.episodeId, i.dropId).catch(() => {}),
   })
 
   const beforeResume = (brandId: number) => {
@@ -493,6 +510,7 @@ async function boot(): Promise<void> {
     reschedule: (id, slot) => void posts.update(id, { scheduledAtUtc: slot }),
     log: (level, m) => log.log(level, m),
     onChange: emit,
+    extra: [() => upcoming.issues()],
   })
   {
     let t: NodeJS.Timeout | null = null
@@ -632,6 +650,7 @@ async function boot(): Promise<void> {
       appVersion: app.getVersion(),
       stats,
       drops: dropLog,
+      upcoming,
       reconciler,
       audit: auditEvents,
       bots,
@@ -838,6 +857,7 @@ async function boot(): Promise<void> {
     drops: dropLog,
     pipeline,
     inbox: inboxService,
+    upcoming,
     bots,
     beforeResume,
     afterResume,
@@ -962,6 +982,7 @@ async function boot(): Promise<void> {
   stats.start()
   void agent.apply()
   inbox.start()
+  upcoming.start()
   setTimeout(() => void reconciler.run().catch(() => {}), 20_000)
   setInterval(() => void reconciler.run().catch(() => {}), 3_600_000)
   studio.start()

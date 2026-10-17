@@ -81,6 +81,13 @@ export interface Settings {
   lowQueueDays: number
   /** Nothing goes to any platform. Posts are marked done in the app only. */
   globalDryRun: boolean
+  // Upcoming episodes
+  upcomingEnabled: boolean
+  /** Off means the file is read by polling only. */
+  upcomingLiveWatch: boolean
+  upcomingPollSeconds: number
+  /** Blank means <Media Root>/Shared/upcoming.json. */
+  upcomingFilePath: string
 }
 
 export interface Brand {

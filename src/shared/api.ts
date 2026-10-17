@@ -48,6 +48,7 @@ import type { HomeSummary } from './home'
 import type { SearchHit } from './search'
 import type { EditPatch } from './platformEdit'
 import type { StudioApi } from './studio/api'
+import type { UpcomingEntryT, UpcomingView } from './upcoming'
 import type {
   AuditRow,
   BotInfo,
@@ -225,6 +226,35 @@ export interface Api {
     revokeBot(id: number): Promise<void>
   }
   studio: StudioApi
+  upcoming: {
+    view(): Promise<UpcomingView>
+    /** Entries waiting for your review, for the menu badge. */
+    needsReview(): Promise<number>
+    add(input: {
+      channel: string
+      working_title: string
+      premise?: string
+      notes?: string
+    }): Promise<UpcomingEntryT>
+    patch(
+      channel: string,
+      episodeId: string,
+      patch: Partial<
+        Pick<UpcomingEntryT, 'working_title' | 'premise' | 'notes' | 'script_path' | 'status'>
+      > & {
+        clear_conflict?: boolean
+      },
+      base?: { entry_revision?: number },
+    ): Promise<{ entry: UpcomingEntryT; conflict: boolean }>
+    /** Puts the file back to the copy before the last change. */
+    restorePrevious(): Promise<void>
+    /** Dismisses the flagged file edits without restoring. */
+    dismiss(): Promise<void>
+    /** One time: each unused Studio idea becomes an idea entry. Returns how many were moved. */
+    moveStudioIdeas(): Promise<number>
+    openScript(path: string): Promise<void>
+    reload(): Promise<void>
+  }
   pipeline: {
     counts(): Promise<InboxCounts>
     /** Accepted drops with no slot yet. */

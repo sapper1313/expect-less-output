@@ -6,6 +6,8 @@ import type { Brand, Post } from '@shared/types'
 import { PLATFORMS } from '@shared/platformLimits'
 import type { DropRow } from '@shared/pipeline'
 import type { Caller } from './bots'
+import { UpcomingError } from '../pipeline/upcoming'
+import type { Actor } from '@shared/upcoming'
 import {
   AgentError,
   agentCancelPost,
@@ -118,6 +120,41 @@ interface Ctx {
   caller: Caller
 }
 
+function needUpcoming(s: AgentServices) {
+  if (!s.upcoming)
+    throw new AgentError(400, 'bad_request', 'Upcoming is not available in this build.')
+  return s.upcoming
+}
+
+function actorOf(caller: Caller): Actor {
+  return caller.kind === 'owner'
+    ? { name: 'josh' }
+    : { name: caller.bot.name, role: caller.bot.role, channels: caller.bot.channels }
+}
+
+function upcomingError(e: unknown): unknown {
+  if (e instanceof UpcomingError)
+    return new AgentError(
+      e.status,
+      e.status === 403
+        ? 'forbidden'
+        : e.status === 404
+          ? 'not_found'
+          : e.status === 409
+            ? 'conflict'
+            : 'bad_request',
+      e.message,
+      e.details,
+    )
+  return e
+}
+
+function stripRow(r: Record<string, unknown>) {
+  const { channelName, channelColor, paused, postId, readOnly, staleDays, ...entry } = r
+  ;(void channelName, channelColor, paused, postId, readOnly, staleDays)
+  return entry as never
+}
+
 function needDrops(s: AgentServices) {
   if (!s.drops)
     throw new AgentError(400, 'bad_request', 'The drop log is not available in this build.')
@@ -224,6 +261,52 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
       caller.actor,
     )
     return { received: true, drop: drop ? dropOut(drop) : null }
+  },
+
+  listUpcoming: ({ s, query }) => {
+    const v = needUpcoming(s).view()
+    return {
+      revision: v.revision,
+      episodes: v.rows
+        .filter(
+          (r) =>
+            (!query.channel || r.channel === query.channel) &&
+            (!query.status || r.status === query.status) &&
+            (!query.source_bot || r.source_bot === query.source_bot),
+        )
+        .map((r) => stripRow(r)),
+    }
+  },
+
+  addUpcoming: async ({ s, body, caller }) => {
+    try {
+      return await needUpcoming(s).add(actorOf(caller), body)
+    } catch (e) {
+      throw upcomingError(e)
+    }
+  },
+
+  patchUpcoming: async ({ s, params, body, caller }) => {
+    const { entry_revision, ...patch } = body
+    try {
+      const r = await needUpcoming(s).patch(
+        actorOf(caller),
+        params.channel,
+        params.episode_id,
+        patch,
+        { entry_revision },
+      )
+      if (r.conflict)
+        throw new AgentError(
+          409,
+          'conflict',
+          'Another edit changed the same field. Both versions are kept in the entry and flagged for the owner.',
+          { entry: r.entry },
+        )
+      return r.entry
+    } catch (e) {
+      throw upcomingError(e)
+    }
   },
 
   reconcile: ({ s, caller }) => ({

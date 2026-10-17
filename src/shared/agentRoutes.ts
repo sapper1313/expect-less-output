@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { UpcomingEntry } from './upcoming'
 import {
   ActivityOut,
   ActivityQuery,
@@ -8,6 +9,7 @@ import {
   BrandStatsQuery,
   CalendarOut,
   CalendarQuery,
+  AddUpcomingBody,
   CreateDropBody,
   CreateDropOut,
   CreatePostBody,
@@ -15,6 +17,10 @@ import {
   DropParams,
   ListDropsQuery,
   ReconcileOut,
+  PatchUpcomingBody,
+  UpcomingOut,
+  UpcomingParams,
+  UpcomingQuery,
   EpisodeIdParams,
   EpisodeParams,
   FlaggedOut,
@@ -117,6 +123,43 @@ export const ROUTES: RouteDef[] = [
     response: CreateDropOut,
     success: 201,
     tool: 'create_drop',
+    bot: true,
+  },
+  {
+    id: 'listUpcoming',
+    method: 'GET',
+    path: '/v1/upcoming',
+    summary: 'The shared list of episodes in flight, before any script or render exists.',
+    query: UpcomingQuery,
+    response: UpcomingOut,
+    success: 200,
+    tool: 'list_upcoming',
+  },
+  {
+    id: 'addUpcoming',
+    method: 'POST',
+    path: '/v1/upcoming',
+    summary: 'Add an episode to Upcoming.',
+    description:
+      'A bot adds entries on its own channels. The owner can add on any channel. The episode id is chosen by ELO unless given.',
+    body: AddUpcomingBody,
+    response: UpcomingEntry,
+    success: 201,
+    tool: 'add_upcoming',
+    bot: true,
+  },
+  {
+    id: 'patchUpcoming',
+    method: 'PATCH',
+    path: '/v1/upcoming/{channel}/{episode_id}',
+    summary: 'Edit or advance one Upcoming entry.',
+    description:
+      'Ownership rules apply: a bot edits only entries it created, advances entries on its own channels, and never sets dropped (only ELO does, when the drop arrives). Send entry_revision so a change made by someone else is merged, not overwritten.',
+    params: UpcomingParams,
+    body: PatchUpcomingBody,
+    response: UpcomingEntry,
+    success: 200,
+    tool: 'update_upcoming',
     bot: true,
   },
   {

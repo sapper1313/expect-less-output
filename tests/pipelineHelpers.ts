@@ -21,6 +21,8 @@ export function pipelineSetup(
     startMs?: number
     patch?: Record<string, unknown>
     live?: Array<[number, string]>
+    /** Called when a drop is accepted. Set late, after the service that needs it exists. */
+    hooks?: { onAccepted?: (i: { channel: string; episodeId: string; dropId: string }) => void }
   } = {},
 ) {
   const env = opts.env ?? makeEnv(opts.startMs ?? Date.UTC(2026, 9, 19, 14, 0, 0))
@@ -52,6 +54,7 @@ export function pipelineSetup(
     notify: (kind, h, d) => notices.push([kind, h, d]),
     probe: opts.probe,
     now: () => env.clock.ms,
+    onAccepted: (i) => opts.hooks?.onAccepted?.(i),
   })
   const services: AgentServices = {
     settings: env.settings,

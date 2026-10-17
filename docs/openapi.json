@@ -945,6 +945,632 @@
         }
       }
     },
+    "/v1/upcoming": {
+      "get": {
+        "operationId": "listUpcoming",
+        "summary": "The shared list of episodes in flight, before any script or render exists.",
+        "x-mcp-tool": "list_upcoming",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "idea",
+                "scripted",
+                "queued",
+                "rendering",
+                "needs-review",
+                "dropped"
+              ]
+            }
+          },
+          {
+            "name": "source_bot",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "A bot name, or josh for the owner's own ideas.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "revision": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "episodes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "channel": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "The channel slug, for example clock-out-early."
+                          },
+                          "episode_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Unique per channel: <slug>-<year>-<nnnn>."
+                          },
+                          "working_title": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "premise": {
+                            "default": "",
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "idea",
+                              "scripted",
+                              "queued",
+                              "rendering",
+                              "needs-review",
+                              "dropped"
+                            ]
+                          },
+                          "source_bot": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Who the idea came from: a bot name or josh."
+                          },
+                          "created_by": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "updated_by": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "updated_at": {
+                            "type": "string"
+                          },
+                          "entry_revision": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "notes": {
+                            "default": "",
+                            "type": "string"
+                          },
+                          "script_path": {
+                            "default": null,
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "drop_id": {
+                            "default": null,
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "conflict": {
+                            "type": "boolean"
+                          },
+                          "conflict_detail": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "channel",
+                          "episode_id",
+                          "working_title",
+                          "premise",
+                          "status",
+                          "source_bot",
+                          "created_by",
+                          "created_at",
+                          "updated_by",
+                          "updated_at",
+                          "entry_revision",
+                          "notes",
+                          "script_path",
+                          "drop_id"
+                        ],
+                        "additionalProperties": {},
+                        "description": "One planned episode."
+                      }
+                    }
+                  },
+                  "required": [
+                    "revision",
+                    "episodes"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "addUpcoming",
+        "summary": "Add an episode to Upcoming.",
+        "description": "A bot adds entries on its own channels. The owner can add on any channel. The episode id is chosen by ELO unless given.",
+        "x-mcp-tool": "add_upcoming",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "channel": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The channel slug."
+                  },
+                  "working_title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "premise": {
+                    "type": "string",
+                    "maxLength": 5000
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 5000
+                  },
+                  "status": {
+                    "description": "Defaults to idea. Only ELO sets dropped.",
+                    "type": "string",
+                    "enum": [
+                      "idea",
+                      "scripted",
+                      "queued",
+                      "rendering",
+                      "needs-review",
+                      "dropped"
+                    ]
+                  },
+                  "episode_id": {
+                    "description": "Leave out and ELO picks the next free id, <slug>-<year>-<nnnn>.",
+                    "type": "string"
+                  },
+                  "script_path": {
+                    "nullable": true,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "channel",
+                  "working_title"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "channel": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "The channel slug, for example clock-out-early."
+                    },
+                    "episode_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Unique per channel: <slug>-<year>-<nnnn>."
+                    },
+                    "working_title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "premise": {
+                      "default": "",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "idea",
+                        "scripted",
+                        "queued",
+                        "rendering",
+                        "needs-review",
+                        "dropped"
+                      ]
+                    },
+                    "source_bot": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Who the idea came from: a bot name or josh."
+                    },
+                    "created_by": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_by": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    },
+                    "entry_revision": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "notes": {
+                      "default": "",
+                      "type": "string"
+                    },
+                    "script_path": {
+                      "default": null,
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "drop_id": {
+                      "default": null,
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "conflict": {
+                      "type": "boolean"
+                    },
+                    "conflict_detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "channel",
+                    "episode_id",
+                    "working_title",
+                    "premise",
+                    "status",
+                    "source_bot",
+                    "created_by",
+                    "created_at",
+                    "updated_by",
+                    "updated_at",
+                    "entry_revision",
+                    "notes",
+                    "script_path",
+                    "drop_id"
+                  ],
+                  "additionalProperties": {},
+                  "description": "One planned episode."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/upcoming/{channel}/{episode_id}": {
+      "patch": {
+        "operationId": "patchUpcoming",
+        "summary": "Edit or advance one Upcoming entry.",
+        "description": "Ownership rules apply: a bot edits only entries it created, advances entries on its own channels, and never sets dropped (only ELO does, when the drop arrives). Send entry_revision so a change made by someone else is merged, not overwritten.",
+        "x-mcp-tool": "update_upcoming",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "episode_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "working_title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "premise": {
+                    "type": "string",
+                    "maxLength": 5000
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 5000
+                  },
+                  "script_path": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "idea",
+                      "scripted",
+                      "queued",
+                      "rendering",
+                      "needs-review",
+                      "dropped"
+                    ]
+                  },
+                  "entry_revision": {
+                    "description": "The entry_revision you read. If the entry changed since, different fields are merged and the same field makes a conflict (409).",
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "channel": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "The channel slug, for example clock-out-early."
+                    },
+                    "episode_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Unique per channel: <slug>-<year>-<nnnn>."
+                    },
+                    "working_title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "premise": {
+                      "default": "",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "idea",
+                        "scripted",
+                        "queued",
+                        "rendering",
+                        "needs-review",
+                        "dropped"
+                      ]
+                    },
+                    "source_bot": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Who the idea came from: a bot name or josh."
+                    },
+                    "created_by": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_by": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    },
+                    "entry_revision": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "notes": {
+                      "default": "",
+                      "type": "string"
+                    },
+                    "script_path": {
+                      "default": null,
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "drop_id": {
+                      "default": null,
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "conflict": {
+                      "type": "boolean"
+                    },
+                    "conflict_detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "channel",
+                    "episode_id",
+                    "working_title",
+                    "premise",
+                    "status",
+                    "source_bot",
+                    "created_by",
+                    "created_at",
+                    "updated_by",
+                    "updated_at",
+                    "entry_revision",
+                    "notes",
+                    "script_path",
+                    "drop_id"
+                  ],
+                  "additionalProperties": {},
+                  "description": "One planned episode."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such post.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/reconcile": {
       "get": {
         "operationId": "reconcile",

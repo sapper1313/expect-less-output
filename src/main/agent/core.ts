@@ -90,6 +90,8 @@ export interface AgentServices {
   reconciler?: import('../pipeline/reconcile').Reconciler
   /** The app-wide audit log. */
   audit?: import('../pipeline/auditEvents').AuditEvents
+  /** The Upcoming list. */
+  upcoming?: import('../pipeline/upcoming').UpcomingService
   /** Per bot tokens. Without it only the owner's token works. */
   bots?: import('./bots').BotStore
   /** Puts a drop into a channel Inbox and returns the decision. */

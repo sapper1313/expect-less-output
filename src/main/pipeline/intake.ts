@@ -46,6 +46,8 @@ export interface IntakeDeps {
   now?: () => number
   /** Called after any change a screen should show. */
   onChange?: () => void
+  /** Called when a drop is accepted (not held), so Upcoming can mark the episode dropped. */
+  onAccepted?: (info: { channel: string; episodeId: string; dropId: string }) => void
 }
 
 export type { ScheduleOutcome }
@@ -314,12 +316,14 @@ export class PipelineIntake {
         'A drop was held.',
         `${a.brand.name}, ${sc.episode_id}: ${hold}`,
       )
-    else
+    else {
       this.d.notify(
         'drop_accepted',
         'A video was dropped.',
         `${a.brand.name}: "${sc.title}" (${sc.episode_id}) is in the queue.`,
       )
+      this.d.onAccepted?.({ channel: slug, episodeId: sc.episode_id, dropId: row.dropId })
+    }
 
     let scheduledAtUtc: string | null = null
     if (!hold) {

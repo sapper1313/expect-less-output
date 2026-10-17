@@ -2,6 +2,8 @@ import type { AuditEvents } from './pipeline/auditEvents'
 import type { DropLog } from './pipeline/dropLog'
 import type { PipelineIntake } from './pipeline/intake'
 import type { InboxService } from './pipeline/inboxService'
+import type { UpcomingService } from './pipeline/upcoming'
+import { type Actor } from '@shared/upcoming'
 import type { BotStore } from './agent/bots'
 import { writeFileSync } from 'fs'
 import type { Api } from '@shared/api'
@@ -55,6 +57,8 @@ export interface Host {
   relaunch(): void
 }
 
+const JOSH: Actor = { name: 'josh' }
+
 export interface ApiDeps {
   settings: SettingsService
   brands: BrandService
@@ -85,6 +89,7 @@ export interface ApiDeps {
   drops: DropLog
   pipeline: PipelineIntake
   inbox: InboxService
+  upcoming: UpcomingService
   bots: BotStore
   /** Throws when a paused channel may not be resumed yet. */
   beforeResume: (brandId: number) => void
@@ -449,6 +454,18 @@ export function buildApi(d: ApiDeps): Api {
         }),
     },
     pipeline: d.inbox.api(),
+    upcoming: {
+      view: async () => d.upcoming.view(),
+      needsReview: async () => d.upcoming.needsReviewCount(),
+      add: async (input) => d.upcoming.add(JOSH, input),
+      patch: async (channel, episodeId, patch, base) =>
+        d.upcoming.patch(JOSH, channel, episodeId, patch, base),
+      restorePrevious: async () => void (await d.upcoming.restorePrevious()),
+      dismiss: async () => d.upcoming.dismissViolations(),
+      moveStudioIdeas: async () => d.upcoming.moveStudioIdeas(),
+      openScript: async (path) => d.host.openPath(path),
+      reload: async () => void d.upcoming.load(),
+    },
     textAssist: {
       available: async () => d.settings.get().llmProvider !== 'none',
       status: async () => {

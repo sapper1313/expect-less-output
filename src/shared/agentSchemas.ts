@@ -2,6 +2,7 @@
 // MCP tools are generated from them, so none of the three can drift apart.
 import { z } from 'zod'
 import { DateTime } from 'luxon'
+import { UPCOMING_STATUSES, UpcomingEntry } from './upcoming'
 
 export const PlatformEnum = z.enum(['youtube', 'facebook', 'instagram', 'tiktok'])
 export const PostStatusEnum = z.enum([
@@ -619,3 +620,56 @@ export const ReconcileOut = z.object({
     }),
   ),
 })
+
+// ---------- upcoming episodes ----------
+
+export const UpcomingQuery = z.object({
+  channel: z.string().optional(),
+  status: z.enum(UPCOMING_STATUSES).optional(),
+  source_bot: z
+    .string()
+    .optional()
+    .meta({ description: "A bot name, or josh for the owner's own ideas." }),
+})
+
+export const UpcomingParams = z.object({
+  channel: z.string().min(1),
+  episode_id: z.string().min(1),
+})
+
+export const UpcomingOut = z.object({
+  revision: z.number().int(),
+  episodes: z.array(UpcomingEntry),
+})
+
+export const AddUpcomingBody = z
+  .object({
+    channel: z.string().min(1).meta({ description: 'The channel slug.' }),
+    working_title: z.string().min(1).max(200),
+    premise: z.string().max(5000).optional(),
+    notes: z.string().max(5000).optional(),
+    status: z
+      .enum(UPCOMING_STATUSES)
+      .optional()
+      .meta({ description: 'Defaults to idea. Only ELO sets dropped.' }),
+    episode_id: z
+      .string()
+      .optional()
+      .meta({ description: 'Leave out and ELO picks the next free id, <slug>-<year>-<nnnn>.' }),
+    script_path: z.string().nullable().optional(),
+  })
+  .strict()
+
+export const PatchUpcomingBody = z
+  .object({
+    working_title: z.string().min(1).max(200).optional(),
+    premise: z.string().max(5000).optional(),
+    notes: z.string().max(5000).optional(),
+    script_path: z.string().nullable().optional(),
+    status: z.enum(UPCOMING_STATUSES).optional(),
+    entry_revision: z.number().int().optional().meta({
+      description:
+        'The entry_revision you read. If the entry changed since, different fields are merged and the same field makes a conflict (409).',
+    }),
+  })
+  .strict()

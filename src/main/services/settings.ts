@@ -51,6 +51,10 @@ export const DEFAULT_SETTINGS: Settings = {
   reconcileAutoFix: false,
   lowQueueDays: 3,
   globalDryRun: false,
+  upcomingEnabled: true,
+  upcomingLiveWatch: true,
+  upcomingPollSeconds: 15,
+  upcomingFilePath: '',
 }
 
 export class SettingsService {
