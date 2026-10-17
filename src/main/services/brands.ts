@@ -1,5 +1,5 @@
 import type { Db } from '../db'
-import { DEFAULT_CAPTION_TEMPLATE, initBrandRows } from '../db/seed'
+import { DEFAULT_CAPTION_TEMPLATE, ensureSlugs, initBrandRows } from '../db/seed'
 import type { Account, Brand, BrandDefaults, BrandSlot, HashtagSet, Platform } from '@shared/types'
 
 const mapBrand = (r: any): Brand => ({
@@ -7,6 +7,7 @@ const mapBrand = (r: any): Brand => ({
   name: r.name,
   color: r.color,
   archived: !!r.archived,
+  slug: r.slug ?? null,
 })
 
 export class BrandService {
@@ -20,6 +21,12 @@ export class BrandService {
       .prepare(`SELECT * FROM brands ${includeArchived ? '' : 'WHERE archived = 0'} ORDER BY id`)
       .all()
     return rows.map(mapBrand)
+  }
+
+  /** Finds a channel by its slug (case does not matter). */
+  bySlug(slug: string): Brand | null {
+    const r = this.db.prepare('SELECT * FROM brands WHERE slug = ?').get(slug.trim().toLowerCase())
+    return r ? mapBrand(r) : null
   }
 
   get(id: number): Brand {
@@ -37,6 +44,7 @@ export class BrandService {
           .lastInsertRowid,
       )
       initBrandRows(this.db, newId)
+      ensureSlugs(this.db)
       return newId
     })()
     this.onBrandFolder(clean)

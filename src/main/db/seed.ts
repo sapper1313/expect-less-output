@@ -17,6 +17,36 @@ const DEFAULT_SLOTS = [
   { dayType: 'weekend', timeLocal: '18:00' },
 ]
 
+const slugOf = (name: string) =>
+  (/^wonder hollow/i.test(name.trim()) ? 'wonder-hollow' : name)
+    .toLowerCase()
+    .replace(/'/g, '')
+    .replace(/^the\s+/, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || 'channel'
+
+/** Gives every channel without a slug one made from its name. Never changes a slug that exists. */
+export function ensureSlugs(db: Db): void {
+  const rows = db
+    .prepare('SELECT id, name FROM brands WHERE slug IS NULL ORDER BY id')
+    .all() as Array<{
+    id: number
+    name: string
+  }>
+  const taken = new Set(
+    (
+      db.prepare('SELECT slug FROM brands WHERE slug IS NOT NULL').all() as Array<{ slug: string }>
+    ).map((r) => r.slug),
+  )
+  for (const r of rows) {
+    const base = slugOf(r.name)
+    let cand = base
+    for (let i = 2; taken.has(cand); i++) cand = `${base}-${i}`
+    taken.add(cand)
+    db.prepare('UPDATE brands SET slug = ? WHERE id = ?').run(cand, r.id)
+  }
+}
+
 /** Seeds brands only when the table is empty. Everything seeded stays editable. */
 export function seedIfEmpty(db: Db): void {
   const count = (db.prepare('SELECT COUNT(*) AS n FROM brands').get() as { n: number }).n
@@ -29,6 +59,7 @@ export function seedIfEmpty(db: Db): void {
       )
       initBrandRows(db, id)
     }
+    ensureSlugs(db)
   })()
 }
 

@@ -38,7 +38,7 @@ import {
   YoutubeStatsProvider,
 } from './stats/providers'
 import { applyPendingRestore, finishRestore } from './services/backup'
-import { seedIfEmpty } from './db/seed'
+import { ensureSlugs, seedIfEmpty } from './db/seed'
 import { buildApi, type Host } from './api'
 import { PlatformEditor } from './studio/platformEdit'
 import { EMPTY_STATE as EMPTY_TG_STATE, TelegramAssistant } from './studio/telegram'
@@ -175,6 +175,7 @@ async function boot(): Promise<void> {
   const restored = applyPendingRestore(dataDir)
   const db = openDb(dbPath)
   seedIfEmpty(db)
+  ensureSlugs(db)
   if (restored) finishRestore(db, restored.mediaRoot)
   const settings = new SettingsService(db)
   const log = new ActivityLog(db)

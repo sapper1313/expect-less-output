@@ -1,6 +1,6 @@
 import { homedir } from 'os'
 import type { Db } from '../db'
-import { initBrandRows } from '../db/seed'
+import { initBrandRows, ensureSlugs } from '../db/seed'
 import {
   DEFAULT_STUDIO_CONFIG,
   checkedCap,
@@ -118,6 +118,7 @@ export class StudioConfigService {
       initBrandRows(this.db, id)
       brands.push({ id, name: HOLLOW_NAME })
     }
+    ensureSlugs(this.db)
     const has = this.db.prepare('SELECT 1 FROM studio_brands WHERE brand_id = ?')
     const ins = this.db.prepare('INSERT INTO studio_brands (brand_id, config_json) VALUES (?, ?)')
     for (const b of brands) {

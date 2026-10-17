@@ -90,6 +90,8 @@ export interface Brand {
   name: string
   color: string
   archived: boolean
+  /** Short stable name bots use, like clock-out-early. */
+  slug: string | null
 }
 
 export interface BrandSlot {
