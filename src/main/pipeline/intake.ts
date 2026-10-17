@@ -116,6 +116,23 @@ export class PipelineIntake {
     return [r?.min_seconds ?? dflt[0], r?.max_seconds ?? dflt[1]]
   }
 
+  /** Platforms the owner switched off for this channel in the Studio's per-channel settings. */
+  private switchedOff(brandId: number): string[] {
+    const row = this.d.db
+      .prepare('SELECT config_json FROM studio_brands WHERE brand_id = ?')
+      .get(brandId) as { config_json: string } | undefined
+    try {
+      const p =
+        (JSON.parse(row?.config_json ?? '{}') as { platforms?: Record<string, boolean> })
+          .platforms ?? {}
+      return Object.entries(p)
+        .filter(([, on]) => on === false)
+        .map(([k]) => k)
+    } catch {
+      return []
+    }
+  }
+
   /** Why a drop for this channel would wait instead of being scheduled, or null when it can be scheduled now. */
   waitingReason(brandId: number, platforms?: string[]): string | null {
     const s = this.d.settings.get()
@@ -229,7 +246,15 @@ export class PipelineIntake {
     const fmt = this.format(a.brand.id)
     const thumb = this.thumbnailFile(sc, a.sidecarPath)
     const caption = withHashtags(sc.description, sc.tags)
-    const targets: PostTargetInput[] = sc.platforms.map((p) => ({
+    const off = this.switchedOff(a.brand.id)
+    const wanted = sc.platforms.filter((p) => !off.includes(p))
+    if (wanted.length < sc.platforms.length)
+      notes.push(
+        `Skipped (switched off for this channel): ${sc.platforms.filter((p) => off.includes(p)).join(', ')}.`,
+      )
+    if (wanted.length === 0 && !hold)
+      hold = 'Every platform in the sidecar is switched off for this channel.'
+    const targets: PostTargetInput[] = (wanted.length ? wanted : sc.platforms).map((p) => ({
       platform: p as Platform,
       aiFlag: sc.ai_flags?.[p] ?? true,
       captionOverride: sc.caption_overrides?.[p] ?? null,

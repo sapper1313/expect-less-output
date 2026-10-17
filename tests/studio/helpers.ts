@@ -7,7 +7,13 @@ import { fakeCrypto } from '../googleHelpers'
 import { SettingsService } from '../../src/main/services/settings'
 import { makeEnv } from '../helpers'
 
-export function makeStudioEnv(opts: { fetchImpl?: typeof fetch; startMs?: number } = {}) {
+export function makeStudioEnv(
+  opts: {
+    fetchImpl?: typeof fetch
+    startMs?: number
+    onRetentionDelete?: (i: { postId: number; title: string; path: string; bytes: number }) => void
+  } = {},
+) {
   const env = makeEnv(opts.startMs)
   const dir = mkdtempSync(join(tmpdir(), 'elo-studio-'))
   const secretFile = join(dir, 'secrets.bin')
@@ -23,6 +29,7 @@ export function makeStudioEnv(opts: { fetchImpl?: typeof fetch; startMs?: number
     emit: () => {},
     now: () => env.clock.ms,
     fetchImpl: opts.fetchImpl,
+    onRetentionDelete: opts.onRetentionDelete,
   })
   // The older tests behave like an install that already used the Claude API. New switch tests turn it off.
   new SettingsService(env.db).set({ claudeApiEnabled: true, studioProductionEnabled: true })
@@ -31,7 +38,8 @@ export function makeStudioEnv(opts: { fetchImpl?: typeof fetch; startMs?: number
 }
 
 export const hollowId = (e: ReturnType<typeof makeStudioEnv>) =>
-  (e.db.prepare("SELECT id FROM brands WHERE name LIKE 'Wonder Hollow%'").get() as { id: number }).id
+  (e.db.prepare("SELECT id FROM brands WHERE name LIKE 'Wonder Hollow%'").get() as { id: number })
+    .id
 
 export const minimalPackage = (title: string, extra: Record<string, unknown> = {}) => ({
   series: 'Test',
@@ -41,7 +49,13 @@ export const minimalPackage = (title: string, extra: Record<string, unknown> = {
   runtime_target_seconds: 180,
   counted_objects: [],
   scenes: [],
-  youtube: { title, description: `About ${title}.`, tags: ['test'], made_for_kids: false, ai_disclosure: true },
+  youtube: {
+    title,
+    description: `About ${title}.`,
+    tags: ['test'],
+    made_for_kids: false,
+    ai_disclosure: true,
+  },
   tags: ['test'],
   summary: `Summary of ${title}.`,
   ...extra,
