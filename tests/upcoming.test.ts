@@ -444,3 +444,25 @@ describe('Upcoming: drop link and reconcile (tests 31, 32, 33, 34)', () => {
     expect(existsSync(t.file)).toBe(true)
   })
 })
+
+describe('Upcoming: delete', () => {
+  it('Josh removes an entry, it can be restored, and a dropped one cannot be removed', async () => {
+    const t = setup()
+    const a = await t.up.add(
+      { name: 'josh' },
+      { channel: 'trash-panda', working_title: 'Unwanted' },
+    )
+    const b = await t.up.add(
+      { name: 'josh' },
+      { channel: 'trash-panda', working_title: 'Done', status: 'needs-review' },
+    )
+    await t.up.remove('trash-panda', a.episode_id)
+    expect(t.up.view().rows.map((r) => r.working_title)).toEqual(['Done'])
+    expect(t.audit.list().some((e) => e.action === 'upcoming.remove')).toBe(true)
+    await t.up.restorePrevious()
+    expect(t.up.view().rows).toHaveLength(2)
+    await t.up.markDropped('trash-panda', b.episode_id, 'd1')
+    await expect(t.up.remove('trash-panda', b.episode_id)).rejects.toThrow(/cannot be removed/)
+    await expect(t.up.remove('trash-panda', 'nope')).rejects.toThrow(/No entry/)
+  })
+})

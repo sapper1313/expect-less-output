@@ -586,6 +586,30 @@ export class UpcomingService {
     })
   }
 
+  /** The owner removes an entry he does not want. A copy stays in the history, so Restore previous brings it back. */
+  remove(channel: string, episodeId: string): Promise<void> {
+    return this.serial(() => {
+      let gone: UpcomingEntryT | null = null
+      this.mutate('josh', 'remove', (f) => {
+        const i = f.episodes.findIndex((e) => e.channel === channel && e.episode_id === episodeId)
+        if (i < 0) throw new UpcomingError(404, `No entry ${channel}/${episodeId}.`)
+        if (f.episodes[i].status === 'dropped')
+          throw new UpcomingError(
+            409,
+            'A dropped entry is linked to a real video and cannot be removed.',
+          )
+        gone = f.episodes[i]
+        f.episodes.splice(i, 1)
+      })
+      this.d.audit.write({
+        actor: 'josh',
+        action: 'upcoming.remove',
+        target: `${channel}/${episodeId}`,
+        before: gone,
+      })
+    })
+  }
+
   /** The entry as it was at a given entry_revision, from the saved snapshots. */
   private entryAt(
     channel: string,

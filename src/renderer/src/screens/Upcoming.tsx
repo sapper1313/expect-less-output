@@ -7,6 +7,7 @@ import { useApp, useLoad } from '../hooks'
 import {
   Button,
   Card,
+  Confirm,
   Dialog,
   Empty,
   Field,
@@ -464,6 +465,7 @@ function EditDialog({
 }) {
   const { toast } = useApp()
   const [busy, run] = useBusy()
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [title, setTitle] = useState(row.working_title)
   const [premise, setPremise] = useState(row.premise)
   const [notes, setNotes] = useState(row.notes)
@@ -557,6 +559,11 @@ function EditDialog({
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <Button onClick={onClose}>Close</Button>
+          {live.status !== 'dropped' && (
+            <Button variant="danger" disabled={busy} onClick={() => setConfirmDelete(true)}>
+              Delete
+            </Button>
+          )}
           {live.status !== 'dropped' && next && (
             <Button disabled={busy} onClick={() => save({ status: next })}>
               Move to {LABEL[next]}
@@ -583,6 +590,25 @@ function EditDialog({
           )}
         </div>
       </div>
+      {confirmDelete && (
+        <Confirm
+          title="Delete this entry?"
+          message={`"${row.working_title}" is removed from the Upcoming list for everyone. If you change your mind, Restore previous at the bottom of the screen brings it back.`}
+          confirmLabel="Delete"
+          danger
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={async () => {
+            setConfirmDelete(false)
+            const ok = await run(
+              async () => (await api.upcoming.remove(row.channel, row.episode_id), true),
+            )
+            if (ok) {
+              toast({ kind: 'success', headline: COPY.success, detail: 'Deleted.' })
+              onSaved()
+            }
+          }}
+        />
+      )}
     </Dialog>
   )
 }

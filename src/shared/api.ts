@@ -246,6 +246,8 @@ export interface Api {
       },
       base?: { entry_revision?: number },
     ): Promise<{ entry: UpcomingEntryT; conflict: boolean }>
+    /** Removes an entry you do not want. Restore previous brings it back. */
+    remove(channel: string, episodeId: string): Promise<void>
     /** Puts the file back to the copy before the last change. */
     restorePrevious(): Promise<void>
     /** Dismisses the flagged file edits without restoring. */

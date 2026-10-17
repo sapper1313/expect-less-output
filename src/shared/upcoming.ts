@@ -212,6 +212,13 @@ export interface UpcomingView {
 }
 
 export function buildUpcomingSchema(): Record<string, unknown> {
-  const j = z.toJSONSchema(UpcomingFile, { io: 'input', unrepresentable: 'any' }) as Record<string, unknown>
-  return { ...j, title: 'ELO upcoming episodes', $id: 'https://expectlessmedia.com/schemas/upcoming-1.0.json' }
+  const j = z.toJSONSchema(UpcomingFile, { io: 'input', unrepresentable: 'any' }) as Record<
+    string,
+    unknown
+  >
+  return {
+    ...j,
+    title: 'ELO upcoming episodes',
+    $id: 'https://expectlessmedia.com/schemas/upcoming-1.0.json',
+  }
 }

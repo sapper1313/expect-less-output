@@ -460,6 +460,7 @@ export function buildApi(d: ApiDeps): Api {
       add: async (input) => d.upcoming.add(JOSH, input),
       patch: async (channel, episodeId, patch, base) =>
         d.upcoming.patch(JOSH, channel, episodeId, patch, base),
+      remove: async (channel, episodeId) => d.upcoming.remove(channel, episodeId),
       restorePrevious: async () => void (await d.upcoming.restorePrevious()),
       dismiss: async () => d.upcoming.dismissViolations(),
       moveStudioIdeas: async () => d.upcoming.moveStudioIdeas(),
