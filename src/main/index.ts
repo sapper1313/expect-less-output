@@ -544,7 +544,7 @@ async function boot(): Promise<void> {
 
   let telegramRef: TelegramAssistant | null = null
   let apiRef: ReturnType<typeof buildApi> | null = null
-  const studio = new Studio({
+  const studio: Studio = new Studio({
     db,
     secrets,
     posts,
@@ -555,6 +555,22 @@ async function boot(): Promise<void> {
     emit,
     beforeResume,
     afterResume,
+    addUpcomingIdea: async (brandId, text) => {
+      const b = brands.get(brandId)
+      if (!settings.get().upcomingEnabled || !b.slug) {
+        await studio.addIdeas(brandId, [text])
+        return 'Idea added to the bank.'
+      }
+      const e = await upcoming.add(
+        { name: 'josh' },
+        {
+          channel: b.slug,
+          working_title: text.slice(0, 120),
+          premise: text.length > 120 ? text : '',
+        },
+      )
+      return `Idea added to Upcoming as ${e.episode_id}.`
+    },
     onSettingChange: (key, before, after) =>
       auditEvents.write({ actor: 'josh', action: 'settings.change', target: key, before, after }),
     onRetentionDelete: (i) =>
@@ -779,6 +795,13 @@ async function boot(): Promise<void> {
       if (prev.theme !== next.theme) nativeTheme.themeSource = next.theme
       if (prev.agentApiEnabled !== next.agentApiEnabled || prev.agentApiPort !== next.agentApiPort)
         void agent.apply().then(emit)
+      if (
+        prev.upcomingEnabled !== next.upcomingEnabled ||
+        prev.upcomingLiveWatch !== next.upcomingLiveWatch ||
+        prev.upcomingPollSeconds !== next.upcomingPollSeconds ||
+        prev.upcomingFilePath !== next.upcomingFilePath
+      )
+        upcoming.start()
       if (JSON.stringify(prev.inboxBrandIds) !== JSON.stringify(next.inboxBrandIds))
         void inbox.scan().catch(() => {})
       trayApi?.refresh()
@@ -826,6 +849,22 @@ async function boot(): Promise<void> {
       return { text, status: text.split('\n').slice(0, 14).join('\n'), latest: latestLines(sum) }
     },
     ask: (system, user) => studio.assistantAsk(system, user),
+    addIdea: async (brandId, text) => {
+      const b = brands.get(brandId)
+      if (!settings.get().upcomingEnabled || !b.slug) {
+        await studio.addIdeas(brandId, [text])
+        return `Idea added to the ${b.name} bank.`
+      }
+      const e = await upcoming.add(
+        { name: 'josh' },
+        {
+          channel: b.slug,
+          working_title: text.slice(0, 120),
+          premise: text.length > 120 ? text : '',
+        },
+      )
+      return `Added to Upcoming for ${b.name} as ${e.episode_id}.`
+    },
     setPaused: (p) => studio.pauseAll(p),
     reports: new TelegramReports({
       db,

@@ -102,6 +102,8 @@ export interface StudioDeps {
   /** Called before a paused channel is resumed. Throws to refuse (a channel with no real account cannot resume). */
   /** Called for every posted video file the Archivist removes (for the audit log). */
   onRetentionDelete?: (info: { postId: number; title: string; path: string; bytes: number }) => void
+  /** Adds an idea to the shared Upcoming list (the same write path the Upcoming screen uses). Returns a message. */
+  addUpcomingIdea?: (brandId: number, text: string) => Promise<string>
   /** Called for every Studio setting the owner changes (for the audit log). */
   onSettingChange?: (key: string, before: unknown, after: unknown) => void
   beforeResume?: (brandId: number) => void
@@ -2028,6 +2030,8 @@ export class Studio implements StudioApi {
     }
     if (kind === 'add_idea') {
       if (!text.trim()) throw new Error('There is no idea text.')
+      // With Upcoming on, ideas go to the shared list where the bots can see them.
+      if (this.d.addUpcomingIdea) return this.d.addUpcomingIdea(brandId, text.trim().slice(0, 300))
       await this.addIdeas(brandId, [text.trim().slice(0, 300)])
       return 'Idea added to the bank.'
     }

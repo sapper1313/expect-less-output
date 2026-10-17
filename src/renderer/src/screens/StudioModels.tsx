@@ -1,6 +1,6 @@
 import type { ModelOption } from '@shared/studio/modelCatalog'
 import { api } from '../api'
-import { useLoad } from '../hooks'
+import { useApp, useLoad } from '../hooks'
 import { Button, Card, Check, Input, Select, useBusy } from '../ui'
 
 const money = (n: number) => (n === 0 ? 'free' : `$${n}`)
@@ -45,6 +45,63 @@ export function ModelSelect({
 }
 
 /** Which model each agent uses, and whether it is switched on. */
+/** A green or red light for the local model (Ollama), from the same check the model list uses. */
+export function LocalModelLight() {
+  const { data: models } = useLoad(() => api.studio.modelOptions())
+  const { data: cfg } = useLoad(() => api.studio.getConfig())
+  if (!models || !cfg) return null
+  const set = !!cfg.local.ollamaHost
+  const on = set && models.localOnline
+  return (
+    <span
+      className="inline-flex items-center gap-2 text-[12px]"
+      title={models.localError ?? undefined}
+    >
+      <span
+        aria-hidden
+        className={`inline-block h-2.5 w-2.5 rounded-full ${on ? 'bg-ok' : 'bg-bad'}`}
+      />
+      {on
+        ? `Local model online (${cfg.local.textModel || 'no model picked'})`
+        : set
+          ? 'Local model offline'
+          : 'No local model set up'}
+    </span>
+  )
+}
+
+/** One press sets the chat assistant and the Director to the model running on your own machine. */
+export function UseLocalForChat({ onDone }: { onDone: () => void }) {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
+  const { data: cfg } = useLoad(() => api.studio.getConfig())
+  const model = cfg?.local.textModel ? `ollama:${cfg.local.textModel}` : ''
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-3 border-b border-line pb-3">
+      <Button
+        variant="primary"
+        disabled={busy || !model}
+        title={model ? undefined : 'Pick a text model for the local AI first'}
+        onClick={async () => {
+          await run(async () => {
+            await api.studio.setAgentModel('Assistant', model)
+            await api.studio.setAgentModel('Director', model)
+          })
+          toast({
+            kind: 'success',
+            headline: 'Done.',
+            detail: 'The chat assistant and the Director now use the local model.',
+          })
+          onDone()
+        }}
+      >
+        Use the local model for chat and the Director
+      </Button>
+      <LocalModelLight />
+    </div>
+  )
+}
+
 export function AgentModelsCard() {
   const [, run] = useBusy()
   const { data, reload } = useLoad(() => api.studio.agents())
@@ -58,6 +115,7 @@ export function AgentModelsCard() {
         to switch it off: its work waits until you tick it again. The guide below says what each
         model is good for.
       </p>
+      <UseLocalForChat onDone={reload} />
       {cfg && (
         <div className="mb-3 grid items-center gap-2 border-b border-line pb-3 md:grid-cols-[220px_1fr]">
           <b className="text-[13px]">Default for every agent</b>

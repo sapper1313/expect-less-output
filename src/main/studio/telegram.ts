@@ -25,12 +25,18 @@ export interface TelegramDeps {
     TelegramReports,
     'last' | 'stats' | 'today' | 'spend' | 'flags' | 'brandList' | 'findBrand'
   >
+  /** Adds an idea to the shared Upcoming list for a brand. Returns the message to send back. */
+  addIdea?: (brandId: number, text: string) => Promise<string>
   /** Pause or resume one brand. */
   setBrandPaused?: (brandId: number, paused: boolean) => Promise<void>
   log: (m: string) => void
   code?: () => string
   now?: () => number
 }
+
+/** Sent when the model cannot answer. The fixed commands do not need a model, so they still work. */
+export const OFFLINE =
+  'My language model is offline right now, so I cannot answer questions. These commands still work: /status /last /today /stats /spend /flags /queue /pause /resume.'
 
 export const EMPTY_STATE: TelegramState = { enabled: false, chatIds: [], code: null, offset: 0 }
 
@@ -219,7 +225,8 @@ export class TelegramAssistant {
               'Ask me anything, or use a command:',
               '/last: the last post for every brand, and the next one',
               '/stats: views and likes for the last 7 days (/stats 30 for 30 days)',
-              '/today: what is coming in the next 3 days and what needs a look',
+              '/today or /queue: what is coming in the next 3 days and what needs a look',
+              'add idea for <channel>: <your idea> puts an idea in the Upcoming list',
               "/spend: this month's spending and every cap",
               '/flags: what is flagged in the Studio',
               '/brands: the brands and which are paused',
@@ -250,7 +257,7 @@ export class TelegramAssistant {
     if (r) {
       if (name === 'last') return this.send(chatId, r.last())
       if (name === 'stats') return this.send(chatId, r.stats(/30|month/i.test(arg) ? 30 : 7))
-      if (name === 'today') return this.send(chatId, r.today())
+      if (name === 'today' || name === 'queue') return this.send(chatId, r.today())
       if (name === 'spend') return this.send(chatId, r.spend())
       if (name === 'flags') return this.send(chatId, r.flags())
       if (name === 'brands') return this.send(chatId, r.brandList())
@@ -267,6 +274,19 @@ export class TelegramAssistant {
           return this.send(chatId, r.today())
       }
     }
+    const idea = /^add idea for\s+(.+?)\s*:\s*([\s\S]+)$/i.exec(text)
+    if (idea && r && this.d.addIdea) {
+      const f = r.findBrand(idea[1])
+      if (!f.brand) return this.send(chatId, f.problem ?? 'I could not find that channel.')
+      try {
+        return await this.send(
+          chatId,
+          await this.d.addIdea(f.brand.id, idea[2].trim().slice(0, 300)),
+        )
+      } catch (e) {
+        return this.send(chatId, `I could not add that idea. ${(e as Error).message}`)
+      }
+    }
     const snap = await this.d.snapshot()
     if (lower === '/status') return this.send(chatId, snap.status)
     if (lower === '/latest') return this.send(chatId, snap.latest)
@@ -280,7 +300,13 @@ export class TelegramAssistant {
           .join('\n') || 'No information.',
       )
     }
-    const answer = await this.d.ask(`${SYSTEM}\n\nFacts:\n${snap.text}`, text.slice(0, 600))
+    let answer: string
+    try {
+      answer = await this.d.ask(`${SYSTEM}\n\nFacts:\n${snap.text}`, text.slice(0, 600))
+    } catch (e) {
+      this.d.log(`Telegram: the model could not answer (${(e as Error).message})`)
+      return this.send(chatId, OFFLINE)
+    }
     await this.send(chatId, answer.trim() || 'I did not get an answer. Try again in a moment.')
   }
 }

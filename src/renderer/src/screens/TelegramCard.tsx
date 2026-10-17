@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { Button, Card, Check, Field, Input, useBusy } from '../ui'
+import { LocalModelLight } from './StudioModels'
 
 /** Chat with the studio from your phone through your own Telegram bot. */
 export function TelegramCard() {
@@ -14,6 +15,9 @@ export function TelegramCard() {
   const key = keys?.find((k) => k.id === 'telegram')
   return (
     <Card title="Chat with the studio from your phone (Telegram)">
+      <div className="mb-3">
+        <LocalModelLight />
+      </div>
       <ol className="mb-3 list-decimal space-y-1 pl-5 text-[12px] text-muted">
         <li>
           In Telegram, message <b>@BotFather</b>, send <b>/newbot</b>, and follow the steps. It

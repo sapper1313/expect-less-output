@@ -41,7 +41,8 @@ async function rig() {
     if (method === 'sendMessage') sent.push(JSON.parse(String(init.body)).text)
     return new Response(JSON.stringify({ ok: true, result: {} }))
   }) as unknown as typeof fetch
-  const ask = vi.fn(async () => 'LLM ANSWER')
+  const ask = vi.fn<(system: string, user: string) => Promise<string>>(async () => 'LLM ANSWER')
+  const addIdea = vi.fn(async (brandId: number, text: string) => `idea ${brandId}: ${text}`)
   const setPaused = vi.fn(async () => undefined)
   const setBrandPaused = vi.fn(async (id: number, paused: boolean) => {
     await e.studio.setBrand(id, { paused })
@@ -56,6 +57,7 @@ async function rig() {
     setPaused,
     reports,
     setBrandPaused,
+    addIdea,
     log: () => undefined,
   })
   let n = 1
@@ -95,7 +97,7 @@ async function rig() {
       .run(tid, at, views)
     return post
   }
-  return { e, say, sent, ask, setPaused, setBrandPaused, posted, state: () => state }
+  return { e, say, sent, ask, addIdea, setPaused, setBrandPaused, posted, state: () => state }
 }
 
 describe('Telegram phone commands', () => {
@@ -200,5 +202,27 @@ describe('Telegram phone commands', () => {
     const text = await r.say('when was the last post to trash panda?')
     expect(text).toContain('Last posts (Eastern time)')
     expect(r.ask).not.toHaveBeenCalled()
+  })
+
+  it('with the model down, a question gets the fixed offline reply and the fixed commands still work (test 15)', async () => {
+    const r = await rig()
+    r.ask.mockRejectedValue(new Error('connect ECONNREFUSED'))
+    const reply = await r.say('how is the newest video doing?')
+    expect(reply).toMatch(/language model is offline/)
+    expect(reply).toContain('/queue')
+    expect(await r.say('/status')).toBe('STATUS')
+    expect(await r.say('/queue')).toContain('Next 3 days')
+    expect(await r.say('/today')).toContain('Next 3 days')
+    r.ask.mockRejectedValue(new Error('Writing comes from bots.'))
+    expect(await r.say('hello?')).toMatch(/offline/)
+  })
+
+  it('"add idea for <channel>: ..." goes to the shared Upcoming list without the model', async () => {
+    const r = await rig()
+    const out = await r.say('add idea for trash panda: A raccoon files taxes')
+    expect(r.addIdea).toHaveBeenCalledWith(1, 'A raccoon files taxes')
+    expect(out).toContain('A raccoon files taxes')
+    expect(r.ask).not.toHaveBeenCalled()
+    expect(await r.say('add idea for nobody at all: x')).toMatch(/find|brand|channel/i)
   })
 })
