@@ -70,7 +70,7 @@ describe('kill switch, platform toggles and retries (tests 11, 12, 13)', () => {
     await t.settle()
     const post = t.env.posts.list()[0]
     expect(post.targets.map((x) => x.platform)).toEqual(['youtube'])
-    expect(t.drops.list()[0].notes).toMatch(/switched off for this channel\): tiktok/)
+    expect(t.drops.list()[0].notes).toMatch(/switched off or too long for the platform\): tiktok/)
     t.env.settings.set({ pausedBrandIds: [1] })
     t.env.clock.ms = new Date(post.scheduledAtUtc!).getTime() + MIN
     await t.env.scheduler.tick()
@@ -216,5 +216,30 @@ describe('TikTok (test 21)', () => {
     const notes = t.drops.list().map((d) => d.notes ?? '')
     expect(notes.filter((n) => /Skipped \(no real account\): tiktok/.test(n)).length).toBe(1)
     expect(t.env.posts.list({ brandId: 3 })[0].status).toBe('draft') // channel 3 has no real account at all, so it waits
+  })
+})
+
+describe('long channels on other platforms', () => {
+  it('a 7 minute Wonder Hollow episode goes to YouTube, Instagram and TikTok, and Facebook Reels is skipped with a note', async () => {
+    const e = makeStudioEnv({ startMs: Date.UTC(2026, 9, 19, 14, 0, 0) })
+    const hid = (
+      e.db.prepare("SELECT id FROM brands WHERE slug = 'wonder-hollow'").get() as { id: number }
+    ).id
+    const t = pipelineSetup({
+      env: e,
+      live: ['youtube', 'facebook', 'instagram', 'tiktok'].map((p) => [hid, p] as [number, string]),
+      probe: async () => ({ width: 1920, height: 1080, durationSeconds: 420, hasAudio: true }),
+    })
+    t.env.db
+      .prepare("UPDATE accounts SET mode = 'drafts' WHERE brand_id = ? AND platform = 'tiktok'")
+      .run(hid)
+    t.drop('Wonder Hollow Workshop', 'wonder-hollow', 5, {
+      platforms: ['youtube', 'facebook', 'instagram', 'tiktok'],
+    })
+    await t.settle()
+    const post = e.posts.list({ brandId: hid })[0]
+    expect(post.targets.map((x) => x.platform).sort()).toEqual(['instagram', 'tiktok', 'youtube'])
+    expect(t.drops.list()[0].notes).toMatch(/too long for the platform\): facebook/)
+    expect(e.studio.cfg.getBrand(hid).platforms).toMatchObject({ youtube: true })
   })
 })

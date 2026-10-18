@@ -149,7 +149,9 @@ export function defaultBrandConfig(format: BrandFormat, startDate: string): Stud
         { days: [7, 1], forPostDay: 3 },
         { days: [3, 4], forPostDay: 5 },
       ],
-      platforms: allPlatforms(['youtube']),
+      // The full episode goes to YouTube. Instagram and TikTok take it too. Facebook Reels stop at 90 seconds, so a
+      // long episode is skipped there with a note.
+      platforms: allPlatforms(['youtube', 'instagram', 'tiktok']),
       madeForKids: true,
       addOpeningOutroOnIngest: false,
       useOpeningOutro: true,
@@ -170,10 +172,6 @@ export function normalizeBrandConfig(
   const d = defaultBrandConfig(stored?.format ?? format, startDate)
   const s = stored ?? {}
   const platforms = { ...d.platforms, ...(s.platforms ?? {}) }
-  // Long form is YouTube only, whatever an older row says.
-  if (d.format === 'long')
-    for (const k of Object.keys(platforms) as StudioPlatform[])
-      if (k !== 'youtube') platforms[k] = false
   return {
     ...d,
     ...s,

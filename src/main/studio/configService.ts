@@ -16,7 +16,6 @@ import type {
   ModelTier,
   StudioBrandConfig,
   StudioConfig,
-  StudioPlatform,
 } from '@shared/studio/types'
 
 const KEY = 'studio.config'
@@ -202,12 +201,6 @@ export class StudioConfigService {
     if (!/^\d{1,2}:\d{2}$/.test(next.runTime)) throw new Error('Use HH:MM for the run time.')
     next.monthlyCap = checkedCap(next.monthlyCap)
     next.perEpisodeCap = checkedCap(next.perEpisodeCap)
-    if (next.format === 'long') {
-      // Long form is YouTube only.
-      const p = { ...next.platforms }
-      for (const k of Object.keys(p) as StudioPlatform[]) if (k !== 'youtube') p[k] = false
-      next.platforms = p
-    }
     this.db
       .prepare('UPDATE studio_brands SET config_json = ? WHERE brand_id = ?')
       .run(JSON.stringify(next), brandId)

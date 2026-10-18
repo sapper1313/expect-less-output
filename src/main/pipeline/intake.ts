@@ -10,7 +10,7 @@ import type { SettingsService } from '../services/settings'
 import type { AlertKind } from '../alerts/format'
 import { formatEastern } from '@shared/time'
 import type { Brand, Post, PostTargetInput } from '@shared/types'
-import type { Platform } from '@shared/platformLimits'
+import { PLATFORM_LIMITS, type Platform } from '@shared/platformLimits'
 import {
   isPipelineSidecar,
   validatePipelineSidecar,
@@ -115,6 +115,17 @@ export class PipelineIntake {
       .get(brandId) as { min_seconds: number | null; max_seconds: number | null } | undefined
     const dflt: [number, number] = fmt === 'long' ? [60, 720] : [5, 180]
     return [r?.min_seconds ?? dflt[0], r?.max_seconds ?? dflt[1]]
+  }
+
+  /** Platforms that cannot take a video this long. They are skipped for this video with a note. */
+  private tooLongFor(platforms: string[]): string[] {
+    const s = this.lastSeconds
+    this.lastSeconds = null
+    if (s === null) return []
+    return platforms.filter((p) => {
+      const l = (PLATFORM_LIMITS as Record<string, { maxSeconds?: number }>)[p]
+      return !!l?.maxSeconds && p !== 'youtube' && s > l.maxSeconds
+    })
   }
 
   /** Platforms the owner switched off for this channel in the Studio's per-channel settings. */
@@ -251,11 +262,11 @@ export class PipelineIntake {
     const fmt = this.format(a.brand.id)
     const thumb = this.thumbnailFile(sc, a.sidecarPath)
     const caption = withHashtags(sc.description, sc.tags)
-    const off = this.switchedOff(a.brand.id)
+    const off = [...this.switchedOff(a.brand.id), ...this.tooLongFor(sc.platforms)]
     const wanted = sc.platforms.filter((p) => !off.includes(p))
     if (wanted.length < sc.platforms.length)
       notes.push(
-        `Skipped (switched off for this channel): ${sc.platforms.filter((p) => off.includes(p)).join(', ')}.`,
+        `Skipped (switched off or too long for the platform): ${sc.platforms.filter((p) => off.includes(p)).join(', ')}.`,
       )
     if (wanted.length === 0 && !hold)
       hold = 'Every platform in the sidecar is switched off for this channel.'
@@ -371,6 +382,9 @@ export class PipelineIntake {
     return { result, postId: post.id, reasons: [], scheduledAtUtc }
   }
 
+  /** Length of the last video checked, so platforms that cannot take it can be skipped. */
+  private lastSeconds: number | null = null
+
   private async checkVideo(brand: Brand, path: string, reasons: Reason[]): Promise<void> {
     let info: ProbeResult
     try {
@@ -382,6 +396,7 @@ export class PipelineIntake {
       })
       return
     }
+    this.lastSeconds = info.durationSeconds
     const fmt = this.format(brand.id)
     const ratio = info.height ? info.width / info.height : 0
     const want = fmt === 'long' ? 16 / 9 : 9 / 16

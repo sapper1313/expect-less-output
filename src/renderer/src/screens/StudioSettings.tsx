@@ -547,14 +547,14 @@ function BrandRow({
       <div className="mb-2 flex items-center justify-between">
         <b>{name}</b>
         <span className="text-[12px] text-muted">
-          {long ? 'Long, 16:9, YouTube only' : 'Short, 9:16'}. Next due: {nextDue ?? 'none'}. Time
-          of day comes from the posting times on Channel setup.
+          {long ? 'Long, 16:9' : 'Short, 9:16'}. Next due: {nextDue ?? 'none'}. Time of day comes
+          from the posting times on Channel setup.
         </span>
       </div>
       <div className="mb-3">
         <Field
           label="Video type"
-          hint="Short is tall (9:16), 5 to 180 seconds, all platforms. Long is wide (16:9), 1 to 12 minutes, YouTube only. Bot drops are checked against this."
+          hint="Short is tall (9:16), 5 to 180 seconds, all platforms. Long is wide (16:9), 1 to 12 minutes. A platform that cannot take a video that long (Facebook Reels stop at 90 seconds) is skipped for that video. Bot drops are checked against this."
         >
           <Select
             className="w-64"
@@ -563,7 +563,7 @@ function BrandRow({
             onChange={(e) => save({ format: e.target.value as never })}
           >
             <option value="short">Short (9:16)</option>
-            <option value="long">Long (16:9, YouTube only)</option>
+            <option value="long">Long (16:9)</option>
           </Select>
         </Field>
       </div>
@@ -678,7 +678,6 @@ function BrandRow({
           <Check
             key={p}
             checked={cfg.platforms[p]}
-            disabled={long && p !== 'youtube'}
             onChange={(v) => save({ platforms: { ...cfg.platforms, [p]: v } })}
           >
             {p}
