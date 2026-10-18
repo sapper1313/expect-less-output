@@ -22,6 +22,7 @@ function service(t: ReturnType<typeof pipelineSetup>) {
     drops: t.drops,
     audit: t.audit,
     reconciler,
+    freshStart: {} as never,
     openPath: async () => {},
     emit: () => {},
   })

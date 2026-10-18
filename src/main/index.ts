@@ -1,3 +1,4 @@
+import { homedir } from 'os'
 import {
   app,
   BrowserWindow,
@@ -25,6 +26,7 @@ import { PipelineIntake } from './pipeline/intake'
 import { BotStore } from './agent/bots'
 import { InboxService } from './pipeline/inboxService'
 import { Reconciler } from './pipeline/reconcile'
+import { FreshStart } from './pipeline/freshStart'
 import { UpcomingService } from './pipeline/upcoming'
 import { verifyPipelinePost } from './pipeline/verify'
 import { probe as probeVideo } from './studio/ffmpeg'
@@ -517,7 +519,16 @@ async function boot(): Promise<void> {
       t = setTimeout(() => void reconciler.run().catch(() => {}), 8_000)
     }
   }
+  const freshStart = new FreshStart({
+    db,
+    posts,
+    settings,
+    audit: auditEvents,
+    upcoming,
+    backupRoot: join(homedir(), 'ELO', 'Backups'),
+  })
   const inboxService = new InboxService({
+    freshStart,
     db,
     posts,
     library,

@@ -8,6 +8,7 @@ import type { AuditEvents } from './auditEvents'
 import type { DropLog } from './dropLog'
 import type { PipelineIntake } from './intake'
 import type { Reconciler } from './reconcile'
+import type { FreshStart } from './freshStart'
 import { verifyPipelinePost, sha256File } from './verify'
 import type { ChannelRules, InboxItem } from '@shared/pipeline'
 
@@ -20,6 +21,7 @@ export interface InboxServiceDeps {
   drops: DropLog
   audit: AuditEvents
   reconciler: Reconciler
+  freshStart: FreshStart
   openPath: (path: string) => Promise<void>
   emit: () => void
 }
@@ -246,6 +248,12 @@ export class InboxService {
       reconcileNow: async () => this.d.reconciler.run(),
       audit: async (f) => this.d.audit.list(f),
       auditCsv: async (f) => this.d.audit.csv(f),
+      freshStartPreview: async () => this.d.freshStart.preview(),
+      freshStartRun: async () => {
+        const r = await this.d.freshStart.run()
+        this.d.emit()
+        return r
+      },
       channelRules: async (id) => this.channelRules(id),
       setChannelRules: async (id, p) => this.setChannelRules(id, p),
     }

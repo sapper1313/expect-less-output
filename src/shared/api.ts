@@ -51,6 +51,8 @@ import type { StudioApi } from './studio/api'
 import type { UpcomingEntryT, UpcomingView } from './upcoming'
 import type {
   AuditRow,
+  FreshStartDone,
+  FreshStartInfo,
   BotInfo,
   ChannelRules,
   DropFilter,
@@ -280,6 +282,10 @@ export interface Api {
     reconcileNow(): Promise<IssueRow[]>
     audit(filter: { actor?: string; action?: string }): Promise<AuditRow[]>
     auditCsv(filter: { actor?: string; action?: string }): Promise<string>
+    /** What a fresh start would remove and keep. Changes nothing. */
+    freshStartPreview(): Promise<FreshStartInfo>
+    /** Backs everything up, checks the backup, then removes all scripts, ideas, tasks and Upcoming entries. */
+    freshStartRun(): Promise<FreshStartDone>
     channelRules(brandId: number): Promise<ChannelRules>
     setChannelRules(brandId: number, patch: Partial<ChannelRules>): Promise<ChannelRules>
   }

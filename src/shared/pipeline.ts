@@ -337,3 +337,25 @@ export function buildSidecarSchema(): Record<string, unknown> {
     $id: 'https://expectlessmedia.com/schemas/sidecar-1.0.json',
   }
 }
+
+// ---------- fresh start ----------
+
+export interface FreshStartInfo {
+  episodes: number
+  episodesKept: number
+  ideas: number
+  tasks: number
+  upcoming: number
+  unpostedPosts: number
+  postedKept: number
+  runningTasks: number
+  bundleDir: string
+}
+
+export interface FreshStartDone extends FreshStartInfo {
+  verified: boolean
+  checks: string[]
+  revision: number
+  updatedAt: string
+  switchedOff: string[]
+}

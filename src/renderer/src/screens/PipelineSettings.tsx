@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { Settings } from '@shared/types'
-import { Button, Card, Check, Field, Input } from '../ui'
+import type { FreshStartDone, FreshStartInfo } from '@shared/pipeline'
+import { api } from '../api'
+import { useApp } from '../hooks'
+import { Button, Card, Check, Confirm, Field, Input, useBusy } from '../ui'
 
 type Save = (patch: Partial<Settings>) => Promise<void>
 
@@ -123,6 +126,92 @@ const NOTIFY: Array<[string, string]> = [
   ['low_queue', 'A channel is running low on scheduled posts'],
   ['summary', 'The morning summary'],
 ]
+
+/** Backs everything up, checks the backup, then clears every script, idea, task and Upcoming entry. */
+function FreshStartCard() {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
+  const [pre, setPre] = useState<FreshStartInfo | null>(null)
+  const [ask, setAsk] = useState(false)
+  const [done, setDone] = useState<FreshStartDone | null>(null)
+  return (
+    <Card title="Fresh start">
+      <p className="mb-3 text-[13px] text-muted">
+        Clears every script, idea, task and Upcoming entry so the bots start with an empty slate.
+        Posted videos, their numbers, spending history, the audit log and the drop log stay. A
+        backup is made and checked first.
+      </p>
+      <Button
+        disabled={busy}
+        onClick={async () => {
+          const p = await run(() => api.pipeline.freshStartPreview())
+          if (p) setPre(p)
+        }}
+      >
+        See what would be removed
+      </Button>
+      {pre && (
+        <div className="mt-3 space-y-1 text-[13px]">
+          <div>
+            Scripts removed: <b>{pre.episodes}</b> (kept because they went out: {pre.episodesKept})
+          </div>
+          <div>
+            Ideas removed: <b>{pre.ideas}</b>
+          </div>
+          <div>
+            Task records removed: <b>{pre.tasks}</b>
+          </div>
+          <div>
+            Upcoming entries removed: <b>{pre.upcoming}</b>
+          </div>
+          <div>
+            Scheduled or draft posts canceled: <b>{pre.unpostedPosts}</b>
+          </div>
+          <div>
+            Posted videos kept: <b>{pre.postedKept}</b>
+          </div>
+          <div className="text-muted">Backup goes to {pre.bundleDir}</div>
+          {pre.runningTasks > 0 && (
+            <div className="text-warn">Something is being written right now. Wait a minute.</div>
+          )}
+          <Button
+            variant="danger"
+            disabled={busy || pre.runningTasks > 0}
+            onClick={() => setAsk(true)}
+          >
+            Start fresh
+          </Button>
+        </div>
+      )}
+      {done && (
+        <div className="mt-3 rounded-md border border-line p-3 text-[13px]">
+          <b>Done.</b> Backup: {done.bundleDir} ({done.checks.join(', ')}). Upcoming starts again at
+          revision {done.revision}.
+          {done.switchedOff.length > 0 &&
+            ' The Claude API and Studio production were switched off so nothing refills the slate.'}
+        </div>
+      )}
+      {ask && (
+        <Confirm
+          title="Start fresh?"
+          message="A backup is made and checked first. Then all scripts, ideas, tasks and Upcoming entries are removed, and the Claude API and Studio production are switched off. The backup folder has the steps to put everything back."
+          confirmLabel="Start fresh"
+          danger
+          onCancel={() => setAsk(false)}
+          onConfirm={async () => {
+            setAsk(false)
+            const r = await run(() => api.pipeline.freshStartRun())
+            if (r) {
+              setDone(r)
+              setPre(null)
+              toast({ kind: 'success', headline: 'Fresh start done.', detail: r.bundleDir })
+            }
+          }}
+        />
+      )}
+    </Card>
+  )
+}
 
 /** The switches for the bot pipeline: who writes, and what ELO does with finished videos. */
 export function PipelineSettings({ s, save }: { s: Settings; save: Save }) {
@@ -308,6 +397,8 @@ export function PipelineSettings({ s, save }: { s: Settings; save: Save }) {
           </div>
         </div>
       </Card>
+
+      <FreshStartCard />
 
       <Card title="Tell me when">
         <p className="mb-3 text-[13px] text-muted">

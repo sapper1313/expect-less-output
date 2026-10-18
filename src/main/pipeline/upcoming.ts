@@ -701,6 +701,35 @@ export class UpcomingService {
     })
   }
 
+  /** Starts the list over: no entries, revision 1. The old file is in the history and in the fresh start backup. */
+  resetClean(): Promise<{ revision: number; updatedAt: string }> {
+    return this.serial(() => {
+      const next: UpcomingFileT = {
+        schema_version: UPCOMING_VERSION,
+        revision: 1,
+        updated_at: this.iso(),
+        episodes: [],
+      }
+      const text = JSON.stringify(next, null, 2) + '\n'
+      const p = this.filePath()
+      mkdirSync(dirname(p), { recursive: true })
+      writeFileSync(`${p}.tmp`, text)
+      renameSync(`${p}.tmp`, p)
+      this.saveState({
+        revision: 1,
+        hash: sha(text),
+        json: text,
+        invalidSince: null,
+        invalidReason: null,
+        invalidAlerted: false,
+        violations: [],
+      })
+      this.history(next, 'josh', 'fresh start')
+      this.d.onChange?.()
+      return { revision: 1, updatedAt: next.updated_at }
+    })
+  }
+
   /** Dismisses the flagged file edits without restoring. */
   dismissViolations(): void {
     this.saveState({ violations: [] })
