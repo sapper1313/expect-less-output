@@ -430,10 +430,12 @@ export function listFilter(q: {
   search?: string
   origin?: string
   held?: string
+  past_due?: string
 }): PostFilter {
   return {
     origin: q.origin as PostFilter['origin'],
     held: q.held === undefined ? undefined : q.held === 'true',
+    pastDue: q.past_due === 'true' ? true : undefined,
     brandId: q.brand_id ?? null,
     status: (q.status as PostFilter['status']) ?? 'all',
     fromUtc: q.from ? toUtc(q.from) : undefined,

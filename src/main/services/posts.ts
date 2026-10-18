@@ -161,6 +161,10 @@ export class PostService {
       where.push('p.origin = ?')
       args.push(filter.origin)
     }
+    if (filter.pastDue === true) {
+      where.push("p.status = 'scheduled' AND p.scheduled_at_utc < ?")
+      args.push(new Date(this.now()).toISOString())
+    }
     if (filter.held === true) where.push('p.hold_reason IS NOT NULL')
     if (filter.held === false) where.push('p.hold_reason IS NULL')
     const st = filter.status
@@ -237,6 +241,11 @@ export class PostService {
       gapWith: others,
       alsoCounted: sent,
     })
+  }
+
+  /** The database, for the channel state helper. */
+  dbForState(): Db {
+    return this.db
   }
 
   /** The limits that belong to one channel. A channel with no row has the defaults. */

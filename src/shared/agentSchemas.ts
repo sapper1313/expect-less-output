@@ -142,6 +142,10 @@ export const ListPostsQuery = z.object({
   origin: z.enum(['manual', 'inbox', 'api']).optional().meta({
     description: 'inbox lists the posts that arrived through an Inbox folder (bot drops).',
   }),
+  past_due: z.enum(['true', 'false']).optional().meta({
+    description:
+      'true lists scheduled posts whose time has passed and that have not posted (missed slots).',
+  }),
   held: z.enum(['true', 'false']).optional().meta({
     description: 'true lists only posts held back from posting. false leaves them out.',
   }),
@@ -215,6 +219,22 @@ export const BrandOut = z.object({
   color: z.string(),
   archived: z.boolean(),
   paused: z.boolean(),
+  state: z.enum(['active', 'paused', 'on-hold', 'archived']).meta({
+    description:
+      'active may be scheduled. paused is temporarily not posting. on-hold is not scheduling while a decision is made. archived is permanently out of service. archived beats on-hold beats paused.',
+  }),
+  on_hold: z.boolean(),
+  post_days: z.array(z.number().int()).nullable().meta({
+    description: 'Weekdays a post may land on, 1 = Monday to 7 = Sunday. Null means every day.',
+  }),
+  daily_cap: z
+    .number()
+    .int()
+    .meta({ description: 'Most posts a day for this channel. 0 means no limit.' }),
+  blackout_dates: z
+    .array(z.string())
+    .meta({ description: 'Dates (Eastern) this channel never posts, plus the global ones.' }),
+  aliases: z.array(z.string()).meta({ description: 'Old names that map to this slug.' }),
   inbox_enabled: z.boolean(),
   slots: z.array(SlotOut).meta({ description: 'Posting times, in Eastern time.' }),
   defaults: z.object({
@@ -630,6 +650,9 @@ export const UpcomingQuery = z.object({
     .string()
     .optional()
     .meta({ description: "A bot name, or josh for the owner's own ideas." }),
+  updated_after: ZonedTime.optional().meta({
+    description: 'Only entries changed after this time. Cheap polling.',
+  }),
 })
 
 export const UpcomingParams = z.object({
@@ -639,6 +662,7 @@ export const UpcomingParams = z.object({
 
 export const UpcomingOut = z.object({
   revision: z.number().int(),
+  updated_at: z.string().nullable(),
   episodes: z.array(UpcomingEntry),
 })
 
@@ -673,3 +697,39 @@ export const PatchUpcomingBody = z
     }),
   })
   .strict()
+
+export const SyncOut = z.object({
+  app_version: z.string(),
+  mechanism: z.string(),
+  server_time: z.string().meta({ description: 'Now, in America/New_York with the offset.' }),
+  upcoming: z.object({
+    revision: z.number().int(),
+    updated_at: z.string().nullable(),
+    entries: z.number().int(),
+  }),
+  last_change_id: z.number().int().meta({ description: 'Use as since_id on GET /v1/changes.' }),
+  claude_api_enabled: z.boolean(),
+  studio_production_enabled: z.boolean(),
+  agent_may_schedule: z.boolean(),
+  scheduler_paused: z.boolean(),
+  open_reconcile_issues: z.number().int(),
+})
+
+export const ChangesQuery = z.object({
+  since_id: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(500).default(200),
+})
+
+export const ChangesOut = z.object({
+  cursor: z.number().int().meta({ description: 'Send this as since_id next time.' }),
+  events: z.array(
+    z.object({
+      id: z.number().int(),
+      at: z.string(),
+      actor: z.string(),
+      action: z.string(),
+      target: z.string(),
+      detail: z.string(),
+    }),
+  ),
+})

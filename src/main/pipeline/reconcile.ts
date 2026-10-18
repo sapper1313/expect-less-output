@@ -5,6 +5,7 @@ import type { Library } from '../services/library'
 import type { PostService } from '../services/posts'
 import type { SettingsService } from '../services/settings'
 import { ZONE } from '@shared/time'
+import { channelState } from './state'
 import { realPlatforms, sha256File } from './verify'
 
 export type IssueKind =
@@ -17,6 +18,8 @@ export type IssueKind =
   | 'waiting_too_long'
   | 'stuck_upload'
   | 'low_queue'
+  | 'missed_slot'
+  | 'channel_state'
   | 'upcoming'
 
 export interface FoundIssue {
@@ -97,6 +100,8 @@ export class Reconciler {
       found.push(...this.waiting())
       found.push(...this.uploads())
       found.push(...this.lowQueue())
+      found.push(...this.missed())
+      found.push(...this.stateConflicts())
       for (const x of this.d.extra ?? []) found.push(...x())
       const fixed = this.d.settings.get().reconcileAutoFix ? this.autoFix(found) : new Set<string>()
       this.record(found.filter((f) => !fixed.has(f.key)))
@@ -439,6 +444,50 @@ export class Reconciler {
           brandId: b.id,
           postId: null,
           detail: `${b.name} has ${ahead} day(s) of posts scheduled ahead. The alert level is ${days}.`,
+        })
+    }
+    return out
+  }
+
+  /** A slot passed and nothing went out: scheduled and late, or marked missed in the last 7 days. */
+  private missed(): FoundIssue[] {
+    const now = this.now()
+    const late = new Date(now - 30 * 60_000).toISOString()
+    const week = new Date(now - 7 * 86_400_000).toISOString()
+    return (
+      this.d.db
+        .prepare(
+          `SELECT id, brand_id, title, scheduled_at_utc, status FROM posts
+           WHERE (status = 'scheduled' AND scheduled_at_utc < ?) OR (status = 'missed' AND scheduled_at_utc > ?)`,
+        )
+        .all(late, week) as Array<{
+        id: number
+        brand_id: number
+        title: string
+        scheduled_at_utc: string
+        status: string
+      }>
+    ).map((p) => ({
+      key: `missed_slot:${p.id}`,
+      kind: 'missed_slot' as const,
+      brandId: p.brand_id,
+      postId: p.id,
+      detail: `"${p.title}" (${this.brandName(p.brand_id)}) was due ${this.et(p.scheduled_at_utc)} and has not gone out${p.status === 'missed' ? ' (marked missed)' : ''}.`,
+    }))
+  }
+
+  /** A scheduled post on a channel that is on hold or archived. */
+  private stateConflicts(): FoundIssue[] {
+    const out: FoundIssue[] = []
+    for (const p of this.scheduled()) {
+      const st = channelState(this.d.db, p.brand_id)
+      if (st === 'on-hold' || st === 'archived')
+        out.push({
+          key: `channel_state:${p.id}`,
+          kind: 'channel_state',
+          brandId: p.brand_id,
+          postId: p.id,
+          detail: `"${p.title}" is scheduled but ${this.brandName(p.brand_id)} is ${st}.`,
         })
     }
     return out

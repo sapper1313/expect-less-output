@@ -46,9 +46,11 @@ export async function handleAgentRequest(
   token: () => string | null,
   req: AgentRequest,
   onDenied: (reason: string) => void = () => {},
+  /** Extra Host values that are fine (the Tailscale address and name). */
+  hostOk: (host: string) => boolean = () => false,
 ): Promise<AgentResponse> {
   const host = String(req.headers.host ?? '').toLowerCase()
-  if (host !== `127.0.0.1:${req.port}` && host !== `localhost:${req.port}`) {
+  if (host !== `127.0.0.1:${req.port}` && host !== `localhost:${req.port}` && !hostOk(host)) {
     onDenied('bad Host header')
     return err(403, 'forbidden', 'Requests must go to 127.0.0.1 or localhost.')
   }
@@ -155,27 +157,37 @@ export async function handleAgentRequest(
   }
 }
 
-/** The real server. Bound to 127.0.0.1 only. */
+/** The real server. Always on 127.0.0.1. It can also listen on this Mac's Tailscale address, and nowhere else. */
 export class AgentServer {
-  private server: Server | null = null
+  private servers: Server[] = []
   private lastDeniedLog = 0
+  private tailscale: string | null = null
   constructor(
     private s: AgentServices,
     private getToken: () => string | null,
   ) {}
 
   get running(): boolean {
-    return this.server !== null
+    return this.servers.length > 0
+  }
+
+  get tailscaleListening(): boolean {
+    return this.servers.length > 1
   }
 
   address(): { address: string; port: number } | null {
-    const a = this.server?.address()
+    const a = this.servers[0]?.address()
     return a && typeof a === 'object' ? { address: a.address, port: a.port } : null
   }
 
-  async start(port: number): Promise<void> {
-    if (this.server) await this.stop()
-    await new Promise<void>((resolve, reject) => {
+  private hostOk = (host: string): boolean => {
+    // The Tailscale address, or a name Tailscale gives this Mac. Web pages cannot take a .ts.net name over.
+    if (this.tailscale && host === `${this.tailscale}:${this.address()?.port}`) return true
+    return /^[a-z0-9-]+(\.[a-z0-9-]+)*\.ts\.net:\d+$/.test(host)
+  }
+
+  private make(port: number, address: string): Promise<Server> {
+    return new Promise<Server>((resolve, reject) => {
       const server = createServer((req, res) => {
         const chunks: Buffer[] = []
         let size = 0
@@ -205,6 +217,7 @@ export class AgentServer {
                     this.s.log.log('warn', `Agent API refused a request (${reason}).`)
                   }
                 },
+                this.hostOk,
               )
           res.writeHead(out.status, {
             'Content-Type': 'application/json; charset=utf-8',
@@ -222,20 +235,41 @@ export class AgentServer {
             : e,
         )
       })
-      server.listen(port, '127.0.0.1', () => {
-        this.server = server
-        resolve()
-      })
+      server.listen(port, address, () => resolve(server))
     })
   }
 
+  /** tailscale: this Mac's Tailscale address to listen on as well, or null for this Mac only. */
+  async start(port: number, tailscale: string | null = null): Promise<void> {
+    if (this.servers.length) await this.stop()
+    this.tailscale = tailscale
+    const first = await this.make(port, '127.0.0.1')
+    this.servers = [first]
+    if (tailscale) {
+      const actual = (first.address() as { port: number }).port
+      try {
+        this.servers.push(await this.make(actual, tailscale))
+      } catch (e) {
+        await this.stop()
+        throw new Error(
+          `Could not listen on the Tailscale address ${tailscale}: ${(e as Error).message}`,
+        )
+      }
+    }
+  }
+
   async stop(): Promise<void> {
-    const server = this.server
-    this.server = null
-    if (!server) return
-    await new Promise<void>((resolve) => {
-      server.closeAllConnections?.()
-      server.close(() => resolve())
-    })
+    const list = this.servers
+    this.servers = []
+    this.tailscale = null
+    await Promise.all(
+      list.map(
+        (server) =>
+          new Promise<void>((resolve) => {
+            server.closeAllConnections?.()
+            server.close(() => resolve())
+          }),
+      ),
+    )
   }
 }

@@ -98,6 +98,50 @@
       "type": "string",
       "minLength": 1
     },
+    "qc": {
+      "description": "The quality check result. Needed when \"Require QC pass\" is on in Settings.",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail"
+          ]
+        },
+        "by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "at": {
+          "type": "string",
+          "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+        }
+      },
+      "required": [
+        "status",
+        "by",
+        "at"
+      ]
+    },
+    "beth_signoff": {
+      "description": "B.E.T.H. sign-off. Needed when \"Require QC pass\" is on in Settings.",
+      "type": "object",
+      "properties": {
+        "by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "at": {
+          "type": "string",
+          "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+        }
+      },
+      "required": [
+        "by",
+        "at"
+      ]
+    },
     "render": {
       "description": "Stored in the drop log only.",
       "type": "object",

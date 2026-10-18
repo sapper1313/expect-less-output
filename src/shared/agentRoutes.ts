@@ -10,6 +10,9 @@ import {
   CalendarOut,
   CalendarQuery,
   AddUpcomingBody,
+  ChangesOut,
+  ChangesQuery,
+  SyncOut,
   CreateDropBody,
   CreateDropOut,
   CreatePostBody,
@@ -124,6 +127,29 @@ export const ROUTES: RouteDef[] = [
     success: 201,
     tool: 'create_drop',
     bot: true,
+  },
+  {
+    id: 'syncStatus',
+    method: 'GET',
+    path: '/v1/sync',
+    summary:
+      'Heartbeat: is the box current, and as of when? App version, time, Upcoming revision and switches.',
+    response: SyncOut,
+    success: 200,
+    tool: 'get_sync_status',
+  },
+  {
+    id: 'changes',
+    method: 'GET',
+    path: '/v1/changes',
+    summary:
+      'What changed since a point: drops, scheduling, posts, failures and Upcoming writes, oldest first.',
+    description:
+      'Send since_id (start at 0 or the last_change_id from /v1/sync) and keep the cursor you get back. If the Mac is asleep nothing changes and /v1/sync is unreachable, so treat that as unknown, not as all fine.',
+    query: ChangesQuery,
+    response: ChangesOut,
+    success: 200,
+    tool: 'get_changes',
   },
   {
     id: 'listUpcoming',

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.1 Fresh start and the bot box connection
+
+- **Fresh start** (Settings, Pipeline): makes a backup bundle (database, Upcoming file, the files being removed, inventory, restore steps, checksums), checks it, then clears every script, idea, task record and Upcoming entry, cancels unposted drafts and switches the Claude API and Studio production off. Posted videos, analytics, spend history, the audit log and the drop log stay. Upcoming restarts at revision 1.
+- **Delete** for Upcoming entries (owner only, restorable).
+- **Tailscale listening** (Settings, Agent API): the API can also listen on the Mac's Tailscale address for the bot box. Only that address, only with a token.
+- **Heartbeat and changes:** `GET /v1/sync`, `GET /v1/changes`, `updated_after` on Upcoming, `past_due` on posts, and a `missed_slot` reconcile check.
+- **Channel states:** active, paused, on-hold, archived, shown in `GET /v1/brands` with post days, daily cap, blackout dates and aliases. On hold is a switch on Channel setup. Archived channels refuse drops and Upcoming writes. The Complaint Department starts on hold.
+- **Names:** old channel names (`the-math-of-it`, `wonder-hollow-workshop`, `the-complaint-department`) map to the canonical slugs.
+- **Optional QC gate:** `qc` and `beth_signoff` in the sidecar, required when the new switch is on.
+- Docs: `docs/SYNC_GUIDE.md`.
+
 ## 0.11.0 The bot pipeline: drops, Inbox, Upcoming and new switches
 
 Bots now write and make the episodes. ELO takes finished videos, schedules them with the times the owner set, and posts them. The schedule is only ever what is set in the app; a bot never picks or promises a time.

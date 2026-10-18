@@ -263,6 +263,12 @@ export function PipelineSettings({ s, save }: { s: Settings; save: Save }) {
             hint="You approve a video before it is dropped. A sidecar without the approval block is rejected."
           />
           <Switch
+            checked={s.pipelineRequireQc}
+            onChange={(v) => save({ pipelineRequireQc: v })}
+            label="Require a passing QC result and B.E.T.H. sign-off"
+            hint="On rejects a drop whose sidecar lacks qc (status pass) and beth_signoff."
+          />
+          <Switch
             checked={s.pipelineDuplicateDetection}
             onChange={(v) => save({ pipelineDuplicateDetection: v })}
             label="Refuse duplicates"

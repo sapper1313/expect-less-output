@@ -802,7 +802,11 @@ async function boot(): Promise<void> {
         }
       }
       if (prev.theme !== next.theme) nativeTheme.themeSource = next.theme
-      if (prev.agentApiEnabled !== next.agentApiEnabled || prev.agentApiPort !== next.agentApiPort)
+      if (
+        prev.agentApiEnabled !== next.agentApiEnabled ||
+        prev.agentApiPort !== next.agentApiPort ||
+        prev.agentApiTailscale !== next.agentApiTailscale
+      )
         void agent.apply().then(emit)
       if (
         prev.upcomingEnabled !== next.upcomingEnabled ||

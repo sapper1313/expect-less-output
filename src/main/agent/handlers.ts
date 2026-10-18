@@ -4,7 +4,8 @@ import { formatEastern } from '@shared/time'
 import type { PostOut } from '@shared/agentSchemas'
 import type { Brand, Post } from '@shared/types'
 import { PLATFORMS } from '@shared/platformLimits'
-import type { DropRow } from '@shared/pipeline'
+import { SLUG_ALIASES, canonicalSlug, type DropRow } from '@shared/pipeline'
+import { channelState } from '../pipeline/state'
 import type { Caller } from './bots'
 import { UpcomingError } from '../pipeline/upcoming'
 import type { Actor } from '@shared/upcoming'
@@ -61,7 +62,16 @@ function brandOut(s: AgentServices, b: Brand) {
   const sets = s.brands.listHashtags(b.id)
   const settings = s.settings.get()
   const accounts = s.brands.listAccounts(b.id)
+  const rules = s.posts.channelRules(b.id)
   return {
+    state: channelState(s.posts.dbForState(), b.id),
+    on_hold: channelState(s.posts.dbForState(), b.id) === 'on-hold',
+    post_days: s.posts.postDays(b.id) ?? null,
+    daily_cap: rules.maxPerDay,
+    blackout_dates: [...new Set([...settings.blackoutDates, ...rules.blackoutDates])].sort(),
+    aliases: Object.entries(SLUG_ALIASES)
+      .filter(([, v]) => v === b.slug)
+      .map(([k]) => k),
     id: b.id,
     name: b.name,
     slug: b.slug,
@@ -241,7 +251,8 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
   createDrop: async ({ s, body, caller }) => {
     if (!s.pipeline)
       throw new AgentError(400, 'bad_request', 'Drops are not available in this build.')
-    const channel = typeof body.sidecar.channel === 'string' ? body.sidecar.channel : ''
+    const channel =
+      typeof body.sidecar.channel === 'string' ? canonicalSlug(body.sidecar.channel) : ''
     if (!channel)
       throw new AgentError(400, 'validation', 'The sidecar needs a channel.', [
         { path: 'sidecar.channel', message: 'Required.' },
@@ -264,16 +275,57 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
     return { received: true, drop: drop ? dropOut(drop) : null }
   },
 
+  syncStatus: ({ s }) => {
+    const v = s.upcoming?.view()
+    const st = s.settings.get()
+    return {
+      app_version: s.appVersion,
+      mechanism: 'agent-api-tailscale/1',
+      server_time: DateTime.fromMillis(s.now ? s.now() : Date.now(), {
+        zone: 'America/New_York',
+      }).toISO() as string,
+      upcoming: {
+        revision: v?.revision ?? 0,
+        updated_at: s.upcoming?.updatedAt() ?? null,
+        entries: v?.rows.length ?? 0,
+      },
+      last_change_id: s.audit?.lastId() ?? 0,
+      claude_api_enabled: st.claudeApiEnabled,
+      studio_production_enabled: st.studioProductionEnabled,
+      agent_may_schedule: st.agentMaySchedule,
+      scheduler_paused: st.schedulerPaused,
+      open_reconcile_issues: s.reconciler?.open().length ?? 0,
+    }
+  },
+
+  changes: ({ s, query }) => {
+    const rows = s.audit?.since(query.since_id, query.limit) ?? []
+    return {
+      cursor: rows.length ? rows[rows.length - 1].id : query.since_id,
+      events: rows.map((r) => ({
+        id: r.id,
+        at: DateTime.fromISO(r.at, { zone: 'utc' }).setZone('America/New_York').toISO() as string,
+        actor: r.actor,
+        action: r.action,
+        target: r.target,
+        detail: JSON.stringify(r.after ?? '').slice(0, 300),
+      })),
+    }
+  },
+
   listUpcoming: ({ s, query }) => {
     const v = needUpcoming(s).view()
+    const after = query.updated_after ? toUtc(query.updated_after) : null
     return {
       revision: v.revision,
+      updated_at: s.upcoming?.updatedAt() ?? null,
       episodes: v.rows
         .filter(
           (r) =>
-            (!query.channel || r.channel === query.channel) &&
+            (!query.channel || r.channel === canonicalSlug(query.channel)) &&
             (!query.status || r.status === query.status) &&
-            (!query.source_bot || r.source_bot === query.source_bot),
+            (!query.source_bot || r.source_bot === query.source_bot) &&
+            (!after || r.updated_at > after),
         )
         .map((r) => stripRow(r)),
     }

@@ -61,6 +61,29 @@ export class AuditEvents {
       )
   }
 
+  /** The id of the newest row, for a change cursor. */
+  lastId(): number {
+    return (
+      this.db.prepare('SELECT COALESCE(MAX(id), 0) AS n FROM audit_events').get() as { n: number }
+    ).n
+  }
+
+  /** Rows after an id, oldest first. */
+  since(id: number, limit: number): AuditEvent[] {
+    const rows = this.db
+      .prepare('SELECT * FROM audit_events WHERE id > ? ORDER BY id LIMIT ?')
+      .all(id, limit) as any[]
+    return rows.map((r) => ({
+      id: r.id,
+      at: r.at,
+      actor: r.actor,
+      action: r.action,
+      target: r.target,
+      before: null,
+      after: r.after_json ? JSON.parse(r.after_json) : null,
+    }))
+  }
+
   list(f: AuditEventFilter = {}): AuditEvent[] {
     const where: string[] = []
     const args: unknown[] = []

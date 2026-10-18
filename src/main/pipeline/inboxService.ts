@@ -183,9 +183,15 @@ export class InboxService {
   channelRules(brandId: number): ChannelRules {
     const r = this.d.posts.channelRules(brandId)
     const row = this.d.db
-      .prepare('SELECT min_seconds, max_seconds FROM channel_rules WHERE brand_id = ?')
-      .get(brandId) as { min_seconds: number | null; max_seconds: number | null } | undefined
-    return { ...r, minSeconds: row?.min_seconds ?? null, maxSeconds: row?.max_seconds ?? null }
+      .prepare('SELECT min_seconds, max_seconds, on_hold FROM channel_rules WHERE brand_id = ?')
+      .get(brandId) as
+      { min_seconds: number | null; max_seconds: number | null; on_hold: number } | undefined
+    return {
+      ...r,
+      onHold: !!row?.on_hold,
+      minSeconds: row?.min_seconds ?? null,
+      maxSeconds: row?.max_seconds ?? null,
+    }
   }
 
   setChannelRules(brandId: number, patch: Partial<ChannelRules>): ChannelRules {
@@ -200,10 +206,11 @@ export class InboxService {
     const next = { ...prev, ...patch }
     this.d.db
       .prepare(
-        `INSERT INTO channel_rules (brand_id, max_per_day, blackout_json, low_queue_days, min_seconds, max_seconds)
-         VALUES (?, ?, ?, ?, ?, ?)
+        `INSERT INTO channel_rules (brand_id, max_per_day, blackout_json, low_queue_days, min_seconds, max_seconds, on_hold)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(brand_id) DO UPDATE SET max_per_day = excluded.max_per_day, blackout_json = excluded.blackout_json,
-           low_queue_days = excluded.low_queue_days, min_seconds = excluded.min_seconds, max_seconds = excluded.max_seconds`,
+           low_queue_days = excluded.low_queue_days, min_seconds = excluded.min_seconds, max_seconds = excluded.max_seconds,
+           on_hold = excluded.on_hold`,
       )
       .run(
         brandId,
@@ -212,6 +219,7 @@ export class InboxService {
         next.lowQueueDays,
         next.minSeconds,
         next.maxSeconds,
+        next.onHold ? 1 : 0,
       )
     this.d.audit.write({
       actor: 'josh',

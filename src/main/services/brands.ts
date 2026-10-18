@@ -1,5 +1,6 @@
 import type { Db } from '../db'
 import { DEFAULT_CAPTION_TEMPLATE, ensureSlugs, initBrandRows } from '../db/seed'
+import { canonicalSlug } from '@shared/pipeline'
 import type { Account, Brand, BrandDefaults, BrandSlot, HashtagSet, Platform } from '@shared/types'
 
 const mapBrand = (r: any): Brand => ({
@@ -25,7 +26,7 @@ export class BrandService {
 
   /** Finds a channel by its slug (case does not matter). */
   bySlug(slug: string): Brand | null {
-    const r = this.db.prepare('SELECT * FROM brands WHERE slug = ?').get(slug.trim().toLowerCase())
+    const r = this.db.prepare('SELECT * FROM brands WHERE slug = ?').get(canonicalSlug(slug))
     return r ? mapBrand(r) : null
   }
 

@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto'
 import { existsSync } from 'fs'
-import { homedir } from 'os'
+import { homedir, networkInterfaces } from 'os'
 import { join } from 'path'
 import type { SecretStore } from '../services/secrets'
 import { mask } from '../services/secrets'
@@ -8,6 +8,17 @@ import type { SettingsService } from '../services/settings'
 import type { AgentStatus, McpConfig } from '@shared/types'
 import type { AgentServices } from './core'
 import { AgentServer } from './server'
+
+/** This Mac's Tailscale IPv4 address (100.64.0.0 to 100.127.255.255), or null when Tailscale is not running. */
+export function tailscaleAddress(interfaces = networkInterfaces()): string | null {
+  for (const list of Object.values(interfaces))
+    for (const i of list ?? []) {
+      if (i.family !== 'IPv4' || i.internal) continue
+      const [a, b] = i.address.split('.').map(Number)
+      if (a === 100 && b >= 64 && b <= 127) return i.address
+    }
+  return null
+}
 
 export const AGENT_TOKEN_KEY = 'agent.token'
 
@@ -54,10 +65,24 @@ export class AgentRuntime {
       }
       return
     }
-    if (this.server.running && addr?.port === cfg.agentApiPort) return
+    const ts = cfg.agentApiTailscale ? tailscaleAddress() : null
+    if (cfg.agentApiTailscale && !ts) {
+      this.error =
+        'Tailscale does not seem to be running on this Mac, so the API is only on this Mac for now.'
+      this.s.log.log('warn', this.error)
+    }
+    if (
+      this.server.running &&
+      addr?.port === cfg.agentApiPort &&
+      this.server.tailscaleListening === !!ts
+    )
+      return
     try {
-      await this.server.start(cfg.agentApiPort)
-      this.s.log.log('info', `Agent API listening on 127.0.0.1:${cfg.agentApiPort}.`)
+      await this.server.start(cfg.agentApiPort, ts)
+      this.s.log.log(
+        'info',
+        `Agent API listening on 127.0.0.1:${cfg.agentApiPort}${ts ? ` and ${ts}:${cfg.agentApiPort} (Tailscale)` : ''}.`,
+      )
     } catch (e) {
       this.error = (e as Error).message
       this.s.log.log('error', `Agent API could not start: ${this.error}`)
@@ -75,6 +100,8 @@ export class AgentRuntime {
       tokenMasked: t ? mask(t) : '',
       draftsOnly: !cfg.agentMaySchedule,
       error: this.error,
+      tailscaleAddress: tailscaleAddress(),
+      tailscaleListening: this.server.tailscaleListening,
     }
   }
 

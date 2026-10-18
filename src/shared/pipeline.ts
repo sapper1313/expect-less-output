@@ -62,6 +62,16 @@ export const PipelineSidecar = z
       value: z.string().regex(/^[a-fA-F0-9]{64}$/, 'The checksum must be 64 hex characters.'),
     }),
     source_bot: z.string().min(1),
+    qc: z
+      .object({ status: z.enum(['pass', 'fail']), by: z.string().min(1), at: zoned })
+      .optional()
+      .meta({
+        description: 'The quality check result. Needed when "Require QC pass" is on in Settings.',
+      }),
+    beth_signoff: z
+      .object({ by: z.string().min(1), at: zoned })
+      .optional()
+      .meta({ description: 'B.E.T.H. sign-off. Needed when "Require QC pass" is on in Settings.' }),
     render: z
       .record(z.string(), z.unknown())
       .optional()
@@ -91,6 +101,7 @@ export type ReasonCode =
   | 'bad_episode_id'
   | 'video_file_mismatch'
   | 'no_approval'
+  | 'no_qc'
   | 'bad_checksum'
   | 'unknown_bot'
   | 'bad_format'
@@ -111,13 +122,33 @@ export interface Reason {
   message: string
 }
 
+/** Old names for channels. Each maps to the one canonical slug. Posted history keeps its old ids. */
+export const SLUG_ALIASES: Record<string, string> = {
+  'wonder-hollow-workshop': 'wonder-hollow',
+  'the-math-of-it': 'math-of-it',
+  'the-complaint-department': 'complaint-department',
+  'the-trash-panda': 'trash-panda',
+}
+
+export const canonicalSlug = (s: string): string =>
+  SLUG_ALIASES[s.trim().toLowerCase()] ?? s.trim().toLowerCase()
+
 /** The id every channel uses for an episode: <slug>-<year>-<nnnn>. */
-export const episodeIdPattern = (slug: string) =>
-  new RegExp(`^${slug.replace(/[^a-z0-9-]/g, '')}-\\d{4}-\\d{4}$`)
+export const episodeIdPattern = (slug: string) => {
+  const names = [
+    slug,
+    ...Object.entries(SLUG_ALIASES)
+      .filter(([, v]) => v === slug)
+      .map(([k]) => k),
+  ]
+  return new RegExp(`^(${names.map((n) => n.replace(/[^a-z0-9-]/g, '')).join('|')})-\\d{4}-\\d{4}$`)
+}
 
 export interface ValidateOptions {
   strict: boolean
   requireApproval: boolean
+  /** Reject a sidecar without a passing QC result and a B.E.T.H. sign-off. */
+  requireQc?: boolean
   sourceBots: string[]
   channelSlug: string
 }
@@ -170,7 +201,7 @@ export function validatePipelineSidecar(raw: unknown, o: ValidateOptions): Valid
         errors.push({ code: 'unknown_field', field: k, message: `${k} is not a field ELO knows.` })
       else notes.push(`Ignored unknown field ${k}.`)
     }
-  if (d.channel !== o.channelSlug)
+  if (canonicalSlug(d.channel) !== o.channelSlug)
     errors.push({
       code: 'wrong_channel',
       field: 'channel',
@@ -207,6 +238,13 @@ export function validatePipelineSidecar(raw: unknown, o: ValidateOptions): Valid
       code: 'bad_thumbnail',
       field: 'thumbnail_path',
       message: 'thumbnail_path must be relative to the sidecar, with no "..".',
+    })
+  if (o.requireQc && (d.qc?.status !== 'pass' || !d.beth_signoff))
+    errors.push({
+      code: 'no_qc',
+      field: 'qc',
+      message:
+        'This channel needs a passing QC result (qc.status "pass") and a beth_signoff block before a drop is taken.',
     })
   if (d.preferred_slot !== undefined) notes.push('Ignored: the schedule is set in ELO.')
   return { ok: errors.length === 0, errors, notes, data: errors.length ? null : d }
@@ -286,6 +324,8 @@ export interface InboxCounts {
 }
 
 export interface ChannelRules {
+  /** Not producing or scheduling while a decision is made. Drops wait. */
+  onHold: boolean
   maxPerDay: number
   blackoutDates: string[]
   lowQueueDays: number | null

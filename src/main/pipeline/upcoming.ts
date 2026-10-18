@@ -14,6 +14,8 @@ import { DateTime } from 'luxon'
 import type { Db } from '../db'
 import type { BrandService } from '../services/brands'
 import type { SettingsService } from '../services/settings'
+import { canonicalSlug } from '@shared/pipeline'
+import { channelState } from './state'
 import type { AuditEvents } from './auditEvents'
 import type { FoundIssue } from './reconcile'
 import {
@@ -344,6 +346,11 @@ export class UpcomingService {
     }
   }
 
+  /** When the file was last written (the list's own updated_at). */
+  updatedAt(): string | null {
+    return this.state().json ? this.cached().updated_at : null
+  }
+
   needsReviewCount(): number {
     if (!this.d.settings.get().upcomingEnabled) return 0
     return this.cached().episodes.filter((e) => e.status === 'needs-review').length
@@ -455,8 +462,11 @@ export class UpcomingService {
     },
   ): Promise<UpcomingEntryT> {
     return this.serial(() => {
+      input = { ...input, channel: canonicalSlug(input.channel) }
       const brand = this.d.brands.bySlug(input.channel)
       if (!brand) throw new UpcomingError(404, `No channel with the slug ${input.channel}.`)
+      if (channelState(this.d.db, brand.id) === 'archived')
+        throw new UpcomingError(409, `${brand.name} is archived. Nothing can be added to it.`)
       const title = input.working_title.trim()
       if (!title) throw new UpcomingError(400, 'A working title is needed.')
       let made: UpcomingEntryT | null = null
@@ -513,8 +523,12 @@ export class UpcomingService {
     base: { entry_revision?: number } = {},
   ): Promise<{ entry: UpcomingEntryT; conflict: boolean }> {
     return this.serial(() => {
+      channel = canonicalSlug(channel)
       let conflict = false
       let result: UpcomingEntryT | null = null
+      const pb = this.d.brands.bySlug(channel)
+      if (pb && channelState(this.d.db, pb.id) === 'archived')
+        throw new UpcomingError(409, `${pb.name} is archived. Its entries cannot change.`)
       const target = `${channel}/${episodeId}`
       this.mutate(this.auditActor(actor), 'patch', (f) => {
         const cur = this.find(f, channel, episodeId)

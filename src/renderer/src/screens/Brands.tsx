@@ -629,6 +629,15 @@ function PipelineRules({ brand }: { brand: Brand }) {
           Save slug
         </Button>
       </div>
+      <div className="mt-3">
+        <Check checked={rules.onHold} onChange={(v) => void save({ onHold: v })}>
+          On hold
+        </Check>
+        <div className="ml-6 text-[12px] text-muted">
+          Not scheduling while a decision is made. New videos wait in the Inbox. Different from
+          paused (a short break) and archived (gone for good).
+        </div>
+      </div>
       <div className="mt-3 grid gap-4 md:grid-cols-3">
         <Field label="Most posts a day" hint="0 means no limit.">
           <Select

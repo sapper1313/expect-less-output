@@ -62,6 +62,49 @@
                           "paused": {
                             "type": "boolean"
                           },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "active",
+                              "paused",
+                              "on-hold",
+                              "archived"
+                            ],
+                            "description": "active may be scheduled. paused is temporarily not posting. on-hold is not scheduling while a decision is made. archived is permanently out of service. archived beats on-hold beats paused."
+                          },
+                          "on_hold": {
+                            "type": "boolean"
+                          },
+                          "post_days": {
+                            "nullable": true,
+                            "description": "Weekdays a post may land on, 1 = Monday to 7 = Sunday. Null means every day.",
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "daily_cap": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Most posts a day for this channel. 0 means no limit."
+                          },
+                          "blackout_dates": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Dates (Eastern) this channel never posts, plus the global ones."
+                          },
+                          "aliases": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Old names that map to this slug."
+                          },
                           "inbox_enabled": {
                             "type": "boolean"
                           },
@@ -205,6 +248,12 @@
                           "color",
                           "archived",
                           "paused",
+                          "state",
+                          "on_hold",
+                          "post_days",
+                          "daily_cap",
+                          "blackout_dates",
+                          "aliases",
                           "inbox_enabled",
                           "slots",
                           "defaults",
@@ -945,6 +994,252 @@
         }
       }
     },
+    "/v1/sync": {
+      "get": {
+        "operationId": "syncStatus",
+        "summary": "Heartbeat: is the box current, and as of when? App version, time, Upcoming revision and switches.",
+        "x-mcp-tool": "get_sync_status",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "app_version": {
+                      "type": "string"
+                    },
+                    "mechanism": {
+                      "type": "string"
+                    },
+                    "server_time": {
+                      "type": "string",
+                      "description": "Now, in America/New_York with the offset."
+                    },
+                    "upcoming": {
+                      "type": "object",
+                      "properties": {
+                        "revision": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "updated_at": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "entries": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "revision",
+                        "updated_at",
+                        "entries"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "last_change_id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Use as since_id on GET /v1/changes."
+                    },
+                    "claude_api_enabled": {
+                      "type": "boolean"
+                    },
+                    "studio_production_enabled": {
+                      "type": "boolean"
+                    },
+                    "agent_may_schedule": {
+                      "type": "boolean"
+                    },
+                    "scheduler_paused": {
+                      "type": "boolean"
+                    },
+                    "open_reconcile_issues": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "app_version",
+                    "mechanism",
+                    "server_time",
+                    "upcoming",
+                    "last_change_id",
+                    "claude_api_enabled",
+                    "studio_production_enabled",
+                    "agent_may_schedule",
+                    "scheduler_paused",
+                    "open_reconcile_issues"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/changes": {
+      "get": {
+        "operationId": "changes",
+        "summary": "What changed since a point: drops, scheduling, posts, failures and Upcoming writes, oldest first.",
+        "description": "Send since_id (start at 0 or the last_change_id from /v1/sync) and keep the cursor you get back. If the Mac is asleep nothing changes and /v1/sync is unreachable, so treat that as unknown, not as all fine.",
+        "x-mcp-tool": "get_changes",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "since_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "cursor": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Send this as since_id next time."
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "at": {
+                            "type": "string"
+                          },
+                          "actor": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string"
+                          },
+                          "target": {
+                            "type": "string"
+                          },
+                          "detail": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "at",
+                          "actor",
+                          "action",
+                          "target",
+                          "detail"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "cursor",
+                    "events"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/upcoming": {
       "get": {
         "operationId": "listUpcoming",
@@ -988,6 +1283,17 @@
               "description": "A bot name, or josh for the owner's own ideas.",
               "type": "string"
             }
+          },
+          {
+            "name": "updated_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Only entries changed after this time. Cheap polling.",
+              "type": "string",
+              "pattern": "(Z|[+-]\\d{2}:\\d{2})$",
+              "example": "2026-06-02T17:00:00-04:00"
+            }
           }
         ],
         "responses": {
@@ -1002,6 +1308,10 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "updated_at": {
+                      "nullable": true,
+                      "type": "string"
                     },
                     "episodes": {
                       "type": "array",
@@ -1105,6 +1415,7 @@
                   },
                   "required": [
                     "revision",
+                    "updated_at",
                     "episodes"
                   ],
                   "additionalProperties": false
@@ -2086,6 +2397,19 @@
                 "manual",
                 "inbox",
                 "api"
+              ]
+            }
+          },
+          {
+            "name": "past_due",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "true lists scheduled posts whose time has passed and that have not posted (missed slots).",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
               ]
             }
           },

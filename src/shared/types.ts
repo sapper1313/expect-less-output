@@ -36,6 +36,8 @@ export interface Settings {
   // Agents (local API, watched folders, MCP)
   agentApiEnabled: boolean
   agentApiPort: number
+  /** Also listen on this Mac's Tailscale address, so a bot box on the same Tailscale network can reach the API. */
+  agentApiTailscale: boolean
   /** Off means agents can only create drafts. */
   agentMaySchedule: boolean
   /** Off means agents can read Studio spend and flagged episodes but cannot change anything there. */
@@ -63,6 +65,8 @@ export interface Settings {
   pipelineStrict: boolean
   /** A sidecar must carry the approval block. */
   pipelineRequireApproval: boolean
+  /** A sidecar needs a passing QC result and a B.E.T.H. sign-off. */
+  pipelineRequireQc: boolean
   /** Reject a drop whose checksum or channel plus episode is already known. */
   pipelineDuplicateDetection: boolean
   /** Names a sidecar's source_bot may have. */
@@ -345,6 +349,8 @@ export interface PostFilter {
   origin?: 'manual' | 'inbox' | 'api'
   /** true: only held posts. false: leave held posts out. */
   held?: boolean
+  /** Scheduled posts whose time has passed and that have not posted. */
+  pastDue?: boolean
 }
 
 export interface MediaInspection {
@@ -491,6 +497,10 @@ export interface AgentStatus {
   draftsOnly: boolean
   /** Filled when the server could not start (for example the port is busy). */
   error: string | null
+  /** This Mac's Tailscale address, when Tailscale is running. */
+  tailscaleAddress: string | null
+  /** True while the API is also listening on the Tailscale address. */
+  tailscaleListening: boolean
 }
 
 export interface McpConfig {

@@ -21,6 +21,7 @@ import {
 } from '@shared/pipeline'
 import type { DropInput, DropLog } from './dropLog'
 import type { AuditEvents } from './auditEvents'
+import { channelState } from './state'
 import { realPlatforms, sha256File, verifyPipelinePost } from './verify'
 
 export interface ProbeResult {
@@ -140,7 +141,10 @@ export class PipelineIntake {
       return 'Agents may create drafts only is on in Settings, so nothing is scheduled automatically.'
     if (!s.inboxAutoScheduleBrandIds.includes(brandId))
       return 'Automatic scheduling is off for this channel.'
-    if ((s.pausedBrandIds ?? []).includes(brandId)) return 'The channel is paused.'
+    const state = channelState(this.d.db, brandId)
+    if (state === 'archived') return 'The channel is archived.'
+    if (state === 'on-hold') return 'The channel is on hold.'
+    if (state === 'paused') return 'The channel is paused.'
     const real = realPlatforms(this.d.db, brandId)
     const wanted = platforms ?? real
     if (!wanted.some((p) => real.includes(p)))
@@ -170,6 +174,7 @@ export class PipelineIntake {
     const v = validatePipelineSidecar(a.raw, {
       strict: s.pipelineStrict,
       requireApproval: s.pipelineRequireApproval,
+      requireQc: s.pipelineRequireQc,
       sourceBots: s.pipelineSourceBots,
       channelSlug: slug,
     })

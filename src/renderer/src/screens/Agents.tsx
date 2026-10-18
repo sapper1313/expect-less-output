@@ -85,6 +85,20 @@ export function AgentsCard({
           </div>
         </div>
 
+        <div>
+          <Check checked={s.agentApiTailscale} onChange={(v) => save({ agentApiTailscale: v })}>
+            <b>Also listen on Tailscale</b> (so a bot computer on your Tailscale network can reach
+            this app)
+          </Check>
+          <div className="ml-6 text-[12px] text-muted">
+            {st?.tailscaleAddress
+              ? `This Mac's Tailscale address is ${st.tailscaleAddress}. ${st.tailscaleListening ? `The API is also at http://${st.tailscaleAddress}:${st.port}.` : ''}`
+              : 'Tailscale does not seem to be running on this Mac.'}{' '}
+            Nothing else on the internet or your Wi-Fi can reach it, and every request still needs a
+            token. The Mac must be awake. When it sleeps, the bot computer sees the app as
+            unreachable.
+          </div>
+        </div>
         <Check checked={!s.agentMaySchedule} onChange={(v) => save({ agentMaySchedule: !v })}>
           <b>Agents may create drafts only</b>
         </Check>

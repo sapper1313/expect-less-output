@@ -94,6 +94,8 @@ export class InboxWatcher {
   ): Promise<DropRow | null> {
     const brand = this.d.s.brands.bySlug(channelSlug)
     if (!brand) throw new AgentError(404, 'not_found', `No channel with the slug ${channelSlug}.`)
+    if (brand.archived)
+      throw new AgentError(409, 'conflict', `${brand.name} is archived and takes no drops.`)
     const videoFile = typeof sidecar.video_file === 'string' ? sidecar.video_file : ''
     if (
       !videoFile ||
