@@ -215,6 +215,9 @@ export function StudioBible() {
           })}
         </div>
       </Card>
+      <Card title="Series reference images">
+        <CharacterRefs brandId={id} characterId={null} series />
+      </Card>
       <Card title="Skills (imported files)">
         <p className="mb-2 text-[12px] text-muted">
           Character and channel skills are handed to the Writer with the bible on every call. Choose
@@ -317,18 +320,35 @@ export function StudioBible() {
 }
 
 /** Reference pictures for one character: every angle, with a label, and an off switch for looks that no longer apply. */
-function CharacterRefs({ brandId, characterId }: { brandId: number; characterId: string }) {
+function CharacterRefs({
+  brandId,
+  characterId,
+  series,
+}: {
+  brandId: number
+  characterId: string | null
+  /** True for pictures that belong to the whole series (the look, places, props), not one character. */
+  series?: boolean
+}) {
   const { toast } = useApp()
   const [busy, run] = useBusy()
   const { data, reload } = useLoad(() => api.studio.assetList(brandId), [brandId])
   const mine = (data ?? []).filter(
-    (a) => a.kind === 'reference_image' && !!characterId && a.characterId === characterId,
+    (a) =>
+      a.kind === 'reference_image' &&
+      (series ? a.characterId === null : !!characterId && a.characterId === characterId),
   )
   const live = mine.filter((a) => a.active).length
   const add = async () => {
     const files = await api.media.pickImages(true)
     if (!files.length) return
-    for (const f of files) await api.studio.addAsset(brandId, 'reference_image', f, { characterId })
+    for (const f of files)
+      await api.studio.addAsset(
+        brandId,
+        'reference_image',
+        f,
+        series ? {} : { characterId: characterId as string },
+      )
     toast({ kind: 'success', headline: `Added ${files.length} reference image(s).` })
     reload()
   }
@@ -338,10 +358,10 @@ function CharacterRefs({ brandId, characterId }: { brandId: number; characterId:
         <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">
           Reference images ({live} on{mine.length > live ? `, ${mine.length - live} retired` : ''})
         </span>
-        <Button disabled={busy || !characterId} onClick={() => run(add)}>
+        <Button disabled={busy || (!series && !characterId)} onClick={() => run(add)}>
           Add images
         </Button>
-        {!characterId && (
+        {!series && !characterId && (
           <span className="text-[12px] text-muted">Save the bible first, then add images.</span>
         )}
       </div>
@@ -393,10 +413,9 @@ function CharacterRefs({ brandId, characterId }: { brandId: number; characterId:
         ))}
       </div>
       <p className="mt-1 text-[11px] text-muted">
-        These go to the video model with every clip. Up to 14 are sent in total, shared fairly
-        between characters, and each one adds a small cost per clip. Retire an old look when the
-        character changes: the picture stays here and you can switch it back on. If you remove the
-        character, its pictures stop being used.
+        {series
+          ? 'These are for the whole series: the look and style, the places, the props. They go to the video model with every clip, along with the character pictures. Up to 14 are sent in total, and each one adds a small cost per clip. Retire a picture when the look changes: it stays here and you can switch it back on.'
+          : 'These go to the video model with every clip. Up to 14 are sent in total, shared fairly between characters, and each one adds a small cost per clip. Retire an old look when the character changes: the picture stays here and you can switch it back on. If you remove the character, its pictures stop being used.'}
       </p>
     </div>
   )

@@ -64,8 +64,8 @@ describe('character reference images', () => {
     const refs = e.studio.assets.references(b)
     expect(refs).toHaveLength(14)
     expect(refs.filter((r) => r.characterId === bot)).toHaveLength(2) // not crowded out by Sarah
-    expect(refs.filter((r) => r.characterId === sarah)).toHaveLength(12) // characters take turns, Sarah gets the rest
-    expect(refs.some((r) => r.characterId === null)).toBe(false) // character pictures come first
+    expect(refs.filter((r) => r.characterId === sarah)).toHaveLength(11) // characters take turns, Sarah gets the rest
+    expect(refs.filter((r) => r.characterId === null)).toHaveLength(1) // a series picture keeps its place
 
     // retire every Sarah picture: they are kept but not sent
     for (const a of e.studio.assets.list(b).filter((x) => x.characterId === sarah))
@@ -84,5 +84,17 @@ describe('character reference images', () => {
     for (let i = 0; i < 5; i++)
       await e.studio.addAsset(b, 'reference_image', png(e, `q${i}.png`), { characterId: sarah })
     expect(e.studio.assets.references(b, 3)).toHaveLength(3)
+  })
+})
+
+describe('series reference images', () => {
+  it('reserve room, so characters with many pictures cannot crowd them out', async () => {
+    const { e, b, sarah } = await twoCharacters()
+    for (let i = 0; i < 20; i++)
+      await e.studio.addAsset(b, 'reference_image', png(e, `c${i}.png`), { characterId: sarah })
+    for (let i = 0; i < 6; i++) await e.studio.addAsset(b, 'reference_image', png(e, `s${i}.png`))
+    const refs = e.studio.assets.references(b)
+    expect(refs).toHaveLength(14)
+    expect(refs.filter((r) => r.characterId === null)).toHaveLength(4)
   })
 })

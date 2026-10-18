@@ -76,18 +76,22 @@ export class BrandAssets {
     const queues = new Map<string, Asset[]>()
     for (const a of usable.filter((x) => x.characterId !== null))
       queues.set(a.characterId as string, [...(queues.get(a.characterId as string) ?? []), a])
+    // Up to 4 places go to the series pictures (the look, the places, the props), so characters cannot crowd them out.
+    const seriesAll = usable.filter((x) => x.characterId === null)
+    const reserved = Math.min(seriesAll.length, 4, cap)
     const out: Asset[] = []
-    for (let round = 0; out.length < cap; round++) {
+    const charCap = cap - reserved
+    for (let round = 0; out.length < charCap; round++) {
       let any = false
       for (const q of queues.values()) {
-        if (q[round] && out.length < cap) {
+        if (q[round] && out.length < charCap) {
           out.push(q[round])
           any = true
         }
       }
       if (!any) break
     }
-    for (const a of usable.filter((x) => x.characterId === null)) if (out.length < cap) out.push(a)
+    for (const a of seriesAll) if (out.length < cap) out.push(a)
     return out
   }
 
