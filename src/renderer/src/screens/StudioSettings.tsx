@@ -551,6 +551,22 @@ function BrandRow({
           of day comes from the posting times on Channel setup.
         </span>
       </div>
+      <div className="mb-3">
+        <Field
+          label="Video type"
+          hint="Short is tall (9:16), 5 to 180 seconds, all platforms. Long is wide (16:9), 1 to 12 minutes, YouTube only. Bot drops are checked against this."
+        >
+          <Select
+            className="w-64"
+            aria-label={`${name} video type`}
+            value={cfg.format}
+            onChange={(e) => save({ format: e.target.value as never })}
+          >
+            <option value="short">Short (9:16)</option>
+            <option value="long">Long (16:9, YouTube only)</option>
+          </Select>
+        </Field>
+      </div>
       <div className="grid gap-3 md:grid-cols-3">
         <Field label="Cadence">
           <Select
