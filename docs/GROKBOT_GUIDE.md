@@ -29,7 +29,7 @@ Shorts are 9:16 and 5 to 180 seconds. Wonder Hollow is 16:9 and 60 to 720 second
 
 ## The one episode id
 
-Every episode has one id for its whole life: `<slug>-<year>-<nnnn>`, for example `clock-out-early-2026-0007`. Use the same id in the Upcoming list, in the sidecar, and in the video file name. If you leave the id out when you add an entry to Upcoming, ELO picks the next free one and returns it.
+Every episode has one id for its whole life: `<slug>-<year>-<SSEE>`, where SS is the season and EE the episode, for example `clock-out-early-2026-0101` (season 1, episode 1). Use the same id in the Upcoming list, in the sidecar, and in the video file name. If you leave the id out when you add an entry to Upcoming, ELO picks the next free one and returns it.
 
 ## Your own token
 

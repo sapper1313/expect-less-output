@@ -9,15 +9,15 @@ Give this whole file to every bot that hands videos to ELO. Read `docs/GROKBOT_G
 For one finished video you make two files with the same name apart from the ending:
 
 ```
-clock-out-early-2026-0007.mp4
-clock-out-early-2026-0007.json
+clock-out-early-2026-0101.mp4
+clock-out-early-2026-0101.json
 ```
 
 Rules for the names:
 
-1. The video file name must contain the episode id (`clock-out-early-2026-0007`). If it does not, ELO holds the drop and does not schedule it.
+1. The video file name must contain the episode id (`clock-out-early-2026-0101`). If it does not, ELO holds the drop and does not schedule it.
 2. The `.json` file has the same name as the video, with `.json` at the end.
-3. Copy the video first and the `.json` last. ELO waits until both are there and the sizes stop changing for 5 seconds. To skip the wait, create an empty file called `clock-out-early-2026-0007.ready` after the other two.
+3. Copy the video first and the `.json` last. ELO waits until both are there and the sizes stop changing for 5 seconds. To skip the wait, create an empty file called `clock-out-early-2026-0101.ready` after the other two.
 
 Put both in the channel's Inbox folder: `<Media Root>/<Channel name>/Inbox`, for example `~/Movies/Expect Less Output/Clock Out Early/Inbox`. The owner can also let you call `POST /v1/drops` (see the end).
 
@@ -27,12 +27,12 @@ Put both in the channel's Inbox folder: `<Media Root>/<Channel name>/Inbox`, for
 {
   "schema_version": "1.0",
   "channel": "clock-out-early",
-  "episode_id": "clock-out-early-2026-0007",
+  "episode_id": "clock-out-early-2026-0101",
   "title": "Find Any Chrome Tab Instantly",
   "description": "Stop scrolling through forty tabs. Here is the trick. #productivity",
   "tags": ["chrome", "productivity"],
-  "thumbnail_path": "clock-out-early-2026-0007_thumb.jpg",
-  "video_file": "clock-out-early-2026-0007.mp4",
+  "thumbnail_path": "clock-out-early-2026-0101_thumb.jpg",
+  "video_file": "clock-out-early-2026-0101.mp4",
   "platforms": ["youtube", "tiktok", "instagram"],
   "approval": { "approved_by": "Josh", "approved_at": "2026-10-16T15:30:00-04:00" },
   "checksum": { "algo": "sha256", "value": "<64 hex characters of the mp4>" },
@@ -47,7 +47,7 @@ The full format is in `docs/sidecar.schema.json`. In plain words:
 | --- | --- | --- |
 | `schema_version` | yes | Always `"1.0"`. |
 | `channel` | yes | The channel slug. It must match the Inbox folder you used. |
-| `episode_id` | yes | `<slug>-<year>-<nnnn>`. Unique for the channel. |
+| `episode_id` | yes | `<slug>-<year>-<SSEE>` (SS = season, EE = episode). Unique for the channel. |
 | `title` | yes | Up to 100 characters. |
 | `description` | yes | The YouTube description and the Instagram and TikTok caption. |
 | `tags` | no | Up to 30. They go to YouTube as tags, and are added as hashtags to the caption where the caption does not have them already. |
@@ -91,7 +91,7 @@ If the video is on the internet, drop only the `.json`, with an extra `"video_ur
 `POST /v1/drops` with your bot token and this body does the same as dropping the files:
 
 ```json
-{ "sidecar": { "...the sidecar above..." }, "file_path": "/Users/me/renders/clock-out-early-2026-0007.mp4" }
+{ "sidecar": { "...the sidecar above..." }, "file_path": "/Users/me/renders/clock-out-early-2026-0101.mp4" }
 ```
 
 `file_path` is copied into the Inbox; your original stays. The answer says `received: true` and, when it is already decided, the drop (`result`, `reason`, `scheduled_slot`). You can only drop into channels your token is allowed to use.

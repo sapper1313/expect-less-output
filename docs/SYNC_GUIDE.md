@@ -40,13 +40,13 @@ Poll `/v1/sync` every few minutes and `/v1/changes` about every 15 minutes while
 
 | Channel | Slug (canonical) | Episode id looks like | Also accepted as an old name | Folder in the Media Root |
 | --- | --- | --- | --- | --- |
-| Trash Panda | `trash-panda` | `trash-panda-2026-0007` | | Trash Panda |
-| Clock Out Early | `clock-out-early` | `clock-out-early-2026-0007` | | Clock Out Early |
-| Teach Your Parents Tech | `teach-your-parents-tech` | `teach-your-parents-tech-2026-0007` | | Teach Your Parents Tech |
-| The Math of It | `math-of-it` | `math-of-it-2026-0007` | `the-math-of-it` | The Math of It |
-| Wonder Hollow Workshop | `wonder-hollow` | `wonder-hollow-2026-0007` | `wonder-hollow-workshop` | Wonder Hollow Workshop |
-| Backup Heroes | `backup-heroes` | `backup-heroes-2026-0007` | | Backup Heroes (archived) |
-| The Complaint Department | `complaint-department` | `complaint-department-2026-0007` | `the-complaint-department` | The Complaint Department |
+| Trash Panda | `trash-panda` | `trash-panda-2026-0101` | | Trash Panda |
+| Clock Out Early | `clock-out-early` | `clock-out-early-2026-0101` | | Clock Out Early |
+| Teach Your Parents Tech | `teach-your-parents-tech` | `teach-your-parents-tech-2026-0101` | | Teach Your Parents Tech |
+| The Math of It | `math-of-it` | `math-of-it-2026-0101` | `the-math-of-it` | The Math of It |
+| Wonder Hollow Workshop | `wonder-hollow` | `wonder-hollow-2026-0101` | `wonder-hollow-workshop` | Wonder Hollow Workshop |
+| Backup Heroes | `backup-heroes` | `backup-heroes-2026-0101` | | Backup Heroes (archived) |
+| The Complaint Department | `complaint-department` | `complaint-department-2026-0101` | `the-complaint-department` | The Complaint Department |
 
 Episode ids are matched exactly, never fuzzy. An old name in `channel` is mapped to the canonical slug. An old-prefix id such as `the-math-of-it-2026-0001` is still accepted for `math-of-it`, and posted history keeps the ids it already has.
 

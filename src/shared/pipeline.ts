@@ -31,7 +31,7 @@ export const PipelineSidecar = z
     }),
     episode_id: z.string().min(1).meta({
       description:
-        'The one episode id, <slug>-<year>-<nnnn>, for example clock-out-early-2026-0007. The video file name must contain it.',
+        'The one episode id, <slug>-<year>-<SSEE>, SS the season and EE the episode, for example clock-out-early-2026-0101 (season 1, episode 1). The video file name must contain it.',
     }),
     title: z.string().min(1).meta({ description: 'Up to 100 characters.' }),
     description: z
@@ -133,7 +133,7 @@ export const SLUG_ALIASES: Record<string, string> = {
 export const canonicalSlug = (s: string): string =>
   SLUG_ALIASES[s.trim().toLowerCase()] ?? s.trim().toLowerCase()
 
-/** The id every channel uses for an episode: <slug>-<year>-<nnnn>. */
+/** The id every channel uses for an episode: <slug>-<year>-<SSEE> (SS season, EE episode). */
 export const episodeIdPattern = (slug: string) => {
   const names = [
     slug,
@@ -208,7 +208,7 @@ export function validatePipelineSidecar(raw: unknown, o: ValidateOptions): Valid
       message: `The sidecar says channel "${d.channel}" but this is the ${o.channelSlug} Inbox.`,
     })
   if (!episodeIdPattern(o.channelSlug).test(d.episode_id)) {
-    const m = `episode_id "${d.episode_id}" must look like ${o.channelSlug}-2026-0007.`
+    const m = `episode_id "${d.episode_id}" must look like ${o.channelSlug}-2026-0101 (season 01, episode 01).`
     if (o.strict) errors.push({ code: 'bad_episode_id', field: 'episode_id', message: m })
     else notes.push(m)
   }

@@ -15,7 +15,7 @@
     "episode_id": {
       "type": "string",
       "minLength": 1,
-      "description": "The one episode id, <slug>-<year>-<nnnn>, for example clock-out-early-2026-0007. The video file name must contain it."
+      "description": "The one episode id, <slug>-<year>-<SSEE>, SS the season and EE the episode, for example clock-out-early-2026-0101 (season 1, episode 1). The video file name must contain it."
     },
     "title": {
       "type": "string",

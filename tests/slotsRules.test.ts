@@ -59,3 +59,25 @@ describe('slot rules (test 14)', () => {
     expect(r.map(et)).toEqual(['Mon, 10/19, 9 AM', 'Mon, 10/19, 5 PM', 'Tue, 10/20, 9 AM'])
   })
 })
+
+describe('episode ids: season and episode', () => {
+  it('start at 0101, count up inside a season, then start the next season', async () => {
+    const { nextEpisodeId } = await import('../src/shared/upcoming')
+    expect(nextEpisodeId('clock-out-early', 2026, [])).toBe('clock-out-early-2026-0101')
+    expect(nextEpisodeId('clock-out-early', 2026, ['clock-out-early-2026-0007'])).toBe(
+      'clock-out-early-2026-0101',
+    )
+    expect(
+      nextEpisodeId('clock-out-early', 2026, [
+        'clock-out-early-2026-0101',
+        'clock-out-early-2026-0104',
+      ]),
+    ).toBe('clock-out-early-2026-0105')
+    expect(nextEpisodeId('clock-out-early', 2026, ['clock-out-early-2026-0199'])).toBe(
+      'clock-out-early-2026-0201',
+    )
+    expect(nextEpisodeId('clock-out-early', 2026, ['clock-out-early-2026-0207'])).toBe(
+      'clock-out-early-2026-0208',
+    )
+  })
+})

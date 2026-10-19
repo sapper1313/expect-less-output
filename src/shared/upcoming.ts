@@ -180,6 +180,10 @@ export function mayChange(
   return { ok: true }
 }
 
+/**
+ * The next episode id for a channel: <slug>-<year>-<SSEE>. The first two digits are the season, the last two the episode,
+ * so 0101 is season 1 episode 1. A channel with nothing numbered yet starts at 0101. After episode 99 the next season starts.
+ */
 export function nextEpisodeId(slug: string, year: number, used: Iterable<string>): string {
   const re = new RegExp(`^${slug}-${year}-(\\d{4})$`)
   let max = 0
@@ -187,7 +191,8 @@ export function nextEpisodeId(slug: string, year: number, used: Iterable<string>
     const m = re.exec(u)
     if (m) max = Math.max(max, Number(m[1]))
   }
-  return `${slug}-${year}-${String(max + 1).padStart(4, '0')}`
+  const next = max < 100 ? 101 : max % 100 >= 99 ? (Math.floor(max / 100) + 1) * 100 + 1 : max + 1
+  return `${slug}-${year}-${String(next).padStart(4, '0')}`
 }
 
 export interface UpcomingRow extends UpcomingEntryT {

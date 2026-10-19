@@ -91,7 +91,7 @@ describe('Upcoming: add, ownership and API (tests 25, 26, 27)', () => {
       status: 'idea',
       source_bot: 'josh',
       created_by: 'josh',
-      episode_id: expect.stringMatching(/^trash-panda-\d{4}-0001$/),
+      episode_id: expect.stringMatching(/^trash-panda-\d{4}-0101$/),
       entry_revision: 1,
     })
     const adv = await t.up.patch(
