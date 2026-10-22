@@ -296,6 +296,13 @@ export const PostOut = z.object({
     .string()
     .nullable()
     .meta({ description: 'For a clip: the episode it was cut from.' }),
+  related_video: z
+    .object({ episode_id: z.string(), url: z.string().nullable(), done: z.boolean() })
+    .nullable()
+    .meta({
+      description:
+        'For a clip with a YouTube Short: the Related video to set by hand in YouTube Studio (the YouTube API cannot). url is the episode link, or null until it is live.',
+    }),
   origin: z.enum(['manual', 'inbox', 'api']),
   episode_id: z
     .string()

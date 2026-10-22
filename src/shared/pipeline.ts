@@ -53,6 +53,10 @@ export const PipelineSidecar = z
       description:
         'episode (the default when missing) is a full video. clip is a vertical clip, 9:16 and 5 to 90 seconds, with its own schedule.',
     }),
+    channel_link: z.boolean().optional().meta({
+      description:
+        'Clips only. On by default. Adds the show\'s YouTube channel link to the end of the clip description on every platform, after the "Full episode on YouTube" line. Send false to leave it off.',
+    }),
     source_episode_id: z.string().optional().meta({
       description:
         'For a clip: the episode it was cut from. Once that episode is live on YouTube, the clip description gets "Full episode on YouTube" and the link.',

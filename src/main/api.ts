@@ -229,6 +229,7 @@ export function buildApi(d: ApiDeps): Api {
           }),
         )
       },
+      setRelatedDone: async (id, done) => d.posts.setRelatedDone(id, done),
       swap: async (a, b) => {
         const [pa, pb] = [d.posts.get(a)?.scheduledAtUtc, d.posts.get(b)?.scheduledAtUtc]
         d.posts.swapTimes(a, b)

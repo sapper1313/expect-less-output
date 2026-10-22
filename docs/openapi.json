@@ -2280,6 +2280,29 @@
                       "description": "For a clip: the episode it was cut from.",
                       "type": "string"
                     },
+                    "related_video": {
+                      "nullable": true,
+                      "description": "For a clip with a YouTube Short: the Related video to set by hand in YouTube Studio (the YouTube API cannot). url is the episode link, or null until it is live.",
+                      "type": "object",
+                      "properties": {
+                        "episode_id": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "done": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "episode_id",
+                        "url",
+                        "done"
+                      ],
+                      "additionalProperties": false
+                    },
                     "origin": {
                       "type": "string",
                       "enum": [
@@ -2389,6 +2412,7 @@
                     "duration_seconds",
                     "post_type",
                     "source_episode_id",
+                    "related_video",
                     "origin",
                     "episode_id",
                     "source_bot",
@@ -2642,6 +2666,29 @@
                             "description": "For a clip: the episode it was cut from.",
                             "type": "string"
                           },
+                          "related_video": {
+                            "nullable": true,
+                            "description": "For a clip with a YouTube Short: the Related video to set by hand in YouTube Studio (the YouTube API cannot). url is the episode link, or null until it is live.",
+                            "type": "object",
+                            "properties": {
+                              "episode_id": {
+                                "type": "string"
+                              },
+                              "url": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "done": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "episode_id",
+                              "url",
+                              "done"
+                            ],
+                            "additionalProperties": false
+                          },
                           "origin": {
                             "type": "string",
                             "enum": [
@@ -2751,6 +2798,7 @@
                           "duration_seconds",
                           "post_type",
                           "source_episode_id",
+                          "related_video",
                           "origin",
                           "episode_id",
                           "source_bot",
@@ -2896,6 +2944,29 @@
                       "description": "For a clip: the episode it was cut from.",
                       "type": "string"
                     },
+                    "related_video": {
+                      "nullable": true,
+                      "description": "For a clip with a YouTube Short: the Related video to set by hand in YouTube Studio (the YouTube API cannot). url is the episode link, or null until it is live.",
+                      "type": "object",
+                      "properties": {
+                        "episode_id": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "done": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "episode_id",
+                        "url",
+                        "done"
+                      ],
+                      "additionalProperties": false
+                    },
                     "origin": {
                       "type": "string",
                       "enum": [
@@ -3005,6 +3076,7 @@
                     "duration_seconds",
                     "post_type",
                     "source_episode_id",
+                    "related_video",
                     "origin",
                     "episode_id",
                     "source_bot",
@@ -3254,6 +3326,29 @@
                       "description": "For a clip: the episode it was cut from.",
                       "type": "string"
                     },
+                    "related_video": {
+                      "nullable": true,
+                      "description": "For a clip with a YouTube Short: the Related video to set by hand in YouTube Studio (the YouTube API cannot). url is the episode link, or null until it is live.",
+                      "type": "object",
+                      "properties": {
+                        "episode_id": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "done": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "episode_id",
+                        "url",
+                        "done"
+                      ],
+                      "additionalProperties": false
+                    },
                     "origin": {
                       "type": "string",
                       "enum": [
@@ -3363,6 +3458,7 @@
                     "duration_seconds",
                     "post_type",
                     "source_episode_id",
+                    "related_video",
                     "origin",
                     "episode_id",
                     "source_bot",
@@ -3521,6 +3617,29 @@
                       "description": "For a clip: the episode it was cut from.",
                       "type": "string"
                     },
+                    "related_video": {
+                      "nullable": true,
+                      "description": "For a clip with a YouTube Short: the Related video to set by hand in YouTube Studio (the YouTube API cannot). url is the episode link, or null until it is live.",
+                      "type": "object",
+                      "properties": {
+                        "episode_id": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "done": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "episode_id",
+                        "url",
+                        "done"
+                      ],
+                      "additionalProperties": false
+                    },
                     "origin": {
                       "type": "string",
                       "enum": [
@@ -3630,6 +3749,7 @@
                     "duration_seconds",
                     "post_type",
                     "source_episode_id",
+                    "related_video",
                     "origin",
                     "episode_id",
                     "source_bot",
@@ -3791,6 +3911,29 @@
                           "description": "For a clip: the episode it was cut from.",
                           "type": "string"
                         },
+                        "related_video": {
+                          "nullable": true,
+                          "description": "For a clip with a YouTube Short: the Related video to set by hand in YouTube Studio (the YouTube API cannot). url is the episode link, or null until it is live.",
+                          "type": "object",
+                          "properties": {
+                            "episode_id": {
+                              "type": "string"
+                            },
+                            "url": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "done": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "episode_id",
+                            "url",
+                            "done"
+                          ],
+                          "additionalProperties": false
+                        },
                         "origin": {
                           "type": "string",
                           "enum": [
@@ -3900,6 +4043,7 @@
                         "duration_seconds",
                         "post_type",
                         "source_episode_id",
+                        "related_video",
                         "origin",
                         "episode_id",
                         "source_bot",

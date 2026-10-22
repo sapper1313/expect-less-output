@@ -246,6 +246,39 @@ export function Queue() {
                             {p.postType === 'clip' && <ClipBadge />}
                           </div>
                           <div className="text-[11px] text-muted">{p.fileName}</div>
+                          {p.relatedVideo && !p.relatedVideo.done && (
+                            <div className="mt-1 rounded border border-warn px-2 py-1 text-[11px]">
+                              <b>Related video:</b> set it by hand in YouTube Studio (YouTube does
+                              not let apps set it).{' '}
+                              {p.relatedVideo.url ? (
+                                <>
+                                  Episode: {p.relatedVideo.url}{' '}
+                                  <button
+                                    className="underline"
+                                    onClick={async () => {
+                                      await navigator.clipboard.writeText(p.relatedVideo!.url!)
+                                      toast({ kind: 'success', headline: 'Link copied.' })
+                                    }}
+                                  >
+                                    Copy link
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  The episode ({p.relatedVideo.episodeId}) is not live yet. The link
+                                  shows here once it is.
+                                </>
+                              )}{' '}
+                              <button
+                                className="underline"
+                                onClick={async () => {
+                                  await api.posts.setRelatedDone(p.id, true)
+                                }}
+                              >
+                                Done
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>

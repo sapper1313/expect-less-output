@@ -321,6 +321,7 @@ export class PipelineIntake {
           sourceBot: sc.source_bot,
           videoBasename: name,
           postType,
+          channelLink: postType === 'clip' && sc.channel_link !== false,
           sourceEpisodeRef: postType === 'clip' ? (sc.source_episode_id ?? null) : null,
           holdReason: hold,
         },

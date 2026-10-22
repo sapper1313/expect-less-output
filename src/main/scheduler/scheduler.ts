@@ -421,12 +421,68 @@ export class Scheduler {
           `Sent to ${label}: episode ${sent.episode_ref}, title "${row.title}", file ${sent.video_path.split('/').pop()}, sha256 ${sent.checksum ?? 'unknown'}.`,
           { postId: row.post_id, platform: row.platform },
         )
+      if (result.status === 'posted' && row.platform === 'youtube') this.logRelatedVideo(row)
       this.afterTargetChange(row.post_id)
     } catch (err) {
       this.handleFailure(row, err)
     } finally {
       this.inFlight.delete(row.id)
       this.d.emit?.()
+    }
+  }
+
+  /**
+   * The YouTube API cannot set a Short's Related video, so it is set by hand in YouTube Studio. Writes the reminder to the
+   * Activity Log: for a clip that just went out, and for the clips waiting on an episode that just went live.
+   */
+  private logRelatedVideo(row: DueRow): void {
+    const post = this.d.db
+      .prepare(
+        'SELECT post_type, episode_ref, source_episode_ref, brand_id FROM posts WHERE id = ?',
+      )
+      .get(row.post_id) as
+      | {
+          post_type: string
+          episode_ref: string | null
+          source_episode_ref: string | null
+          brand_id: number
+        }
+      | undefined
+    if (!post) return
+    const urlOf = (brandId: number, ref: string) =>
+      (
+        this.d.db
+          .prepare(
+            `SELECT t.external_url AS url FROM posts p JOIN post_targets t ON t.post_id = p.id
+             WHERE p.brand_id = ? AND p.episode_ref = ? AND p.post_type = 'episode'
+               AND t.platform = 'youtube' AND t.status = 'posted' AND t.external_url IS NOT NULL LIMIT 1`,
+          )
+          .get(brandId, ref) as { url: string } | undefined
+      )?.url ?? null
+    if (post.post_type === 'clip' && post.source_episode_ref) {
+      const url = urlOf(post.brand_id, post.source_episode_ref)
+      this.d.log.log(
+        'info',
+        url
+          ? `Related video for "${row.title}": set it by hand in YouTube Studio (the YouTube API cannot). Episode: ${url}`
+          : `Related video for "${row.title}": the episode ${post.source_episode_ref} is not live yet. Set it by hand in YouTube Studio once it is.`,
+        { postId: row.post_id, platform: 'youtube' },
+      )
+    } else if (post.post_type === 'episode' && post.episode_ref) {
+      const waiting = this.d.db
+        .prepare(
+          `SELECT p.id, p.title FROM posts p JOIN post_targets t ON t.post_id = p.id
+           WHERE p.brand_id = ? AND p.post_type = 'clip' AND p.source_episode_ref = ? AND p.related_done = 0
+             AND t.platform = 'youtube' AND t.status = 'posted'`,
+        )
+        .all(post.brand_id, post.episode_ref) as Array<{ id: number; title: string }>
+      const url = urlOf(post.brand_id, post.episode_ref)
+      for (const c of waiting)
+        this.d.log.log(
+          'info',
+          `Episode ${post.episode_ref} is live. Set the Related video of the clip "${c.title}" by hand in YouTube Studio. Episode: ${url ?? 'see the Queue'}`,
+          { postId: c.id, platform: 'youtube' },
+        )
     }
   }
 

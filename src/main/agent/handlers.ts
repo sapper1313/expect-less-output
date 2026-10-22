@@ -38,6 +38,9 @@ export function postOut(p: Post, warnings?: string[]): PostJson {
       typeof p.videoMeta.durationSeconds === 'number' ? p.videoMeta.durationSeconds : null,
     post_type: p.postType,
     source_episode_id: p.sourceEpisodeRef,
+    related_video: p.relatedVideo
+      ? { episode_id: p.relatedVideo.episodeId, url: p.relatedVideo.url, done: p.relatedVideo.done }
+      : null,
     origin: p.origin,
     episode_id: p.episodeRef,
     source_bot: p.sourceBot,

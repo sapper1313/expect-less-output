@@ -166,6 +166,10 @@ Tag a clip with two optional sidecar fields:
 | `post_type` | `"clip"` for a clip. Missing, or `"episode"`, means a full episode exactly as before. |
 | `source_episode_id` | Optional, clips only. The episode the clip was cut from, for example `clock-out-early-2026-0101`. Once that episode is live on YouTube, ELO adds "Full episode on YouTube:" and the link to the clip's description right before the clip is sent. If the episode is not live yet, the clip goes out without the line. |
 
+| `channel_link` | Optional, clips only, on by default. Adds the show's YouTube channel link to the end of the clip description on every platform the clip posts to, after the "Full episode on YouTube:" line. Send `false` to leave it off. Ignored on episodes. |
+
+**The Related video on a YouTube Short is set by hand, not by ELO.** The YouTube Data API has no field for a Short's Related video (the tap-through link under the Short), so ELO cannot set it. Instead, a clip that has `source_episode_id` and a YouTube target shows a "Related video" reminder in the Queue with the episode link (or "not live yet" until it is), and the Activity Log says the same when the clip posts and again when the episode goes live. The owner sets it in YouTube Studio and clicks Done. A bot cannot set it either, so do not promise it.
+
 Rules for a clip:
 
 - The video must be 9:16 and 5 to 90 seconds long, with sound, whatever the show's video type is. A wide or too long clip is rejected with the reason.

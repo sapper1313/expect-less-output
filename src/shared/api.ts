@@ -117,6 +117,8 @@ export interface Api {
     createMany(inputs: PostInput[]): Promise<Post[]>
     update(id: number, patch: PostUpdate): Promise<Post>
     reschedule(ids: number[], scheduledAtUtc: string): Promise<void>
+    /** The owner set a clip's Related video by hand in YouTube Studio, so the reminder is cleared (or brought back). */
+    setRelatedDone(id: number, done: boolean): Promise<void>
     /** Two scheduled posts trade times. */
     swap(a: number, b: number): Promise<void>
     cancel(ids: number[]): Promise<void>

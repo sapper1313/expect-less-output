@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.3 Clip channel link and Related video reminder
+
+- Clips add the show's YouTube channel link to the end of the description on every platform, after the "Full episode on YouTube" line. Sidecar field `channel_link` (default true for clips, ignored on episodes).
+- The YouTube Data API has no way to set a Short's Related video, so ELO cannot do it. A clip with a source episode now shows a **Related video** reminder in the Queue with the episode link (and **Done** to clear it), shows it in the API as `related_video`, and logs it when the clip posts and when its episode goes live.
+
 ## 0.11.2 Short clips
 
 - A sidecar can say `"post_type": "clip"` (and optionally `"source_episode_id"`). Missing means an episode, exactly as before.

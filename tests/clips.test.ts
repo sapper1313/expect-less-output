@@ -251,3 +251,166 @@ describe('clips: API', () => {
     expect(drops.map((d: any) => d.post_type).sort()).toEqual(['clip', 'episode'])
   })
 })
+
+describe('clips: channel link and the Related video reminder', () => {
+  const clipSidecar = (over: Record<string, unknown> = {}) => ({
+    post_type: 'clip',
+    episode_id: 'trash-panda-2026-0101-c1',
+    source_episode_id: 'trash-panda-2026-0101',
+    platforms: ['youtube', 'instagram'],
+    caption_overrides: { instagram: 'IG text' },
+    ...over,
+  })
+  const file = { file: 'trash-panda-2026-0101-c1.mp4' }
+  async function rig(over: Record<string, unknown> = {}) {
+    const t = pipelineSetup({
+      probe: probeOf(1080, 1920, 40),
+      live: [
+        [1, 'youtube'],
+        [1, 'instagram'],
+      ],
+    })
+    t.env.db
+      .prepare(
+        "UPDATE accounts SET external_id = 'UCshow' WHERE brand_id = 1 AND platform = 'youtube'",
+      )
+      .run()
+    setCfg(t, {
+      clipPostDays: [2],
+      clipPlatforms: { youtube: true, instagram: true, facebook: false, tiktok: false },
+    })
+    t.drop(TP, 'trash-panda', 150, clipSidecar(over), file)
+    await t.settle()
+    const clip = t.env.posts.list()[0]
+    return { t, clip }
+  }
+  const goLive = async (t: ReturnType<typeof pipelineSetup>) => {
+    const ep = await t.env.makePost({
+      whenMs: t.env.clock.ms - 3_600_000,
+      title: 'The episode',
+      platforms: ['youtube'],
+    })
+    t.env.db
+      .prepare(
+        "UPDATE posts SET episode_ref = 'trash-panda-2026-0101', post_type = 'episode', status = 'posted' WHERE id = ?",
+      )
+      .run(ep.id)
+    t.env.db
+      .prepare(
+        "UPDATE post_targets SET status = 'posted', external_url = 'https://youtu.be/ep1' WHERE post_id = ?",
+      )
+      .run(ep.id)
+  }
+
+  it('adds the channel link to every platform, after the episode line, and keeps that order', async () => {
+    const { t, clip } = await rig()
+    expect(addEpisodeLink(t.env.db, clip.id)).toBe(true) // channel link first, the episode is not live yet
+    const url = 'https://www.youtube.com/channel/UCshow'
+    let c = t.env.posts.get(clip.id)!
+    expect(c.caption.endsWith(url)).toBe(true)
+    expect(c.targets.find((x) => x.platform === 'instagram')!.captionOverride).toMatch(
+      /IG text\n\nhttps:\/\/www.youtube.com\/channel\/UCshow$/,
+    )
+    await goLive(t)
+    expect(addEpisodeLink(t.env.db, clip.id)).toBe(true)
+    c = t.env.posts.get(clip.id)!
+    expect(c.caption).toMatch(
+      /Full episode on YouTube: https:\/\/youtu.be\/ep1\n\nhttps:\/\/www.youtube.com\/channel\/UCshow$/,
+    )
+    expect(c.targets.find((x) => x.platform === 'instagram')!.captionOverride).toMatch(
+      /Full episode on YouTube: https:\/\/youtu.be\/ep1\n\nhttps:\/\/www.youtube.com\/channel\/UCshow$/,
+    )
+    expect(addEpisodeLink(t.env.db, clip.id)).toBe(false)
+    expect(c.caption.match(/UCshow/g)).toHaveLength(1)
+  })
+
+  it('channel_link false leaves it off, and an episode never gets it', async () => {
+    const { t, clip } = await rig({ channel_link: false })
+    expect(addEpisodeLink(t.env.db, clip.id)).toBe(false)
+    expect(t.env.posts.get(clip.id)!.caption).not.toContain('UCshow')
+    const e = pipelineSetup({ probe: probeOf(1080, 1920, 40), live: [[1, 'youtube']] })
+    e.env.db
+      .prepare(
+        "UPDATE accounts SET external_id = 'UCshow' WHERE brand_id = 1 AND platform = 'youtube'",
+      )
+      .run()
+    e.drop(TP, 'trash-panda', 151, { channel_link: true })
+    await e.settle()
+    const ep = e.env.posts.list()[0]
+    expect(addEpisodeLink(e.env.db, ep.id)).toBe(false)
+    expect(ep.caption).not.toContain('UCshow')
+  })
+
+  it('shows a Related video reminder with the episode link once it is live, and Done clears it', async () => {
+    const { t, clip } = await rig()
+    expect(clip.relatedVideo).toEqual({
+      episodeId: 'trash-panda-2026-0101',
+      url: null,
+      done: false,
+    })
+    await goLive(t)
+    expect(t.env.posts.get(clip.id)!.relatedVideo).toEqual({
+      episodeId: 'trash-panda-2026-0101',
+      url: 'https://youtu.be/ep1',
+      done: false,
+    })
+    t.env.posts.setRelatedDone(clip.id, true)
+    expect(t.env.posts.get(clip.id)!.relatedVideo!.done).toBe(true)
+    // no reminder without a YouTube Short, and none on an episode
+    const none = pipelineSetup({ probe: probeOf(1080, 1920, 40), live: [[1, 'instagram']] })
+    setCfg(none, { clipPostDays: [2] })
+    none.drop(TP, 'trash-panda', 152, clipSidecar({ platforms: ['instagram'] }), file)
+    await none.settle()
+    expect(none.env.posts.list()[0].relatedVideo).toBeNull()
+  })
+
+  it('writes the reminder to the Activity Log when the clip posts and when its episode goes live', async () => {
+    const { t, clip } = await rig()
+    const sched = t.env.scheduler as unknown as { logRelatedVideo(row: unknown): void }
+    sched.logRelatedVideo({ post_id: clip.id, title: clip.title, platform: 'youtube' })
+    const logs = () => t.env.log.list({ limit: 50 }).map((l) => l.message)
+    expect(logs().some((m) => /not live yet.*Set it by hand in YouTube Studio/.test(m))).toBe(true)
+    await goLive(t)
+    t.env.db
+      .prepare(
+        "UPDATE post_targets SET status = 'posted' WHERE post_id = ? AND platform = 'youtube'",
+      )
+      .run(clip.id)
+    const ep = t.env.db
+      .prepare("SELECT id, title FROM posts WHERE post_type = 'episode'")
+      .get() as { id: number; title: string }
+    sched.logRelatedVideo({ post_id: ep.id, title: ep.title, platform: 'youtube' })
+    expect(
+      logs().some(
+        (m) =>
+          /is live\. Set the Related video of the clip/.test(m) &&
+          m.includes('https://youtu.be/ep1'),
+      ),
+    ).toBe(true)
+  })
+
+  it('the API shows the reminder', async () => {
+    const { t, clip } = await rig()
+    const s = {
+      settings: t.env.settings,
+      brands: t.env.brands,
+      posts: t.env.posts,
+      scheduler: t.env.scheduler,
+      log: t.env.log,
+      appVersion: 't',
+      health: () => null,
+    } as AgentServices
+    const r = await handleAgentRequest(s, () => 'tok', {
+      method: 'GET',
+      url: `/v1/posts/${clip.id}`,
+      headers: { host: '127.0.0.1:1', authorization: 'Bearer tok' },
+      body: '',
+      port: 1,
+    })
+    expect((r.body as any).related_video).toEqual({
+      episode_id: 'trash-panda-2026-0101',
+      url: null,
+      done: false,
+    })
+  })
+})

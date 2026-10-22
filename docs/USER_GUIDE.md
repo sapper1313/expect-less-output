@@ -678,3 +678,11 @@ A show can post full episodes and short vertical clips on separate schedules.
 2. In the **Short clips** box, tick the **Clip post days**, pick the **Clip time**, and tick which platforms clips go to (Instagram Reels, Facebook Reels, TikTok, YouTube Shorts). The episode days above are not touched.
 3. Bots drop a clip with `"post_type": "clip"` in the sidecar. It must be tall (9:16) and 5 to 90 seconds. It gets the next clip slot. With no clip days ticked, it waits in the Inbox.
 4. Clips show a **Clip** tag in the Inbox, the Queue and Upcoming. A clip that names its source episode gets "Full episode on YouTube" and the link in its description once that episode is live.
+
+### Related video on a clip (0.11.3)
+
+YouTube's Data API cannot set a Short's **Related video** (the tap-through link under the Short), so ELO cannot do it for you. A clip that names its source episode shows a yellow **Related video** note in the **Queue** with the episode link (or "not live yet" until the episode posts). The Activity Log also says so when the clip posts and when the episode goes live. To set it:
+1. In YouTube Studio open the Short, then **Details**, then **Related video**, and pick the episode.
+2. Back in ELO click **Done** on the note.
+
+ELO also adds the show's YouTube channel link to the end of every clip description, after the "Full episode on YouTube" line, unless the sidecar says `"channel_link": false`.

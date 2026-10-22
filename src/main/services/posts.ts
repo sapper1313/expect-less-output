@@ -46,6 +46,8 @@ interface PostRow {
   video_basename: string | null
   post_type: 'episode' | 'clip'
   source_episode_ref: string | null
+  channel_link: number
+  related_done: number
 }
 
 const POST_SELECT = `SELECT p.*, b.name AS brand_name, b.color AS brand_color
@@ -122,7 +124,32 @@ export class PostService {
       videoBasename: r.video_basename,
       postType: r.post_type ?? 'episode',
       sourceEpisodeRef: r.source_episode_ref,
+      relatedVideo: this.relatedFor(r),
     }
+  }
+
+  /** The reminder for a clip's YouTube Short: set the Related video by hand, with the link to its episode. */
+  private relatedFor(r: PostRow): Post['relatedVideo'] {
+    if (r.post_type !== 'clip' || !r.source_episode_ref) return null
+    const hasYoutube = this.db
+      .prepare("SELECT 1 FROM post_targets WHERE post_id = ? AND platform = 'youtube'")
+      .get(r.id)
+    if (!hasYoutube) return null
+    const live = this.db
+      .prepare(
+        `SELECT t.external_url AS url FROM posts p JOIN post_targets t ON t.post_id = p.id
+         WHERE p.brand_id = ? AND p.episode_ref = ? AND p.post_type = 'episode'
+           AND t.platform = 'youtube' AND t.status = 'posted' AND t.external_url IS NOT NULL
+         ORDER BY t.id DESC LIMIT 1`,
+      )
+      .get(r.brand_id, r.source_episode_ref) as { url: string } | undefined
+    return { episodeId: r.source_episode_ref, url: live?.url ?? null, done: !!r.related_done }
+  }
+
+  /** The owner set the Related video in YouTube Studio, so the reminder goes away. */
+  setRelatedDone(id: number, done: boolean): void {
+    this.db.prepare('UPDATE posts SET related_done = ? WHERE id = ?').run(done ? 1 : 0, id)
+    this.emit()
   }
 
   private attachTargets(rows: PostRow[]): Post[] {
@@ -482,8 +509,8 @@ export class PostService {
         const out: number[] = []
         const ins = this.db.prepare(
           `INSERT INTO posts (brand_id, video_path, video_meta_json, poster_path, title, caption, scheduled_at_utc, status,
-             origin, episode_ref, checksum, sidecar_title, source_bot, video_basename, hold_reason, post_type, source_episode_ref)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             origin, episode_ref, checksum, sidecar_title, source_bot, video_basename, hold_reason, post_type, source_episode_ref, channel_link)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         for (const p of prepared) {
           const id = Number(
@@ -505,6 +532,7 @@ export class PostService {
               p.input.pipeline?.holdReason ?? null,
               p.input.pipeline?.postType ?? 'episode',
               p.input.pipeline?.sourceEpisodeRef ?? null,
+              p.input.pipeline?.channelLink ? 1 : 0,
             ).lastInsertRowid,
           )
           this.insertTargets(id, p.input.brandId, p.input.targets)

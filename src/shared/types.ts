@@ -250,6 +250,11 @@ export interface Post {
   postType: 'episode' | 'clip'
   /** For a clip: the episode it was cut from. */
   sourceEpisodeRef: string | null
+  /**
+   * For a clip with a source episode that has a YouTube Short: the YouTube API cannot set the Short's Related video, so
+   * ELO reminds the owner to set it by hand. url is the episode's YouTube link, or null until the episode is live.
+   */
+  relatedVideo: { episodeId: string; url: string | null; done: boolean } | null
 }
 
 export type TikTokMode = 'drafts' | 'direct'
@@ -335,6 +340,7 @@ export interface PostInput {
     holdReason?: string | null
     postType?: 'episode' | 'clip'
     sourceEpisodeRef?: string | null
+    channelLink?: boolean
   }
 }
 
