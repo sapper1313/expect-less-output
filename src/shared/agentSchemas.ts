@@ -622,6 +622,33 @@ export const ListDropsQuery = z.object({
   limit: z.coerce.number().int().min(1).max(500).default(100),
 })
 
+export const ThumbnailBody = z
+  .object({
+    image_path: z.string().min(1).optional().meta({
+      description:
+        'Absolute path to a .jpg or .png under 2 MB on this Mac. It is copied next to the post. Not posted yet: it is used when the video uploads. Already inside YouTube or posted: it replaces the live thumbnail with thumbnails.set.',
+    }),
+    title: z.string().max(200).optional().meta({
+      description:
+        'A new title, 1 to 100 characters. Only for a post that has not gone out. A video already posted keeps its title.',
+    }),
+  })
+  .strict()
+
+export const ThumbnailOut = z.object({
+  post_id: z.number().int(),
+  title: z.string(),
+  saved_image: z.string().nullable(),
+  applied: z.array(
+    z.object({
+      platform: z.string(),
+      how: z.enum(['saved_for_upload', 'set_on_youtube', 'title_updated_on_youtube', 'skipped']),
+      detail: z.string(),
+    }),
+  ),
+  notes: z.array(z.string()),
+})
+
 export const DropParams = z.object({ id: z.string().min(1) })
 
 export const CreateDropBody = z

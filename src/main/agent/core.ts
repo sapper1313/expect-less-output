@@ -90,6 +90,12 @@ export interface AgentServices {
   reconciler?: import('../pipeline/reconcile').Reconciler
   /** The app-wide audit log. */
   audit?: import('../pipeline/auditEvents').AuditEvents
+  /** The media library, for keeping a thumbnail picture with its post. */
+  library?: import('../services/library').Library
+  /** Replaces the live thumbnail of a YouTube video (thumbnails.set). */
+  youtubeThumbnail?: (accountId: number, videoId: string, filePath: string) => Promise<void>
+  /** Changes the title of a YouTube video that is inside YouTube but not public yet. */
+  youtubeEdit?: (accountId: number, videoId: string, patch: { title?: string }) => Promise<void>
   /** The Upcoming list. */
   upcoming?: import('../pipeline/upcoming').UpcomingService
   /** Per bot tokens. Without it only the owner's token works. */

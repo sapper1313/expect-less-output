@@ -214,6 +214,25 @@ If the video is on the internet, drop only the `.json`, with an extra `"video_ur
 
 ---
 
+## Thumbnails and titles (beth only)
+
+The beth bot token can set a custom thumbnail and a title on a post through the API. No other bot token may, and a try by another bot is refused (403) and written to the audit log. The owner's own token works too.
+
+`POST /v1/posts/{id}/thumbnail` with a JSON body. Send `image_path`, `title`, or both:
+
+```json
+{ "image_path": "/Users/josh/renders/clock-out-early-2026-0101_thumb.jpg", "title": "Find Any Chrome Tab Instantly" }
+```
+
+- `image_path`: an absolute path on the Mac to a real `.jpg` or `.png` under 2 MB (YouTube's limit). It is copied next to the post in the channel's Queue folder. Your original stays.
+- `title`: 1 to 100 characters. It only works while the post has **not gone out**. A post that already posted keeps its title (the call is refused with 409).
+- **Post not posted yet** (draft or scheduled): the picture is kept and used when the video uploads to YouTube, and the title is changed in ELO. The bot-drop safety check (title must match the drop) moves with it, so the post is not held.
+- **Video already inside YouTube** (handed off early, scheduled there): ELO calls `thumbnails.set` right away to replace the thumbnail, and sends the new title to YouTube.
+- **Posted YouTube video**: ELO calls `thumbnails.set` to replace the live thumbnail. YouTube needs the channel to be verified. If YouTube refuses, the call fails with 502 and YouTube's reason, and nothing else changes.
+- Only YouTube uses the picture. Tall videos (Shorts and clips) often ignore custom thumbnails, and the answer says so in `notes`.
+- While **Agents may create drafts only** is on in Settings, only a draft can be changed. For a scheduled or posted post the call is refused (403 `drafts_only`).
+- The answer lists what was done in `applied`: `saved_for_upload`, `set_on_youtube`, `title_updated_on_youtube` or `skipped`.
+
 ## Your checklist for every episode
 
 1. Add the episode to Upcoming (`POST /v1/upcoming`) as `idea`, or find Josh's idea there. Note the episode id.

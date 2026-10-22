@@ -3525,6 +3525,164 @@
         }
       }
     },
+    "/v1/posts/{id}/thumbnail": {
+      "post": {
+        "operationId": "setPostThumbnail",
+        "summary": "Set a custom thumbnail (and title) on a post. Replaces the live thumbnail on a posted YouTube video.",
+        "description": "Only the beth bot token and the owner token may call this. Not posted yet: the picture is used when the video uploads, and the title changes. Already inside YouTube or posted: thumbnails.set replaces the live thumbnail (the channel must be verified, and YouTube often ignores thumbnails on Shorts). A posted video keeps its title. While agents are limited to drafts, only drafts can be changed.",
+        "x-mcp-tool": "set_post_thumbnail",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "image_path": {
+                    "description": "Absolute path to a .jpg or .png under 2 MB on this Mac. It is copied next to the post. Not posted yet: it is used when the video uploads. Already inside YouTube or posted: it replaces the live thumbnail with thumbnails.set.",
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "title": {
+                    "description": "A new title, 1 to 100 characters. Only for a post that has not gone out. A video already posted keeps its title.",
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "post_id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "saved_image": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "platform": {
+                            "type": "string"
+                          },
+                          "how": {
+                            "type": "string",
+                            "enum": [
+                              "saved_for_upload",
+                              "set_on_youtube",
+                              "title_updated_on_youtube",
+                              "skipped"
+                            ]
+                          },
+                          "detail": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "platform",
+                          "how",
+                          "detail"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "post_id",
+                    "title",
+                    "saved_image",
+                    "applied",
+                    "notes"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such post.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/posts/{id}/cancel": {
       "post": {
         "operationId": "cancelPost",

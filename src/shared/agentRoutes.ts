@@ -20,6 +20,8 @@ import {
   DropParams,
   ListDropsQuery,
   ReconcileOut,
+  ThumbnailBody,
+  ThumbnailOut,
   PatchUpcomingBody,
   UpcomingOut,
   UpcomingParams,
@@ -243,6 +245,22 @@ export const ROUTES: RouteDef[] = [
     response: PostOut,
     success: 200,
     tool: 'update_post',
+    schedules: true,
+  },
+  {
+    id: 'setPostThumbnail',
+    method: 'POST',
+    path: '/v1/posts/{id}/thumbnail',
+    summary:
+      'Set a custom thumbnail (and title) on a post. Replaces the live thumbnail on a posted YouTube video.',
+    description:
+      'Only the beth bot token and the owner token may call this. Not posted yet: the picture is used when the video uploads, and the title changes. Already inside YouTube or posted: thumbnails.set replaces the live thumbnail (the channel must be verified, and YouTube often ignores thumbnails on Shorts). A posted video keeps its title. While agents are limited to drafts, only drafts can be changed.',
+    params: IdParams,
+    body: ThumbnailBody,
+    response: ThumbnailOut,
+    success: 200,
+    tool: 'set_post_thumbnail',
+    bot: true,
     schedules: true,
   },
   {

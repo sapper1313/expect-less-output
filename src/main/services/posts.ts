@@ -146,6 +146,23 @@ export class PostService {
     return { episodeId: r.source_episode_ref, url: live?.url ?? null, done: !!r.related_done }
   }
 
+  /** Keeps a thumbnail picture on a target, used when the video is uploaded. */
+  setTargetThumbnail(targetId: number, path: string): void {
+    const row = this.db
+      .prepare('SELECT settings_json FROM post_targets WHERE id = ?')
+      .get(targetId) as { settings_json: string | null } | undefined
+    let st: Record<string, unknown> = {}
+    try {
+      st = JSON.parse(row?.settings_json ?? '{}') as Record<string, unknown>
+    } catch {
+      st = {}
+    }
+    this.db
+      .prepare('UPDATE post_targets SET settings_json = ? WHERE id = ?')
+      .run(JSON.stringify({ ...st, thumbnailPath: path }), targetId)
+    this.emit()
+  }
+
   /** The owner set the Related video in YouTube Studio, so the reminder goes away. */
   setRelatedDone(id: number, done: boolean): void {
     this.db.prepare('UPDATE posts SET related_done = ? WHERE id = ?').run(done ? 1 : 0, id)

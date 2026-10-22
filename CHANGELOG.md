@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.4 Thumbnail and title route for beth
+
+- `POST /v1/posts/{id}/thumbnail` (MCP tool `set_post_thumbnail`): sets a custom thumbnail and/or title. Only the `beth` bot token and the owner token may call it.
+- A post not posted yet keeps the picture for the upload and gets the new title. A video already inside YouTube or posted gets `thumbnails.set` on the live video (a posted video keeps its title). The picture is checked (absolute path, real JPG or PNG, under 2 MB) and copied next to the post. Audited. Obeys "Agents may create drafts only".
+- Daily analytics keeps the numbers when the Claude API is off.
+
 ## 0.11.3 Clip channel link and Related video reminder
 
 - Clips add the show's YouTube channel link to the end of the description on every platform, after the "Full episode on YouTube" line. Sidecar field `channel_link` (default true for clips, ignored on episodes).

@@ -7,6 +7,7 @@ import { PLATFORMS } from '@shared/platformLimits'
 import { SLUG_ALIASES, canonicalSlug, type DropRow } from '@shared/pipeline'
 import { channelState } from '../pipeline/state'
 import type { Caller } from './bots'
+import { agentSetThumbnail } from './thumbnail'
 import { UpcomingError } from '../pipeline/upcoming'
 import type { Actor } from '@shared/upcoming'
 import {
@@ -418,6 +419,8 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
   },
 
   updatePost: async ({ s, params, body }) => postOut(await agentUpdatePost(s, params.id, body)),
+
+  setPostThumbnail: ({ s, params, body, caller }) => agentSetThumbnail(s, params.id, body, caller),
 
   cancelPost: ({ s, params }) => postOut(agentCancelPost(s, params.id)),
 
