@@ -14,8 +14,10 @@ import {
 import type { Caller } from './bots'
 import { sha256File } from '../pipeline/verify'
 
-/** The one bot token that may edit or remove posts and swap their files (besides the owner's own token). */
+/** The bot named beth, and any bot with the orchestrator role, may edit or remove posts and swap their files. */
 export const OPERATOR_BOT = 'beth'
+export const isOperator = (bot: { name: string; role: string }) =>
+  bot.name === OPERATOR_BOT || bot.role === 'orchestrator'
 
 /** A target the platform already has, or is working on, cannot be changed from here. */
 const WITH_PLATFORM = ['handed_off', 'processing', 'uploading', 'posted']
@@ -39,8 +41,8 @@ export function requireOperator(
     })
     throw new AgentError(403, 'forbidden', m)
   }
-  if (caller.bot.name !== OPERATOR_BOT)
-    deny(`Only the ${OPERATOR_BOT} token (or the owner's token) may ${action}.`)
+  if (!isOperator(caller.bot))
+    deny(`Only the orchestrator token (beth) or the owner's token may ${action}.`)
   const slug = s.brands.get(post.brandId).slug ?? ''
   if (!channelAllowed(caller.bot.channels, slug))
     deny(`${caller.actor} may not work on ${slug}. Add the channel to its list on the Bots card.`)

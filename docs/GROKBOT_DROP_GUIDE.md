@@ -131,7 +131,7 @@ If the video is on the internet, drop only the `.json`, with an extra `"video_ur
 
 ## Fixing a post before it posts (beth only)
 
-The beth token works on **every channel, the ones that exist now and any made later**, and may edit, remove or fix a post that has not posted yet. No other bot token may; a try by another bot is refused (403) and written to the audit log. The owner's own token works too. **A bot still never sets or changes a posting time.** Every change is audited, and the owner gets a Telegram message and a message on screen each time beth changes, removes or fixes a post.
+The beth token (any bot token with the orchestrator role works the same) works on **every channel, the ones that exist now and any made later**, and may edit, remove or fix a post that has not posted yet. No other bot token may; a try by another bot is refused (403) and written to the audit log. The owner's own token works too. **A bot still never sets or changes a posting time.** Every change is audited, and the owner gets a Telegram message and a message on screen each time beth changes, removes or fixes a post.
 
 | What | Call |
 | --- | --- |

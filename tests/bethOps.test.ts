@@ -269,3 +269,24 @@ describe('beth: replace the media and keep the slot', () => {
     expect(vi.isMockFunction(r.t.env.posts.update)).toBe(false)
   })
 })
+
+describe('who counts as the operator', () => {
+  it('an orchestrator bot with any name may fix posts, a writer named something else may not', async () => {
+    const r = await rig()
+    const { BotStore: Store } = await import('../src/main/agent/bots')
+    const bots = new Store(r.t.env.db, () => r.t.env.clock.ms)
+    const shared = bots.create('elo-beth-grok', ['*'], 'orchestrator')
+    const writer = bots.create('some-writer', ['*'], 'writer')
+    expect(
+      (
+        await r.call(shared.token, 'POST', `/v1/posts/${r.post.id}/media`, {
+          title: 'By the shared token',
+        })
+      ).status,
+    ).toBe(200)
+    expect(
+      (await r.call(writer.token, 'POST', `/v1/posts/${r.post.id}/media`, { title: 'Nope' }))
+        .status,
+    ).toBe(403)
+  })
+})
