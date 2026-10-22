@@ -431,10 +431,12 @@ export function listFilter(q: {
   origin?: string
   held?: string
   past_due?: string
+  post_type?: string
 }): PostFilter {
   return {
     origin: q.origin as PostFilter['origin'],
     held: q.held === undefined ? undefined : q.held === 'true',
+    postType: q.post_type as PostFilter['postType'],
     pastDue: q.past_due === 'true' ? true : undefined,
     brandId: q.brand_id ?? null,
     status: (q.status as PostFilter['status']) ?? 'all',

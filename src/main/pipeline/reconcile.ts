@@ -67,6 +67,7 @@ interface PostRow {
   checksum: string | null
   episode_ref: string | null
   origin: string
+  post_type: 'episode' | 'clip'
   created_at: string
   hold_reason: string | null
 }
@@ -185,7 +186,7 @@ export class Reconciler {
   private scheduled(): PostRow[] {
     return this.d.db
       .prepare(
-        `SELECT id, brand_id, title, video_path, scheduled_at_utc, status, checksum, episode_ref, origin, created_at, hold_reason
+        `SELECT id, brand_id, title, video_path, scheduled_at_utc, status, checksum, episode_ref, origin, post_type, created_at, hold_reason
          FROM posts WHERE status = 'scheduled' AND scheduled_at_utc IS NOT NULL AND scheduled_at_utc >= ? ORDER BY scheduled_at_utc, id`,
       )
       .all(new Date(this.now() - 60 * 60_000).toISOString()) as PostRow[]
@@ -201,9 +202,9 @@ export class Reconciler {
     const byMinute = new Map<string, PostRow[]>()
     const byDay = new Map<string, PostRow[]>()
     for (const p of this.scheduled()) {
-      const min = `${p.brand_id}|${p.scheduled_at_utc!.slice(0, 16)}`
+      const min = `${p.brand_id}|${p.post_type}|${p.scheduled_at_utc!.slice(0, 16)}`
       byMinute.set(min, [...(byMinute.get(min) ?? []), p])
-      const day = `${p.brand_id}|${DateTime.fromISO(p.scheduled_at_utc!, { zone: 'utc' }).setZone(ZONE).toFormat('yyyy-MM-dd')}`
+      const day = `${p.brand_id}|${p.post_type}|${DateTime.fromISO(p.scheduled_at_utc!, { zone: 'utc' }).setZone(ZONE).toFormat('yyyy-MM-dd')}`
       byDay.set(day, [...(byDay.get(day) ?? []), p])
     }
     for (const [k, list] of byMinute)
@@ -217,7 +218,7 @@ export class Reconciler {
         })
     for (const [k, list] of byDay) {
       const brandId = Number(k.split('|')[0])
-      const cap = this.d.posts.channelRules(brandId).maxPerDay
+      const cap = k.split('|')[1] === 'clip' ? 1 : this.d.posts.channelRules(brandId).maxPerDay
       const distinct = new Set(list.map((p) => p.scheduled_at_utc!.slice(0, 16))).size
       if (cap > 0 && distinct > cap)
         out.push({
@@ -225,7 +226,7 @@ export class Reconciler {
           kind: 'over_cap',
           brandId,
           postId: null,
-          detail: `${this.brandName(brandId)} has ${distinct} posts on ${k.split('|')[1]} and the daily limit is ${cap}.`,
+          detail: `${this.brandName(brandId)} has ${distinct} posts on ${k.split('|')[2]} and the daily ${k.split('|')[1] === 'clip' ? 'clip ' : ''}limit is ${cap}.`,
         })
     }
     return out
@@ -238,9 +239,12 @@ export class Reconciler {
     for (const p of this.scheduled()) {
       const day = DateTime.fromISO(p.scheduled_at_utc!, { zone: 'utc' }).setZone(ZONE)
       const rules = this.d.posts.channelRules(p.brand_id)
-      const days = this.d.posts.postDays(p.brand_id)
+      const days =
+        p.post_type === 'clip'
+          ? this.d.posts.clipSchedule(p.brand_id).days
+          : this.d.posts.postDays(p.brand_id)
       const ymd = day.toFormat('yyyy-MM-dd')
-      if (days && !days.includes(day.weekday))
+      if (days && days.length && !days.includes(day.weekday))
         out.push({
           key: `invalid_slot:day:${p.id}`,
           kind: 'invalid_slot',
@@ -298,7 +302,7 @@ export class Reconciler {
         (
           this.d.db
             .prepare(
-              `SELECT scheduled_at_utc AS t FROM posts WHERE brand_id = ? AND status IN ${RESERVING} AND scheduled_at_utc IS NOT NULL`,
+              `SELECT scheduled_at_utc AS t FROM posts WHERE brand_id = ? AND post_type = 'episode' AND status IN ${RESERVING} AND scheduled_at_utc IS NOT NULL`,
             )
             .all(b.id) as Array<{ t: string }>
         ).map((r) => r.t.slice(0, 16)),
@@ -426,7 +430,7 @@ export class Reconciler {
       if (days <= 0) continue
       const last = this.d.db
         .prepare(
-          `SELECT MAX(scheduled_at_utc) AS t FROM posts WHERE brand_id = ? AND status IN ${RESERVING} AND scheduled_at_utc > ?`,
+          `SELECT MAX(scheduled_at_utc) AS t FROM posts WHERE brand_id = ? AND post_type = 'episode' AND status IN ${RESERVING} AND scheduled_at_utc > ?`,
         )
         .get(b.id, new Date(nowMs).toISOString()) as { t: string | null }
       const ahead = last.t
@@ -500,11 +504,22 @@ export class Reconciler {
     for (const f of found) {
       if (f.kind !== 'double_booking' || !f.postId) continue
       const p = this.d.db
-        .prepare('SELECT id, brand_id, origin, episode_ref FROM posts WHERE id = ?')
+        .prepare('SELECT id, brand_id, origin, episode_ref, post_type FROM posts WHERE id = ?')
         .get(f.postId) as
-        { id: number; brand_id: number; origin: string; episode_ref: string | null } | undefined
+        | {
+            id: number
+            brand_id: number
+            origin: string
+            episode_ref: string | null
+            post_type: string
+          }
+        | undefined
       if (!p || p.origin !== 'inbox' || !p.episode_ref) continue
-      const slot = this.d.posts.nextSlots(p.brand_id, 1)[0]
+      const slot = (
+        p.post_type === 'clip'
+          ? this.d.posts.nextClipSlots(p.brand_id, 1)
+          : this.d.posts.nextSlots(p.brand_id, 1)
+      )[0]
       if (!slot) continue
       this.d.reschedule(p.id, slot)
       this.d.log?.(

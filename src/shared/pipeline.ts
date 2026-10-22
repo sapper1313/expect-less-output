@@ -49,7 +49,18 @@ export const PipelineSidecar = z
       .string()
       .min(1)
       .meta({ description: 'The video file name. It must equal the video file you dropped.' }),
-    platforms: z.array(z.enum(PIPELINE_PLATFORMS)).min(1),
+    post_type: z.enum(['episode', 'clip']).optional().meta({
+      description:
+        'episode (the default when missing) is a full video. clip is a vertical clip, 9:16 and 5 to 90 seconds, with its own schedule.',
+    }),
+    source_episode_id: z.string().optional().meta({
+      description:
+        'For a clip: the episode it was cut from. Once that episode is live on YouTube, the clip description gets "Full episode on YouTube" and the link.',
+    }),
+    platforms: z.array(z.enum(PIPELINE_PLATFORMS)).min(1).optional().meta({
+      description:
+        'Required for an episode. A clip may leave it out and then goes to every platform the show has switched on for clips.',
+    }),
     preferred_slot: z.string().optional().meta({
       description:
         'Accepted and ignored. The schedule is set in ELO. A bot never sets, requests or promises a posting time.',
@@ -144,6 +155,15 @@ export const episodeIdPattern = (slug: string) => {
   return new RegExp(`^(${names.map((n) => n.replace(/[^a-z0-9-]/g, '')).join('|')})-\\d{4}-\\d{4}$`)
 }
 
+/** A clip id is a normal episode id, or one with -c1, -c2 and so on, for example clock-out-early-2026-0101-c1. */
+export const clipIdPattern = (slug: string) => {
+  const base = episodeIdPattern(slug).source.replace(/^\^/, '').replace(/\$$/, '')
+  return new RegExp(`^${base}(-c\\d{1,3})?$`)
+}
+
+export const CLIP_MIN_SECONDS = 5
+export const CLIP_MAX_SECONDS = 90
+
 export interface ValidateOptions {
   strict: boolean
   requireApproval: boolean
@@ -207,8 +227,27 @@ export function validatePipelineSidecar(raw: unknown, o: ValidateOptions): Valid
       field: 'channel',
       message: `The sidecar says channel "${d.channel}" but this is the ${o.channelSlug} Inbox.`,
     })
-  if (!episodeIdPattern(o.channelSlug).test(d.episode_id)) {
-    const m = `episode_id "${d.episode_id}" must look like ${o.channelSlug}-2026-0101 (season 01, episode 01).`
+  const isClip = d.post_type === 'clip'
+  if (!isClip && (!d.platforms || d.platforms.length === 0))
+    errors.push({
+      code: 'bad_schema',
+      field: 'platforms',
+      message: 'platforms: an episode needs at least one platform.',
+    })
+  if (
+    d.source_episode_id !== undefined &&
+    !episodeIdPattern(o.channelSlug).test(d.source_episode_id)
+  ) {
+    const m = `source_episode_id "${d.source_episode_id}" must be the id of an episode of this channel, like ${o.channelSlug}-2026-0101.`
+    if (o.strict) errors.push({ code: 'bad_episode_id', field: 'source_episode_id', message: m })
+    else notes.push(m)
+  }
+  if (d.source_episode_id !== undefined && !isClip)
+    notes.push('source_episode_id is only used for clips, so it was ignored.')
+  if (
+    !(isClip ? clipIdPattern(o.channelSlug) : episodeIdPattern(o.channelSlug)).test(d.episode_id)
+  ) {
+    const m = `episode_id "${d.episode_id}" must look like ${o.channelSlug}-2026-0101${isClip ? ' or ' + o.channelSlug + '-2026-0101-c1' : ''} (season 01, episode 01).`
     if (o.strict) errors.push({ code: 'bad_episode_id', field: 'episode_id', message: m })
     else notes.push(m)
   }
@@ -274,6 +313,7 @@ export interface DropRow {
   postId: number | null
   approvedBy: string | null
   approvedAt: string | null
+  postType: 'episode' | 'clip'
   render: unknown
   notes: string | null
 }
@@ -302,6 +342,7 @@ export interface InboxItem {
   brandColor: string
   channel: string | null
   episodeId: string | null
+  postType: 'episode' | 'clip'
   title: string
   sourceBot: string | null
   /** When the drop arrived (UTC). */

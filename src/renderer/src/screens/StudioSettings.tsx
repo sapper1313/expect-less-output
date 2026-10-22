@@ -672,6 +672,64 @@ function BrandRow({
           </Select>
         </Field>
       </div>
+      <div className="mt-3 rounded-md border border-line p-3">
+        <b className="text-[13px]">Short clips</b>
+        <p className="mb-2 mt-1 text-[12px] text-muted">
+          Clips are tall (9:16) videos of 5 to 90 seconds that bots drop with post_type "clip". They
+          have their own days and time, apart from the episodes above, and never move the episode
+          schedule. With no days ticked, clips wait in the Inbox.
+        </p>
+        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+          <Field label="Clip post days">
+            <div className="flex flex-wrap gap-2">
+              {WEEKDAYS.map((w, i) => (
+                <Check
+                  key={w}
+                  checked={cfg.clipPostDays.includes(i + 1)}
+                  onChange={(v) =>
+                    save({
+                      clipPostDays: v
+                        ? [...cfg.clipPostDays, i + 1].sort()
+                        : cfg.clipPostDays.filter((d) => d !== i + 1),
+                    })
+                  }
+                >
+                  {w}
+                </Check>
+              ))}
+            </div>
+          </Field>
+          <Field label="Clip time (Eastern)">
+            <TimeSelect
+              value={cfg.clipTime}
+              label="Clip time"
+              onChange={(v) => save({ clipTime: v })}
+            />
+          </Field>
+        </div>
+        <Field
+          label="Clips post to"
+          hint="Instagram Reels, Facebook Reels, TikTok and YouTube Shorts. Turn any off for this show."
+        >
+          <div className="flex flex-wrap gap-4">
+            {(['youtube', 'facebook', 'instagram', 'tiktok'] as const).map((p) => (
+              <Check
+                key={p}
+                checked={cfg.clipPlatforms[p]}
+                onChange={(v) => save({ clipPlatforms: { ...cfg.clipPlatforms, [p]: v } })}
+              >
+                {p === 'youtube'
+                  ? 'YouTube Shorts'
+                  : p === 'facebook'
+                    ? 'Facebook Reels'
+                    : p === 'instagram'
+                      ? 'Instagram Reels'
+                      : 'TikTok'}
+              </Check>
+            ))}
+          </div>
+        </Field>
+      </div>
       <BrandAssetsRow brandId={id} />
       <div className="mt-3 flex flex-wrap gap-4">
         {STUDIO_PLATFORMS.map((p) => (

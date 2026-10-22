@@ -44,6 +44,7 @@ export class InboxService {
       brandColor: p.brandColor,
       channel: slug,
       episodeId: p.episodeRef,
+      postType: p.postType,
       title: p.title,
       sourceBot: p.sourceBot ?? drop?.sourceBot ?? null,
       droppedAt: drop?.receivedAt ?? p.createdAt,
@@ -71,6 +72,7 @@ export class InboxService {
           this.d.intake.waitingReason(
             p.brandId,
             p.targets.map((t) => t.platform),
+            p.postType,
           ),
         ),
       )
@@ -101,7 +103,11 @@ export class InboxService {
   }
 
   openSlots(postId: number, count: number): string[] {
-    return this.d.posts.nextSlots(this.need(postId).brandId, Math.min(Math.max(count, 1), 60))
+    const p = this.need(postId)
+    const n = Math.min(Math.max(count, 1), 60)
+    return p.postType === 'clip'
+      ? this.d.posts.nextClipSlots(p.brandId, n)
+      : this.d.posts.nextSlots(p.brandId, n)
   }
 
   async pickSlot(postId: number, slotUtc: string) {

@@ -355,6 +355,16 @@ export class Scheduler {
         )
         return
       }
+      // The check may have added the "Full episode on YouTube" line to a clip, so read the text again.
+      const fresh = this.d.db
+        .prepare(
+          'SELECT p.caption AS caption, t.caption_override AS override FROM post_targets t JOIN posts p ON p.id = t.post_id WHERE t.id = ?',
+        )
+        .get(row.id) as { caption: string; override: string | null } | undefined
+      if (fresh) {
+        row.caption = fresh.caption
+        row.caption_override = fresh.override
+      }
       const ctx = this.buildContext(row)
       const adapter = this.d.adapterFor(row.platform, ctx.account, ctx.settings)
       if (ctx.account) await adapter.refreshIfNeeded(ctx.account)

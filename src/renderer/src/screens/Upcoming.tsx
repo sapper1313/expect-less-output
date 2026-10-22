@@ -7,6 +7,7 @@ import { useApp, useLoad } from '../hooks'
 import {
   Button,
   Card,
+  ClipBadge,
   Confirm,
   Dialog,
   Empty,
@@ -96,7 +97,10 @@ export function Upcoming({ openQueue }: { openQueue?: () => void }) {
           </span>
         )}
       </div>
-      <div className="mt-1 text-[14px] font-semibold">{r.working_title}</div>
+      <div className="mt-1 text-[14px] font-semibold">
+        {r.working_title}
+        {r.post_type === 'clip' && <ClipBadge />}
+      </div>
       {r.premise && <div className="mt-1 line-clamp-2 text-[12px] text-muted">{r.premise}</div>}
       <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted">
         <span>{sourceOf(r)}</span>
@@ -305,7 +309,10 @@ export function Upcoming({ openQueue }: { openQueue?: () => void }) {
                       >
                         <td className="px-3 py-2">{r.channelName}</td>
                         <td className="px-3 py-2">{r.episode_id}</td>
-                        <td className="px-3 py-2 font-semibold">{r.working_title}</td>
+                        <td className="px-3 py-2 font-semibold">
+                          {r.working_title}
+                          {r.post_type === 'clip' && <ClipBadge />}
+                        </td>
                         <td className="max-w-xs px-3 py-2 text-muted">{r.premise}</td>
                         <td className="px-3 py-2">{LABEL[r.status]}</td>
                         <td className="px-3 py-2">{sourceOf(r)}</td>

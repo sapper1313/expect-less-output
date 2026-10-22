@@ -28,6 +28,7 @@ import { InboxService } from './pipeline/inboxService'
 import { Reconciler } from './pipeline/reconcile'
 import { FreshStart } from './pipeline/freshStart'
 import { UpcomingService } from './pipeline/upcoming'
+import { addEpisodeLink } from './pipeline/clipLink'
 import { verifyPipelinePost } from './pipeline/verify'
 import { probe as probeVideo } from './studio/ffmpeg'
 import type { AlertKind } from './alerts/format'
@@ -448,7 +449,10 @@ async function boot(): Promise<void> {
     adapterFor,
     notifier,
     emit,
-    preflight: (postId) => verifyPipelinePost(db, library, postId),
+    preflight: async (postId) => {
+      addEpisodeLink(db, postId)
+      return verifyPipelinePost(db, library, postId)
+    },
     audit: (e) => auditEvents.write(e),
   })
   const dropLog = new DropLog(db, join(dataDir, 'logs', 'drops.jsonl'))

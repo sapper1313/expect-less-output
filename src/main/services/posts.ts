@@ -44,6 +44,8 @@ interface PostRow {
   source_bot: string | null
   sidecar_title: string | null
   video_basename: string | null
+  post_type: 'episode' | 'clip'
+  source_episode_ref: string | null
 }
 
 const POST_SELECT = `SELECT p.*, b.name AS brand_name, b.color AS brand_color
@@ -83,6 +85,7 @@ export class PostService {
       progress: progressOf(r.settings_json),
       checklist: stateOf(r.settings_json).checklist ?? null,
       settings: {
+        shorts: stateOf(r.settings_json).shorts,
         thumbOffsetMs: stateOf(r.settings_json).thumbOffsetMs,
         tiktok: stateOf(r.settings_json).tiktok,
         thumbnailPath: stateOf(r.settings_json).thumbnailPath,
@@ -117,6 +120,8 @@ export class PostService {
       sourceBot: r.source_bot,
       sidecarTitle: r.sidecar_title,
       videoBasename: r.video_basename,
+      postType: r.post_type ?? 'episode',
+      sourceEpisodeRef: r.source_episode_ref,
     }
   }
 
@@ -156,6 +161,10 @@ export class PostService {
     if (filter.brandId) {
       where.push('p.brand_id = ?')
       args.push(filter.brandId)
+    }
+    if (filter.postType) {
+      where.push('p.post_type = ?')
+      args.push(filter.postType)
     }
     if (filter.origin) {
       where.push('p.origin = ?')
@@ -204,7 +213,7 @@ export class PostService {
       this.db
         .prepare(
           `SELECT scheduled_at_utc AS t FROM posts WHERE brand_id = ? AND scheduled_at_utc IS NOT NULL
-           AND status IN (${RESERVING.map(() => '?').join(',')})`,
+           AND post_type = 'episode' AND status IN (${RESERVING.map(() => '?').join(',')})`,
         )
         .all(brandId, ...RESERVING) as Array<{ t: string }>
     ).map((r) => r.t)
@@ -212,7 +221,7 @@ export class PostService {
     const sent = (
       this.db
         .prepare(
-          "SELECT scheduled_at_utc AS t FROM posts WHERE brand_id = ? AND scheduled_at_utc IS NOT NULL AND status = 'posted'",
+          "SELECT scheduled_at_utc AS t FROM posts WHERE brand_id = ? AND scheduled_at_utc IS NOT NULL AND post_type = 'episode' AND status = 'posted'",
         )
         .all(brandId) as Array<{ t: string }>
     ).map((r) => r.t)
@@ -239,6 +248,67 @@ export class PostService {
       maxPerDay: rules.maxPerDay,
       minGapMinutes: minGap,
       gapWith: others,
+      alsoCounted: sent,
+    })
+  }
+
+  /** A channel's clip days (1 = Monday to 7 = Sunday) and time, from its Studio settings. Empty days means no clip slots. */
+  clipSchedule(brandId: number): { days: number[]; time: string } {
+    const row = this.db
+      .prepare('SELECT config_json FROM studio_brands WHERE brand_id = ?')
+      .get(brandId) as { config_json: string } | undefined
+    try {
+      const c = JSON.parse(row?.config_json ?? '{}') as {
+        clipPostDays?: unknown
+        clipTime?: unknown
+      }
+      const days = Array.isArray(c.clipPostDays)
+        ? c.clipPostDays.filter((d): d is number => Number.isInteger(d) && d >= 1 && d <= 7)
+        : []
+      const time =
+        typeof c.clipTime === 'string' && /^\d{1,2}:\d{2}$/.test(c.clipTime) ? c.clipTime : '12:00'
+      return { days, time }
+    } catch {
+      return { days: [], time: '12:00' }
+    }
+  }
+
+  /**
+   * The next open clip slots. Clips have their own days and time of day (Studio settings per channel) and one clip a day.
+   * They honor blackout dates, but never use or move an episode slot, and episodes never count a clip.
+   */
+  nextClipSlots(brandId: number, count: number, fromUtc?: string): string[] {
+    const { days, time } = this.clipSchedule(brandId)
+    if (!days.length) return []
+    const taken = (
+      this.db
+        .prepare(
+          `SELECT scheduled_at_utc AS t FROM posts WHERE brand_id = ? AND scheduled_at_utc IS NOT NULL
+           AND post_type = 'clip' AND status IN (${RESERVING.map(() => '?').join(',')})`,
+        )
+        .all(brandId, ...RESERVING) as Array<{ t: string }>
+    ).map((r) => r.t)
+    const sent = (
+      this.db
+        .prepare(
+          "SELECT scheduled_at_utc AS t FROM posts WHERE brand_id = ? AND scheduled_at_utc IS NOT NULL AND post_type = 'clip' AND status = 'posted'",
+        )
+        .all(brandId) as Array<{ t: string }>
+    ).map((r) => r.t)
+    const rules = this.channelRules(brandId)
+    return getNextOpenSlots({
+      slots: [
+        { dayType: 'weekday', timeLocal: time, enabled: true },
+        { dayType: 'weekend', timeLocal: time, enabled: true },
+      ],
+      taken,
+      count,
+      from: fromUtc ?? new Date(this.now()).toISOString(),
+      weekdays: days,
+      blackoutDates: [
+        ...new Set([...readSetting(this.db, 'blackoutDates'), ...rules.blackoutDates]),
+      ],
+      maxPerDay: 1,
       alsoCounted: sent,
     })
   }
@@ -296,7 +366,7 @@ export class PostService {
       this.db
         .prepare(
           `SELECT COUNT(*) AS n FROM posts WHERE brand_id = ? AND scheduled_at_utc >= ? AND scheduled_at_utc < ?
-           AND status NOT IN ('canceled','draft')`,
+           AND post_type = 'episode' AND status NOT IN ('canceled','draft')`,
         )
         .get(brandId, from, to) as { n: number }
     ).n
@@ -412,8 +482,8 @@ export class PostService {
         const out: number[] = []
         const ins = this.db.prepare(
           `INSERT INTO posts (brand_id, video_path, video_meta_json, poster_path, title, caption, scheduled_at_utc, status,
-             origin, episode_ref, checksum, sidecar_title, source_bot, video_basename, hold_reason)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             origin, episode_ref, checksum, sidecar_title, source_bot, video_basename, hold_reason, post_type, source_episode_ref)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         for (const p of prepared) {
           const id = Number(
@@ -433,6 +503,8 @@ export class PostService {
               p.input.pipeline?.sourceBot ?? null,
               p.input.pipeline ? (p.rel.split('/').pop() ?? null) : null,
               p.input.pipeline?.holdReason ?? null,
+              p.input.pipeline?.postType ?? 'episode',
+              p.input.pipeline?.sourceEpisodeRef ?? null,
             ).lastInsertRowid,
           )
           this.insertTargets(id, p.input.brandId, p.input.targets)
@@ -783,6 +855,7 @@ function cleanSettings(s: TargetSettings | undefined): Record<string, unknown> {
     out.coverTimestampMs = Math.round(s.coverTimestampMs)
   if (s && typeof s.coverUrl === 'string' && /^https:\/\//.test(s.coverUrl))
     out.coverUrl = s.coverUrl
+  if (s?.shorts === true) out.shorts = true
   if (s?.mock === true) out.mock = true
   return out
 }

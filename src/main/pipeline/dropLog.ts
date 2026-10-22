@@ -24,6 +24,7 @@ export interface DropInput {
   approvedBy?: string | null
   approvedAt?: string | null
   render?: unknown
+  postType?: 'episode' | 'clip'
   notes?: string | null
 }
 
@@ -47,6 +48,7 @@ const map = (r: any): DropRow => ({
   postId: r.post_id,
   approvedBy: r.approved_by,
   approvedAt: r.approved_at,
+  postType: r.post_type ?? 'episode',
   render: r.render_json ? JSON.parse(r.render_json) : null,
   notes: r.notes,
 })
@@ -68,8 +70,8 @@ export class DropLog {
     this.db
       .prepare(
         `INSERT INTO drops (drop_id, received_at, source_bot, file_name, file_path, file_size, sha256, brand_id, channel,
-           episode_id, title, sidecar_valid, result, reason, scheduled_slot, post_id, approved_by, approved_at, render_json, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           episode_id, title, sidecar_valid, result, reason, scheduled_slot, post_id, approved_by, approved_at, render_json, notes, post_type)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         dropId,
@@ -92,6 +94,7 @@ export class DropLog {
         i.approvedAt ?? null,
         i.render === undefined ? null : JSON.stringify(i.render),
         i.notes ?? null,
+        i.postType ?? 'episode',
       )
     const row = this.byDropId(dropId) as DropRow
     this.line(row)

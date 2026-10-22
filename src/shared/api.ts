@@ -242,7 +242,16 @@ export interface Api {
       channel: string,
       episodeId: string,
       patch: Partial<
-        Pick<UpcomingEntryT, 'working_title' | 'premise' | 'notes' | 'script_path' | 'status'>
+        Pick<
+          UpcomingEntryT,
+          | 'working_title'
+          | 'premise'
+          | 'notes'
+          | 'script_path'
+          | 'status'
+          | 'post_type'
+          | 'source_episode_id'
+        >
       > & {
         clear_conflict?: boolean
       },

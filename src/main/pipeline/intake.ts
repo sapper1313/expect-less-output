@@ -12,6 +12,8 @@ import { formatEastern } from '@shared/time'
 import type { Brand, Post, PostTargetInput } from '@shared/types'
 import { PLATFORM_LIMITS, type Platform } from '@shared/platformLimits'
 import {
+  CLIP_MAX_SECONDS,
+  CLIP_MIN_SECONDS,
   isPipelineSidecar,
   validatePipelineSidecar,
   type DropResult,
@@ -129,14 +131,16 @@ export class PipelineIntake {
   }
 
   /** Platforms the owner switched off for this channel in the Studio's per-channel settings. */
-  private switchedOff(brandId: number): string[] {
+  private switchedOff(brandId: number, type: 'episode' | 'clip' = 'episode'): string[] {
     const row = this.d.db
       .prepare('SELECT config_json FROM studio_brands WHERE brand_id = ?')
       .get(brandId) as { config_json: string } | undefined
     try {
-      const p =
-        (JSON.parse(row?.config_json ?? '{}') as { platforms?: Record<string, boolean> })
-          .platforms ?? {}
+      const c = JSON.parse(row?.config_json ?? '{}') as {
+        platforms?: Record<string, boolean>
+        clipPlatforms?: Record<string, boolean>
+      }
+      const p = (type === 'clip' ? c.clipPlatforms : c.platforms) ?? {}
       return Object.entries(p)
         .filter(([, on]) => on === false)
         .map(([k]) => k)
@@ -146,7 +150,11 @@ export class PipelineIntake {
   }
 
   /** Why a drop for this channel would wait instead of being scheduled, or null when it can be scheduled now. */
-  waitingReason(brandId: number, platforms?: string[]): string | null {
+  waitingReason(
+    brandId: number,
+    platforms?: string[],
+    type: 'episode' | 'clip' = 'episode',
+  ): string | null {
     const s = this.d.settings.get()
     if (!s.agentMaySchedule)
       return 'Agents may create drafts only is on in Settings, so nothing is scheduled automatically.'
@@ -156,6 +164,8 @@ export class PipelineIntake {
     if (state === 'archived') return 'The channel is archived.'
     if (state === 'on-hold') return 'The channel is on hold.'
     if (state === 'paused') return 'The channel is paused.'
+    if (type === 'clip' && this.d.posts.clipSchedule(brandId).days.length === 0)
+      return 'No clip days are set for this channel (Channels, Studio settings per channel).'
     const real = realPlatforms(this.d.db, brandId)
     const wanted = platforms ?? real
     if (!wanted.some((p) => real.includes(p)))
@@ -206,6 +216,8 @@ export class PipelineIntake {
       approvedBy: side?.approval?.approved_by ?? raw.approval?.approved_by ?? null,
       approvedAt: side?.approval?.approved_at ?? raw.approval?.approved_at ?? null,
       render: side?.render ?? raw.render,
+      postType: ((side?.post_type ?? raw.post_type) === 'clip' ? 'clip' : 'episode') as
+        'episode' | 'clip',
     }
 
     if (side) {
@@ -221,7 +233,13 @@ export class PipelineIntake {
           field: 'checksum',
           message: `The checksum in the sidecar does not match the video (the video is ${sha}).`,
         })
-      if (!reasons.length && this.d.probe) await this.checkVideo(a.brand, a.videoPath, reasons)
+      if (!reasons.length && this.d.probe)
+        await this.checkVideo(
+          a.brand,
+          a.videoPath,
+          reasons,
+          side.post_type === 'clip' ? 'clip' : 'episode',
+        )
       if (!reasons.length) await this.checkThumbnail(side, a.sidecarPath, reasons, notes)
     }
     if (reasons.length) return this.reject(a, reasons, common, !!side, notes)
@@ -262,15 +280,18 @@ export class PipelineIntake {
     const fmt = this.format(a.brand.id)
     const thumb = this.thumbnailFile(sc, a.sidecarPath)
     const caption = withHashtags(sc.description, sc.tags)
-    const off = [...this.switchedOff(a.brand.id), ...this.tooLongFor(sc.platforms)]
-    const wanted = sc.platforms.filter((p) => !off.includes(p))
-    if (wanted.length < sc.platforms.length)
+    const postType: 'episode' | 'clip' = sc.post_type === 'clip' ? 'clip' : 'episode'
+    // A clip with no platforms goes to every platform the show has switched on for clips.
+    const asked = sc.platforms ?? ['youtube', 'facebook', 'instagram', 'tiktok']
+    const off = [...this.switchedOff(a.brand.id, postType), ...this.tooLongFor(asked)]
+    const wanted = asked.filter((p) => !off.includes(p))
+    if (wanted.length < asked.length)
       notes.push(
-        `Skipped (switched off or too long for the platform): ${sc.platforms.filter((p) => off.includes(p)).join(', ')}.`,
+        `Skipped (switched off or too long for the platform): ${asked.filter((p) => off.includes(p)).join(', ')}.`,
       )
     if (wanted.length === 0 && !hold)
-      hold = 'Every platform in the sidecar is switched off for this channel.'
-    const targets: PostTargetInput[] = (wanted.length ? wanted : sc.platforms).map((p) => ({
+      hold = 'Every platform for this video is switched off for this channel.'
+    const targets: PostTargetInput[] = (wanted.length ? wanted : asked).map((p) => ({
       platform: p as Platform,
       aiFlag: sc.ai_flags?.[p] ?? true,
       captionOverride: sc.caption_overrides?.[p] ?? null,
@@ -278,6 +299,7 @@ export class PipelineIntake {
         ...(p === 'instagram' && sc.thumb_offset_ms !== undefined
           ? { thumbOffsetMs: sc.thumb_offset_ms }
           : {}),
+        ...(postType === 'clip' && p === 'youtube' ? { shorts: true } : {}),
       },
     }))
     let post: Post
@@ -298,6 +320,8 @@ export class PipelineIntake {
           sidecarTitle: sc.title.slice(0, 200),
           sourceBot: sc.source_bot,
           videoBasename: name,
+          postType,
+          sourceEpisodeRef: postType === 'clip' ? (sc.source_episode_id ?? null) : null,
           holdReason: hold,
         },
       })
@@ -322,7 +346,7 @@ export class PipelineIntake {
       const dest = uniquePath(dirname(stem), `${basename(stem)}_thumb${extname(thumb)}`)
       try {
         moveFile(thumb, dest)
-        if (fmt === 'long') this.setYoutubeThumbnail(post.id, dest)
+        if (fmt === 'long' && postType === 'episode') this.setYoutubeThumbnail(post.id, dest)
       } catch {
         notes.push('The thumbnail could not be moved.')
       }
@@ -368,7 +392,7 @@ export class PipelineIntake {
 
     let scheduledAtUtc: string | null = null
     if (!hold) {
-      const wait = this.waitingReason(a.brand.id, sc.platforms)
+      const wait = this.waitingReason(a.brand.id, wanted.length ? wanted : asked, postType)
       if (!wait) {
         const r = await this.scheduleDrop(post.id)
         if (r.ok) scheduledAtUtc = r.scheduledAtUtc ?? null
@@ -385,7 +409,12 @@ export class PipelineIntake {
   /** Length of the last video checked, so platforms that cannot take it can be skipped. */
   private lastSeconds: number | null = null
 
-  private async checkVideo(brand: Brand, path: string, reasons: Reason[]): Promise<void> {
+  private async checkVideo(
+    brand: Brand,
+    path: string,
+    reasons: Reason[],
+    type: 'episode' | 'clip' = 'episode',
+  ): Promise<void> {
     let info: ProbeResult
     try {
       info = await (this.d.probe as (p: string) => Promise<ProbeResult>)(path)
@@ -397,6 +426,22 @@ export class PipelineIntake {
       return
     }
     this.lastSeconds = info.durationSeconds
+    if (type === 'clip') {
+      // A clip is always tall, whatever the show's video type is.
+      const r = info.height ? info.width / info.height : 0
+      if (!r || Math.abs(r - 9 / 16) / (9 / 16) > 0.03)
+        reasons.push({
+          code: 'bad_format',
+          message: `A clip must be 9:16 (tall). This one is ${info.width}x${info.height}.`,
+        })
+      if (info.durationSeconds < CLIP_MIN_SECONDS || info.durationSeconds > CLIP_MAX_SECONDS)
+        reasons.push({
+          code: 'bad_duration',
+          message: `A clip is ${CLIP_MIN_SECONDS} to ${CLIP_MAX_SECONDS} seconds. This one is ${Math.round(info.durationSeconds)}.`,
+        })
+      if (!info.hasAudio) reasons.push({ code: 'no_audio', message: 'The video has no sound.' })
+      return
+    }
     const fmt = this.format(brand.id)
     const ratio = info.height ? info.width / info.height : 0
     const want = fmt === 'long' ? 16 / 9 : 9 / 16
@@ -565,10 +610,18 @@ export class PipelineIntake {
         )
         .run(postId, ...skipped)
     }
-    const slot = opts.slot ?? this.d.posts.nextSlots(post.brandId, 1)[0]
+    const isClip = post.postType === 'clip'
+    const open = (n: number) =>
+      isClip ? this.d.posts.nextClipSlots(post.brandId, n) : this.d.posts.nextSlots(post.brandId, n)
+    const slot = opts.slot ?? open(1)[0]
     if (!slot)
-      return { ok: false, message: `${post.brandName} has no open slot. Add slot times first.` }
-    if (opts.slot && !this.d.posts.nextSlots(post.brandId, 60).includes(opts.slot))
+      return {
+        ok: false,
+        message: isClip
+          ? `${post.brandName} has no clip days. Tick some in Channels, Studio settings per channel.`
+          : `${post.brandName} has no open slot. Add slot times first.`,
+      }
+    if (opts.slot && !open(60).includes(opts.slot))
       return { ok: false, message: 'That time is not one of the open slots for this channel.' }
     this.d.posts.update(postId, { scheduledAtUtc: slot, status: 'scheduled' })
     const drop = this.d.drops.forPost(postId)

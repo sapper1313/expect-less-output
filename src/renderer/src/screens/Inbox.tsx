@@ -4,7 +4,17 @@ import { formatEastern } from '@shared/time'
 import type { DropRow, InboxItem } from '@shared/pipeline'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
-import { Button, Card, Dialog, Empty, Select, Textarea, PageHeader, useBusy } from '../ui'
+import {
+  Button,
+  Card,
+  ClipBadge,
+  Dialog,
+  Empty,
+  Select,
+  Textarea,
+  PageHeader,
+  useBusy,
+} from '../ui'
 
 type Tab = 'waiting' | 'held' | 'rejected' | 'log' | 'issues'
 const TABS: Array<[Tab, string]> = [
@@ -234,7 +244,10 @@ export function Inbox() {
                           )}
                           <span className="text-muted">{r.episodeId}</span>
                         </div>
-                        <div className="truncate text-[15px] font-semibold">{r.title}</div>
+                        <div className="truncate text-[15px] font-semibold">
+                          {r.title}
+                          {r.postType === 'clip' && <ClipBadge />}
+                        </div>
                         <div className="text-[12px] text-muted">
                           From {r.sourceBot ?? 'unknown'}. Dropped {formatEastern(r.droppedAt)}.
                           {r.durationSeconds !== null && ` Length ${mins(r.durationSeconds)}.`}
@@ -451,7 +464,10 @@ function DropTable({ rows, showResult }: { rows: DropRow[]; showResult?: boolean
               <td className="px-3 py-2">{formatEastern(r.receivedAt)}</td>
               <td className="px-3 py-2">{r.channel}</td>
               <td className="px-3 py-2">{r.episodeId}</td>
-              <td className="px-3 py-2">{r.title ?? r.fileName}</td>
+              <td className="px-3 py-2">
+                {r.title ?? r.fileName}
+                {r.postType === 'clip' && <ClipBadge />}
+              </td>
               <td className="px-3 py-2">{r.sourceBot}</td>
               {showResult && <td className="px-3 py-2 font-semibold">{r.result}</td>}
               <td className="max-w-xs px-3 py-2 text-muted">{r.reason}</td>

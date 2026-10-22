@@ -78,7 +78,7 @@ export class YoutubeAdapter implements PlatformAdapter {
       categoryId: d.youtubeCategoryId,
       madeForKids: d.youtubeMadeForKids,
       aiFlag: ctx.aiFlag,
-      appendShorts: d.youtubeAppendShorts,
+      appendShorts: d.youtubeAppendShorts || ctx.settings.shorts === true,
       privacy,
       publishAt,
     })

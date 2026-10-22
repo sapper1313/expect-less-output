@@ -11,12 +11,7 @@ import {
 } from '@shared/studio/config'
 import { changeEveryN, projectMonthlyCost, todayEastern } from '@shared/studio/cadence'
 import { typicalEpisodeEstimate } from '@shared/studio/pricing'
-import type {
-  BrandFormat,
-  ModelTier,
-  StudioBrandConfig,
-  StudioConfig,
-} from '@shared/studio/types'
+import type { BrandFormat, ModelTier, StudioBrandConfig, StudioConfig } from '@shared/studio/types'
 
 const KEY = 'studio.config'
 
@@ -199,6 +194,10 @@ export class StudioConfigService {
       throw new Error('Every N days needs a whole number of 1 or more.')
     if (!(next.runwayDays >= 0)) throw new Error('Runway days cannot be negative.')
     if (!/^\d{1,2}:\d{2}$/.test(next.runTime)) throw new Error('Use HH:MM for the run time.')
+    if (!/^\d{1,2}:\d{2}$/.test(next.clipTime)) throw new Error('Use HH:MM for the clip time.')
+    next.clipPostDays = [
+      ...new Set((next.clipPostDays ?? []).filter((d) => Number.isInteger(d) && d >= 1 && d <= 7)),
+    ].sort()
     next.monthlyCap = checkedCap(next.monthlyCap)
     next.perEpisodeCap = checkedCap(next.perEpisodeCap)
     this.db

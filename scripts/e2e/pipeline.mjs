@@ -6,7 +6,7 @@ import { copyFileSync, existsSync, readdirSync, readFileSync, writeFileSync, mkd
 import { tmpdir } from 'os'
 import { join } from 'path'
 
-const [src] = makeVideos(join(tmpdir(), 'elo-vids'), ['pipeline_src.mp4'], 6)
+const [src, clipSrc] = makeVideos(join(tmpdir(), 'elo-vids'), ['pipeline_src.mp4', 'pipeline_clip.mp4'], 6)
 const { app, page, media } = await launch()
 page.setDefaultTimeout(15000)
 const errors = []
@@ -33,7 +33,7 @@ await invoke(page, 'upcoming.patch', 'trash-panda', idea.episode_id, { status: '
 await invoke(page, 'upcoming.patch', 'trash-panda', idea.episode_id, { status: 'needs-review' })
 
 const drop = (id, over = {}, file = `${id}.mp4`) => {
-  copyFileSync(src, join(inbox, file))
+  copyFileSync(over.post_type === 'clip' ? clipSrc : src, join(inbox, file))
   const sum = createHash('sha256').update(readFileSync(join(inbox, file))).digest('hex')
   const sidecar = {
     schema_version: '1.0',
@@ -53,7 +53,9 @@ const drop = (id, over = {}, file = `${id}.mp4`) => {
   writeFileSync(join(inbox, file.replace(/\.mp4$/, '.json')), JSON.stringify(sidecar))
   writeFileSync(join(inbox, file.replace(/\.mp4$/, '.ready')), '')
 }
+await invoke(page, 'studio.setBrand', tp.id, { clipPostDays: [1, 2, 3, 4, 5, 6, 7], clipTime: '12:00' })
 drop(idea.episode_id)
+drop('trash-panda-2026-0101-c1', { post_type: 'clip', source_episode_id: idea.episode_id, platforms: undefined })
 drop('trash-panda-2026-9998', { approval: undefined })
 // The Inbox is read every 15 seconds.
 let posts = []
@@ -74,6 +76,14 @@ check(rejected.some((f) => f.endsWith('.error.txt')) && rejected.some((f) => f.e
 const log = await invoke(page, 'pipeline.log', {})
 check(log.some((d) => d.result === 'accepted' && d.sha256) && log.some((d) => d.result === 'rejected'), 'the drop log has both decisions')
 
+let clipPost = null
+for (let i = 0; i < 30 && !clipPost; i++) {
+  await sleep(1500)
+  clipPost = (await invoke(page, 'posts.list', {})).find((p) => p.episodeRef === 'trash-panda-2026-0101-c1')
+}
+check(clipPost?.postType === 'clip' && clipPost?.status === 'scheduled', 'the clip drop became a scheduled clip', clipPost?.status)
+check(clipPost?.sourceEpisodeRef === idea.episode_id, 'and it remembers its source episode')
+check(!!clipPost && clipPost.scheduledAtUtc !== posts[0]?.scheduledAtUtc, 'with its own slot, apart from the episode')
 await nav(page, 'Inbox')
 await page.click('main button:has-text("Log")')
 await sleep(800)
@@ -88,6 +98,7 @@ check((await text()).includes('Dropped'), 'the Upcoming Board has a Dropped colu
 await shot(page, 'pipeline-upcoming')
 await nav(page, 'Queue')
 check((await text()).includes(`E2E ${idea.episode_id}`), 'the Queue shows the scheduled video')
+check((await page.locator('main span:has-text("Clip")').count()) > 0, 'the Queue marks the clip with a Clip tag')
 
 const issues = await invoke(page, 'pipeline.reconcileNow')
 check(Array.isArray(issues), 'Reconcile now runs', `${issues.length} issue(s)`)

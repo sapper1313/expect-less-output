@@ -22,7 +22,6 @@ describe('generated JSON Schemas', () => {
         'episode_id',
         'title',
         'description',
-        'platforms',
         'approval',
         'checksum',
         'source_bot',
@@ -30,5 +29,7 @@ describe('generated JSON Schemas', () => {
       ]),
     )
     expect(s.required).not.toContain('preferred_slot')
+    // platforms is needed for an episode and optional for a clip, so the code checks it
+    expect(s.required).not.toContain('platforms')
   })
 })

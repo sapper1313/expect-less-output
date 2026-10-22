@@ -50,6 +50,10 @@ Poll `/v1/sync` every few minutes and `/v1/changes` about every 15 minutes while
 
 Episode ids are matched exactly, never fuzzy. An old name in `channel` is mapped to the canonical slug. An old-prefix id such as `the-math-of-it-2026-0001` is still accepted for `math-of-it`, and posted history keeps the ids it already has.
 
+## Clips
+
+Posts carry `post_type` (`episode` or `clip`) and, for a clip, `source_episode_id`. Each channel in `GET /v1/brands` has `clip_post_days`, `clip_time` and `clip_platforms`. Clips have their own slots (they never use an episode slot). `GET /v1/posts?post_type=clip` lists them.
+
 ## Days and times
 
 - `post_days` use ISO numbers: 1 = Monday to 7 = Sunday. Wonder Hollow is `[3, 5]` (Wednesday and Friday).

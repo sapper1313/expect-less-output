@@ -669,3 +669,12 @@ Every setting change, schedule edit, rejection, post, file removal and Upcoming 
 ### Phone commands
 
 `/queue` is the same as `/today`. If your text model is offline, Telegram says so and lists the commands that still work. Send `add idea for trash panda: a raccoon files taxes` to add an idea to Upcoming. On **Settings, AI models and Local AI**, **Use the local model for chat and the Director** sets both to the model on your own computer, and a light shows if it is online.
+
+## 22. Short clips (0.11.2)
+
+A show can post full episodes and short vertical clips on separate schedules.
+
+1. Open **Channels**, then **Studio settings per channel**, and find the show.
+2. In the **Short clips** box, tick the **Clip post days**, pick the **Clip time**, and tick which platforms clips go to (Instagram Reels, Facebook Reels, TikTok, YouTube Shorts). The episode days above are not touched.
+3. Bots drop a clip with `"post_type": "clip"` in the sidecar. It must be tall (9:16) and 5 to 90 seconds. It gets the next clip slot. With no clip days ticked, it waits in the Inbox.
+4. Clips show a **Clip** tag in the Inbox, the Queue and Upcoming. A clip that names its source episode gets "Full episode on YouTube" and the link in its description once that episode is live.

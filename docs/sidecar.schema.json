@@ -42,7 +42,20 @@
       "minLength": 1,
       "description": "The video file name. It must equal the video file you dropped."
     },
+    "post_type": {
+      "description": "episode (the default when missing) is a full video. clip is a vertical clip, 9:16 and 5 to 90 seconds, with its own schedule.",
+      "type": "string",
+      "enum": [
+        "episode",
+        "clip"
+      ]
+    },
+    "source_episode_id": {
+      "description": "For a clip: the episode it was cut from. Once that episode is live on YouTube, the clip description gets \"Full episode on YouTube\" and the link.",
+      "type": "string"
+    },
     "platforms": {
+      "description": "Required for an episode. A clip may leave it out and then goes to every platform the show has switched on for clips.",
       "minItems": 1,
       "type": "array",
       "items": {
@@ -188,7 +201,6 @@
     "title",
     "description",
     "video_file",
-    "platforms",
     "approval",
     "checksum",
     "source_bot"

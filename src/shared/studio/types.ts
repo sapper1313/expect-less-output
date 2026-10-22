@@ -39,6 +39,11 @@ export interface StudioBrandConfig {
   paused: boolean
   /** Mode B. */
   postDays: number[]
+  /** Short clips have their own days, time and platforms. They never use or move the episode schedule. */
+  clipPostDays: number[]
+  /** HH:MM Eastern. */
+  clipTime: string
+  clipPlatforms: Record<StudioPlatform, boolean>
   windows: WeeklyWindow[]
   /** HH:MM Eastern. */
   runTime: string

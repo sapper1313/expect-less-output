@@ -73,6 +73,18 @@
             "minimum": 1,
             "maximum": 9007199254740991
           },
+          "post_type": {
+            "description": "clip for a short vertical clip. Missing means a full episode.",
+            "type": "string",
+            "enum": [
+              "episode",
+              "clip"
+            ]
+          },
+          "source_episode_id": {
+            "description": "For a clip: the episode it comes from.",
+            "type": "string"
+          },
           "notes": {
             "default": "",
             "type": "string"

@@ -55,6 +55,7 @@ describe('reconcile (tests 9, 23)', () => {
     const t = pipelineSetup({ patch: { inboxAutoScheduleBrandIds: [] } })
     t.drop('Trash Panda', 'trash-panda', 2)
     await t.settle()
+    t.env.db.prepare('UPDATE posts SET created_at = ?').run(new Date(t.env.clock.ms).toISOString())
     const { r } = make(t)
     expect((await r.run()).some((i) => i.kind === 'waiting_too_long')).toBe(false)
     t.env.clock.ms += 8 * 86_400_000
@@ -108,15 +109,13 @@ describe('reconcile (tests 9, 23)', () => {
     await t.env.makePost({ whenMs: t.env.clock.ms - 3 * 86_400_000, title: 'Old partial' })
     await t.env.makePost({ whenMs: t.env.clock.ms - 3 * 86_400_000, title: 'Old partial 2' })
     t.env.db.prepare("UPDATE posts SET status = 'partial'").run()
-    t.env.db
-      .prepare('UPDATE channel_rules SET blackout_json = ? WHERE brand_id = 1')
-      .run(
-        JSON.stringify([
-          new Date(t.env.clock.ms - 3 * 86_400_000).toLocaleDateString('en-CA', {
-            timeZone: 'America/New_York',
-          }),
-        ]),
-      )
+    t.env.db.prepare('UPDATE channel_rules SET blackout_json = ? WHERE brand_id = 1').run(
+      JSON.stringify([
+        new Date(t.env.clock.ms - 3 * 86_400_000).toLocaleDateString('en-CA', {
+          timeZone: 'America/New_York',
+        }),
+      ]),
+    )
     const { r } = make(t)
     const kinds = (await r.run()).map((i) => i.kind)
     expect(kinds).not.toContain('double_booking')

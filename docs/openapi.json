@@ -75,6 +75,26 @@
                           "on_hold": {
                             "type": "boolean"
                           },
+                          "clip_post_days": {
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "description": "Weekdays clips post, 1 = Monday to 7 = Sunday. Empty means no clip slots."
+                          },
+                          "clip_time": {
+                            "type": "string",
+                            "description": "Time of day clips post, Eastern, HH:MM."
+                          },
+                          "clip_platforms": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Platforms clips go to by default."
+                          },
                           "post_days": {
                             "nullable": true,
                             "description": "Weekdays a post may land on, 1 = Monday to 7 = Sunday. Null means every day.",
@@ -250,6 +270,9 @@
                           "paused",
                           "state",
                           "on_hold",
+                          "clip_post_days",
+                          "clip_time",
+                          "clip_platforms",
                           "post_days",
                           "daily_cap",
                           "blackout_dates",
@@ -573,6 +596,13 @@
                             "nullable": true,
                             "type": "string"
                           },
+                          "post_type": {
+                            "type": "string",
+                            "enum": [
+                              "episode",
+                              "clip"
+                            ]
+                          },
                           "notes": {
                             "nullable": true,
                             "type": "string"
@@ -595,6 +625,7 @@
                           "post_id",
                           "approved_by",
                           "approved_at",
+                          "post_type",
                           "notes"
                         ],
                         "additionalProperties": false
@@ -759,6 +790,13 @@
                           "nullable": true,
                           "type": "string"
                         },
+                        "post_type": {
+                          "type": "string",
+                          "enum": [
+                            "episode",
+                            "clip"
+                          ]
+                        },
                         "notes": {
                           "nullable": true,
                           "type": "string"
@@ -781,6 +819,7 @@
                         "post_id",
                         "approved_by",
                         "approved_at",
+                        "post_type",
                         "notes"
                       ],
                       "additionalProperties": false
@@ -922,6 +961,13 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "post_type": {
+                      "type": "string",
+                      "enum": [
+                        "episode",
+                        "clip"
+                      ]
+                    },
                     "notes": {
                       "nullable": true,
                       "type": "string"
@@ -944,6 +990,7 @@
                     "post_id",
                     "approved_by",
                     "approved_at",
+                    "post_type",
                     "notes"
                   ],
                   "additionalProperties": false
@@ -1371,6 +1418,18 @@
                             "minimum": 1,
                             "maximum": 9007199254740991
                           },
+                          "post_type": {
+                            "description": "clip for a short vertical clip. Missing means a full episode.",
+                            "type": "string",
+                            "enum": [
+                              "episode",
+                              "clip"
+                            ]
+                          },
+                          "source_episode_id": {
+                            "description": "For a clip: the episode it comes from.",
+                            "type": "string"
+                          },
                           "notes": {
                             "default": "",
                             "type": "string"
@@ -1509,6 +1568,16 @@
                   "script_path": {
                     "nullable": true,
                     "type": "string"
+                  },
+                  "post_type": {
+                    "type": "string",
+                    "enum": [
+                      "episode",
+                      "clip"
+                    ]
+                  },
+                  "source_episode_id": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -1580,6 +1649,18 @@
                       "type": "integer",
                       "minimum": 1,
                       "maximum": 9007199254740991
+                    },
+                    "post_type": {
+                      "description": "clip for a short vertical clip. Missing means a full episode.",
+                      "type": "string",
+                      "enum": [
+                        "episode",
+                        "clip"
+                      ]
+                    },
+                    "source_episode_id": {
+                      "description": "For a clip: the episode it comes from.",
+                      "type": "string"
                     },
                     "notes": {
                       "default": "",
@@ -1723,6 +1804,16 @@
                       "dropped"
                     ]
                   },
+                  "post_type": {
+                    "type": "string",
+                    "enum": [
+                      "episode",
+                      "clip"
+                    ]
+                  },
+                  "source_episode_id": {
+                    "type": "string"
+                  },
                   "entry_revision": {
                     "description": "The entry_revision you read. If the entry changed since, different fields are merged and the same field makes a conflict (409).",
                     "type": "integer",
@@ -1795,6 +1886,18 @@
                       "type": "integer",
                       "minimum": 1,
                       "maximum": 9007199254740991
+                    },
+                    "post_type": {
+                      "description": "clip for a short vertical clip. Missing means a full episode.",
+                      "type": "string",
+                      "enum": [
+                        "episode",
+                        "clip"
+                      ]
+                    },
+                    "source_episode_id": {
+                      "description": "For a clip: the episode it comes from.",
+                      "type": "string"
                     },
                     "notes": {
                       "default": "",
@@ -2164,6 +2267,19 @@
                       "nullable": true,
                       "type": "number"
                     },
+                    "post_type": {
+                      "type": "string",
+                      "enum": [
+                        "episode",
+                        "clip"
+                      ],
+                      "description": "clip is a short vertical clip with its own schedule."
+                    },
+                    "source_episode_id": {
+                      "nullable": true,
+                      "description": "For a clip: the episode it was cut from.",
+                      "type": "string"
+                    },
                     "origin": {
                       "type": "string",
                       "enum": [
@@ -2271,6 +2387,8 @@
                     "scheduled_at_eastern",
                     "file_name",
                     "duration_seconds",
+                    "post_type",
+                    "source_episode_id",
                     "origin",
                     "episode_id",
                     "source_bot",
@@ -2401,6 +2519,18 @@
             }
           },
           {
+            "name": "post_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "episode",
+                "clip"
+              ]
+            }
+          },
+          {
             "name": "past_due",
             "in": "query",
             "required": false,
@@ -2498,6 +2628,19 @@
                           "duration_seconds": {
                             "nullable": true,
                             "type": "number"
+                          },
+                          "post_type": {
+                            "type": "string",
+                            "enum": [
+                              "episode",
+                              "clip"
+                            ],
+                            "description": "clip is a short vertical clip with its own schedule."
+                          },
+                          "source_episode_id": {
+                            "nullable": true,
+                            "description": "For a clip: the episode it was cut from.",
+                            "type": "string"
                           },
                           "origin": {
                             "type": "string",
@@ -2606,6 +2749,8 @@
                           "scheduled_at_eastern",
                           "file_name",
                           "duration_seconds",
+                          "post_type",
+                          "source_episode_id",
                           "origin",
                           "episode_id",
                           "source_bot",
@@ -2738,6 +2883,19 @@
                       "nullable": true,
                       "type": "number"
                     },
+                    "post_type": {
+                      "type": "string",
+                      "enum": [
+                        "episode",
+                        "clip"
+                      ],
+                      "description": "clip is a short vertical clip with its own schedule."
+                    },
+                    "source_episode_id": {
+                      "nullable": true,
+                      "description": "For a clip: the episode it was cut from.",
+                      "type": "string"
+                    },
                     "origin": {
                       "type": "string",
                       "enum": [
@@ -2845,6 +3003,8 @@
                     "scheduled_at_eastern",
                     "file_name",
                     "duration_seconds",
+                    "post_type",
+                    "source_episode_id",
                     "origin",
                     "episode_id",
                     "source_bot",
@@ -3081,6 +3241,19 @@
                       "nullable": true,
                       "type": "number"
                     },
+                    "post_type": {
+                      "type": "string",
+                      "enum": [
+                        "episode",
+                        "clip"
+                      ],
+                      "description": "clip is a short vertical clip with its own schedule."
+                    },
+                    "source_episode_id": {
+                      "nullable": true,
+                      "description": "For a clip: the episode it was cut from.",
+                      "type": "string"
+                    },
                     "origin": {
                       "type": "string",
                       "enum": [
@@ -3188,6 +3361,8 @@
                     "scheduled_at_eastern",
                     "file_name",
                     "duration_seconds",
+                    "post_type",
+                    "source_episode_id",
                     "origin",
                     "episode_id",
                     "source_bot",
@@ -3333,6 +3508,19 @@
                       "nullable": true,
                       "type": "number"
                     },
+                    "post_type": {
+                      "type": "string",
+                      "enum": [
+                        "episode",
+                        "clip"
+                      ],
+                      "description": "clip is a short vertical clip with its own schedule."
+                    },
+                    "source_episode_id": {
+                      "nullable": true,
+                      "description": "For a clip: the episode it was cut from.",
+                      "type": "string"
+                    },
                     "origin": {
                       "type": "string",
                       "enum": [
@@ -3440,6 +3628,8 @@
                     "scheduled_at_eastern",
                     "file_name",
                     "duration_seconds",
+                    "post_type",
+                    "source_episode_id",
                     "origin",
                     "episode_id",
                     "source_bot",
@@ -3588,6 +3778,19 @@
                           "nullable": true,
                           "type": "number"
                         },
+                        "post_type": {
+                          "type": "string",
+                          "enum": [
+                            "episode",
+                            "clip"
+                          ],
+                          "description": "clip is a short vertical clip with its own schedule."
+                        },
+                        "source_episode_id": {
+                          "nullable": true,
+                          "description": "For a clip: the episode it was cut from.",
+                          "type": "string"
+                        },
                         "origin": {
                           "type": "string",
                           "enum": [
@@ -3695,6 +3898,8 @@
                         "scheduled_at_eastern",
                         "file_name",
                         "duration_seconds",
+                        "post_type",
+                        "source_episode_id",
                         "origin",
                         "episode_id",
                         "source_bot",

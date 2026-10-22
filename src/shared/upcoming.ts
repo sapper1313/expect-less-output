@@ -38,6 +38,14 @@ export const UpcomingEntry = z
     updated_by: z.string().min(1),
     updated_at: z.string(),
     entry_revision: z.number().int().min(1),
+    post_type: z
+      .enum(['episode', 'clip'])
+      .optional()
+      .meta({ description: 'clip for a short vertical clip. Missing means a full episode.' }),
+    source_episode_id: z
+      .string()
+      .optional()
+      .meta({ description: 'For a clip: the episode it comes from.' }),
     notes: z.string().default(''),
     script_path: z.string().nullable().default(null),
     drop_id: z.string().nullable().default(null),
@@ -168,7 +176,13 @@ export function mayChange(
         }
       continue
     }
-    if (f === 'notes' || f === 'script_path' || f === 'source_bot') {
+    if (
+      f === 'notes' ||
+      f === 'script_path' ||
+      f === 'source_bot' ||
+      f === 'post_type' ||
+      f === 'source_episode_id'
+    ) {
       if (!own && !orchestrator)
         return { ok: false, reason: `${actor.name} may not change entries on ${prev.channel}.` }
       continue

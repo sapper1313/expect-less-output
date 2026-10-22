@@ -117,6 +117,10 @@ export function defaultBrandConfig(format: BrandFormat, startDate: string): Stud
     startDate,
     paused: false,
     postDays: [],
+    clipPostDays: [],
+    clipTime: '12:00',
+    // Clips go to Instagram Reels, Facebook Reels, TikTok and YouTube Shorts unless a show turns one off.
+    clipPlatforms: allPlatforms(['youtube', 'facebook', 'instagram', 'tiktok']),
     windows: [],
     runTime: '09:00',
     // Bluesky defaults OFF. The owner turns them on.

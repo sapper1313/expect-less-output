@@ -246,6 +246,10 @@ export interface Post {
   sourceBot: string | null
   sidecarTitle: string | null
   videoBasename: string | null
+  /** episode is a full video. clip is a short vertical clip with its own schedule. */
+  postType: 'episode' | 'clip'
+  /** For a clip: the episode it was cut from. */
+  sourceEpisodeRef: string | null
 }
 
 export type TikTokMode = 'drafts' | 'direct'
@@ -294,6 +298,8 @@ export interface TargetSettings {
   coverTimestampMs?: number
   /** Instagram custom cover, a public https address (used instead of the frame). */
   coverUrl?: string
+  /** A YouTube clip is uploaded as a Short: #Shorts is added to the description. */
+  shorts?: boolean
   /** Made from a mock mode placeholder video. The scheduler uses the dry run adapter, so nothing real is ever posted. */
   mock?: boolean
   /** TikTok Direct Post choices. */
@@ -327,6 +333,8 @@ export interface PostInput {
     sourceBot: string
     videoBasename: string
     holdReason?: string | null
+    postType?: 'episode' | 'clip'
+    sourceEpisodeRef?: string | null
   }
 }
 
@@ -349,6 +357,7 @@ export interface PostFilter {
   origin?: 'manual' | 'inbox' | 'api'
   /** true: only held posts. false: leave held posts out. */
   held?: boolean
+  postType?: 'episode' | 'clip'
   /** Scheduled posts whose time has passed and that have not posted. */
   pastDue?: boolean
 }

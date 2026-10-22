@@ -36,6 +36,8 @@ export function postOut(p: Post, warnings?: string[]): PostJson {
     file_name: p.fileName,
     duration_seconds:
       typeof p.videoMeta.durationSeconds === 'number' ? p.videoMeta.durationSeconds : null,
+    post_type: p.postType,
+    source_episode_id: p.sourceEpisodeRef,
     origin: p.origin,
     episode_id: p.episodeRef,
     source_bot: p.sourceBot,
@@ -57,6 +59,21 @@ export function postOut(p: Post, warnings?: string[]): PostJson {
   }
 }
 
+function clipPlatformsOf(s: AgentServices, brandId: number): string[] {
+  const row = s.posts
+    .dbForState()
+    .prepare('SELECT config_json FROM studio_brands WHERE brand_id = ?')
+    .get(brandId) as { config_json: string } | undefined
+  const all = ['youtube', 'facebook', 'instagram', 'tiktok']
+  try {
+    const p = (JSON.parse(row?.config_json ?? '{}') as { clipPlatforms?: Record<string, boolean> })
+      .clipPlatforms
+    return p ? all.filter((k) => p[k] !== false) : all
+  } catch {
+    return all
+  }
+}
+
 function brandOut(s: AgentServices, b: Brand) {
   const d = s.brands.getDefaults(b.id)
   const sets = s.brands.listHashtags(b.id)
@@ -67,6 +84,9 @@ function brandOut(s: AgentServices, b: Brand) {
     state: channelState(s.posts.dbForState(), b.id),
     on_hold: channelState(s.posts.dbForState(), b.id) === 'on-hold',
     post_days: s.posts.postDays(b.id) ?? null,
+    clip_post_days: s.posts.clipSchedule(b.id).days,
+    clip_time: s.posts.clipSchedule(b.id).time,
+    clip_platforms: clipPlatformsOf(s, b.id),
     daily_cap: rules.maxPerDay,
     blackout_dates: [...new Set([...settings.blackoutDates, ...rules.blackoutDates])].sort(),
     aliases: Object.entries(SLUG_ALIASES)
@@ -194,6 +214,7 @@ function dropOut(d: DropRow) {
     post_id: d.postId,
     approved_by: d.approvedBy,
     approved_at: d.approvedAt,
+    post_type: d.postType,
     notes: d.notes,
   }
 }

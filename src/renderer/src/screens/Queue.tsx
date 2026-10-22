@@ -10,6 +10,7 @@ import { fmt } from '../components/StatsPanel'
 import { PostEditor } from '../components/PostEditor'
 import {
   BrandDot,
+  ClipBadge,
   Button,
   Check,
   Confirm,
@@ -240,7 +241,10 @@ export function Queue() {
                           <div className="h-12 w-7 rounded bg-surface2" />
                         )}
                         <div>
-                          <div className="font-semibold">{p.title || p.fileName}</div>
+                          <div className="font-semibold">
+                            {p.title || p.fileName}
+                            {p.postType === 'clip' && <ClipBadge />}
+                          </div>
                           <div className="text-[11px] text-muted">{p.fileName}</div>
                         </div>
                       </div>

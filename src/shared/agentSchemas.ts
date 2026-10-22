@@ -142,6 +142,7 @@ export const ListPostsQuery = z.object({
   origin: z.enum(['manual', 'inbox', 'api']).optional().meta({
     description: 'inbox lists the posts that arrived through an Inbox folder (bot drops).',
   }),
+  post_type: z.enum(['episode', 'clip']).optional(),
   past_due: z.enum(['true', 'false']).optional().meta({
     description:
       'true lists scheduled posts whose time has passed and that have not posted (missed slots).',
@@ -224,6 +225,11 @@ export const BrandOut = z.object({
       'active may be scheduled. paused is temporarily not posting. on-hold is not scheduling while a decision is made. archived is permanently out of service. archived beats on-hold beats paused.',
   }),
   on_hold: z.boolean(),
+  clip_post_days: z.array(z.number().int()).meta({
+    description: 'Weekdays clips post, 1 = Monday to 7 = Sunday. Empty means no clip slots.',
+  }),
+  clip_time: z.string().meta({ description: 'Time of day clips post, Eastern, HH:MM.' }),
+  clip_platforms: z.array(z.string()).meta({ description: 'Platforms clips go to by default.' }),
   post_days: z.array(z.number().int()).nullable().meta({
     description: 'Weekdays a post may land on, 1 = Monday to 7 = Sunday. Null means every day.',
   }),
@@ -283,6 +289,13 @@ export const PostOut = z.object({
   scheduled_at_eastern: z.string().nullable(),
   file_name: z.string(),
   duration_seconds: z.number().nullable(),
+  post_type: z
+    .enum(['episode', 'clip'])
+    .meta({ description: 'clip is a short vertical clip with its own schedule.' }),
+  source_episode_id: z
+    .string()
+    .nullable()
+    .meta({ description: 'For a clip: the episode it was cut from.' }),
   origin: z.enum(['manual', 'inbox', 'api']),
   episode_id: z
     .string()
@@ -591,6 +604,7 @@ export const DropOut = z.object({
   post_id: z.number().nullable(),
   approved_by: z.string().nullable(),
   approved_at: z.string().nullable(),
+  post_type: z.enum(['episode', 'clip']),
   notes: z.string().nullable(),
 })
 
@@ -681,6 +695,8 @@ export const AddUpcomingBody = z
       .optional()
       .meta({ description: 'Leave out and ELO picks the next free id, <slug>-<year>-<nnnn>.' }),
     script_path: z.string().nullable().optional(),
+    post_type: z.enum(['episode', 'clip']).optional(),
+    source_episode_id: z.string().optional(),
   })
   .strict()
 
@@ -691,6 +707,8 @@ export const PatchUpcomingBody = z
     notes: z.string().max(5000).optional(),
     script_path: z.string().nullable().optional(),
     status: z.enum(UPCOMING_STATUSES).optional(),
+    post_type: z.enum(['episode', 'clip']).optional(),
+    source_episode_id: z.string().optional(),
     entry_revision: z.number().int().optional().meta({
       description:
         'The entry_revision you read. If the entry changed since, different fields are merged and the same field makes a conflict (409).',

@@ -385,6 +385,15 @@ export function TargetChip({
   )
 }
 
+/** A small tag that marks a short clip, so it is not mistaken for a full episode. */
+export function ClipBadge() {
+  return (
+    <span className="ml-2 rounded border border-accent px-1 text-[10px] font-bold uppercase text-accent">
+      Clip
+    </span>
+  )
+}
+
 export function BrandDot({ color, name }: { color: string; name?: string }) {
   return (
     <span className="inline-flex items-center gap-2">

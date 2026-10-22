@@ -155,6 +155,45 @@ The video and sidecar go to `Inbox/Rejected`, with two files next to them:
 
 Fix the cause, give the file a new name if the old one is still there, and drop it again. Never edit a file in `Rejected` in place. After a video is accepted, never change it. If you change the file, ELO notices the checksum changed and holds the post. Make a new episode id and drop again.
 
+## Dropping: Short clips
+
+A show can post full episodes and short vertical clips. Clips have their own schedule, set by the owner in ELO (Channels, Studio settings per channel, Short clips): their own days, their own time of day, and their own platforms. **As always, a bot never sets, asks for or promises a posting time, for clips too.** A clip never uses or moves an episode slot.
+
+Tag a clip with two optional sidecar fields:
+
+| Field | What it is |
+| --- | --- |
+| `post_type` | `"clip"` for a clip. Missing, or `"episode"`, means a full episode exactly as before. |
+| `source_episode_id` | Optional, clips only. The episode the clip was cut from, for example `clock-out-early-2026-0101`. Once that episode is live on YouTube, ELO adds "Full episode on YouTube:" and the link to the clip's description right before the clip is sent. If the episode is not live yet, the clip goes out without the line. |
+
+Rules for a clip:
+
+- The video must be 9:16 and 5 to 90 seconds long, with sound, whatever the show's video type is. A wide or too long clip is rejected with the reason.
+- It belongs to the same channel as the show's episodes: drop it in the same Inbox, with the same `channel`.
+- Its `episode_id` is its own id: a normal id, or an episode id with `-c1`, `-c2` and so on, for example `clock-out-early-2026-0101-c1`. The file name must contain it, like any drop. The id must be unique for the channel.
+- `platforms` is optional for a clip. Leave it out and the clip goes to every platform the show has switched on for clips (Instagram Reels, Facebook Reels, TikTok and YouTube Shorts unless the owner turned one off). If you list platforms, a platform the show turned off for clips is skipped, with a note. A YouTube clip is uploaded as a Short.
+- If the show has no clip days set, the clip is accepted and waits in the Inbox until the owner sets them.
+- The Inbox, the Queue and Upcoming show a "Clip" badge. In Upcoming you can also set `post_type: "clip"` and `source_episode_id` on an entry. The API shows `post_type` and `source_episode_id` on posts and drops, and `clip_post_days`, `clip_time` and `clip_platforms` on each channel. Use `GET /v1/posts?post_type=clip` to list clips.
+
+Example clip sidecar (`clock-out-early-2026-0101-c1.json`, next to `clock-out-early-2026-0101-c1.mp4`):
+
+```json
+{
+  "schema_version": "1.0",
+  "channel": "clock-out-early",
+  "post_type": "clip",
+  "episode_id": "clock-out-early-2026-0101-c1",
+  "source_episode_id": "clock-out-early-2026-0101",
+  "title": "The Chrome tab trick in 20 seconds",
+  "description": "Stop scrolling through forty tabs. #productivity",
+  "tags": ["chrome", "productivity"],
+  "video_file": "clock-out-early-2026-0101-c1.mp4",
+  "approval": { "approved_by": "Josh", "approved_at": "2026-10-21T15:30:00-04:00" },
+  "checksum": { "algo": "sha256", "value": "<64 hex characters of the mp4>" },
+  "source_bot": "grok-bot"
+}
+```
+
 ## Dropping: With a link instead of a file
 
 If the video is on the internet, drop only the `.json`, with an extra `"video_url": "https://..."`. ELO downloads it into the Inbox as `<same name>.mp4` and then checks it as above. The link must be direct, public, http or https, an MP4 or MOV, under 2 GB, and alive for at least 15 minutes. `video_file` must equal the name the download gets (`<json name>.mp4`).

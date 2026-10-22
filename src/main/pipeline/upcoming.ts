@@ -459,6 +459,8 @@ export class UpcomingService {
       status?: UpcomingEntryT['status']
       episode_id?: string
       script_path?: string | null
+      post_type?: 'episode' | 'clip'
+      source_episode_id?: string
     },
   ): Promise<UpcomingEntryT> {
     return this.serial(() => {
@@ -492,6 +494,8 @@ export class UpcomingService {
           entry_revision: 1,
           notes: input.notes ?? '',
           script_path: input.script_path ?? null,
+          ...(input.post_type === 'clip' ? { post_type: 'clip' } : {}),
+          ...(input.source_episode_id ? { source_episode_id: input.source_episode_id } : {}),
           drop_id: null,
         })
         const v = mayChange(actor, null, entry as Record<string, any>)
@@ -518,7 +522,16 @@ export class UpcomingService {
     channel: string,
     episodeId: string,
     patch: Partial<
-      Pick<UpcomingEntryT, 'working_title' | 'premise' | 'notes' | 'script_path' | 'status'>
+      Pick<
+        UpcomingEntryT,
+        | 'working_title'
+        | 'premise'
+        | 'notes'
+        | 'script_path'
+        | 'status'
+        | 'post_type'
+        | 'source_episode_id'
+      >
     > & { clear_conflict?: boolean },
     base: { entry_revision?: number } = {},
   ): Promise<{ entry: UpcomingEntryT; conflict: boolean }> {
@@ -537,7 +550,15 @@ export class UpcomingService {
           throw new UpcomingError(409, 'This entry has a conflict. Josh resolves it first.')
         const before = clone(cur)
         const wanted: Record<string, unknown> = {}
-        for (const k of ['working_title', 'premise', 'notes', 'script_path', 'status'] as const)
+        for (const k of [
+          'working_title',
+          'premise',
+          'notes',
+          'script_path',
+          'status',
+          'post_type',
+          'source_episode_id',
+        ] as const)
           if (patch[k] !== undefined) wanted[k] = patch[k]
         let apply = wanted
         if (base.entry_revision !== undefined && base.entry_revision !== cur.entry_revision) {

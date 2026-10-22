@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.2 Short clips
+
+- A sidecar can say `"post_type": "clip"` (and optionally `"source_episode_id"`). Missing means an episode, exactly as before.
+- Clips must be 9:16 and 5 to 90 seconds with sound, on any show. Clip ids may end in `-c1`, `-c2` and so on.
+- Each show has **Clip post days**, a **clip time** and **clip platforms** (Channels, Studio settings per channel). Clips use their own slots, never use or move an episode slot, and do not count against the episode daily limit.
+- Clips post to Instagram Reels, Facebook Reels, TikTok and YouTube Shorts unless switched off for the show. A YouTube clip is uploaded as a Short.
+- A clip with a source episode gets "Full episode on YouTube" and the link in its description once the episode is live.
+- A Clip tag in the Inbox, the Queue and Upcoming. The API has `post_type`, `source_episode_id`, `clip_post_days`, `clip_time`, `clip_platforms` and a `post_type` filter on posts.
+
 ## 0.11.1 Fresh start and the bot box connection
 
 - **Fresh start** (Settings, Pipeline): makes a backup bundle (database, Upcoming file, the files being removed, inventory, restore steps, checksums), checks it, then clears every script, idea, task record and Upcoming entry, cancels unposted drafts and switches the Claude API and Studio production off. Posted videos, analytics, spend history, the audit log and the drop log stay. Upcoming restarts at revision 1.

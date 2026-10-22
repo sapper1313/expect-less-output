@@ -57,6 +57,10 @@ Read `docs/GROKBOT_DROP_GUIDE.md`. In short: put `<episode-id>.mp4` and `<episod
 - `GET /v1/slots/next-open?channel=<slug>&days=14`: the open slots. You can look. You cannot choose one.
 - `GET /v1/reconcile`: things that do not add up.
 
+## Clips
+
+A show can also post short vertical clips (`"post_type": "clip"`, 9:16, 5 to 90 seconds) on their own schedule. See the Short clips section of `docs/GROKBOT_DROP_GUIDE.md`.
+
 ## Things that can happen to a drop
 
 | Result | Meaning |
