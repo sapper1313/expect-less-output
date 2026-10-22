@@ -905,7 +905,7 @@ export class UpcomingService {
     const cutoff = new Date(nowMs - 14 * 86_400_000).toISOString()
     for (const d of this.d.db
       .prepare(
-        "SELECT drop_id, channel, episode_id FROM drops WHERE result = 'accepted' AND episode_id IS NOT NULL AND received_at >= ?",
+        "SELECT drop_id, channel, episode_id FROM drops WHERE result = 'accepted' AND post_type = 'episode' AND episode_id IS NOT NULL AND received_at >= ?",
       )
       .all(cutoff) as Array<{ drop_id: string; channel: string; episode_id: string }>)
       if (!known.has(`${d.channel}/${d.episode_id}`))

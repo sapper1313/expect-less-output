@@ -414,3 +414,32 @@ describe('clips: channel link and the Related video reminder', () => {
     })
   })
 })
+
+describe('clips and the Upcoming warning', () => {
+  it('a clip does not need an Upcoming entry, but an episode still does', async () => {
+    const { UpcomingService } = await import('../src/main/pipeline/upcoming')
+    const t = pipelineSetup({ probe: probeOf(1080, 1920, 40) })
+    setCfg(t, { clipPostDays: [2] })
+    t.drop(
+      TP,
+      'trash-panda',
+      160,
+      { post_type: 'clip', episode_id: 'trash-panda-2026-0102-c1', platforms: ['youtube'] },
+      { file: 'trash-panda-2026-0102-c1.mp4' },
+    )
+    await t.settle()
+    const up = new UpcomingService({
+      db: t.env.db,
+      settings: t.env.settings,
+      brands: t.env.brands,
+      audit: t.audit,
+      notify: () => {},
+      mediaRoot: () => t.env.root,
+      now: () => t.env.clock.ms,
+    })
+    expect(up.issues().some((i) => /has no entry in Upcoming/.test(i.detail))).toBe(false)
+    t.drop(TP, 'trash-panda', 161, {})
+    await t.settle()
+    expect(up.issues().some((i) => /has no entry in Upcoming/.test(i.detail))).toBe(true)
+  })
+})
