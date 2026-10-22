@@ -146,6 +146,73 @@ export class PostService {
     return { episodeId: r.source_episode_ref, url: live?.url ?? null, done: !!r.related_done }
   }
 
+  /**
+   * Swaps the video of a post that has not gone out, keeping its slot. The new file goes in the Queue (named after the
+   * episode id), the old one is moved to <Brand>/Replaced (never deleted), and the checksum, length and poster follow.
+   * A new title also becomes the title the bot-drop safety check compares with. A new description replaces the caption.
+   */
+  async replaceMedia(
+    id: number,
+    o: { sourcePath: string; checksum: string; title?: string; description?: string },
+  ): Promise<{ oldRel: string; oldChecksum: string | null; newRel: string; fileName: string }> {
+    const row = this.db.prepare('SELECT * FROM posts WHERE id = ?').get(id) as PostRow | undefined
+    if (!row) throw new Error('Post not found.')
+    const brand = this.brandName(row.brand_id)
+    let meta = row.video_meta_json
+    let poster = row.poster_path
+    if (this.media) {
+      const m = await this.media.probe(o.sourcePath)
+      meta = JSON.stringify(m)
+      poster = await this.media.poster(o.sourcePath, m.durationSeconds)
+    }
+    const stem =
+      row.episode_ref ?? (row.video_path.split('/').pop() ?? 'video').replace(/\.[^.]+$/, '')
+    const ext = (o.sourcePath.match(/\.[^.]+$/)?.[0] ?? '.mp4').toLowerCase()
+    const newRel = this.library.importToQueueAs(brand, o.sourcePath, `${stem}${ext}`)
+    const fileName = newRel.split('/').pop() as string
+    try {
+      this.db.transaction(() => {
+        const title = o.title ?? row.title
+        this.db
+          .prepare(
+            `UPDATE posts SET video_path = ?, video_meta_json = ?, poster_path = ?, checksum = ?, video_basename = ?,
+             title = ?, sidecar_title = CASE WHEN episode_ref IS NOT NULL THEN ? ELSE sidecar_title END,
+             caption = ?, updated_at = ? WHERE id = ?`,
+          )
+          .run(
+            newRel,
+            meta,
+            poster,
+            o.checksum,
+            row.episode_ref ? fileName : row.video_basename,
+            title,
+            title,
+            o.description ?? row.caption,
+            new Date().toISOString(),
+            id,
+          )
+        if (o.description !== undefined)
+          this.db
+            .prepare(
+              "UPDATE post_targets SET caption_override = ? WHERE post_id = ? AND caption_override IS NOT NULL AND caption_override != ''",
+            )
+            .run(o.description, id)
+      })()
+    } catch (e) {
+      this.library.removeIfInside(newRel)
+      throw e
+    }
+    let oldRel = row.video_path
+    try {
+      oldRel = this.library.moveToReplaced(row.video_path, brand)
+    } catch {
+      // The old file stays where it was. The post already points at the new one.
+    }
+    this.log.log('info', `Media replaced for "${o.title ?? row.title}".`, { postId: id })
+    this.emit()
+    return { oldRel, oldChecksum: row.checksum, newRel, fileName }
+  }
+
   /** Keeps a thumbnail picture on a target, used when the video is uploaded. */
   setTargetThumbnail(targetId: number, path: string): void {
     const row = this.db

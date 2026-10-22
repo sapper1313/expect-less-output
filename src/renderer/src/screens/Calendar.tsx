@@ -6,10 +6,22 @@ import type { Post } from '@shared/types'
 import { COPY } from '@shared/copy'
 import { ZONE } from '@shared/time'
 import { api } from '../api'
-import { useLoad } from '../hooks'
+import { useApp, useLoad } from '../hooks'
 import { PostEditor } from '../components/PostEditor'
 import { ItemDetail, PostDetail } from '../components/ItemDetail'
-import { Button, ClipBadge, PLATFORM_SHORT, PageHeader, Select, StatusBadge } from '../ui'
+import {
+  Button,
+  ClipBadge,
+  Confirm,
+  Dialog,
+  Empty,
+  PLATFORM_SHORT,
+  PageHeader,
+  Select,
+  StatusBadge,
+  useBusy,
+} from '../ui'
+import { formatEastern } from '@shared/time'
 import { EpisodePeek } from './StudioLibrary'
 
 const TARGET_COLOR: Record<string, string> = {
@@ -56,7 +68,14 @@ export function Calendar({
   onNewPost?: (whenUtc: string | null) => void
   openInbox?: () => void
 } = {}) {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
   const [brandId, setBrandId] = useState<number | 'all'>('all')
+  /** Episodes and clips, only episodes, or only clips. */
+  const [show, setShow] = useState<'all' | 'episode' | 'clip'>('all')
+  const [filling, setFilling] = useState<OpenSlot | null>(null)
+  const [confirmAll, setConfirmAll] = useState(false)
+  const [lastFill, setLastFill] = useState<number[] | null>(null)
   const [platform, setPlatform] = useState('')
   /** '' shows everything. 'open' shows only the slots with nothing in them. */
   const [kind, setKind] = useState<CalendarKind | 'open' | ''>('')
@@ -104,10 +123,11 @@ export function Calendar({
       if (!p.scheduledAtUtc || p.status === 'canceled') continue
       if (platform && !p.targets.some((t) => t.platform === platform)) continue
       if (kind === 'open') continue
+      if (show !== 'all' && p.postType !== show) continue
       if (kind && (POST_KIND[p.status] ?? 'scheduled') !== kind) continue
       out.push({ type: 'post', at: p.scheduledAtUtc, post: p })
     }
-    if (kind !== 'open')
+    if (kind !== 'open' && show !== 'clip')
       for (const i of items ?? []) {
         if (i.postId !== null) continue
         // The open slots below come from the channel settings, so the Studio's own planned days and windows are left out.
@@ -117,9 +137,10 @@ export function Calendar({
       }
     // Slots do not belong to a platform, so they hide while a platform filter is on.
     if (!platform && (kind === '' || kind === 'open'))
-      for (const s of slots ?? []) out.push({ type: 'open', at: s.whenUtc, slot: s })
+      for (const s of slots ?? [])
+        if (show === 'all' || s.kind === show) out.push({ type: 'open', at: s.whenUtc, slot: s })
     return out.sort((a, b) => a.at.localeCompare(b.at))
-  }, [posts, items, slots, platform, kind])
+  }, [posts, items, slots, platform, kind, show])
 
   const days = useMemo(() => {
     const m = new Map<string, Row[]>()
@@ -144,6 +165,16 @@ export function Calendar({
             New post
           </Button>
         )}
+        <Select
+          className="w-44"
+          value={show}
+          onChange={(e) => setShow(e.target.value as typeof show)}
+          aria-label="Show"
+        >
+          <option value="all">Episodes and clips</option>
+          <option value="episode">Episodes only</option>
+          <option value="clip">Clips only</option>
+        </Select>
         <Select
           className="w-40"
           value={platform}
@@ -199,11 +230,46 @@ export function Calendar({
           Today
         </Button>
         <h2 className="display ml-4 text-3xl uppercase">{month.toFormat('LLLL yyyy')}</h2>
+        <Button
+          variant="primary"
+          disabled={
+            busy || !(slots ?? []).some((s) => s.waiting > 0 && s.channelState === 'active')
+          }
+          title="Put the oldest waiting videos into the open slots of this month"
+          onClick={() => setConfirmAll(true)}
+        >
+          Fill all open slots
+        </Button>
         <span className="ml-auto text-[12px] text-muted">
           Slots come from each channel's settings. A dashed circle is a slot with nothing in it.
         </span>
       </div>
 
+      {lastFill && (
+        <div className="mx-8 mb-3 flex items-center justify-between rounded-md border border-line bg-surface px-4 py-2 text-[13px]">
+          <span>Filled {lastFill.length} slot(s) with waiting videos.</span>
+          <span className="flex gap-2">
+            <Button
+              disabled={busy}
+              onClick={async () => {
+                const n = await run(() => api.pipeline.unschedule(lastFill))
+                if (n !== undefined)
+                  toast({
+                    kind: 'success',
+                    headline: COPY.success,
+                    detail: `Put ${n} video(s) back to waiting.`,
+                  })
+                setLastFill(null)
+              }}
+            >
+              Undo
+            </Button>
+            <Button variant="ghost" onClick={() => setLastFill(null)}>
+              Keep
+            </Button>
+          </span>
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-auto px-8 pb-6">
         {days.length === 0 ? (
           <div className="rounded-lg border border-dashed border-line p-10 text-center text-muted">
@@ -245,6 +311,7 @@ export function Calendar({
                         <OpenLine
                           slot={r.slot}
                           onAdd={() => onNewPost?.(r.slot.whenUtc)}
+                          onFill={() => setFilling(r.slot)}
                           onInbox={openInbox}
                         />
                       )}
@@ -278,6 +345,30 @@ export function Calendar({
         />
       )}
       {editing !== null && <PostEditor postId={editing} onClose={() => setEditing(null)} />}
+      {filling && <FillDialog slot={filling} onClose={() => setFilling(null)} />}
+      {confirmAll && (
+        <Confirm
+          title="Fill all open slots?"
+          message="The oldest waiting video of each running channel goes into the next open slot of this month, one video per slot, in order. Paused and on-hold channels are left alone. You can undo it right after."
+          confirmLabel="Fill them"
+          onCancel={() => setConfirmAll(false)}
+          onConfirm={async () => {
+            setConfirmAll(false)
+            const r = await run(() => api.pipeline.fillAll(range.from, range.to))
+            if (!r) return
+            setLastFill(r.filled.length ? r.filled.map((f) => f.postId) : null)
+            toast({
+              kind: r.filled.length ? 'success' : 'info',
+              headline: r.filled.length ? COPY.success : 'Nothing to fill.',
+              detail: r.filled.length
+                ? `Filled ${r.filled.length} slot(s).${r.leftWaiting ? ` ${r.leftWaiting} video(s) still wait for a slot.` : ''}${r.skipped.length ? ` Left out: ${r.skipped.map((s) => `${s.brandName} (${s.reason})`).join(' ')}` : ''}`
+                : r.skipped.length
+                  ? r.skipped.map((s) => `${s.brandName}: ${s.reason}`).join(' ')
+                  : 'No channel has a waiting video and an open slot in this month.',
+            })
+          }}
+        />
+      )}
       {openEpisode && <EpisodePeek id={openEpisode} onClose={() => setOpenEpisode(null)} />}
     </div>
   )
@@ -358,10 +449,12 @@ function ItemLine({ item, onOpen }: { item: CalendarItem; onOpen: () => void }) 
 function OpenLine({
   slot,
   onAdd,
+  onFill,
   onInbox,
 }: {
   slot: OpenSlot
   onAdd: () => void
+  onFill: () => void
   onInbox?: () => void
 }) {
   const what = slot.kind === 'clip' ? 'clips' : 'videos'
@@ -383,9 +476,53 @@ function OpenLine({
         </div>
       </div>
       <div className="flex shrink-0 gap-2">
+        {slot.waiting > 0 && (
+          <Button variant="primary" onClick={onFill}>
+            Fill with a waiting {slot.kind === 'clip' ? 'clip' : 'video'}
+          </Button>
+        )}
         {slot.waiting > 0 && onInbox && <Button onClick={onInbox}>Open Inbox</Button>}
         <Button onClick={onAdd}>Add a {slot.kind === 'clip' ? 'clip' : 'video'}</Button>
       </div>
     </div>
+  )
+}
+
+/** Pick which waiting video goes into the slot that was clicked. */
+function FillDialog({ slot, onClose }: { slot: OpenSlot; onClose: () => void }) {
+  const { toast } = useApp()
+  const [busy, run] = useBusy()
+  const { data } = useLoad(() => api.pipeline.waiting())
+  const mine = (data ?? []).filter((w) => w.brandId === slot.brandId && w.postType === slot.kind)
+  return (
+    <Dialog title={`Fill the ${formatEastern(slot.whenUtc)} slot`} onClose={onClose}>
+      <p className="mb-3 text-[13px] text-muted">
+        Pick the {slot.kind === 'clip' ? 'clip' : 'video'} that goes into this slot for{' '}
+        {slot.brandName}.
+      </p>
+      <div className="grid max-h-80 gap-2 overflow-auto">
+        {mine.map((w) => (
+          <Button
+            key={w.postId}
+            disabled={busy}
+            onClick={async () => {
+              const r = await run(() => api.pipeline.pickSlot(w.postId, slot.whenUtc))
+              if (r)
+                toast({
+                  kind: r.ok ? 'success' : 'error',
+                  headline: r.ok ? COPY.success : 'Not done.',
+                  detail: r.message,
+                })
+              if (r?.ok) onClose()
+            }}
+          >
+            {w.title} <span className="ml-2 text-[11px] text-muted">{w.episodeId}</span>
+          </Button>
+        ))}
+        {data && mine.length === 0 && (
+          <Empty>No finished videos are waiting for this channel.</Empty>
+        )}
+      </div>
+    </Dialog>
   )
 }

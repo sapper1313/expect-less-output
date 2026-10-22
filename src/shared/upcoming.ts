@@ -1,6 +1,7 @@
 // Upcoming episodes: the shared planning list that bots and ELO both read and write.
 // One zod schema describes the file. docs/upcoming.schema.json is generated from it (a test fails if that file is stale).
 import { z } from 'zod'
+import { channelAllowed } from './pipeline'
 
 export const UPCOMING_VERSION = '1.0'
 
@@ -123,7 +124,7 @@ export function mayChange(
       return { ok: true }
     return { ok: false, reason: 'ELO only moves an entry from needs-review to dropped.' }
   }
-  const own = actor.channels?.includes(next.channel) ?? false
+  const own = channelAllowed(actor.channels, next.channel)
   const orchestrator = actor.role === 'orchestrator'
   if (!prev) {
     if (!own && !orchestrator)

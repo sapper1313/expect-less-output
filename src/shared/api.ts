@@ -51,6 +51,7 @@ import type { StudioApi } from './studio/api'
 import type { UpcomingEntryT, UpcomingView } from './upcoming'
 import type {
   AuditRow,
+  FillResult,
   OpenSlot,
   FreshStartDone,
   FreshStartInfo,
@@ -294,6 +295,14 @@ export interface Api {
     openFile(postId: number): Promise<void>
     issues(): Promise<IssueRow[]>
     reconcileNow(): Promise<IssueRow[]>
+    /** Puts the oldest waiting videos into the open slots of a window, one per slot, for channels that are running. */
+    fillAll(fromUtc: string, toUtc: string): Promise<FillResult>
+    /** Takes scheduled drops back to waiting (the undo of a fill). The slots are free again. */
+    unschedule(postIds: number[]): Promise<number>
+    /** Hides one Issues message until its problem goes away and comes back. */
+    dismissIssue(id: number): Promise<void>
+    /** Hides every open Issues message. Returns how many. */
+    dismissAllIssues(): Promise<number>
     audit(filter: { actor?: string; action?: string }): Promise<AuditRow[]>
     auditCsv(filter: { actor?: string; action?: string }): Promise<string>
     /** What a fresh start would remove and keep. Changes nothing. */

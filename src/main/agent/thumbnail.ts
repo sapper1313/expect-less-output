@@ -3,10 +3,10 @@ import { basename, extname, isAbsolute, join } from 'path'
 import { uniquePath } from '../services/library'
 import { AgentError, draftsOnly, type AgentServices } from './core'
 import type { Caller } from './bots'
+import { requireOperator } from './bethActions'
 
 const MAX_BYTES = 2 * 1024 * 1024
 /** The only bot token allowed to change a thumbnail or a title this way (besides the owner's own token). */
-export const THUMBNAIL_BOT = 'beth'
 
 export interface ThumbnailResult {
   post_id: number
@@ -63,19 +63,9 @@ export async function agentSetThumbnail(
   caller: Caller,
 ): Promise<ThumbnailResult> {
   const who = caller.kind === 'owner' ? 'josh' : caller.actor
-  const deny = (m: string): never => {
-    s.audit?.write({
-      actor: who,
-      action: 'api.denied',
-      target: `post ${id} thumbnail`,
-      after: { reason: m },
-    })
-    throw new AgentError(403, 'forbidden', m)
-  }
-  if (caller.kind === 'bot' && caller.bot.name !== THUMBNAIL_BOT)
-    deny(
-      `Only the ${THUMBNAIL_BOT} token (or the owner's token) may set a thumbnail or title this way.`,
-    )
+  const pre = s.posts.get(id)
+  if (!pre) throw new AgentError(404, 'not_found', `No post with id ${id}.`)
+  requireOperator(s, caller, pre, 'set a thumbnail or title')
   if (!body.image_path && body.title === undefined)
     throw new AgentError(400, 'validation', 'Send image_path, title, or both.')
   const post = s.posts.get(id)
@@ -197,6 +187,8 @@ export async function agentSetThumbnail(
     `Thumbnail${title !== undefined ? ' and title' : ''} changed for "${out.title}" by ${who}.`,
     { postId: id },
   )
+  if (caller.kind === 'bot')
+    s.notifyOwner?.(`${who} changed a thumbnail`, `"${out.title}" (${post.brandName}).`)
   s.audit?.write({
     actor: who,
     action: 'post.thumbnail',

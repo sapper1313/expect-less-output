@@ -690,3 +690,10 @@ ELO also adds the show's YouTube channel link to the end of every clip descripti
 ## 23. The Calendar list (0.11.5)
 
 The Calendar is one list, day by day. Posts show with the channel colour, the platforms and a status tag. A dashed circle is a slot from the channel settings with nothing in it, shown as "Teach Your Parents Tech has no videos scheduled" with an **Add a video** button. The slots come from each channel's own times and days (Channels, Channel setup), its blackout dates and its daily limit. Use **Open slots only** in the status drop-down to see only the gaps, and the arrows to change month.
+
+## 24. Fill slots, gap warnings and beth (0.12.0)
+
+- **Calendar:** an open slot with finished videos waiting has **Fill with a waiting video** (you pick which). **Fill all open slots** puts the oldest waiting video of each running channel into the next open slot of the month, one per slot. A bar then offers **Undo**. **Episodes only** and **Clips only** show the gaps of one kind.
+- **Warnings:** Settings, Pipeline, **Empty slot warnings**. Once a day you get a message listing the empty slots until the end of tomorrow.
+- **Inbox, Issues:** **Dismiss** hides one message and **Clear all** hides them all. They come back only if the problem goes away and returns. **Check again** runs the checks once more.
+- **Beth:** Settings, Agent API, Bots, **Edit channels**. Beth works on all channels, including new ones. When beth removes, edits or fixes a post, you get a Telegram message. Nothing she does deletes a file, and she never changes a posting time.

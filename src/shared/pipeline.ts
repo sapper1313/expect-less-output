@@ -373,6 +373,20 @@ export interface OpenSlot {
   waiting: number
 }
 
+export interface FillResult {
+  filled: Array<{
+    postId: number
+    title: string
+    brandName: string
+    whenUtc: string
+    kind: 'episode' | 'clip'
+  }>
+  /** Channels that were left out and why (paused, on hold, no waiting videos). */
+  skipped: Array<{ brandName: string; reason: string }>
+  /** Finished videos still waiting because there were not enough open slots. */
+  leftWaiting: number
+}
+
 export interface InboxCounts {
   waiting: number
   held: number
@@ -457,3 +471,9 @@ export interface FreshStartDone extends FreshStartInfo {
   updatedAt: string
   switchedOff: string[]
 }
+
+/** In a bot's channel list, "*" means every channel, the ones that exist now and any made later. */
+export const ALL_CHANNELS = '*'
+
+export const channelAllowed = (channels: string[] | undefined, slug: string): boolean =>
+  !!channels && (channels.includes(ALL_CHANNELS) || channels.includes(slug))

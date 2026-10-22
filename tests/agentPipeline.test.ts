@@ -76,7 +76,7 @@ describe('bot tokens', () => {
   it('a bot token cannot use owner endpoints, and the refusal is audited', async () => {
     const t = setup()
     const { token } = t.bots.create('grok-bot', ['trash-panda'], 'writer')
-    const r = await t.call(token, 'POST', '/v1/posts/1/cancel')
+    const r = await t.call(token, 'POST', '/v1/posts/1/retry')
     expect(r.status).toBe(403)
     expect(
       t.audit.list().some((e) => e.action === 'api.denied' && e.actor === 'agent:grok-bot'),

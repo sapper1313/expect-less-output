@@ -3683,6 +3683,168 @@
         }
       }
     },
+    "/v1/posts/{id}/media": {
+      "post": {
+        "operationId": "replacePostMedia",
+        "summary": "Replace the video (and title or description) of a post that has not gone out. The post keeps its slot.",
+        "description": "Only the beth token and the owner token. For a draft or scheduled post that no platform has yet. The new video is checked against the channel rules, the old file is moved to the Replaced folder, and the owner is told on Telegram. A bot never changes a posting time.",
+        "x-mcp-tool": "replace_post_media",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file_path": {
+                    "description": "Absolute path to the new .mp4 or .mov. It must fit the channel rules (a clip is 9:16 and 5 to 90 seconds). It is copied into the channel Queue under the episode id. The old file is moved to the channel Replaced folder, never deleted.",
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "checksum": {
+                    "description": "SHA-256 of the new file. If you send it, ELO checks it matches.",
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{64}$"
+                  },
+                  "title": {
+                    "description": "New title, 1 to 100 characters.",
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "description": {
+                    "description": "New description. It replaces the caption on every platform.",
+                    "type": "string",
+                    "maxLength": 5000
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "post_id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "scheduled_at": {
+                      "nullable": true,
+                      "description": "Unchanged. The post keeps its slot.",
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "caption": {
+                      "type": "string"
+                    },
+                    "file_name": {
+                      "type": "string"
+                    },
+                    "sha256": {
+                      "type": "string"
+                    },
+                    "old_sha256": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "old_file_moved_to": {
+                      "type": "string"
+                    },
+                    "duration_seconds": {
+                      "nullable": true,
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "post_id",
+                    "status",
+                    "scheduled_at",
+                    "title",
+                    "caption",
+                    "file_name",
+                    "sha256",
+                    "old_sha256",
+                    "old_file_moved_to",
+                    "duration_seconds"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such post.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/posts/{id}/cancel": {
       "post": {
         "operationId": "cancelPost",

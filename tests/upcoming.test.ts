@@ -35,7 +35,7 @@ function setup(patch: Record<string, unknown> = {}) {
     'writer',
   )
   const kids = bots.create('kids-comedy', ['backup-heroes', 'complaint-department'], 'writer')
-  const beth = bots.create('beth', [], 'orchestrator')
+  const beth = bots.create('beth', ['*'], 'orchestrator')
   const s: AgentServices = {
     settings: t.env.settings,
     brands: t.env.brands,

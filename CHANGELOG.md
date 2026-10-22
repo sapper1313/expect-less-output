@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.0 Beth fixes posts, Calendar fills and warns, Issues can be cleared
+
+- **Beth, every channel.** A bot's channel list can be "*" (all channels, now and later). The existing beth token is set to all channels. The Bots card has **Edit channels** and an **All channels** choice, and its channel list now comes from your real channels.
+- **Beth can fix a post before it posts:** `POST /v1/posts/{id}/cancel` (take it out of the schedule, files kept), `PATCH /v1/posts/{id}` (title, caption, platforms; never a time), and `POST /v1/posts/{id}/media` (replace the video, title and description, keeping the slot; the old file goes to the Replaced folder). Refused when a platform already has the video. Every action is audited, and you get a Telegram message and an on-screen message.
+- **Calendar:** **Fill with a waiting video** on an open slot (pick which video), **Fill all open slots** (oldest waiting videos into this month's open slots, with Undo), and **Episodes only / Clips only** to see clip gaps.
+- **Empty slot warnings:** once a day (default 6:00 PM Eastern) a message lists the empty slots from now to the end of tomorrow, clips marked. Settings, Pipeline.
+- **Inbox Issues:** **Dismiss** and **Clear all**. A dismissed message comes back only if the problem goes away and returns. **Check again** replaces Reconcile now.
+
 ## 0.11.5 The Calendar is one list, with the open slots
 
 - The Calendar is now a day by day list only (the month grid, week view and drag to move are gone). Each day shows its posts, and every slot the channel settings offer that has nothing in it, as "<channel> has no videos scheduled" with an **Add a video** button (or "has no clips scheduled" for a clip slot). A slot shows how many finished videos wait for the channel in the Inbox, and a paused or on-hold channel's slot says so.

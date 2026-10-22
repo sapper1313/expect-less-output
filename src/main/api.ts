@@ -8,8 +8,7 @@ import type { BotStore } from './agent/bots'
 import { writeFileSync } from 'fs'
 import type { Api } from '@shared/api'
 import type { Platform, Settings } from '@shared/types'
-import type { OpenSlot } from '@shared/pipeline'
-import { channelState } from './pipeline/state'
+import { openSlotsFor } from './pipeline/gaps'
 import type { ActivityLog } from './services/activity'
 import type { BrandService } from './services/brands'
 import type { MediaService } from './services/media'
@@ -195,34 +194,8 @@ export function buildApi(d: ApiDeps): Api {
     slots: {
       next: async (brandId, count, fromUtc) => d.posts.nextSlots(brandId, count, fromUtc),
       countOnDay: async (brandId, dayIso) => d.posts.countOnDay(brandId, dayIso),
-      open: async (fromUtc, toUtc, brandId) => {
-        const out: OpenSlot[] = []
-        for (const b of d.brands.list(false)) {
-          if (brandId && b.id !== brandId) continue
-          const state = channelState(d.db, b.id)
-          if (state === 'archived') continue
-          const waiting = (type: string) =>
-            (
-              d.db
-                .prepare(
-                  `SELECT COUNT(*) AS n FROM posts WHERE brand_id = ? AND origin = 'inbox' AND status = 'draft'
-                   AND hold_reason IS NULL AND post_type = ? AND media_purged_at IS NULL`,
-                )
-                .get(b.id, type) as { n: number }
-            ).n
-          for (const s of d.posts.openSlotsInRange(b.id, fromUtc, toUtc))
-            out.push({
-              brandId: b.id,
-              brandName: b.name,
-              brandColor: b.color,
-              whenUtc: s.whenUtc,
-              kind: s.kind,
-              channelState: state,
-              waiting: waiting(s.kind),
-            })
-        }
-        return out.sort((a, c) => a.whenUtc.localeCompare(c.whenUtc))
-      },
+      open: async (fromUtc, toUtc, brandId) =>
+        openSlotsFor({ db: d.db, brands: d.brands, posts: d.posts }, fromUtc, toUtc, brandId),
     },
     posts: {
       list: async (filter) => d.posts.list(filter),

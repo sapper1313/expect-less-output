@@ -121,15 +121,40 @@ export function Inbox() {
           </Button>
         )}
         {tab === 'issues' && (
-          <Button
-            disabled={busy}
-            onClick={async () => {
-              await run(() => api.pipeline.reconcileNow())
-              reloadAll()
-            }}
-          >
-            Reconcile now
-          </Button>
+          <>
+            <Button
+              disabled={busy || !issues?.length}
+              onClick={async () => {
+                const n = await run(() => api.pipeline.dismissAllIssues())
+                if (n !== undefined)
+                  toast({
+                    kind: 'success',
+                    headline: COPY.success,
+                    detail: `Cleared ${n} message(s).`,
+                  })
+                reloadAll()
+              }}
+            >
+              Clear all
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={async () => {
+                const list = await run(() => api.pipeline.reconcileNow())
+                if (list)
+                  toast({
+                    kind: 'success',
+                    headline: 'Checked.',
+                    detail: list.length
+                      ? `${list.length} thing(s) still need a look.`
+                      : 'Everything adds up.',
+                  })
+                reloadAll()
+              }}
+            >
+              Check again
+            </Button>
+          </>
         )}
       </PageHeader>
       <div className="space-y-4 px-8">
@@ -333,6 +358,12 @@ export function Inbox() {
           ))}
         {tab === 'log' &&
           (log?.length ? <DropTable rows={log} showResult /> : <Empty>No drops yet.</Empty>)}
+        {tab === 'issues' && (
+          <p className="max-w-3xl text-[12px] text-muted">
+            Dismiss hides a message. It comes back only if the problem goes away and then happens
+            again.
+          </p>
+        )}
         {tab === 'issues' &&
           (issues?.length ? (
             <div className="space-y-2">
@@ -342,8 +373,20 @@ export function Inbox() {
                     {i.kind.replace(/_/g, ' ')}
                   </div>
                   <div className="text-[14px]">{i.detail}</div>
-                  <div className="text-[11px] text-muted">
-                    First seen {formatEastern(i.firstSeen)}
+                  <div className="mt-1 flex items-center justify-between">
+                    <span className="text-[11px] text-muted">
+                      First seen {formatEastern(i.firstSeen)}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={async () => {
+                        await run(() => api.pipeline.dismissIssue(i.id))
+                        reloadAll()
+                      }}
+                    >
+                      Dismiss
+                    </Button>
                   </div>
                 </Card>
               ))}

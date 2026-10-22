@@ -4,18 +4,17 @@ import { formatEastern } from '@shared/time'
 import type { PostOut } from '@shared/agentSchemas'
 import type { Brand, Post } from '@shared/types'
 import { PLATFORMS } from '@shared/platformLimits'
-import { SLUG_ALIASES, canonicalSlug, type DropRow } from '@shared/pipeline'
+import { SLUG_ALIASES, canonicalSlug, channelAllowed, type DropRow } from '@shared/pipeline'
 import { channelState } from '../pipeline/state'
 import type { Caller } from './bots'
 import { agentSetThumbnail } from './thumbnail'
+import { operatorCancel, operatorReplaceMedia, operatorUpdate } from './bethActions'
 import { UpcomingError } from '../pipeline/upcoming'
 import type { Actor } from '@shared/upcoming'
 import {
   AgentError,
-  agentCancelPost,
   agentCreatePost,
   agentRetryPost,
-  agentUpdatePost,
   requireStudioWrite,
   listFilter,
   toUtc,
@@ -197,7 +196,7 @@ function needDrops(s: AgentServices) {
 
 /** A bot sees only its own channels. The owner sees everything. */
 function botMaySee(caller: Caller, channel: string | null): boolean {
-  return caller.kind === 'owner' || (!!channel && caller.bot.channels.includes(channel))
+  return caller.kind === 'owner' || (!!channel && channelAllowed(caller.bot.channels, channel))
 }
 
 function dropOut(d: DropRow) {
@@ -282,7 +281,7 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
       throw new AgentError(400, 'validation', 'The sidecar needs a channel.', [
         { path: 'sidecar.channel', message: 'Required.' },
       ])
-    if (caller.kind === 'bot' && !caller.bot.channels.includes(channel)) {
+    if (caller.kind === 'bot' && !channelAllowed(caller.bot.channels, channel)) {
       s.audit?.write({
         actor: caller.actor,
         action: 'api.denied',
@@ -418,11 +417,15 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
     return postOut(p)
   },
 
-  updatePost: async ({ s, params, body }) => postOut(await agentUpdatePost(s, params.id, body)),
+  updatePost: async ({ s, params, body, caller }) =>
+    postOut(await operatorUpdate(s, params.id, body, caller)),
 
   setPostThumbnail: ({ s, params, body, caller }) => agentSetThumbnail(s, params.id, body, caller),
 
-  cancelPost: ({ s, params }) => postOut(agentCancelPost(s, params.id)),
+  cancelPost: ({ s, params, caller }) => postOut(operatorCancel(s, params.id, caller)),
+
+  replacePostMedia: ({ s, params, body, caller }) =>
+    operatorReplaceMedia(s, params.id, body, caller),
 
   retryPost: ({ s, params }) => {
     const r = agentRetryPost(s, params.id)

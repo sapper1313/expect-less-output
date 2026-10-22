@@ -9,6 +9,9 @@ import type { DropLog } from './dropLog'
 import type { PipelineIntake } from './intake'
 import type { Reconciler } from './reconcile'
 import type { FreshStart } from './freshStart'
+import type { BrandService } from '../services/brands'
+import { channelState } from './state'
+import type { FillResult } from '@shared/pipeline'
 import { verifyPipelinePost, sha256File } from './verify'
 import type { ChannelRules, InboxItem } from '@shared/pipeline'
 
@@ -22,6 +25,7 @@ export interface InboxServiceDeps {
   audit: AuditEvents
   reconciler: Reconciler
   freshStart: FreshStart
+  brands: BrandService
   openPath: (path: string) => Promise<void>
   emit: () => void
 }
@@ -114,6 +118,81 @@ export class InboxService {
     const r = await this.d.intake.scheduleDrop(postId, { slot: slotUtc })
     void this.d.reconciler.run()
     return r
+  }
+
+  /** Puts the oldest waiting videos into the open slots between two times, one per slot, for channels that are running. */
+  async fillAll(fromUtc: string, toUtc: string): Promise<FillResult> {
+    const out: FillResult = { filled: [], skipped: [], leftWaiting: 0 }
+    for (const b of this.d.brands.list(false)) {
+      const state = channelState(this.d.db, b.id)
+      if (state !== 'active') {
+        if (state !== 'archived' && this.d.posts.openSlotsInRange(b.id, fromUtc, toUtc).length)
+          out.skipped.push({
+            brandName: b.name,
+            reason: `The channel is ${state === 'paused' ? 'paused' : 'on hold'}.`,
+          })
+        continue
+      }
+      for (const kind of ['episode', 'clip'] as const) {
+        const waiting = this.d.db
+          .prepare(
+            `SELECT id FROM posts WHERE brand_id = ? AND origin = 'inbox' AND status = 'draft' AND hold_reason IS NULL
+             AND post_type = ? AND media_purged_at IS NULL ORDER BY id`,
+          )
+          .all(b.id, kind) as Array<{ id: number }>
+        const slots = this.d.posts
+          .openSlotsInRange(b.id, fromUtc, toUtc)
+          .filter((s) => s.kind === kind)
+        let i = 0
+        for (; i < waiting.length && i < slots.length; i++) {
+          const r = await this.d.intake.scheduleDrop(waiting[i].id, { slot: slots[i].whenUtc })
+          if (!r.ok) {
+            out.skipped.push({ brandName: b.name, reason: r.message })
+            break
+          }
+          const p = this.d.posts.get(waiting[i].id)
+          out.filled.push({
+            postId: waiting[i].id,
+            title: p?.title ?? '',
+            brandName: b.name,
+            whenUtc: slots[i].whenUtc,
+            kind,
+          })
+        }
+        out.leftWaiting += Math.max(0, waiting.length - i)
+      }
+    }
+    this.d.audit.write({
+      actor: 'josh',
+      action: 'slots.fill_all',
+      target: `${fromUtc} to ${toUtc}`,
+      after: { filled: out.filled.length },
+    })
+    void this.d.reconciler.run()
+    this.d.emit()
+    return out
+  }
+
+  /** The undo of a fill: scheduled drops go back to waiting and their slots are free again. */
+  unschedule(postIds: number[]): number {
+    let n = 0
+    for (const id of postIds) {
+      const p = this.d.posts.get(id)
+      if (!p || p.status !== 'scheduled' || p.origin !== 'inbox') continue
+      if (
+        p.targets.some((t) =>
+          ['handed_off', 'processing', 'uploading', 'posted'].includes(t.status),
+        )
+      )
+        continue
+      this.d.posts.update(id, { status: 'draft', scheduledAtUtc: null })
+      const drop = this.d.drops.forPost(id)
+      if (drop) this.d.drops.update(drop.dropId, { scheduledSlot: null })
+      n++
+    }
+    if (n) this.d.audit.write({ actor: 'josh', action: 'slots.unfill', target: `${n} post(s)` })
+    this.d.emit()
+    return n
   }
 
   hold(postId: number, reason: string): void {
@@ -260,6 +339,23 @@ export class InboxService {
       openFile: (id) => this.openFile(id),
       issues: async () => this.d.reconciler.open(),
       reconcileNow: async () => this.d.reconciler.run(),
+      fillAll: (from, to) => this.fillAll(from, to),
+      unschedule: async (ids) => this.unschedule(ids),
+      dismissIssue: async (id) => {
+        this.d.reconciler.dismiss(id)
+        this.d.emit()
+      },
+      dismissAllIssues: async () => {
+        const n = this.d.reconciler.dismissAll()
+        this.d.audit.write({
+          actor: 'josh',
+          action: 'issues.cleared',
+          target: 'inbox issues',
+          after: { count: n },
+        })
+        this.d.emit()
+        return n
+      },
       audit: async (f) => this.d.audit.list(f),
       auditCsv: async (f) => this.d.audit.csv(f),
       freshStartPreview: async () => this.d.freshStart.preview(),

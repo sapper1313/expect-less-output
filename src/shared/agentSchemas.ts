@@ -649,6 +649,39 @@ export const ThumbnailOut = z.object({
   notes: z.array(z.string()),
 })
 
+export const ReplaceMediaBody = z
+  .object({
+    file_path: z.string().min(1).optional().meta({
+      description:
+        'Absolute path to the new .mp4 or .mov. It must fit the channel rules (a clip is 9:16 and 5 to 90 seconds). It is copied into the channel Queue under the episode id. The old file is moved to the channel Replaced folder, never deleted.',
+    }),
+    checksum: z
+      .string()
+      .regex(/^[a-fA-F0-9]{64}$/)
+      .optional()
+      .meta({
+        description: 'SHA-256 of the new file. If you send it, ELO checks it matches.',
+      }),
+    title: z.string().max(200).optional().meta({ description: 'New title, 1 to 100 characters.' }),
+    description: z.string().max(5000).optional().meta({
+      description: 'New description. It replaces the caption on every platform.',
+    }),
+  })
+  .strict()
+
+export const ReplaceMediaOut = z.object({
+  post_id: z.number().int(),
+  status: z.string(),
+  scheduled_at: z.string().nullable().meta({ description: 'Unchanged. The post keeps its slot.' }),
+  title: z.string(),
+  caption: z.string(),
+  file_name: z.string(),
+  sha256: z.string(),
+  old_sha256: z.string().nullable(),
+  old_file_moved_to: z.string(),
+  duration_seconds: z.number().nullable(),
+})
+
 export const DropParams = z.object({ id: z.string().min(1) })
 
 export const CreateDropBody = z

@@ -20,6 +20,8 @@ import {
   DropParams,
   ListDropsQuery,
   ReconcileOut,
+  ReplaceMediaBody,
+  ReplaceMediaOut,
   ThumbnailBody,
   ThumbnailOut,
   PatchUpcomingBody,
@@ -246,6 +248,7 @@ export const ROUTES: RouteDef[] = [
     success: 200,
     tool: 'update_post',
     schedules: true,
+    bot: true,
   },
   {
     id: 'setPostThumbnail',
@@ -264,6 +267,22 @@ export const ROUTES: RouteDef[] = [
     schedules: true,
   },
   {
+    id: 'replacePostMedia',
+    method: 'POST',
+    path: '/v1/posts/{id}/media',
+    summary:
+      'Replace the video (and title or description) of a post that has not gone out. The post keeps its slot.',
+    description:
+      'Only the beth token and the owner token. For a draft or scheduled post that no platform has yet. The new video is checked against the channel rules, the old file is moved to the Replaced folder, and the owner is told on Telegram. A bot never changes a posting time.',
+    params: IdParams,
+    body: ReplaceMediaBody,
+    response: ReplaceMediaOut,
+    success: 200,
+    tool: 'replace_post_media',
+    bot: true,
+    schedules: true,
+  },
+  {
     id: 'cancelPost',
     method: 'POST',
     path: '/v1/posts/{id}/cancel',
@@ -272,6 +291,7 @@ export const ROUTES: RouteDef[] = [
     response: PostOut,
     success: 200,
     tool: 'cancel_post',
+    bot: true,
   },
   {
     id: 'retryPost',

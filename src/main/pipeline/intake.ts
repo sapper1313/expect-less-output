@@ -410,6 +410,13 @@ export class PipelineIntake {
   /** Length of the last video checked, so platforms that cannot take it can be skipped. */
   private lastSeconds: number | null = null
 
+  /** The reasons a video does not fit a channel (shape, length, sound), for a replacement file. Empty means it fits. */
+  async videoProblems(brand: Brand, path: string, type: 'episode' | 'clip'): Promise<Reason[]> {
+    const reasons: Reason[] = []
+    if (this.d.probe) await this.checkVideo(brand, path, reasons, type)
+    return reasons
+  }
+
   private async checkVideo(
     brand: Brand,
     path: string,
@@ -622,7 +629,16 @@ export class PipelineIntake {
           ? `${post.brandName} has no clip days. Tick some in Channels, Studio settings per channel.`
           : `${post.brandName} has no open slot. Add slot times first.`,
       }
-    if (opts.slot && !open(60).includes(opts.slot))
+    const slotOk = (s: string) =>
+      open(60).includes(s) ||
+      this.d.posts
+        .openSlotsInRange(
+          post.brandId,
+          new Date(new Date(s).getTime() - 60_000).toISOString(),
+          new Date(new Date(s).getTime() + 60_000).toISOString(),
+        )
+        .some((o) => o.whenUtc === s && o.kind === (isClip ? 'clip' : 'episode'))
+    if (opts.slot && !slotOk(opts.slot))
       return { ok: false, message: 'That time is not one of the open slots for this channel.' }
     this.d.posts.update(postId, { scheduledAtUtc: slot, status: 'scheduled' })
     const drop = this.d.drops.forPost(postId)

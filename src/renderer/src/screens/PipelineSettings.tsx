@@ -3,7 +3,7 @@ import type { Settings } from '@shared/types'
 import type { FreshStartDone, FreshStartInfo } from '@shared/pipeline'
 import { api } from '../api'
 import { useApp } from '../hooks'
-import { Button, Card, Check, Confirm, Field, Input, useBusy } from '../ui'
+import { Button, Card, Check, Confirm, Field, Input, TimeSelect, useBusy } from '../ui'
 
 type Save = (patch: Partial<Settings>) => Promise<void>
 
@@ -324,6 +324,24 @@ export function PipelineSettings({ s, save }: { s: Settings; save: Save }) {
             dates={s.blackoutDates}
             onChange={(d) => save({ blackoutDates: d })}
           />
+        </div>
+      </Card>
+
+      <Card title="Empty slot warnings">
+        <div className="space-y-3">
+          <Switch
+            checked={s.gapWarnEnabled}
+            onChange={(v) => save({ gapWarnEnabled: v })}
+            label="Warn me about empty slots once a day"
+            hint="A message (iMessage, email and Telegram, the same as your other alerts) listing the slots from now to the end of tomorrow that have nothing in them, for channels that are running. Nothing is sent when every slot is filled."
+          />
+          <Field label="Send it at (Eastern)">
+            <TimeSelect
+              value={s.gapWarnTime}
+              label="Warning time"
+              onChange={(v) => save({ gapWarnTime: v })}
+            />
+          </Field>
         </div>
       </Card>
 

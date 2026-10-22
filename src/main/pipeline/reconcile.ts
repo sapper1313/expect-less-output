@@ -115,7 +115,9 @@ export class Reconciler {
   open(): ReconcileIssue[] {
     return (
       this.d.db
-        .prepare('SELECT * FROM reconcile_issues WHERE resolved_at IS NULL ORDER BY id DESC')
+        .prepare(
+          'SELECT * FROM reconcile_issues WHERE resolved_at IS NULL AND dismissed_at IS NULL ORDER BY id DESC',
+        )
         .all() as any[]
     ).map((r) => ({
       id: r.id,
@@ -128,6 +130,25 @@ export class Reconciler {
       lastSeen: r.last_seen,
       resolvedAt: r.resolved_at,
     }))
+  }
+
+  /** Hides one message. It stays hidden until the problem is gone and comes back. Nothing about the post or file changes. */
+  dismiss(id: number): void {
+    this.d.db
+      .prepare('UPDATE reconcile_issues SET dismissed_at = ? WHERE id = ? AND resolved_at IS NULL')
+      .run(new Date(this.now()).toISOString(), id)
+    this.d.onChange?.()
+  }
+
+  /** Hides every open message. Returns how many. */
+  dismissAll(): number {
+    const n = this.d.db
+      .prepare(
+        'UPDATE reconcile_issues SET dismissed_at = ? WHERE resolved_at IS NULL AND dismissed_at IS NULL',
+      )
+      .run(new Date(this.now()).toISOString()).changes
+    this.d.onChange?.()
+    return n
   }
 
   private record(found: FoundIssue[]): void {
@@ -156,9 +177,13 @@ export class Reconciler {
       issue_key: string
     }>)
       if (!keys.has(r.issue_key))
-        db.prepare('UPDATE reconcile_issues SET resolved_at = ? WHERE id = ?').run(nowIso, r.id)
+        db.prepare(
+          'UPDATE reconcile_issues SET resolved_at = ?, dismissed_at = NULL WHERE id = ?',
+        ).run(nowIso, r.id)
     const fresh = db
-      .prepare('SELECT * FROM reconcile_issues WHERE resolved_at IS NULL AND notified = 0')
+      .prepare(
+        'SELECT * FROM reconcile_issues WHERE resolved_at IS NULL AND dismissed_at IS NULL AND notified = 0',
+      )
       .all() as any[]
     for (const r of fresh) {
       this.d.notify(

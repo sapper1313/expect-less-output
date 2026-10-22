@@ -3,7 +3,7 @@ import { COPY } from '@shared/copy'
 import type { McpConfig, Settings } from '@shared/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
-import { Button, Card, Check, Field, Input, Select, useBusy } from '../ui'
+import { Button, Card, Check, Dialog, Field, Input, Select, useBusy } from '../ui'
 
 function CopyBox({ label, text }: { label: string; text: string }) {
   const [done, setDone] = useState(false)
@@ -378,16 +378,6 @@ function StudioLocalText() {
   )
 }
 
-const CHANNELS = [
-  'trash-panda',
-  'clock-out-early',
-  'teach-your-parents-tech',
-  'math-of-it',
-  'wonder-hollow',
-  'backup-heroes',
-  'complaint-department',
-]
-
 /** One token per bot, so the app knows who is calling. A bot's token can read, drop videos and use Upcoming. Nothing else. */
 export function BotsCard() {
   const { toast } = useApp()
@@ -397,6 +387,11 @@ export function BotsCard() {
   const [role, setRole] = useState<'writer' | 'orchestrator'>('writer')
   const [channels, setChannels] = useState<string[]>([])
   const [shown, setShown] = useState<{ name: string; token: string } | null>(null)
+  const { data: brandList } = useLoad(() => api.brands.list())
+  const slugs = (brandList ?? []).filter((b) => b.slug).map((b) => b.slug as string)
+  const [editing, setEditing] = useState<{ id: number; name: string; channels: string[] } | null>(
+    null,
+  )
   return (
     <Card title="Bots">
       <p className="mb-3 text-[13px] text-muted">
@@ -432,8 +427,16 @@ export function BotsCard() {
               <b className="w-32">{b.name}</b>
               <span className="text-muted">{b.role}</span>
               <span className="min-w-0 flex-1 text-muted">
-                {b.channels.join(', ') || 'no channels'}
+                {b.channels.includes('*')
+                  ? 'All channels, including new ones'
+                  : b.channels.join(', ') || 'no channels'}
               </span>
+              <Button
+                disabled={busy}
+                onClick={() => setEditing({ id: b.id, name: b.name, channels: b.channels })}
+              >
+                Edit channels
+              </Button>
               <Button
                 disabled={busy}
                 onClick={async () => {
@@ -477,17 +480,7 @@ export function BotsCard() {
             </Select>
           </Field>
         </div>
-        <div className="grid gap-1 md:grid-cols-2">
-          {CHANNELS.map((c) => (
-            <Check
-              key={c}
-              checked={channels.includes(c)}
-              onChange={(v) => setChannels(v ? [...channels, c] : channels.filter((x) => x !== c))}
-            >
-              {c}
-            </Check>
-          ))}
-        </div>
+        <ChannelPicker slugs={slugs} value={channels} onChange={setChannels} />
         <Button
           variant="primary"
           disabled={busy || !name.trim()}
@@ -504,6 +497,62 @@ export function BotsCard() {
           Add bot
         </Button>
       </div>
+      {editing && (
+        <Dialog title={`Channels for ${editing.name}`} onClose={() => setEditing(null)}>
+          <ChannelPicker
+            slugs={slugs}
+            value={editing.channels}
+            onChange={(channels) => setEditing({ ...editing, channels })}
+          />
+          <div className="mt-4 flex justify-end gap-2">
+            <Button onClick={() => setEditing(null)}>Cancel</Button>
+            <Button
+              variant="primary"
+              disabled={busy}
+              onClick={async () => {
+                const e = editing
+                setEditing(null)
+                await run(() => api.agent.updateBot(e.id, { channels: e.channels }))
+                reload()
+              }}
+            >
+              Save
+            </Button>
+          </div>
+        </Dialog>
+      )}
     </Card>
+  )
+}
+
+/** Pick the channels a bot works on. "All channels" also covers any channel you add later. */
+function ChannelPicker({
+  slugs,
+  value,
+  onChange,
+}: {
+  slugs: string[]
+  value: string[]
+  onChange: (v: string[]) => void
+}) {
+  const all = value.includes('*')
+  return (
+    <div className="space-y-2">
+      <Check checked={all} onChange={(v) => onChange(v ? ['*'] : [])}>
+        <b>All channels</b> (including any channel you add later)
+      </Check>
+      <div className={`grid gap-1 md:grid-cols-2 ${all ? 'opacity-40' : ''}`}>
+        {slugs.map((c) => (
+          <Check
+            key={c}
+            checked={all || value.includes(c)}
+            disabled={all}
+            onChange={(v) => onChange(v ? [...value, c] : value.filter((x) => x !== c))}
+          >
+            {c}
+          </Check>
+        ))}
+      </div>
+    </div>
   )
 }

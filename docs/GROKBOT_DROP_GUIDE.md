@@ -129,9 +129,36 @@ Example clip sidecar (`clock-out-early-2026-0101-c1.json`, next to `clock-out-ea
 
 If the video is on the internet, drop only the `.json`, with an extra `"video_url": "https://..."`. ELO downloads it into the Inbox as `<same name>.mp4` and then checks it as above. The link must be direct, public, http or https, an MP4 or MOV, under 2 GB, and alive for at least 15 minutes. `video_file` must equal the name the download gets (`<json name>.mp4`).
 
+## Fixing a post before it posts (beth only)
+
+The beth token works on **every channel, the ones that exist now and any made later**, and may edit, remove or fix a post that has not posted yet. No other bot token may; a try by another bot is refused (403) and written to the audit log. The owner's own token works too. **A bot still never sets or changes a posting time.** Every change is audited, and the owner gets a Telegram message and a message on screen each time beth changes, removes or fixes a post.
+
+| What | Call |
+| --- | --- |
+| Take a post out of the schedule | `POST /v1/posts/{id}/cancel` |
+| Edit the title, caption or platforms | `PATCH /v1/posts/{id}` (never `scheduled_at` or `status`: those return 403) |
+| Replace the video, title or description, keeping the slot | `POST /v1/posts/{id}/media` |
+| Replace a thumbnail or title | `POST /v1/posts/{id}/thumbnail` |
+
+**Remove (cancel).** The post is taken out of the schedule. Nothing is deleted: the video file stays in the channel Queue folder and the drop log keeps its history with a note "Removed by agent:beth". The same episode id can then be dropped again with the fixed video, and it takes the next open slot. It is refused (409) if any platform already has the video (handed off to YouTube early, uploading or posted): only the owner can take that down.
+
+**Replace the media.** `POST /v1/posts/{id}/media` with `file_path` (the new .mp4 or .mov), optional `checksum` (SHA-256, checked if you send it), optional `title` (1 to 100 characters) and optional `description` (replaces the caption on every platform). Send only `title` and `description` to change just the words.
+
+```json
+{ "file_path": "/Users/josh/renders/clock-out-early-2026-0101-fixed.mp4", "checksum": "<64 hex characters>", "title": "Find Any Chrome Tab Instantly", "description": "New description #productivity" }
+```
+
+- The post keeps its slot (`scheduled_at` does not change).
+- The new video is checked against the channel rules like a drop (a clip is 9:16 and 5 to 90 seconds; an episode follows the show's rules), must differ from the video already on the post, and must not be a video already on another post of the channel.
+- The new file is saved in the channel Queue under the episode id. The old file is moved to the channel's `Replaced` folder, never deleted. The answer gives `old_sha256` and `old_file_moved_to`.
+- It only works on a draft or scheduled post that no platform has yet, and not within 2 minutes of its slot. A held post stays held until the owner releases it.
+- While **Agents may create drafts only** is on, only a draft can be changed.
+
+**To fix a video that is already scheduled:** either replace the media (the slot is kept), or remove the post and drop the fixed video again (it takes the next open slot, which is the same slot if nothing else moved).
+
 ## Thumbnails and titles (beth only)
 
-The beth bot token can set a custom thumbnail and a title on a post through the API. No other bot token may, and a try by another bot is refused (403) and written to the audit log. The owner's own token works too.
+The beth bot token (every channel) can set a custom thumbnail and a title on a post through the API. No other bot token may, and a try by another bot is refused (403) and written to the audit log. The owner's own token works too.
 
 `POST /v1/posts/{id}/thumbnail` with a JSON body. Send `image_path`, `title`, or both:
 

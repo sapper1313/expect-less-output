@@ -92,6 +92,13 @@ export interface Settings {
   upcomingPollSeconds: number
   /** Blank means <Media Root>/Shared/upcoming.json. */
   upcomingFilePath: string
+  // Gap warnings
+  /** Once a day, say which slots from now to the end of tomorrow have nothing in them. */
+  gapWarnEnabled: boolean
+  /** HH:MM Eastern. */
+  gapWarnTime: string
+  /** The day (YYYY-MM-DD, Eastern) the warning was last sent, so it goes out once a day. */
+  gapWarnLastDay: string
 }
 
 export interface Brand {

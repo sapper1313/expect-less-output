@@ -121,4 +121,30 @@ describe('reconcile (tests 9, 23)', () => {
     expect(kinds).not.toContain('double_booking')
     expect(kinds).not.toContain('invalid_slot')
   })
+
+  it('Dismiss and Clear all hide messages until the problem goes away and comes back', async () => {
+    const t = pipelineSetup({
+      live: [
+        [1, 'youtube'],
+        [2, 'youtube'],
+      ],
+    })
+    const { r } = make(t)
+    let open = await r.run()
+    expect(open.length).toBeGreaterThan(1) // low queue for the two live channels
+    r.dismiss(open[0].id)
+    expect((await r.run()).length).toBe(open.length - 1) // still the same problem, stays hidden
+    expect(r.dismissAll()).toBe(open.length - 1)
+    expect(await r.run()).toEqual([])
+    expect(r.open()).toEqual([])
+    // the problem goes away (a post fills the queue for 5 days) and the issue is resolved
+    const day = 86_400_000
+    for (let i = 1; i <= 5; i++)
+      await t.env.makePost({ brandId: 1, whenMs: t.env.clock.ms + i * day, title: `Fill ${i}` })
+    expect((await r.run()).some((i) => i.brandId === 1 && i.kind === 'low_queue')).toBe(false)
+    // and when it happens again it shows again
+    t.env.db.prepare("UPDATE posts SET status = 'canceled'").run()
+    open = await r.run()
+    expect(open.some((i) => i.brandId === 1 && i.kind === 'low_queue')).toBe(true)
+  })
 })

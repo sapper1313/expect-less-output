@@ -90,6 +90,10 @@ export interface AgentServices {
   reconciler?: import('../pipeline/reconcile').Reconciler
   /** The app-wide audit log. */
   audit?: import('../pipeline/auditEvents').AuditEvents
+  /** Tells the owner something (Telegram and a message on screen), for example when a bot changes a post. */
+  notifyOwner?: (headline: string, detail: string) => void
+  /** Checks a replacement video against the channel's rules. */
+  intake?: import('../pipeline/intake').PipelineIntake
   /** The media library, for keeping a thumbnail picture with its post. */
   library?: import('../services/library').Library
   /** Replaces the live thumbnail of a YouTube video (thumbnails.set). */

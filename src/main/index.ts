@@ -27,6 +27,7 @@ import { BotStore } from './agent/bots'
 import { InboxService } from './pipeline/inboxService'
 import { Reconciler } from './pipeline/reconcile'
 import { FreshStart } from './pipeline/freshStart'
+import { GapWarner } from './pipeline/gaps'
 import { UpcomingService } from './pipeline/upcoming'
 import { addEpisodeLink } from './pipeline/clipLink'
 import { verifyPipelinePost } from './pipeline/verify'
@@ -533,6 +534,7 @@ async function boot(): Promise<void> {
   })
   const inboxService = new InboxService({
     freshStart,
+    brands,
     db,
     posts,
     library,
@@ -680,6 +682,11 @@ async function boot(): Promise<void> {
       stats,
       drops: dropLog,
       library,
+      intake: pipeline,
+      notifyOwner: (headline, detail) => {
+        makeLocalShow(send)(headline, detail, 'info')
+        void telegramRef?.notify(`${headline}\n${detail}`).catch(() => undefined)
+      },
       youtubeThumbnail: (a, v, f) => ytClient.setThumbnail(a, v, f),
       youtubeEdit: (a, v, patch) => ytClient.updateVideo(a, v, patch),
       upcoming,
@@ -1042,6 +1049,18 @@ async function boot(): Promise<void> {
   void agent.apply()
   inbox.start()
   upcoming.start()
+  const gaps = new GapWarner({
+    db,
+    brands,
+    posts,
+    settings,
+    send: async (text) => {
+      await alerts.broadcast(text)
+      await telegramRef?.notify(text).catch(() => undefined)
+    },
+  })
+  setInterval(() => void gaps.check().catch(() => {}), 5 * 60_000)
+  setTimeout(() => void gaps.check().catch(() => {}), 60_000)
   setTimeout(() => void reconciler.run().catch(() => {}), 20_000)
   setInterval(() => void reconciler.run().catch(() => {}), 3_600_000)
   studio.start()

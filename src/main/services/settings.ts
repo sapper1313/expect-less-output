@@ -57,6 +57,9 @@ export const DEFAULT_SETTINGS: Settings = {
   upcomingLiveWatch: true,
   upcomingPollSeconds: 15,
   upcomingFilePath: '',
+  gapWarnEnabled: true,
+  gapWarnTime: '18:00',
+  gapWarnLastDay: '',
 }
 
 export class SettingsService {

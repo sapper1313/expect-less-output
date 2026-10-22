@@ -23,7 +23,7 @@ async function rig(patch: Record<string, unknown> = {}) {
   const img = join(dir, 'new.png')
   writeFileSync(img, PNG)
   const bots = new BotStore(t.env.db, () => t.env.clock.ms)
-  const beth = bots.create('beth', [], 'orchestrator')
+  const beth = bots.create('beth', ['*'], 'orchestrator')
   const grok = bots.create('grok-bot', ['trash-panda'], 'writer')
   const youtubeThumbnail = vi.fn(async () => undefined)
   const youtubeEdit = vi.fn(async () => undefined)

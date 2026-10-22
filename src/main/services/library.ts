@@ -43,6 +43,25 @@ export class Library {
     return this.toRelative(dest)
   }
 
+  /** Copies a video into <Brand>/Queue under the given name (de-duplicated with a suffix). */
+  importToQueueAs(brandName: string, sourcePath: string, name: string): string {
+    this.ensureBrandFolders(brandName)
+    const dest = uniquePath(join(this.brandDir(brandName), 'Queue'), name)
+    copyFileSync(sourcePath, dest)
+    return this.toRelative(dest)
+  }
+
+  /** Moves a queued file that was replaced to <Brand>/Replaced. Nothing is ever deleted. Returns the new relative path. */
+  moveToReplaced(rel: string, brandName: string): string {
+    const src = this.resolve(rel)
+    if (!existsSync(src)) return rel
+    const dir = join(this.brandDir(brandName), 'Replaced')
+    mkdirSync(dir, { recursive: true })
+    const dest = uniquePath(dir, basename(src))
+    moveFile(src, dest)
+    return this.toRelative(dest)
+  }
+
   /** Puts a file moved by importToQueue back where it came from (used when saving the post failed). */
   moveBack(rel: string, originalPath: string): void {
     const abs = this.resolve(rel)

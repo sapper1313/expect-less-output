@@ -23,6 +23,7 @@ function service(t: ReturnType<typeof pipelineSetup>) {
     audit: t.audit,
     reconciler,
     freshStart: {} as never,
+    brands: t.env.brands,
     openPath: async () => {},
     emit: () => {},
   })
