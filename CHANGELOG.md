@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.5 The Calendar is one list, with the open slots
+
+- The Calendar is now a day by day list only (the month grid, week view and drag to move are gone). Each day shows its posts, and every slot the channel settings offer that has nothing in it, as "<channel> has no videos scheduled" with an **Add a video** button (or "has no clips scheduled" for a clip slot). A slot shows how many finished videos wait for the channel in the Inbox, and a paused or on-hold channel's slot says so.
+- Slots follow the same rules as the scheduler: the channel's slot times, its post days (Wonder Hollow is Wednesday and Friday), blackout dates and the daily limit. A day whose limit is used does not show an open slot.
+- Filters: platform, status (new **Open slots only**) and brand. Previous and next month, and Today. The Studio's own planned days are no longer shown.
+
 ## 0.11.4 Thumbnail and title route for beth
 
 - `POST /v1/posts/{id}/thumbnail` (MCP tool `set_post_thumbnail`): sets a custom thumbnail and/or title. Only the `beth` bot token and the owner token may call it.

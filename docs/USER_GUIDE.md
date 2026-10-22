@@ -686,3 +686,7 @@ YouTube's Data API cannot set a Short's **Related video** (the tap-through link 
 2. Back in ELO click **Done** on the note.
 
 ELO also adds the show's YouTube channel link to the end of every clip description, after the "Full episode on YouTube" line, unless the sidecar says `"channel_link": false`.
+
+## 23. The Calendar list (0.11.5)
+
+The Calendar is one list, day by day. Posts show with the channel colour, the platforms and a status tag. A dashed circle is a slot from the channel settings with nothing in it, shown as "Teach Your Parents Tech has no videos scheduled" with an **Add a video** button. The slots come from each channel's own times and days (Channels, Channel setup), its blackout dates and its daily limit. Use **Open slots only** in the status drop-down to see only the gaps, and the arrows to change month.

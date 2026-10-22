@@ -126,14 +126,14 @@ await invoke(page, 'settings.set', { theme: 'dark' })
 await sleep(2500)
 check((await page.locator('textarea').first().inputValue()) === 'A premise I am still typing', 'Bible keeps your typing after a background reload')
 
-// ---- 7. calendar day click starts a post on that day
+// ---- 7. an open slot on the calendar starts a post at that time
 await nav(page, 'Calendar')
 await sleep(1000)
-const cell = page.locator('.fc-daygrid-day-frame').nth(20)
-const box2 = await cell.boundingBox()
-await page.mouse.click(box2.x + box2.width - 6, box2.y + box2.height - 6)
+const addBtn = page.locator('main button:has-text("Add a video")').first()
+check((await addBtn.count()) > 0, 'the calendar shows an open slot with an Add a video button')
+await addBtn.click()
 await sleep(1200)
-check((await page.locator('main').innerText()).toLowerCase().includes('choose a video'), 'clicking a day on the calendar opens Schedule')
+check((await page.locator('main').innerText()).toLowerCase().includes('choose a video'), 'clicking an open slot opens Schedule')
 
 check(errors.length === 0, 'no uncaught page errors', errors.join(' | '))
 await app.close()

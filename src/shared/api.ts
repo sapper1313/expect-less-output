@@ -51,6 +51,7 @@ import type { StudioApi } from './studio/api'
 import type { UpcomingEntryT, UpcomingView } from './upcoming'
 import type {
   AuditRow,
+  OpenSlot,
   FreshStartDone,
   FreshStartInfo,
   BotInfo,
@@ -109,6 +110,8 @@ export interface Api {
   slots: {
     next(brandId: number, count: number, fromUtc?: string): Promise<string[]>
     countOnDay(brandId: number, dayIso: string): Promise<number>
+    /** The slots in a window that have nothing in them, from every channel's settings (or one channel). */
+    open(fromUtc: string, toUtc: string, brandId: number | null): Promise<OpenSlot[]>
   }
   posts: {
     list(filter?: PostFilter): Promise<Post[]>

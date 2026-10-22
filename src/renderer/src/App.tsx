@@ -293,7 +293,12 @@ function Shell() {
           </div>
         )}
         {screen === 'home' && <Home go={go} openPost={setDetailPost} />}
-        {screen === 'calendar' && <Calendar onNewPost={(when) => openSchedule('one', when)} />}
+        {screen === 'calendar' && (
+          <Calendar
+            onNewPost={(when) => openSchedule('one', when)}
+            openInbox={() => setScreen('inbox')}
+          />
+        )}
         {screen === 'queue' && <Queue />}
         {screen === 'inbox' && <Inbox />}
         {screen === 'upcoming' && <Upcoming openQueue={() => setScreen('queue')} />}

@@ -360,6 +360,19 @@ export interface InboxItem {
   paused: boolean
 }
 
+/** A posting slot with nothing in it, for the Calendar. */
+export interface OpenSlot {
+  brandId: number
+  brandName: string
+  brandColor: string
+  whenUtc: string
+  kind: 'episode' | 'clip'
+  /** active, or paused or on-hold (the slot is still shown, with a tag). */
+  channelState: 'active' | 'paused' | 'on-hold'
+  /** Finished videos of this kind waiting in the Inbox for this channel. */
+  waiting: number
+}
+
 export interface InboxCounts {
   waiting: number
   held: number

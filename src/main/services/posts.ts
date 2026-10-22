@@ -3,7 +3,7 @@ import type { Db } from '../db'
 import type { Library } from './library'
 import type { ActivityLog } from './activity'
 import type { MediaService } from './media'
-import { getNextOpenSlots, type SlotDef } from '@shared/slots'
+import { getNextOpenSlots, getSlotTimes, type SlotDef } from '@shared/slots'
 import { derivePostStatus } from '@shared/scheduling'
 import { readSetting } from './settings'
 import { durationProblem } from '@shared/platformLimits'
@@ -294,6 +294,94 @@ export class PostService {
       gapWith: others,
       alsoCounted: sent,
     })
+  }
+
+  /**
+   * The slots of a channel inside a window that have nothing in them, for the Calendar. Episode slots come from the
+   * channel's slot times and days, clip slots from its clip days and time. A slot with a post in it is left out (the post
+   * is shown instead), and so is a slot the daily limit has already used up. Only slots that are still ahead are listed.
+   */
+  openSlotsInRange(
+    brandId: number,
+    fromUtc: string,
+    toUtc: string,
+  ): Array<{ whenUtc: string; kind: 'episode' | 'clip' }> {
+    const now = new Date(this.now()).toISOString()
+    const from = fromUtc > now ? fromUtc : now
+    if (from >= toUtc) return []
+    const rules = this.channelRules(brandId)
+    const blackoutDates = [
+      ...new Set([...readSetting(this.db, 'blackoutDates'), ...rules.blackoutDates]),
+    ]
+    const slots = (
+      this.db.prepare('SELECT * FROM brand_slots WHERE brand_id = ?').all(brandId) as any[]
+    ).map<SlotDef>((r) => ({ dayType: r.day_type, timeLocal: r.time_local, enabled: !!r.enabled }))
+    const used = (type: 'episode' | 'clip') =>
+      (
+        this.db
+          .prepare(
+            `SELECT scheduled_at_utc AS t FROM posts WHERE brand_id = ? AND post_type = ? AND scheduled_at_utc IS NOT NULL
+             AND scheduled_at_utc >= ? AND scheduled_at_utc < ? AND status NOT IN ('canceled','draft')`,
+          )
+          .all(
+            brandId,
+            type,
+            `${fromUtc.slice(0, 10)}T00:00:00.000Z`,
+            `${toUtc.slice(0, 10)}T23:59:59.999Z`,
+          ) as Array<{
+          t: string
+        }>
+      ).map((r) => r.t)
+    const out: Array<{ whenUtc: string; kind: 'episode' | 'clip' }> = []
+    const dayOf = (iso: string) =>
+      DateTime.fromISO(iso, { zone: 'utc' }).setZone(ZONE).toFormat('yyyy-MM-dd')
+    const collect = (kind: 'episode' | 'clip', all: string[], cap: number) => {
+      const taken = used(kind)
+      const takenMinutes = new Set(taken.map((t) => t.slice(0, 16)))
+      const perDay = new Map<string, number>()
+      for (const t of taken) perDay.set(dayOf(t), (perDay.get(dayOf(t)) ?? 0) + 1)
+      for (const s of all) {
+        if (s < from || takenMinutes.has(s.slice(0, 16))) continue
+        const d = dayOf(s)
+        const n = perDay.get(d) ?? 0
+        if (cap > 0 && n >= cap) continue
+        perDay.set(d, n + 1)
+        out.push({ whenUtc: s, kind })
+      }
+    }
+    // Look a day wider on both sides so a slot near midnight is judged against the right day.
+    const wideFrom = new Date(new Date(fromUtc).getTime() - 86_400_000).toISOString()
+    const wideTo = new Date(new Date(toUtc).getTime() + 86_400_000).toISOString()
+    collect(
+      'episode',
+      getSlotTimes({
+        slots,
+        from: wideFrom,
+        to: wideTo,
+        weekdays: this.postDays(brandId),
+        blackoutDates,
+        maxPerDay: rules.maxPerDay,
+      }).filter((s) => s < toUtc),
+      rules.maxPerDay,
+    )
+    const clip = this.clipSchedule(brandId)
+    if (clip.days.length)
+      collect(
+        'clip',
+        getSlotTimes({
+          slots: [
+            { dayType: 'weekday', timeLocal: clip.time, enabled: true },
+            { dayType: 'weekend', timeLocal: clip.time, enabled: true },
+          ],
+          from: wideFrom,
+          to: wideTo,
+          weekdays: clip.days,
+          blackoutDates,
+          maxPerDay: 1,
+        }).filter((s) => s < toUtc),
+        1,
+      )
+    return out.sort((a, b) => a.whenUtc.localeCompare(b.whenUtc))
   }
 
   /** A channel's clip days (1 = Monday to 7 = Sunday) and time, from its Studio settings. Empty days means no clip slots. */

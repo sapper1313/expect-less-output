@@ -98,3 +98,56 @@ export function getNextOpenSlots(input: NextSlotsInput): string[] {
 function minuteKey(ms: number): number {
   return Math.floor(ms / 60000)
 }
+
+export interface SlotTimesInput {
+  slots: SlotDef[]
+  /** UTC ISO strings. The window is from (inclusive) to to (exclusive). */
+  from: string | Date
+  to: string | Date
+  weekdays?: number[]
+  blackoutDates?: string[]
+  /** Only the earliest N slots of a day count, because that is all the channel may post. 0 or missing means all. */
+  maxPerDay?: number
+  zone?: string
+}
+
+/**
+ * Every posting slot of a channel inside a window, as UTC times, whether or not a post sits in it. It follows the same
+ * rules as getNextOpenSlots (the days a channel posts, the slot times, blackout dates, the daily limit) so the Calendar
+ * and the scheduler can never disagree about where the slots are.
+ */
+export function getSlotTimes(input: SlotTimesInput): string[] {
+  const zone = input.zone ?? ZONE
+  const fromMs = (input.from instanceof Date ? input.from : new Date(input.from)).getTime()
+  const toMs = (input.to instanceof Date ? input.to : new Date(input.to)).getTime()
+  const active = input.slots.filter((s) => s.enabled && /^\d{1,2}:\d{2}$/.test(s.timeLocal))
+  if (!active.length || toMs <= fromMs) return []
+  const blackout = new Set(input.blackoutDates ?? [])
+  const cap = input.maxPerDay && input.maxPerDay > 0 ? input.maxPerDay : 0
+  const out: string[] = []
+  let day = DateTime.fromMillis(fromMs, { zone }).startOf('day')
+  for (let i = 0; i < 400 && day.toMillis() < toMs; i++) {
+    const next = day.plus({ days: 1 }).startOf('day')
+    const skip =
+      (input.weekdays?.length && !input.weekdays.includes(day.weekday)) ||
+      blackout.has(day.toFormat('yyyy-MM-dd'))
+    if (!skip) {
+      const dayType = day.weekday >= 6 ? 'weekend' : 'weekday'
+      let times = active
+        .filter((s) => s.dayType === dayType)
+        .map((s) => {
+          const [h, m] = s.timeLocal.split(':').map(Number)
+          return DateTime.fromObject(
+            { year: day.year, month: day.month, day: day.day, hour: h, minute: m },
+            { zone },
+          ).toMillis()
+        })
+        .sort((a, b) => a - b)
+      times = [...new Set(times)]
+      if (cap) times = times.slice(0, cap)
+      for (const ms of times) if (ms >= fromMs && ms < toMs) out.push(new Date(ms).toISOString())
+    }
+    day = next
+  }
+  return out
+}

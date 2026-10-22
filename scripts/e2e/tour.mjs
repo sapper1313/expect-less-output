@@ -147,34 +147,30 @@ await page.click('main button:has-text("Studio settings per channel")')
 await sleep(800)
 check((await page.locator('main label:has-text("Pause this brand")').count()) === 0, 'Studio settings per channel has no second pause switch')
 
-// ---- calendar: solid + more popup
+// ---- calendar: one list, with the open slots from the channel settings
 await invoke(page, 'settings.set', { agentApiEnabled: false })
 const when = new Date(Date.now() + 3 * 86_400_000)
 when.setUTCHours(15, 0, 0, 0)
-for (let i = 0; i < 6; i++) {
-  await invoke(page, 'posts.create', {
-    brandId: first.id,
-    sourcePath: vids[0],
-    title: `Tour post ${i + 1}`,
-    caption: 'x',
-    scheduledAtUtc: new Date(when.getTime() + i * 60_000).toISOString(),
-    targets: [{ platform: 'youtube', aiFlag: false }],
-    status: 'draft',
-  })
-}
+await invoke(page, 'posts.create', {
+  brandId: first.id,
+  sourcePath: vids[0],
+  title: 'Tour post 1',
+  caption: 'x',
+  scheduledAtUtc: when.toISOString(),
+  targets: [{ platform: 'youtube', aiFlag: false }],
+  status: 'draft',
+})
 await nav(page, 'Calendar')
 await sleep(1200)
-const more = page.locator('.fc-more-link').first()
-if ((await more.count()) > 0) {
-  await more.click()
-  await sleep(500)
-  const bg = await page.locator('.fc-popover').first().evaluate((el) => getComputedStyle(el).backgroundColor)
-  check(!/rgba\(0, 0, 0, 0\)|transparent/.test(bg), 'the "+ more" pop-up has a solid background', bg)
-  await shot(page, 'tour-calendar-more')
-  await page.keyboard.press('Escape')
-} else {
-  check(false, 'the calendar shows a "+ more" link when a day has many posts')
-}
+const cal = await text()
+check(cal.includes('has no videos scheduled'), 'the Calendar shows open slots as "<channel> has no videos scheduled"')
+check(cal.includes('Tour post 1') || cal.toLowerCase().includes('today'), 'the Calendar list shows days with posts')
+check((await page.locator('.fc-view-harness').count()) === 0, 'the old calendar grid is gone')
+check((await page.locator('main button:has-text("Month")').count()) === 0, 'there are no Month and Week buttons')
+await page.selectOption('select[aria-label="Status"]', 'open')
+await sleep(500)
+check(!(await text()).includes('Tour post 1'), 'Open slots only hides the posts')
+await shot(page, 'tour-calendar-list')
 check((await page.locator('main button:has-text("New post")').count()) > 0, 'the calendar has a New post button')
 
 // ---- Home checklist and numbers
