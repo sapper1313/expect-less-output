@@ -1,3 +1,4 @@
+import { CLAUDE_OFF_MESSAGE } from './agents/llm'
 import { DateTime } from 'luxon'
 import { z } from 'zod'
 import type { Db } from '../db'
@@ -267,15 +268,30 @@ export class Analytics {
     const s = await this.d.refreshStats().catch(() => ({ fetched: 0, unavailable: 0 }))
     const social = await this.socialStats()
     let brands = 0
+    let skipped = 0
+    let failure: Error | null = null
     for (const b of this.d.cfg.listBrandConfigs()) {
-      await this.summarize(b.brandId, details)
-      brands++
+      try {
+        await this.summarize(b.brandId, details)
+        brands++
+      } catch (e) {
+        // With the Claude API off the written "what is working" notes are skipped. The numbers above are already saved.
+        if ((e as Error).message === CLAUDE_OFF_MESSAGE) skipped++
+        else failure = failure ?? (e as Error)
+      }
     }
     this.d.audit.write({
       agent: this.name,
       action: 'daily',
-      detail: { fetched: s.fetched, unavailable: s.unavailable, social, brands },
+      detail: {
+        fetched: s.fetched,
+        unavailable: s.unavailable,
+        social,
+        brands,
+        skippedNotes: skipped,
+      },
     })
+    if (failure) throw failure
     return { fetched: s.fetched, social, brands }
   }
 }

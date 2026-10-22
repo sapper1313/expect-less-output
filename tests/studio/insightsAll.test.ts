@@ -64,3 +64,14 @@ describe('Studio Insights count every video with numbers', () => {
     expect(r.insights!.videos).toBe(0)
   })
 })
+
+describe('daily analytics with the Claude API off', () => {
+  it('still collects the numbers and does not flag the task', async () => {
+    const e = makeStudioEnv()
+    e.settings.set({ claudeApiEnabled: false })
+    await e.studio.setConfig({ mockMode: false })
+    const out = await e.studio.analytics.daily()
+    expect(out.fetched).toBeGreaterThanOrEqual(0)
+    expect(e.studio.audit.list({ agent: 'Analytics' }).some((a) => a.action === 'daily')).toBe(true)
+  })
+})
