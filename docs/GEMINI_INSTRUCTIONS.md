@@ -240,6 +240,10 @@ If the video is on the internet, drop only the `.json`, with an extra `"video_ur
 
 ---
 
+## Bluesky
+
+Bluesky is not something a bot chooses. A channel that has a Bluesky login saved in ELO posts there on its own, a few minutes after the other platforms. A channel with no login is ignored. You may list `bluesky` in `platforms`, but it changes nothing. Bluesky takes videos up to 3 minutes and 100 MB, so longer videos are not sent there. The Bluesky text comes from `description` (about 300 characters, up to 3 hashtags).
+
 ## Growth fields in the sidecar (all optional)
 
 These fields only add features. None of them can set or promise a posting time, and the schedule is still whatever the owner set in ELO.

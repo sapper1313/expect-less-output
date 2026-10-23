@@ -89,6 +89,7 @@ import { PLATFORMS } from '@shared/platformLimits'
 import { GrowthService } from './growth/service'
 import { fetchSuggestions } from './growth/seo'
 import { StorageService } from './growth/storage'
+import { BlueskySync } from './growth/blueskySync'
 import type { PlatformAdapter } from './adapters/types'
 import { COPY } from '@shared/copy'
 import type { Account, AppEvent, Platform, Settings } from '@shared/types'
@@ -763,6 +764,15 @@ async function boot(): Promise<void> {
     duration: async (p) => (await media.probe(p)).durationSeconds,
     brandNames: () => brands.list(true).map((b) => b.name),
   })
+  const bluesky = new BlueskySync({
+    db,
+    settings,
+    social: studio.social,
+    notReady: (b) => studio.socialAccounts.notReady(b),
+    log: (level, message) => log.log(level, message),
+  })
+  setInterval(() => void bluesky.run().catch(() => {}), 60_000)
+  setTimeout(() => void bluesky.run().catch(() => {}), 45_000)
   setInterval(() => void growth.tick().catch(() => {}), 5 * 60_000)
   setTimeout(() => void growth.tick().catch(() => {}), 90_000)
 

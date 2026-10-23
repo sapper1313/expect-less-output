@@ -396,6 +396,11 @@ export class Studio implements StudioApi {
       alert: (item) => (d.alertItem ? d.alertItem(item) : d.alert(item.headline, item.detail)),
       log: (level, message) => d.log.log(level, message),
       brandName,
+      postVideo: (id) => {
+        const r = d.db.prepare('SELECT video_path FROM posts WHERE id = ?').get(id) as
+          { video_path: string } | undefined
+        return r ? d.media.resolve(r.video_path) : null
+      },
       now,
     })
     this.compliance = new Compliance({ db: d.db, cfg: this.cfg, bible: this.bibles })

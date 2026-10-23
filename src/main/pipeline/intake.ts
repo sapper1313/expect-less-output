@@ -287,7 +287,9 @@ export class PipelineIntake {
     const caption = withHashtags(sc.description, sc.tags)
     const postType: 'episode' | 'clip' = sc.post_type === 'clip' ? 'clip' : 'episode'
     // A clip with no platforms goes to every platform the show has switched on for clips.
-    const asked = sc.platforms ?? ['youtube', 'facebook', 'instagram', 'tiktok']
+    const asked = (sc.platforms ?? ['youtube', 'facebook', 'instagram', 'tiktok']).filter(
+      (p) => p !== 'bluesky',
+    )
     const off = [...this.switchedOff(a.brand.id, postType), ...this.tooLongFor(asked)]
     const wanted = asked.filter((p) => !off.includes(p))
     if (wanted.length < asked.length)

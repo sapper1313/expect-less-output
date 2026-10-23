@@ -44,6 +44,19 @@ export function staggerOffsets(
   return out
 }
 
+/** Minutes after the slot for Bluesky: one more gap after the last platform. */
+export function blueskyOffset(
+  lastOffset: number,
+  seed: number,
+  gapMin: number,
+  gapMax: number,
+): number {
+  const lo = Math.max(0, Math.floor(Math.min(gapMin, gapMax)))
+  const hi = Math.max(lo, Math.floor(Math.max(gapMin, gapMax)))
+  const rand = mulberry32(seed * 2246822519 + 777)
+  return lastOffset + lo + Math.floor(rand() * (hi - lo + 1))
+}
+
 // ---------------------------------------------------------------- caption morphing
 
 export interface MorphInput {
@@ -106,7 +119,7 @@ const hashLine = (tags: string[], max: number) =>
  * - TikTok: two short sentences at most, then up to 5 hashtags.
  * - YouTube: the full description, then up to 15 hashtags (YouTube shows the first three above the title).
  */
-export function morphCaption(platform: Platform, input: MorphInput): string {
+export function morphCaption(platform: Platform | 'bluesky', input: MorphInput): string {
   const { body, tags } = splitHashtags(input)
   switch (platform) {
     case 'facebook':
@@ -125,6 +138,20 @@ export function morphCaption(platform: Platform, input: MorphInput): string {
       const h = hashLine(tags, 5)
       return (h ? `${text}${text ? ' ' : ''}${h}` : text).slice(0, 2200)
     }
+    case 'bluesky': {
+      // 300 characters in all, hashtags included.
+      const h = hashLine(tags, 3)
+      const room = 300 - (h ? h.length + 1 : 0)
+      let text = ''
+      for (const sentence of sentences(body)) {
+        const next = text ? `${text} ${sentence}` : sentence
+        if (next.length > room) break
+        text = next
+      }
+      if (!text)
+        text = body.slice(0, Math.max(0, room - 3)).trimEnd() + (body.length > room ? '...' : '')
+      return (h ? `${text}${text ? ' ' : ''}${h}` : text).slice(0, 300)
+    }
     case 'youtube': {
       const h = hashLine(tags, 15)
       return h ? `${body}${body ? '\n\n' : ''}${h}` : body
@@ -136,7 +163,8 @@ export function morphCaption(platform: Platform, input: MorphInput): string {
 
 const QUESTION_START =
   /^(how|what|why|when|where|which|who|can|could|should|would|will|do|does|did|is|are|am|was|were|has|have)\b/i
-const QUESTION_PHRASE = /\b(should i|can i|could i|how do i|how do you|how to|is it|what if|why do|why is)\b/i
+const QUESTION_PHRASE =
+  /\b(should i|can i|could i|how do i|how do you|how to|is it|what if|why do|why is)\b/i
 const SPAM =
   /(https?:\/\/|www\.|\.com\b|subscribe|sub4sub|check out my|follow me|dm me|whatsapp|telegram|crypto|giveaway|promo ?code|click (the )?link)/i
 
@@ -229,9 +257,10 @@ export function bestTimes(rows: TimedViews[], top = 3, minSamples = 2): BestTime
     .map((b) => ({
       weekday: b.weekday,
       hour: b.hour,
-      label: DateTime.fromObject({ weekday: b.weekday as 1, hour: b.hour }, { zone: ZONE }).toFormat(
-        'cccc h a',
-      ),
+      label: DateTime.fromObject(
+        { weekday: b.weekday as 1, hour: b.hour },
+        { zone: ZONE },
+      ).toFormat('cccc h a'),
       averageViews: Math.round(b.sum / b.n),
       samples: b.n,
     }))
@@ -340,7 +369,8 @@ export function loudnessProblem(l: Loudness): string | null {
   if (l.truePeakDb > -0.5)
     return `Audio peaks at ${l.truePeakDb.toFixed(1)} dB, so it may clip on phones. Aim for -1 dB or lower.`
   const off = l.integratedLufs - TARGET_LUFS
-  if (off < -4) return `Audio is quiet (${l.integratedLufs.toFixed(1)} LUFS). Aim for about -14 LUFS.`
+  if (off < -4)
+    return `Audio is quiet (${l.integratedLufs.toFixed(1)} LUFS). Aim for about -14 LUFS.`
   if (off > 2) return `Audio is loud (${l.integratedLufs.toFixed(1)} LUFS). Aim for about -14 LUFS.`
   return null
 }

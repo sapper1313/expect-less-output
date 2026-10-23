@@ -8,6 +8,7 @@ import { SocialError } from './errors'
 
 export interface SocialRow {
   id: number
+  postId: number | null
   episodeId: string | null
   brandId: number
   platform: 'bluesky'
@@ -27,6 +28,7 @@ const BACKOFF_MIN = [2, 10, 30]
 
 const map = (r: any): SocialRow => ({
   id: r.id,
+  postId: r.post_id ?? null,
   episodeId: r.episode_id,
   brandId: r.brand_id,
   platform: r.platform,
@@ -49,6 +51,10 @@ export interface SocialDeps {
   alert: (item: AlertItem) => void
   log: (level: 'info' | 'warn' | 'error', message: string) => void
   brandName: (id: number) => string
+  /** The current file of an ELO post (it moves from Queue to Posted), for rows tied to a post. */
+  postVideo?: (postId: number) => string | null
+  /** Reads the picture size of a video. Tests replace it. */
+  probe?: (file: string) => Promise<{ width: number; height: number }>
   now?: () => number
 }
 
@@ -57,6 +63,8 @@ export interface SocialDeps {
  * with retries (2, 10, 30 minutes) and the usual failure alert. Bluesky has a daily video allowance that is read before every upload.
  */
 export class SocialPublisher {
+  private busy = false
+
   constructor(private d: SocialDeps) {}
 
   private now() {
@@ -64,6 +72,7 @@ export class SocialPublisher {
   }
 
   add(p: {
+    postId?: number | null
     episodeId: string | null
     brandId: number
     platform: 'bluesky'
@@ -76,9 +85,10 @@ export class SocialPublisher {
     const id = Number(
       this.d.db
         .prepare(
-          'INSERT INTO social_posts (episode_id, brand_id, platform, text, video_path, title, scheduled_at_utc, mock, created_utc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO social_posts (post_id, episode_id, brand_id, platform, text, video_path, title, scheduled_at_utc, mock, created_utc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .run(
+          p.postId ?? null,
           p.episodeId,
           p.brandId,
           p.platform,
@@ -120,6 +130,16 @@ export class SocialPublisher {
 
   /** Posts every Bluesky item that is due. Returns how many were handled. */
   async tick(): Promise<number> {
+    if (this.busy) return 0
+    this.busy = true
+    try {
+      return await this.tickOnce()
+    } finally {
+      this.busy = false
+    }
+  }
+
+  private async tickOnce(): Promise<number> {
     const nowIso = new Date(this.now()).toISOString()
     const due = this.d.db
       .prepare(
@@ -211,10 +231,11 @@ export class SocialPublisher {
         'transient',
         60 * 60_000,
       )
-    const info = await probe(row.videoPath)
+    const file = (row.postId && this.d.postVideo?.(row.postId)) || row.videoPath
+    const info = await (this.d.probe ?? probe)(file)
     const r = await this.d.bluesky(row.brandId).postVideo({
       text: row.text,
-      file: row.videoPath,
+      file,
       width: info.width,
       height: info.height,
       alt: row.title,

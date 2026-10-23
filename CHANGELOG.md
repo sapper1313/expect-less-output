@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.1 Bluesky for bot videos
+
+- Accepted drops now go to Bluesky when the channel has a Bluesky login saved. No login means ignored. The Bluesky post follows the schedule (moves, stops, comes back with the ELO post), posts a few minutes after the last platform, and uses the existing retries and failure alert.
+- A sidecar may list `bluesky` in `platforms`; it has no effect.
+- Bluesky text: about 300 characters from the description, up to 3 hashtags. Videos over 3 minutes or 100 MB are not sent.
+- Fixed a possible double post when two Bluesky passes overlapped.
+
 ## 0.13.0 Growth tools
 
 - **Staggered posting** (Settings, Growth): YouTube on the slot, the other platforms a few minutes apart. Stored per platform, so a retry keeps its place.

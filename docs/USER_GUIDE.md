@@ -713,3 +713,7 @@ Everything is in Settings, **Growth**. Each tool has its own switch.
 - **Disk space:** shows where the space goes. **Shrink old videos** makes a smaller H.265 copy of posted videos older than the days you pick (10 at a time) and checks its length. The big original is deleted only if you tick the box.
 
 What ELO cannot do, because the apps do not allow it: pin comments, set YouTube end screens, post to the YouTube Community tab, hide a video on Facebook, Instagram or TikTok, and detect muted audio on Instagram. Google Drive backup is not built in.
+
+## 26. Bluesky for bot videos (0.13.1)
+
+Every channel with a Bluesky handle and app password saved (Settings, Studio, Bluesky accounts) now posts its bot videos to Bluesky too, a few minutes after the other platforms. A channel with no login is ignored. Nothing to switch on. It follows the schedule: if you move or remove a post, the Bluesky post moves or stops with it. Videos over 3 minutes or 100 MB are not sent (Bluesky's limit), so Wonder Hollow's long episodes stay off Bluesky. Failures retry 3 times and alert you like the other platforms.

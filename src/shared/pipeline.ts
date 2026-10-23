@@ -6,6 +6,8 @@ import { DateTime } from 'luxon'
 export const SIDECAR_VERSION = '1.0'
 
 export const PIPELINE_PLATFORMS = ['youtube', 'facebook', 'instagram', 'tiktok'] as const
+/** Bluesky is not chosen by a bot. A channel with a Bluesky login posts there on its own. A sidecar may list it; it changes nothing. */
+export const SIDECAR_PLATFORMS = [...PIPELINE_PLATFORMS, 'bluesky'] as const
 
 /** Bots the sidecar may name. The allowlist in Settings decides which are accepted. */
 export const DEFAULT_SOURCE_BOTS = ['grok-bot', 'kids-comedy', 'beth', 'gemini']
@@ -61,7 +63,7 @@ export const PipelineSidecar = z
       description:
         'For a clip: the episode it was cut from. Once that episode is live on YouTube, the clip description gets "Full episode on YouTube" and the link.',
     }),
-    platforms: z.array(z.enum(PIPELINE_PLATFORMS)).min(1).optional().meta({
+    platforms: z.array(z.enum(SIDECAR_PLATFORMS)).min(1).optional().meta({
       description:
         'Required for an episode. A clip may leave it out and then goes to every platform the show has switched on for clips.',
     }),
