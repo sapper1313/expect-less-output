@@ -305,11 +305,15 @@ export class Scheduler {
         .prepare('UPDATE post_targets SET settings_json = ? WHERE id = ?')
         .run(JSON.stringify(next), row.id)
     }
+    const dropRow = this.d.db
+      .prepare('SELECT episode_id FROM drops WHERE post_id = ? ORDER BY id DESC LIMIT 1')
+      .get(row.post_id) as { episode_id: string | null } | undefined
     return {
       postId: row.post_id,
       targetId: row.id,
       brandId: row.brand_id,
       brandName: row.brand_name,
+      episodeId: dropRow?.episode_id ?? null,
       title: row.title,
       caption: row.caption_override ?? row.caption,
       aiFlag: !!row.ai_flag,

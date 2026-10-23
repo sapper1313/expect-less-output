@@ -19,6 +19,8 @@ export interface AdapterContext {
   targetId: number
   brandId: number
   brandName: string
+  /** The pipeline episode id when the post came from a drop. */
+  episodeId?: string | null
   title: string
   /** Shared caption, or the per-platform override when one exists. */
   caption: string

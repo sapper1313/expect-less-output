@@ -198,7 +198,7 @@ export class TikTokAdapter implements PlatformAdapter {
         if (text) this.d.host.copyText?.(text)
         this.d.host.notify(
           'TikTok draft ready',
-          `TikTok draft ready for ${ctx.brandName}. Open TikTok, tap the inbox notification, paste the caption${text ? ' (already copied)' : ''}, add the AI label if needed, and post.`,
+          `TikTok draft ready for ${ctx.brandName}${ctx.episodeId ? ` (${ctx.episodeId})` : ''}. Open TikTok, tap the inbox notification, paste the caption${text ? ' (already copied)' : ''}, add the AI label if needed, and post.`,
         )
         return { status: 'needs_action', externalId: publishId }
       }
