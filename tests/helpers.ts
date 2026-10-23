@@ -36,6 +36,8 @@ export function makeEnv(
     alertIMessageEnabled: true,
     alertIMessageNumber: '+18046340444',
     retryMinutes: [2, 10, 30],
+    // Most tests post to every platform on the same minute. The stagger has its own tests.
+    staggerEnabled: false,
   })
   const library = new Library(() => settings.get().mediaRoot)
   const log = new ActivityLog(db)

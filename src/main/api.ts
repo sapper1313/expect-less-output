@@ -5,7 +5,11 @@ import type { InboxService } from './pipeline/inboxService'
 import type { UpcomingService } from './pipeline/upcoming'
 import { type Actor } from '@shared/upcoming'
 import type { BotStore } from './agent/bots'
-import { writeFileSync } from 'fs'
+import { rmSync, writeFileSync } from 'fs'
+import { join } from 'path'
+import { sha256File } from './pipeline/verify'
+import { fetchSuggestions } from './growth/seo'
+import { morphCaption } from '@shared/growth'
 import type { Api } from '@shared/api'
 import type { Platform, Settings } from '@shared/types'
 import { openSlotsFor } from './pipeline/gaps'
@@ -90,6 +94,8 @@ export interface ApiDeps {
   drops: DropLog
   pipeline: PipelineIntake
   inbox: InboxService
+  growth: import('./growth/service').GrowthService
+  storage: import('./growth/storage').StorageService
   upcoming: UpcomingService
   bots: BotStore
   /** Throws when a paused channel may not be resumed yet. */
@@ -456,6 +462,68 @@ export function buildApi(d: ApiDeps): Api {
           mockMode: () => d.studio.cfg.get().mockMode,
           postStats: (id) => d.stats.postStats(id),
         }),
+    },
+    growth: {
+      storageReport: async () => d.storage.report(),
+      archiveOld: async (days, removeOriginals) => {
+        const r = await d.storage.archiveOld(days, removeOriginals)
+        d.audit.write({
+          actor: 'josh',
+          action: 'storage.archive',
+          target: `older than ${days} days`,
+          after: r,
+        })
+        d.emit()
+        return r
+      },
+      learnings: async () => d.growth.learningsMarkdown(),
+      brief: async () => d.growth.briefText(),
+      sendBriefNow: async () => d.growth.sendBrief(),
+      suggest: async (q) => fetchSuggestions(q),
+      morphCaptions: async (postId) => {
+        const post = d.posts.get(postId)
+        if (!post) throw new Error('Post not found.')
+        const changed: string[] = []
+        for (const t of post.targets) {
+          if (t.platform === 'youtube' || t.status !== 'pending') continue
+          const text = morphCaption(t.platform, { description: post.caption })
+          if (text && text !== (t.captionOverride ?? '')) {
+            d.db
+              .prepare('UPDATE post_targets SET caption_override = ? WHERE id = ?')
+              .run(text, t.id)
+            changed.push(t.platform)
+          }
+        }
+        if (changed.length) d.emit()
+        return changed
+      },
+      retract: async (episodeId) => {
+        const r = await d.growth.retract(episodeId, 'josh')
+        d.audit.write({
+          actor: 'josh',
+          action: 'episode.retracted',
+          target: episodeId,
+          after: { results: r.results },
+        })
+        d.emit()
+        return { postIds: r.postIds, results: r.results }
+      },
+      normalizeAudio: async (postId) => {
+        const post = d.posts.get(postId)
+        if (!post) throw new Error('Post not found.')
+        if (post.status === 'posted' || post.targets.some((t) => t.status !== 'pending'))
+          throw new Error('This video is already with a platform, so the sound cannot be changed.')
+        const src = d.library.resolve(post.videoPath)
+        const tmp = join(d.dataDir, `normalize-${postId}.mp4`)
+        await d.media.normalizeAudio(src, tmp)
+        try {
+          await d.posts.replaceMedia(postId, { sourcePath: tmp, checksum: await sha256File(tmp) })
+        } finally {
+          rmSync(tmp, { force: true })
+        }
+        d.emit()
+        return 'The sound is now about -14 LUFS. The old file is in the Replaced folder.'
+      },
     },
     pipeline: d.inbox.api(),
     upcoming: {

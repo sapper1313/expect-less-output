@@ -697,3 +697,19 @@ The Calendar is one list, day by day. Posts show with the channel colour, the pl
 - **Warnings:** Settings, Pipeline, **Empty slot warnings**. Once a day you get a message listing the empty slots until the end of tomorrow.
 - **Inbox, Issues:** **Dismiss** hides one message and **Clear all** hides them all. They come back only if the problem goes away and returns. **Check again** runs the checks once more.
 - **Beth:** Settings, Agent API, Bots, **Edit channels**. Beth works on all channels, including new ones. When beth removes, edits or fixes a post, you get a Telegram message. Nothing she does deletes a file, and she never changes a posting time.
+
+## 25. Growth tools (0.13.0)
+
+Everything is in Settings, **Growth**. Each tool has its own switch.
+
+- **Staggered posting:** YouTube posts on the slot you set. Instagram, Facebook and TikTok follow a few minutes after each other (you choose the shortest and longest wait). The slot times do not change. It applies to posts made from now on.
+- **Each platform gets its own words:** Facebook gets the description with no hashtags. Instagram gets one sentence per line and up to 10 hashtags. TikTok gets two short sentences and 5 hashtags. YouTube keeps the full description and gets search phrases added to its tags. In the post editor, **Reformat for each platform** does the same for any post that has not gone out. A bot's own version is never replaced.
+- **Warnings:** Issues now warns when the same topic is scheduled back to back (bots send a `topic`). Every dropped video is measured for loudness, and the drop log says if it is quiet, loud or may clip. In the post editor, **Set sound to -14 LUFS** makes a corrected copy (the old file goes to Replaced). ELO cannot mix music under speech.
+- **After a video is live:** at hours 1, 2 and 4 ELO checks the numbers and tells you about a slow start, or if YouTube shows the video as rejected or not public. After 48 hours it reads where viewers left and adds a lesson to **What viewers watched** (also saved as Shared/learnings.md for the writer bots). Real viewer questions in YouTube comments become idea cards in Upcoming.
+- **Pinned comment and poll:** if a drop has a `pinned_comment`, ELO posts it on YouTube when the video goes live and sends you a message to tap Pin (apps cannot pin). A `community_poll` reaches you 30 minutes after, to post in the YouTube Community tab (apps cannot post there).
+- **Thumbnail rescue:** off by default. When on, a video that came with spare thumbnails and has a click rate under your line after 24 hours gets the second one. ELO tells you the new rate a day later.
+- **Monday brief:** every Monday at the time you choose, one message and a file in Shared/Briefs: views on last week's posts, the top video, how many episodes are at each step, empty slots, and posting times that look better than yours. Use **Preview it** or **Send it now** to see it.
+- **Emergency take down:** type an episode id. YouTube goes private. Facebook, Instagram and TikTok cannot be hidden by apps, so ELO lists them with links to remove by hand. Anything not posted yet is stopped. Nothing is deleted. B.E.T.H. can do the same with her token.
+- **Disk space:** shows where the space goes. **Shrink old videos** makes a smaller H.265 copy of posted videos older than the days you pick (10 at a time) and checks its length. The big original is deleted only if you tick the box.
+
+What ELO cannot do, because the apps do not allow it: pin comments, set YouTube end screens, post to the YouTube Community tab, hide a video on Facebook, Instagram or TikTok, and detect muted audio on Instagram. Google Drive backup is not built in.

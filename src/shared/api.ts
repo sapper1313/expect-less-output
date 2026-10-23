@@ -49,6 +49,7 @@ import type { SearchHit } from './search'
 import type { EditPatch } from './platformEdit'
 import type { StudioApi } from './studio/api'
 import type { UpcomingEntryT, UpcomingView } from './upcoming'
+import type { GrowthRetract, StorageReport, ArchiveResult } from './types'
 import type {
   AuditRow,
   FillResult,
@@ -273,6 +274,26 @@ export interface Api {
     moveStudioIdeas(): Promise<number>
     openScript(path: string): Promise<void>
     reload(): Promise<void>
+  }
+  growth: {
+    /** What viewers watched: the text of learnings.md. */
+    learnings(): Promise<string>
+    /** The Monday brief as text, built now. */
+    brief(): Promise<string>
+    /** Builds the brief and sends it now (iMessage, email, Telegram). Returns the file it was saved to. */
+    sendBriefNow(): Promise<string>
+    /** Search phrases from autocomplete. */
+    suggest(query: string): Promise<string[]>
+    /** Gives Facebook, Instagram and TikTok their own version of the description. Returns the platforms changed. */
+    morphCaptions(postId: number): Promise<string[]>
+    /** Takes an episode down as far as the platforms allow. */
+    retract(episodeId: string): Promise<GrowthRetract>
+    /** Sets the sound of a waiting video to -14 LUFS (the old file is kept in Replaced). */
+    normalizeAudio(postId: number): Promise<string>
+    /** Where the disk space goes, per channel. */
+    storageReport(): Promise<StorageReport>
+    /** Makes smaller H.265 copies of posted videos older than `days`. Removes the big original only when asked. */
+    archiveOld(days: number, removeOriginals: boolean): Promise<ArchiveResult>
   }
   pipeline: {
     counts(): Promise<InboxCounts>

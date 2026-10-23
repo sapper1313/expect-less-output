@@ -818,3 +818,34 @@ export const ChangesOut = z.object({
     }),
   ),
 })
+
+export const LearningsOut = z.object({
+  markdown: z.string(),
+  lessons: z.array(
+    z.object({
+      channel: z.string().nullable(),
+      episode_id: z.string().nullable(),
+      text: z.string(),
+      at: z.string(),
+    }),
+  ),
+})
+
+export const SeoQuery = z.object({ q: z.string().min(2).max(100) })
+export const SeoOut = z.object({ query: z.string(), phrases: z.array(z.string()) })
+
+export const BriefOut = z.object({ markdown: z.string() })
+
+export const RetractParams = z.object({ episode_id: z.string().min(1) })
+export const RetractOut = z.object({
+  episode_id: z.string(),
+  post_ids: z.array(z.number().int()),
+  results: z.array(
+    z.object({
+      platform: z.string(),
+      outcome: z.enum(['hidden', 'manual', 'skipped', 'failed']),
+      detail: z.string(),
+      url: z.string().nullable(),
+    }),
+  ),
+})

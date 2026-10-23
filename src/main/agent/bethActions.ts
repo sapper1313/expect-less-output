@@ -286,3 +286,39 @@ export async function operatorReplaceMedia(
     duration_seconds: duration,
   }
 }
+
+/** Takes an episode down as far as the platforms allow. Owner and the orchestrator token only. */
+export async function operatorRetract(
+  s: AgentServices,
+  episodeId: string,
+  caller: Caller,
+): Promise<{
+  episode_id: string
+  post_ids: number[]
+  results: import('../growth/service').RetractOutcome[]
+}> {
+  if (!s.growth) throw new AgentError(400, 'bad_request', 'Retract is not available in this build.')
+  const post = s.posts.list().find((p) => p.episodeRef === episodeId && p.status !== 'canceled')
+  if (!post) throw new AgentError(404, 'not_found', `No post for episode ${episodeId}.`)
+  requireOperator(s, caller, post, 'retract an episode')
+  let r
+  try {
+    r = await s.growth.retract(episodeId, who(caller))
+  } catch (e) {
+    throw new AgentError(409, 'conflict', (e as Error).message)
+  }
+  s.audit?.write({
+    actor: who(caller),
+    action: 'episode.retracted',
+    target: `${post.brandName}/${episodeId}`,
+    after: { results: r.results },
+  })
+  // The owner is always told, whoever pressed it.
+  s.notifyOwner?.(
+    `${who(caller)} retracted ${episodeId}`,
+    r.results
+      .map((x) => `${x.platform}: ${x.outcome}. ${x.detail}${x.url ? ` ${x.url}` : ''}`)
+      .join('\n') || 'Nothing was live yet.',
+  )
+  return { episode_id: episodeId, post_ids: r.postIds, results: r.results }
+}

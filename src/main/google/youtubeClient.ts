@@ -23,6 +23,8 @@ export interface UploadArgs {
 export interface VideoStatus {
   privacyStatus: string
   uploadStatus?: string
+  /** Set when YouTube refused or removed the video, for example copyright. */
+  rejectionReason?: string
   publishAt?: string
 }
 
@@ -135,6 +137,54 @@ export class YoutubeClient implements YoutubeClientLike {
     )
     this.quota.record('commentInsert')
     return res.data.id ?? ''
+  }
+
+  /** Posts a new top level comment on a video as the channel. commentThreads.insert costs 50 quota units. */
+  async postComment(accountId: number, videoId: string, text: string): Promise<string> {
+    const res = await this.call(accountId, (yt) =>
+      yt.commentThreads.insert({
+        part: ['snippet'],
+        requestBody: {
+          snippet: { videoId, topLevelComment: { snippet: { textOriginal: text } } },
+        },
+      }),
+    )
+    this.quota.record('commentThreadInsert')
+    return res.data.snippet?.topLevelComment?.id ?? res.data.id ?? ''
+  }
+
+  /**
+   * Sets who can see a video that is already on YouTube. videos.update replaces the whole status, so the current one is
+   * read first and only privacyStatus changes. Costs 1 + 50 quota units.
+   */
+  async setPrivacy(
+    accountId: number,
+    videoId: string,
+    privacy: 'private' | 'unlisted' | 'public',
+  ): Promise<void> {
+    const cur = await this.call(accountId, (yt) =>
+      yt.videos.list({ part: ['status'], id: [videoId] }),
+    )
+    this.quota.record('videosList')
+    const status = cur.data.items?.[0]?.status
+    if (!status) throw new AdapterError('YouTube does not have that video any more.', 'permanent')
+    await this.call(accountId, (yt) =>
+      yt.videos.update({
+        part: ['status'],
+        requestBody: {
+          id: videoId,
+          status: {
+            privacyStatus: privacy,
+            selfDeclaredMadeForKids: status.selfDeclaredMadeForKids ?? false,
+            embeddable: status.embeddable ?? true,
+            license: status.license ?? 'youtube',
+            publicStatsViewable: status.publicStatsViewable ?? true,
+            containsSyntheticMedia: status.containsSyntheticMedia ?? undefined,
+          },
+        },
+      }),
+    )
+    this.quota.record('videoUpdate')
   }
 
   /** Rejects an obvious spam comment (it is hidden, not deleted). */
@@ -341,6 +391,7 @@ export class YoutubeClient implements YoutubeClientLike {
     return {
       privacyStatus: s.privacyStatus ?? 'unknown',
       uploadStatus: s.uploadStatus ?? undefined,
+      rejectionReason: s.rejectionReason ?? undefined,
       publishAt: s.publishAt ?? undefined,
     }
   }

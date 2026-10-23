@@ -11,6 +11,7 @@ import type { AlertKind } from '../alerts/format'
 import { formatEastern } from '@shared/time'
 import type { Brand, Post, PostTargetInput } from '@shared/types'
 import { PLATFORM_LIMITS, type Platform } from '@shared/platformLimits'
+import { loudnessProblem, morphCaption, normalizeTopic, type Loudness } from '@shared/growth'
 import {
   CLIP_MAX_SECONDS,
   CLIP_MIN_SECONDS,
@@ -49,6 +50,10 @@ export interface IntakeDeps {
   now?: () => number
   /** Called after any change a screen should show. */
   onChange?: () => void
+  /** Search phrases from autocomplete for a title. Without it, no phrases are added by ELO. */
+  suggest?: (query: string) => Promise<string[]>
+  /** Measures the loudness of a video. Without it the loudness check is skipped. */
+  loudness?: (path: string) => Promise<Loudness | null>
   /** Called when a drop is accepted (not held), so Upcoming can mark the episode dropped. */
   onAccepted?: (info: { channel: string; episodeId: string; dropId: string }) => void
 }
@@ -352,6 +357,15 @@ export class PipelineIntake {
         notes.push('The thumbnail could not be moved.')
       }
     }
+    await this.applyGrowth(
+      post.id,
+      sc,
+      a.sidecarPath,
+      wanted.length ? wanted : asked,
+      queueVideo,
+      stem,
+      notes,
+    )
     if (sc.preferred_slot !== undefined) notes.push('Ignored: the schedule is set in ELO.')
 
     const result: DropResult = hold ? 'held' : 'accepted'
@@ -494,22 +508,129 @@ export class PipelineIntake {
     else notes.push(problem)
   }
 
-  private setYoutubeThumbnail(postId: number, file: string): void {
+  /**
+   * The growth fields of a drop: topic, first comment, poll, platform captions, search tags, spare thumbnails and the
+   * loudness check. Nothing here can fail the drop: a problem becomes a note.
+   */
+  private async applyGrowth(
+    postId: number,
+    sc: PipelineSidecarInput,
+    sidecarPath: string,
+    platforms: string[],
+    queueVideo: string,
+    stem: string,
+    notes: string[],
+  ): Promise<void> {
+    const s = this.d.settings.get()
+    const db = this.d.db
+    try {
+      db.prepare(
+        'UPDATE posts SET topic = ?, pinned_comment = ?, community_poll = ? WHERE id = ?',
+      ).run(
+        normalizeTopic(sc.topic),
+        sc.pinned_comment?.trim() || null,
+        sc.community_poll?.trim() || null,
+        postId,
+      )
+    } catch {
+      // The drop stands without them.
+    }
+    if (s.captionMorphEnabled) {
+      const full = withHashtags(sc.description, sc.tags)
+      for (const p of platforms) {
+        if (p === 'youtube' || sc.caption_overrides?.[p]) continue
+        const text = morphCaption(p as Platform, { description: sc.description, tags: sc.tags })
+        if (text && text !== full)
+          db.prepare(
+            'UPDATE post_targets SET caption_override = ? WHERE post_id = ? AND platform = ?',
+          ).run(text, postId, p)
+      }
+    }
+    if (s.seoTagsEnabled && platforms.includes('youtube')) {
+      try {
+        let phrases = sc.search_phrases ?? []
+        if (!phrases.length && this.d.suggest) {
+          const words = sc.title
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .split(/\s+/)
+            .filter(Boolean)
+          const found: string[] = []
+          for (const n of [5, 3]) {
+            const q = words.slice(0, n).join(' ')
+            if (q) found.push(...(await this.d.suggest(q)))
+          }
+          phrases = [...new Set(found)].filter((x) => x.length <= 60).slice(0, 8)
+        }
+        if (phrases.length) this.mergeYoutubeSettings(postId, { searchTags: phrases })
+      } catch {
+        notes.push('Search phrases could not be fetched.')
+      }
+    }
+    if (sc.thumbnail_variants?.length && platforms.includes('youtube')) {
+      const kept: string[] = []
+      sc.thumbnail_variants.forEach((v, i) => {
+        const src = pathResolve(dirname(sidecarPath), v)
+        if (
+          !/\.(jpe?g|png)$/i.test(src) ||
+          !existsSync(src) ||
+          statSync(src).size > MAX_THUMB_BYTES
+        ) {
+          notes.push(`Thumbnail variant ${v} was skipped (missing, not JPG or PNG, or over 2 MB).`)
+          return
+        }
+        const dest = uniquePath(dirname(stem), `${basename(stem)}_thumb_v${i + 1}${extname(src)}`)
+        try {
+          moveFile(src, dest)
+          kept.push(this.d.library.toRelative(dest))
+        } catch {
+          notes.push(`Thumbnail variant ${v} could not be moved.`)
+        }
+      })
+      if (kept.length)
+        db.prepare('UPDATE posts SET thumb_variants_json = ? WHERE id = ?').run(
+          JSON.stringify(kept),
+          postId,
+        )
+    }
+    if (s.loudnessCheckEnabled && this.d.loudness) {
+      try {
+        const l = await this.d.loudness(queueVideo)
+        if (l) {
+          db.prepare('UPDATE posts SET loudness_json = ? WHERE id = ?').run(
+            JSON.stringify(l),
+            postId,
+          )
+          const problem = loudnessProblem(l)
+          if (problem) notes.push(problem)
+        }
+      } catch {
+        // No loudness reading. The drop stands.
+      }
+    }
+  }
+
+  private mergeYoutubeSettings(postId: number, patch: Record<string, unknown>): void {
     const row = this.d.db
       .prepare(
         "SELECT id, settings_json FROM post_targets WHERE post_id = ? AND platform = 'youtube'",
       )
       .get(postId) as { id: number; settings_json: string | null } | undefined
     if (!row) return
-    let st: Record<string, unknown> = {}
-    try {
-      st = JSON.parse(row.settings_json ?? '{}') as Record<string, unknown>
-    } catch {
-      st = {}
-    }
+    const st = ((): Record<string, unknown> => {
+      try {
+        return JSON.parse(row.settings_json ?? '{}') as Record<string, unknown>
+      } catch {
+        return {}
+      }
+    })()
     this.d.db
       .prepare('UPDATE post_targets SET settings_json = ? WHERE id = ?')
-      .run(JSON.stringify({ ...st, thumbnailPath: file }), row.id)
+      .run(JSON.stringify({ ...st, ...patch }), row.id)
+  }
+
+  private setYoutubeThumbnail(postId: number, file: string): void {
+    this.mergeYoutubeSettings(postId, { thumbnailPath: file })
   }
 
   private reject(

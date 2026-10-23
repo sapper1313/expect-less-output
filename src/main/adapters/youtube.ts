@@ -81,6 +81,9 @@ export class YoutubeAdapter implements PlatformAdapter {
       appendShorts: d.youtubeAppendShorts || ctx.settings.shorts === true,
       privacy,
       publishAt,
+      searchTags: Array.isArray(ctx.settings.searchTags)
+        ? (ctx.settings.searchTags as unknown[]).filter((x): x is string => typeof x === 'string')
+        : undefined,
     })
   }
 

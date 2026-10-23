@@ -1,3 +1,4 @@
+import { mergeSearchTags } from '@shared/growth'
 import { AdapterError } from '../adapters/types'
 import { PLATFORM_LIMITS } from '@shared/platformLimits'
 
@@ -11,6 +12,8 @@ export interface MetadataInput {
   privacy: 'private' | 'public'
   /** RFC 3339 UTC. Only valid with privacy private. */
   publishAt?: string
+  /** Search phrases to add to the tags. */
+  searchTags?: string[]
 }
 
 export interface VideoMetadata {
@@ -77,7 +80,12 @@ export function buildVideoMetadata(i: MetadataInput): VideoMetadata {
     throw new AdapterError('A scheduled YouTube video must start as private.', 'permanent')
   }
   const meta: VideoMetadata = {
-    snippet: { title, description, tags: tagsFromText(description), categoryId: i.categoryId },
+    snippet: {
+      title,
+      description,
+      tags: mergeSearchTags(tagsFromText(description), i.searchTags ?? []),
+      categoryId: i.categoryId,
+    },
     status: {
       privacyStatus: i.privacy,
       selfDeclaredMadeForKids: i.madeForKids,

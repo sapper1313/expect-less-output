@@ -18,6 +18,8 @@ export function pipelineSetup(
   opts: {
     env?: Env
     probe?: (p: string) => Promise<ProbeResult>
+    suggest?: (q: string) => Promise<string[]>
+    loudness?: (p: string) => Promise<import('../src/shared/growth').Loudness | null>
     startMs?: number
     patch?: Record<string, unknown>
     live?: Array<[number, string]>
@@ -53,6 +55,8 @@ export function pipelineSetup(
     log: env.log,
     notify: (kind, h, d) => notices.push([kind, h, d]),
     probe: opts.probe,
+    suggest: opts.suggest,
+    loudness: opts.loudness,
     now: () => env.clock.ms,
     onAccepted: (i) => opts.hooks?.onAccepted?.(i),
   })

@@ -95,6 +95,26 @@ export const PipelineSidecar = z
     caption_overrides: z.record(z.string(), z.string()).optional(),
     ai_flags: z.record(z.string(), z.boolean()).optional(),
     tiktok: z.record(z.string(), z.unknown()).optional(),
+    topic: z.string().max(60).optional().meta({
+      description:
+        'A short topic tag such as browser or finance_debt. ELO warns when the same topic is scheduled back to back on a channel.',
+    }),
+    pinned_comment: z.string().max(500).optional().meta({
+      description:
+        'A first comment (a question, a link). ELO posts it on YouTube when the video goes live and reminds the owner to pin it. Instagram, Facebook and TikTok comments are pasted by hand.',
+    }),
+    community_poll: z.string().max(1000).optional().meta({
+      description:
+        'A companion poll for the YouTube Community tab. ELO reminds the owner to post it 30 minutes after the video goes live (YouTube has no way for apps to post it).',
+    }),
+    thumbnail_variants: z.array(z.string()).max(3).optional().meta({
+      description:
+        'Up to 3 thumbnail images next to the video, best first. Only when "Swap in the next thumbnail" is on: if the click rate is under the owner\'s line after 24 hours, ELO puts on the second one.',
+    }),
+    search_phrases: z.array(z.string()).max(10).optional().meta({
+      description:
+        'Search phrases people type (from autocomplete). Added to the YouTube tags. If missing, ELO asks autocomplete itself.',
+    }),
     thumb_offset_ms: z.number().int().min(0).optional(),
   })
   .meta({ description: 'The .json file that goes next to a finished video in a channel Inbox.' })

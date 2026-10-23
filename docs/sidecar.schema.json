@@ -192,6 +192,37 @@
       },
       "additionalProperties": {}
     },
+    "topic": {
+      "description": "A short topic tag such as browser or finance_debt. ELO warns when the same topic is scheduled back to back on a channel.",
+      "type": "string",
+      "maxLength": 60
+    },
+    "pinned_comment": {
+      "description": "A first comment (a question, a link). ELO posts it on YouTube when the video goes live and reminds the owner to pin it. Instagram, Facebook and TikTok comments are pasted by hand.",
+      "type": "string",
+      "maxLength": 500
+    },
+    "community_poll": {
+      "description": "A companion poll for the YouTube Community tab. ELO reminds the owner to post it 30 minutes after the video goes live (YouTube has no way for apps to post it).",
+      "type": "string",
+      "maxLength": 1000
+    },
+    "thumbnail_variants": {
+      "description": "Up to 3 thumbnail images next to the video, best first. Only when \"Swap in the next thumbnail\" is on: if the click rate is under the owner's line after 24 hours, ELO puts on the second one.",
+      "maxItems": 3,
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "search_phrases": {
+      "description": "Search phrases people type (from autocomplete). Added to the YouTube tags. If missing, ELO asks autocomplete itself.",
+      "maxItems": 10,
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "thumb_offset_ms": {
       "type": "integer",
       "minimum": 0,

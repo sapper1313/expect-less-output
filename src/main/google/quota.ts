@@ -13,6 +13,7 @@ export const COST = {
   thumbnailsSet: { bucket: 'other', units: 50 },
   commentThreadsList: { bucket: 'other', units: 1 },
   commentInsert: { bucket: 'other', units: 50 },
+  commentThreadInsert: { bucket: 'other', units: 50 },
   commentModerate: { bucket: 'other', units: 50 },
   playlistItemInsert: { bucket: 'other', units: 50 },
   channelsList: { bucket: 'other', units: 1 },

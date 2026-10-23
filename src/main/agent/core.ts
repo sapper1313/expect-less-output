@@ -102,6 +102,10 @@ export interface AgentServices {
   youtubeEdit?: (accountId: number, videoId: string, patch: { title?: string }) => Promise<void>
   /** The Upcoming list. */
   upcoming?: import('../pipeline/upcoming').UpcomingService
+  /** The growth jobs (lessons, brief, retract). */
+  growth?: import('../growth/service').GrowthService
+  /** Search phrases from autocomplete for a topic. */
+  suggest?: (query: string) => Promise<string[]>
   /** Per bot tokens. Without it only the owner's token works. */
   bots?: import('./bots').BotStore
   /** Puts a drop into a channel Inbox and returns the decision. */

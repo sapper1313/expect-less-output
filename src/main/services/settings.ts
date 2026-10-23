@@ -60,6 +60,23 @@ export const DEFAULT_SETTINGS: Settings = {
   gapWarnEnabled: true,
   gapWarnTime: '18:00',
   gapWarnLastDay: '',
+  staggerEnabled: true,
+  staggerGapMin: 2,
+  staggerGapMax: 7,
+  captionMorphEnabled: true,
+  seoTagsEnabled: true,
+  topicGuardEnabled: true,
+  loudnessCheckEnabled: true,
+  velocityRadarEnabled: true,
+  learningsEnabled: true,
+  fanQuestionsEnabled: true,
+  pinnedCommentEnabled: true,
+  pollReminderEnabled: true,
+  thumbRescueEnabled: false,
+  thumbRescueCtr: 4.5,
+  briefEnabled: true,
+  briefTime: '08:00',
+  briefLastWeek: '',
 }
 
 export class SettingsService {

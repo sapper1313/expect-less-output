@@ -19,6 +19,12 @@ import {
   DropOut,
   DropParams,
   ListDropsQuery,
+  LearningsOut,
+  SeoQuery,
+  SeoOut,
+  BriefOut,
+  RetractParams,
+  RetractOut,
   ReconcileOut,
   ReplaceMediaBody,
   ReplaceMediaOut,
@@ -97,6 +103,55 @@ export const ROUTES: RouteDef[] = [
     response: NextOpenOut,
     success: 200,
     tool: 'get_next_open_slots',
+  },
+  {
+    id: 'getLearnings',
+    method: 'GET',
+    path: '/v1/learnings',
+    summary:
+      'What viewers watched: lessons from the audience curve of past videos. Read it before writing a script.',
+    description:
+      'ELO reads the YouTube audience retention curve 48 hours after each video goes live, finds the steepest drop and writes one lesson. The same text is kept in Shared/learnings.md in the Media Root.',
+    response: LearningsOut,
+    success: 200,
+    tool: 'get_learnings',
+  },
+  {
+    id: 'seoSuggestions',
+    method: 'GET',
+    path: '/v1/seo/suggestions',
+    summary:
+      'Search phrases people type for a topic (autocomplete), to weave into the script and the tags.',
+    description:
+      'ELO asks YouTube search autocomplete for the topic words you give. The topic text leaves the Mac for this one lookup. Phrases you use can go in the sidecar as search_phrases.',
+    query: SeoQuery,
+    response: SeoOut,
+    success: 200,
+    tool: 'seo_suggestions',
+  },
+  {
+    id: 'getBrief',
+    method: 'GET',
+    path: '/v1/brief',
+    summary:
+      'The studio brief for the last 7 days: reach, champion, pipeline counts and empty slots.',
+    response: BriefOut,
+    success: 200,
+    tool: 'get_brief',
+  },
+  {
+    id: 'retractEpisode',
+    method: 'POST',
+    path: '/v1/episodes/{episode_id}/retract',
+    summary:
+      'Emergency take down: set the YouTube video to private and list what must be taken down by hand elsewhere.',
+    description:
+      'Only the orchestrator token (beth) and the owner token. YouTube is set to private. Facebook, Instagram and TikTok do not let apps hide or delete a video, so those are returned as manual with their links. Anything not posted yet is stopped. The owner is told on Telegram. Nothing is deleted.',
+    params: RetractParams,
+    response: RetractOut,
+    success: 200,
+    tool: 'retract_episode',
+    bot: true,
   },
   {
     id: 'listDrops',

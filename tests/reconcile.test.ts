@@ -148,3 +148,20 @@ describe('reconcile (tests 9, 23)', () => {
     expect(open.some((i) => i.brandId === 1 && i.kind === 'low_queue')).toBe(true)
   })
 })
+
+describe('topic saturation', () => {
+  it('flags two scheduled posts in a row on one topic, once, and clears when one moves away', async () => {
+    const t = pipelineSetup({
+      probe: async () => ({ width: 1080, height: 1920, durationSeconds: 30, hasAudio: true }),
+    })
+    const topics = ['browser', 'browser', 'finance']
+    topics.forEach((topic, i) => t.drop('Trash Panda', 'trash-panda', 500 + i, { platforms: ['youtube'], topic }))
+    await t.settle()
+    const { r: rec } = make(t)
+    const found = (await rec.run()).filter((i) => i.kind === 'topic_saturation')
+    expect(found).toHaveLength(1)
+    expect(found[0]!.detail).toContain('2 posts in a row about "browser"')
+    t.env.settings.set({ topicGuardEnabled: false })
+    expect((await rec.run()).filter((i) => i.kind === 'topic_saturation')).toHaveLength(0)
+  })
+})

@@ -1,4 +1,5 @@
 import { PipelineSettings } from './PipelineSettings'
+import { GrowthSettings } from './GrowthSettings'
 import { useState } from 'react'
 import { PLATFORMS, PLATFORM_LABELS } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
@@ -197,6 +198,7 @@ export function About() {
 const TABS = [
   ['general', 'General'],
   ['pipeline', 'Pipeline'],
+  ['growth', 'Growth'],
   ['studio', 'Studio'],
   ['ai', 'AI models and Local AI'],
   ['alerts', 'Alerts and backup'],
@@ -364,6 +366,7 @@ export function SettingsScreen({ initialTab = 'general' }: { initialTab?: Settin
           </>
         )}
         {tab === 'pipeline' && <PipelineSettings s={s} save={save} />}
+        {tab === 'growth' && <GrowthSettings s={s} save={save} />}
         {tab === 'studio' && <StudioSettings />}
         {tab === 'ai' && (
           <>

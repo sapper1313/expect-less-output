@@ -99,6 +99,39 @@ export interface Settings {
   gapWarnTime: string
   /** The day (YYYY-MM-DD, Eastern) the warning was last sent, so it goes out once a day. */
   gapWarnLastDay: string
+  // Growth
+  /** Post to each platform a few minutes after the one before it, so the posts do not land in the same second. */
+  staggerEnabled: boolean
+  /** The smallest and largest wait, in minutes, between one platform and the next. */
+  staggerGapMin: number
+  staggerGapMax: number
+  /** Give Facebook, Instagram and TikTok their own version of the description when a drop has none. */
+  captionMorphEnabled: boolean
+  /** Add search phrases from autocomplete to the YouTube tags. */
+  seoTagsEnabled: boolean
+  /** Warn when the same topic is scheduled back to back. */
+  topicGuardEnabled: boolean
+  /** Measure the loudness of every dropped video and warn when it is far from -14 LUFS. */
+  loudnessCheckEnabled: boolean
+  /** Check the live numbers of a new post at hours 1, 2 and 4 and warn about a slow start. */
+  velocityRadarEnabled: boolean
+  /** Turn the YouTube retention curve into notes in learnings.md after 48 hours. */
+  learningsEnabled: boolean
+  /** Turn viewer questions on YouTube videos into idea cards. */
+  fanQuestionsEnabled: boolean
+  /** Post the pinned_comment from a drop on YouTube when the video goes live, and remind the owner to pin it. */
+  pinnedCommentEnabled: boolean
+  /** Remind the owner to post the companion poll thirty minutes after a video goes live. */
+  pollReminderEnabled: boolean
+  /** Swap in the next thumbnail when the click rate is low after 24 hours. */
+  thumbRescueEnabled: boolean
+  thumbRescueCtr: number
+  /** The Monday brief. */
+  briefEnabled: boolean
+  /** HH:MM Eastern. */
+  briefTime: string
+  /** The Monday (YYYY-MM-DD, Eastern) the brief was last sent. */
+  briefLastWeek: string
 }
 
 export interface Brand {
@@ -634,4 +667,34 @@ export interface RecommendedSlots {
   enough: boolean
   weekday: SlotSuggestion[]
   weekend: SlotSuggestion[]
+}
+
+export interface GrowthRetract {
+  postIds: number[]
+  results: Array<{
+    platform: string
+    outcome: 'hidden' | 'manual' | 'skipped' | 'failed'
+    detail: string
+    url: string | null
+  }>
+}
+
+export interface StorageReport {
+  rows: Array<{
+    channel: string
+    queue: number
+    posted: number
+    replaced: number
+    archive: number
+    other: number
+  }>
+  totalBytes: number
+  freeBytes: number | null
+}
+
+export interface ArchiveResult {
+  compressed: number
+  savedBytes: number
+  removedOriginals: number
+  skipped: string[]
 }

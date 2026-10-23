@@ -9,6 +9,7 @@ import { readSetting } from './settings'
 import { durationProblem } from '@shared/platformLimits'
 import { tiktokSettingsProblem } from '@shared/tiktok'
 import { DateTime } from 'luxon'
+import { staggerOffsets } from '@shared/growth'
 import { ZONE } from '@shared/time'
 import type {
   Post,
@@ -589,9 +590,17 @@ export class PostService {
 
   private insertTargets(postId: number, brandId: number, targets: PostTargetInput[]): void {
     const ins = this.db.prepare(
-      `INSERT INTO post_targets (post_id, platform, account_id, caption_override, ai_flag, settings_json)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO post_targets (post_id, platform, account_id, caption_override, ai_flag, settings_json, stagger_offset_min)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
+    const stagger = readSetting(this.db, 'staggerEnabled')
+      ? staggerOffsets(
+          targets.map((t) => t.platform),
+          postId,
+          readSetting(this.db, 'staggerGapMin'),
+          readSetting(this.db, 'staggerGapMax'),
+        )
+      : {}
     const seen = new Set<Platform>()
     for (const t of targets) {
       if (seen.has(t.platform)) continue
@@ -603,6 +612,7 @@ export class PostService {
         t.captionOverride?.trim() ? t.captionOverride : null,
         t.aiFlag ? 1 : 0,
         JSON.stringify(cleanSettings(t.settings)),
+        stagger[t.platform] ?? 0,
       )
     }
   }

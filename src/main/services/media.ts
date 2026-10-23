@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, statSync } from 'fs'
 import { basename, dirname, join } from 'path'
 import { promisify } from 'util'
 import ffmpegStatic from 'ffmpeg-static'
+import { parseLoudnorm, type Loudness } from '@shared/growth'
 import ffprobeStatic from 'ffprobe-static'
 import { validateVideo, type VideoMeta } from '@shared/platformLimits'
 import type { MediaInspection } from '@shared/types'
@@ -80,6 +81,76 @@ export class MediaService {
     } catch {
       return null
     }
+  }
+
+  /** Measures the loudness with ffmpeg's loudnorm filter (a read only pass). Null when ffmpeg cannot read the sound. */
+  async loudness(path: string): Promise<Loudness | null> {
+    try {
+      const { stderr } = await run(
+        this.ffmpeg,
+        [
+          '-hide_banner',
+          '-nostats',
+          '-i',
+          path,
+          '-af',
+          'loudnorm=I=-14:TP=-1:LRA=11:print_format=json',
+          '-f',
+          'null',
+          '-',
+        ],
+        { maxBuffer: 10 * 1024 * 1024, timeout: 120_000 },
+      )
+      return parseLoudnorm(String(stderr))
+    } catch {
+      return null
+    }
+  }
+
+  /** Writes a copy with the sound set to -14 LUFS. The picture is copied as it is. */
+  async normalizeAudio(inPath: string, outPath: string): Promise<void> {
+    await run(
+      this.ffmpeg,
+      [
+        '-y',
+        '-i',
+        inPath,
+        '-c:v',
+        'copy',
+        '-af',
+        'loudnorm=I=-14:TP=-1:LRA=11',
+        '-c:a',
+        'aac',
+        '-b:a',
+        '192k',
+        outPath,
+      ],
+      { maxBuffer: 10 * 1024 * 1024, timeout: 300_000 },
+    )
+  }
+
+  /** Writes a smaller H.265 copy. The sound is copied as it is. */
+  async archiveH265(inPath: string, outPath: string): Promise<void> {
+    await run(
+      this.ffmpeg,
+      [
+        '-y',
+        '-i',
+        inPath,
+        '-c:v',
+        'libx265',
+        '-crf',
+        '28',
+        '-preset',
+        'medium',
+        '-tag:v',
+        'hvc1',
+        '-c:a',
+        'copy',
+        outPath,
+      ],
+      { maxBuffer: 10 * 1024 * 1024, timeout: 3_600_000 },
+    )
   }
 
   async inspect(path: string): Promise<MediaInspection> {

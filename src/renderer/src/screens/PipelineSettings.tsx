@@ -7,7 +7,7 @@ import { Button, Card, Check, Confirm, Field, Input, TimeSelect, useBusy } from 
 
 type Save = (patch: Partial<Settings>) => Promise<void>
 
-function Switch({
+export function Switch({
   checked,
   onChange,
   label,
@@ -29,7 +29,7 @@ function Switch({
 }
 
 /** A number box that saves when you click away, so typing is never interrupted. */
-function NumberSetting({
+export function NumberSetting({
   label,
   hint,
   value,

@@ -461,6 +461,8 @@ export class UpcomingService {
       script_path?: string | null
       post_type?: 'episode' | 'clip'
       source_episode_id?: string
+      /** Extra fields kept on the entry, for example community_request. */
+      extra?: Record<string, unknown>
     },
   ): Promise<UpcomingEntryT> {
     return this.serial(() => {
@@ -497,6 +499,7 @@ export class UpcomingService {
           ...(input.post_type === 'clip' ? { post_type: 'clip' } : {}),
           ...(input.source_episode_id ? { source_episode_id: input.source_episode_id } : {}),
           drop_id: null,
+          ...(input.extra ?? {}),
         })
         const v = mayChange(actor, null, entry as Record<string, any>)
         if (!v.ok) this.deny(actor, v.reason ?? 'Not allowed.', `${input.channel}/${id}`)

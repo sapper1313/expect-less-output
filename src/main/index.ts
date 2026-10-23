@@ -27,7 +27,8 @@ import { BotStore } from './agent/bots'
 import { InboxService } from './pipeline/inboxService'
 import { Reconciler } from './pipeline/reconcile'
 import { FreshStart } from './pipeline/freshStart'
-import { GapWarner } from './pipeline/gaps'
+import { GapWarner, openSlotsFor } from './pipeline/gaps'
+import { channelState } from './pipeline/state'
 import { UpcomingService } from './pipeline/upcoming'
 import { addEpisodeLink } from './pipeline/clipLink'
 import { verifyPipelinePost } from './pipeline/verify'
@@ -85,6 +86,9 @@ import { YoutubeService } from './google/youtubeService'
 import { makeLocalShow, makeNotifier } from './notifier'
 import { confirmQuit, createTray, resourcesDir } from './tray'
 import { PLATFORMS } from '@shared/platformLimits'
+import { GrowthService } from './growth/service'
+import { fetchSuggestions } from './growth/seo'
+import { StorageService } from './growth/storage'
 import type { PlatformAdapter } from './adapters/types'
 import { COPY } from '@shared/copy'
 import type { Account, AppEvent, Platform, Settings } from '@shared/types'
@@ -498,6 +502,8 @@ async function boot(): Promise<void> {
     log,
     notify: pipelineNotify,
     probe: (p) => probeVideo(p),
+    suggest: (q) => fetchSuggestions(q),
+    loudness: (p) => media.loudness(p),
     onChange: emit,
     onAccepted: (i) => void upcoming.markDropped(i.channel, i.episodeId, i.dropId).catch(() => {}),
   })
@@ -669,6 +675,97 @@ async function boot(): Promise<void> {
     },
   })
 
+  const growth = new GrowthService({
+    db,
+    settings,
+    log,
+    notify: (headline, detail) => {
+      makeLocalShow(send)(headline, detail, 'info')
+      void telegramRef?.notify(`${headline}\n${detail}`).catch(() => undefined)
+    },
+    send: async (text) => {
+      await alerts.broadcast(text)
+      await telegramRef?.notify(text).catch(() => undefined)
+    },
+    youtube: {
+      postComment: (a, v, t) => ytClient.postComment(a, v, t),
+      listComments: (a, v) => ytClient.listComments(a, v),
+      setPrivacy: (a, v, p) => ytClient.setPrivacy(a, v, p),
+      videoStatus: (a, v) => ytClient.videoStatus(a, v),
+    },
+    refreshStats: (postId) => stats.refresh({ postId, force: true }),
+    readRetention: (a, v, f, t) =>
+      new YoutubeRetentionReader((id) => tokens.getAccessToken(id)).read(a, v, f, t),
+    readCtr: async (a, v, from, to) => {
+      const m = await new YoutubeAnalyticsReader((id) => tokens.getAccessToken(id)).read(
+        a,
+        v,
+        from,
+        to,
+      )
+      return m.impressions > 0 ? m.ctr : null
+    },
+    setThumbnail: (a, v, f) => ytClient.setThumbnail(a, v, f),
+    resolve: (rel) => library.resolve(rel),
+    addIdea: async (i) => {
+      const e = await upcoming.add(
+        { name: 'elo-community', role: 'orchestrator' },
+        {
+          channel: i.channel,
+          working_title: i.title,
+          premise: i.premise,
+          notes: 'community_request',
+          extra: i.extra,
+        },
+      )
+      return e.episode_id
+    },
+    upcomingCounts: () => {
+      const out: Record<string, number> = {}
+      for (const r of upcoming.view().rows) out[r.status] = (out[r.status] ?? 0) + 1
+      return out
+    },
+    bestTimeLines: () => {
+      const lines: string[] = []
+      for (const b of brands.list(false)) {
+        if (channelState(db, b.id) !== 'active') continue
+        const rec = stats.recommendedSlots(b.id)
+        if (!rec.enough) continue
+        const mine = brands.getSlots(b.id)
+        for (const type of ['weekday', 'weekend'] as const) {
+          const top = rec[type][0]
+          if (!top || top.lift < 1.15) continue
+          if (mine.some((m) => m.dayType === type && m.enabled && m.timeLocal === top.timeLocal))
+            continue
+          lines.push(
+            `${b.name}: ${type} posts at ${top.timeLocal} get about ${top.lift.toFixed(1)} times the usual views. You can add that slot in Channels.`,
+          )
+        }
+      }
+      return lines
+    },
+    emptySlotCount: (days) => {
+      const from = new Date()
+      return openSlotsFor(
+        { db, brands, posts },
+        from.toISOString(),
+        new Date(from.getTime() + days * 86_400_000).toISOString(),
+        null,
+      ).filter((x) => x.channelState === 'active').length
+    },
+    sharedDir: () => join(settings.get().mediaRoot, 'Shared'),
+    live: () => !settings.get().globalDryRun,
+  })
+  const storage = new StorageService({
+    db,
+    library,
+    compress: (a, b) => media.archiveH265(a, b),
+    duration: async (p) => (await media.probe(p)).durationSeconds,
+    brandNames: () => brands.list(true).map((b) => b.name),
+  })
+  setInterval(() => void growth.tick().catch(() => {}), 5 * 60_000)
+  setTimeout(() => void growth.tick().catch(() => {}), 90_000)
+
   // Agents: the local API, the watched Inbox folders and the MCP server file.
   const bots = new BotStore(db)
   const agent = new AgentRuntime(
@@ -683,6 +780,8 @@ async function boot(): Promise<void> {
       drops: dropLog,
       library,
       intake: pipeline,
+      growth,
+      suggest: (q) => fetchSuggestions(q),
       notifyOwner: (headline, detail) => {
         makeLocalShow(send)(headline, detail, 'info')
         void telegramRef?.notify(`${headline}\n${detail}`).catch(() => undefined)
@@ -919,6 +1018,8 @@ async function boot(): Promise<void> {
   telegramRef = telegram
 
   const api = buildApi({
+    growth,
+    storage,
     audit: auditEvents,
     drops: dropLog,
     pipeline,

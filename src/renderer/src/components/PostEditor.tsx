@@ -373,6 +373,35 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
                   </div>
                 )
               })}
+              {!locked && draft.targets.some((t) => t.status === 'pending') && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button
+                    disabled={busy}
+                    onClick={async () => {
+                      const changed = await run(() => api.growth.morphCaptions(draft.id))
+                      if (changed)
+                        toast({
+                          kind: 'success',
+                          headline: changed.length
+                            ? 'Each platform now has its own version.'
+                            : 'Nothing to change.',
+                          detail: changed.join(', '),
+                        })
+                    }}
+                  >
+                    Reformat for each platform
+                  </Button>
+                  <Button
+                    disabled={busy}
+                    onClick={async () => {
+                      const msg = await run(() => api.growth.normalizeAudio(draft.id))
+                      if (msg) toast({ kind: 'success', headline: COPY.success, detail: msg })
+                    }}
+                  >
+                    Set sound to -14 LUFS
+                  </Button>
+                </div>
+              )}
             </div>
           )}
           <Field label="Platforms">

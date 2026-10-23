@@ -5,6 +5,7 @@ import type { Library } from '../services/library'
 import type { PostService } from '../services/posts'
 import type { SettingsService } from '../services/settings'
 import { ZONE } from '@shared/time'
+import { topicRuns } from '@shared/growth'
 import { channelState } from './state'
 import { realPlatforms, sha256File } from './verify'
 
@@ -21,6 +22,7 @@ export type IssueKind =
   | 'missed_slot'
   | 'channel_state'
   | 'upcoming'
+  | 'topic_saturation'
 
 export interface FoundIssue {
   key: string
@@ -102,6 +104,7 @@ export class Reconciler {
       found.push(...this.uploads())
       found.push(...this.lowQueue())
       found.push(...this.missed())
+      if (this.d.settings.get().topicGuardEnabled) found.push(...this.topics())
       found.push(...this.stateConflicts())
       for (const x of this.d.extra ?? []) found.push(...x())
       const fixed = this.d.settings.get().reconcileAutoFix ? this.autoFix(found) : new Set<string>()
@@ -474,6 +477,48 @@ export class Reconciler {
           postId: null,
           detail: `${b.name} has ${ahead} day(s) of posts scheduled ahead. The alert level is ${days}.`,
         })
+    }
+    return out
+  }
+
+  /**
+   * The same topic twice or more in a row among a channel's last posts and the ones coming up. Episodes only, and only
+   * posts that carry a topic tag. A run that is already history (all posted) is not reported.
+   */
+  private topics(): FoundIssue[] {
+    const out: FoundIssue[] = []
+    const rows = this.d.db
+      .prepare(
+        `SELECT id, brand_id, title, topic, status, scheduled_at_utc FROM posts
+         WHERE topic IS NOT NULL AND post_type = 'episode' AND status IN ('scheduled','in_progress','partial','posted')
+           AND scheduled_at_utc IS NOT NULL
+         ORDER BY brand_id, scheduled_at_utc, id`,
+      )
+      .all() as Array<{
+      id: number
+      brand_id: number
+      title: string
+      topic: string
+      status: string
+      scheduled_at_utc: string
+    }>
+    const byBrand = new Map<number, typeof rows>()
+    for (const r of rows) byBrand.set(r.brand_id, [...(byBrand.get(r.brand_id) ?? []), r])
+    for (const [brandId, list] of byBrand) {
+      for (const run of topicRuns(
+        list.map((r) => r.topic),
+        5,
+      )) {
+        const members = list.slice(run.index, run.index + run.count)
+        if (!members.some((m) => m.status === 'scheduled')) continue
+        out.push({
+          key: `topic_saturation:${brandId}:${members[0]!.id}`,
+          kind: 'topic_saturation',
+          brandId,
+          postId: members[members.length - 1]!.id,
+          detail: `${this.brandName(brandId)} has ${run.count} posts in a row about "${run.topic.replace(/_/g, ' ')}": ${members.map((m) => `"${m.title}" (${this.et(m.scheduled_at_utc)})`).join(', ')}. Viewers tire of one topic. Consider moving one to a later slot and putting a different topic in between.`,
+        })
+      }
     }
     return out
   }

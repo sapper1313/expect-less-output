@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.13.0 Growth tools
+
+- **Staggered posting** (Settings, Growth): YouTube on the slot, the other platforms a few minutes apart. Stored per platform, so a retry keeps its place.
+- **Platform captions:** Facebook, Instagram and TikTok get their own version of a drop's description (a bot's own version is kept). A **Reformat for each platform** button in the post editor does it for any post.
+- **Search tags:** YouTube autocomplete phrases are added to the YouTube tags (the bot can send `search_phrases`, or ELO asks for them). `GET /v1/seo/suggestions`.
+- **New optional sidecar fields:** `topic`, `pinned_comment`, `community_poll`, `thumbnail_variants`, `search_phrases`.
+- **After a video is live:** early checks at hours 1, 2 and 4 (slow start, rejected or non public on YouTube); the first comment posted on YouTube; a poll reminder after 30 minutes; a lesson from the audience curve after 48 hours, kept in Shared/learnings.md and `GET /v1/learnings`; viewer questions become Upcoming ideas (`community_request`); optional thumbnail rescue after 24 hours.
+- **Topic rotation:** Issues warns about the same topic back to back.
+- **Loudness:** every drop is measured (-14 LUFS target) and the drop log says when it is off. **Set sound to -14 LUFS** in the post editor.
+- **Monday brief** (Settings, Growth; `GET /v1/brief`; files in Shared/Briefs).
+- **Emergency take down:** `POST /v1/episodes/{episode_id}/retract` (owner and orchestrator tokens) and a button in Settings, Growth. YouTube goes private; the other platforms are listed for removal by hand.
+- **Disk space** report and an opt-in H.265 shrink of old posted videos.
+- `gemini` is a default allowed drop bot. The TikTok draft notice shows the episode id. Four new tools in the MCP list (37).
+- Not possible through the platforms' APIs, so not built: pinning a comment, YouTube end screens, Community tab posts, hiding a Facebook, Instagram or TikTok video, Instagram mute detection, Google Drive backup.
+
 ## 0.12.0 Beth fixes posts, Calendar fills and warns, Issues can be cleared
 
 - **Beth, every channel.** A bot's channel list can be "*" (all channels, now and later). The existing beth token is set to all channels. The Bots card has **Edit channels** and an **All channels** choice, and its channel list now comes from your real channels.

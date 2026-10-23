@@ -8,7 +8,12 @@ import { SLUG_ALIASES, canonicalSlug, channelAllowed, type DropRow } from '@shar
 import { channelState } from '../pipeline/state'
 import type { Caller } from './bots'
 import { agentSetThumbnail } from './thumbnail'
-import { operatorCancel, operatorReplaceMedia, operatorUpdate } from './bethActions'
+import {
+  operatorCancel,
+  operatorReplaceMedia,
+  operatorRetract,
+  operatorUpdate,
+} from './bethActions'
 import { UpcomingError } from '../pipeline/upcoming'
 import type { Actor } from '@shared/upcoming'
 import {
@@ -254,6 +259,26 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
       slots: slots.map((at) => ({ at, eastern: formatEastern(at) })),
     }
   },
+
+  getLearnings: ({ s }) => {
+    if (!s.growth)
+      throw new AgentError(400, 'bad_request', 'Lessons are not available in this build.')
+    return { markdown: s.growth.learningsMarkdown(), lessons: s.growth.lessons() }
+  },
+
+  seoSuggestions: async ({ s, query }) => {
+    if (!s.suggest)
+      throw new AgentError(400, 'bad_request', 'Search phrases are not available in this build.')
+    return { query: query.q, phrases: await s.suggest(query.q).catch(() => []) }
+  },
+
+  getBrief: ({ s }) => {
+    if (!s.growth)
+      throw new AgentError(400, 'bad_request', 'The brief is not available in this build.')
+    return { markdown: s.growth.briefText() }
+  },
+
+  retractEpisode: ({ s, params, caller }) => operatorRetract(s, params.episode_id, caller),
 
   listDrops: ({ s, query, caller }) => {
     const drops = needDrops(s).list({

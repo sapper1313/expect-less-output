@@ -260,6 +260,28 @@ The beth bot token (every channel) can set a custom thumbnail and a title on a p
 - While **Agents may create drafts only** is on in Settings, only a draft can be changed. For a scheduled or posted post the call is refused (403 `drafts_only`).
 - The answer lists what was done in `applied`: `saved_for_upload`, `set_on_youtube`, `title_updated_on_youtube` or `skipped`.
 
+## Growth fields in the sidecar (all optional)
+
+These fields only add features. None of them can set or promise a posting time, and the schedule is still whatever the owner set in ELO.
+
+| Field | What it does |
+| --- | --- |
+| `topic` | A short tag such as `browser` or `finance_debt`. ELO warns the owner when two scheduled posts on one channel in a row have the same topic. Vary the topics. |
+| `pinned_comment` | Up to 500 characters: a question for viewers, or a link. ELO posts it on YouTube as the channel when the video goes live and tells the owner to pin it (YouTube does not let apps pin). Paste it by hand on the other apps. |
+| `community_poll` | Up to 1000 characters: a companion poll. ELO reminds the owner 30 minutes after the video goes live (apps cannot post to the YouTube Community tab). |
+| `thumbnail_variants` | Up to 3 JPG or PNG files in the Inbox next to the video, best first. If the owner turned on thumbnail rescue and the click rate is low after 24 hours, ELO puts on the second one. |
+| `search_phrases` | Up to 10 phrases people type into search. Added to the YouTube tags. If you leave it out, ELO asks YouTube autocomplete itself. |
+| `caption_overrides` | Your own text for one platform. ELO otherwise writes the Facebook, Instagram and TikTok versions from `description` and `tags` (no hashtags on Facebook, one sentence per line on Instagram, two short sentences on TikTok). |
+
+Useful reads before you write a script:
+
+- `GET /v1/learnings` tells you where viewers left past videos. ELO reads the YouTube audience curve 48 hours after a video goes live, finds the steepest drop and writes a lesson, for example "talking while static lost 18 points near 0:14, add a cut or a new visual there". The same text is in `Shared/learnings.md`. Use it for pacing.
+- `GET /v1/seo/suggestions?q=<topic words>` gives search phrases people type. Weave the strong ones into the spoken script and on-screen text, and send them as `search_phrases`.
+- Ideas in `GET /v1/upcoming` with `community_request: true` came from real viewer questions. Open the episode by answering the viewer's question (use the first name or handle in `question_author`).
+- `GET /v1/brief` is the owner's Monday summary: reach, the best video, how many episodes are at each step, and empty slots.
+- The audio should be about -14 LUFS with no clipping. ELO measures every drop and writes "quiet", "loud" or "may clip" in the drop log notes. ELO does not mix music under speech, so duck the music while someone talks before you hand the video on.
+- Only the orchestrator (B.E.T.H.) and the owner can use `POST /v1/episodes/{episode_id}/retract`, the emergency take down.
+
 ## Your checklist for every episode
 
 1. Add the episode to Upcoming (`POST /v1/upcoming`) as `idea`, or find Josh's idea there. Note the episode id.
