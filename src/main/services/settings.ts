@@ -45,7 +45,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pipelineRequireApproval: true,
   pipelineRequireQc: false,
   pipelineDuplicateDetection: true,
-  pipelineSourceBots: ['grok-bot', 'kids-comedy', 'beth'],
+  pipelineSourceBots: ['grok-bot', 'kids-comedy', 'beth', 'gemini'],
   pipelineNotifyKinds: ['accepted', 'rejected', 'scheduled', 'posted', 'failed', 'reconcile'],
   retryMinutes: [5, 15, 60],
   blackoutDates: [],

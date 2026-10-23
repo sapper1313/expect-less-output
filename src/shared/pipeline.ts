@@ -8,7 +8,7 @@ export const SIDECAR_VERSION = '1.0'
 export const PIPELINE_PLATFORMS = ['youtube', 'facebook', 'instagram', 'tiktok'] as const
 
 /** Bots the sidecar may name. The allowlist in Settings decides which are accepted. */
-export const DEFAULT_SOURCE_BOTS = ['grok-bot', 'kids-comedy', 'beth']
+export const DEFAULT_SOURCE_BOTS = ['grok-bot', 'kids-comedy', 'beth', 'gemini']
 
 export const TITLE_MAX = 100
 export const TAGS_MAX = 30

@@ -119,7 +119,7 @@ function AuditLog() {
           <option value="">Everyone</option>
           <option value="josh">josh</option>
           <option value="system">system</option>
-          {['grok-bot', 'kids-comedy', 'beth'].map((b) => (
+          {['grok-bot', 'kids-comedy', 'beth', 'gemini'].map((b) => (
             <option key={b} value={`agent:${b}`}>
               agent:{b}
             </option>

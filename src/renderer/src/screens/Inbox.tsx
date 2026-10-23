@@ -208,7 +208,7 @@ export function Inbox() {
               onChange={(e) => setBot(e.target.value)}
             >
               <option value="">All bots</option>
-              {(tab === 'log' ? ['grok-bot', 'kids-comedy', 'beth'] : bots).map((c) => (
+              {(tab === 'log' ? ['grok-bot', 'kids-comedy', 'beth', 'gemini'] : bots).map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
