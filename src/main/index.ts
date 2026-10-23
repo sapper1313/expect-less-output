@@ -1030,6 +1030,7 @@ async function boot(): Promise<void> {
   const api = buildApi({
     growth,
     storage,
+    bluesky,
     audit: auditEvents,
     drops: dropLog,
     pipeline,

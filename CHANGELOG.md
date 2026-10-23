@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.2 Bluesky switch in the post editor
+
+- The post editor (Calendar and Queue) now shows **Bluesky** under Platforms for bot videos: on or off for that post (saved right away), when it will post, the link once posted, or why it is unavailable (no login, or over 3 minutes or 100 MB). Off stops a queued Bluesky post; on queues it again.
+
 ## 0.13.1 Bluesky for bot videos
 
 - Accepted drops now go to Bluesky when the channel has a Bluesky login saved. No login means ignored. The Bluesky post follows the schedule (moves, stops, comes back with the ELO post), posts a few minutes after the last platform, and uses the existing retries and failure alert.

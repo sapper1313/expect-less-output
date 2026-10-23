@@ -120,6 +120,39 @@ describe('Bluesky for pipeline drops', () => {
   })
 })
 
+describe('Bluesky switch for one post', () => {
+  it('shows the state, turns off and on, and says when there is no login', async () => {
+    const r = rig()
+    r.t.drop('Trash Panda', 'trash-panda', 606, { platforms: ['youtube'] })
+    await r.t.settle()
+    const id = r.t.env.posts.list()[0]!.id
+    expect(r.sync.status(id)).toMatchObject({
+      applies: true,
+      available: true,
+      enabled: true,
+      state: 'none',
+    })
+    r.sync.sync()
+    expect(r.sync.status(id).state).toBe('scheduled')
+    expect(r.sync.setEnabled(id, false)).toMatchObject({ enabled: false, state: 'skipped' })
+    r.sync.sync()
+    expect(r.rows()[0]!.status).toBe('skipped')
+    expect(r.sync.setEnabled(id, true)).toMatchObject({ enabled: true, state: 'scheduled' })
+    const none = rig([])
+    none.t.drop('Trash Panda', 'trash-panda', 607, { platforms: ['youtube'] })
+    await none.t.settle()
+    const nid = none.t.env.posts.list()[0]!.id
+    expect(none.sync.status(nid)).toMatchObject({ applies: true, available: false })
+    expect(none.sync.status(nid).reason).toContain('no Bluesky login')
+  })
+
+  it('does not apply to a post made by hand', async () => {
+    const r = rig()
+    const post = await r.t.env.makePost({ whenMs: r.t.env.clock.ms + 3_600_000 })
+    expect(r.sync.status(post.id).applies).toBe(false)
+  })
+})
+
 describe('bluesky caption', () => {
   it('fits 300 characters with up to 3 hashtags', () => {
     const long = Array.from({ length: 20 }, (_, i) => `Sentence number ${i} is here.`).join(' ')

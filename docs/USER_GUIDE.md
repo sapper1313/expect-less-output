@@ -717,3 +717,5 @@ What ELO cannot do, because the apps do not allow it: pin comments, set YouTube 
 ## 26. Bluesky for bot videos (0.13.1)
 
 Every channel with a Bluesky handle and app password saved (Settings, Studio, Bluesky accounts) now posts its bot videos to Bluesky too, a few minutes after the other platforms. A channel with no login is ignored. Nothing to switch on. It follows the schedule: if you move or remove a post, the Bluesky post moves or stops with it. Videos over 3 minutes or 100 MB are not sent (Bluesky's limit), so Wonder Hollow's long episodes stay off Bluesky. Failures retry 3 times and alert you like the other platforms.
+
+In the post editor (click a post in the Calendar or Queue), **Bluesky** is listed under Platforms for bot videos. Untick it to keep that one video off Bluesky. It saves right away.

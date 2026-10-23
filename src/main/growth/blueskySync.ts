@@ -17,6 +17,18 @@ export interface BlueskySyncDeps {
   now?: () => number
 }
 
+export interface BlueskyStatus {
+  /** False for posts that do not use Bluesky at all (made by hand, not dropped by a bot). */
+  applies: boolean
+  available: boolean
+  reason: string
+  enabled: boolean
+  state: 'none' | 'scheduled' | 'posting' | 'posted' | 'failed' | 'skipped'
+  whenUtc: string | null
+  url: string | null
+  error: string | null
+}
+
 interface PostRow {
   id: number
   brand_id: number
@@ -48,7 +60,7 @@ export class BlueskySync {
     const live = this.d.db
       .prepare(
         `SELECT id, brand_id, title, caption, episode_ref, scheduled_at_utc, video_path, video_meta_json FROM posts
-         WHERE origin = 'inbox' AND hold_reason IS NULL AND scheduled_at_utc IS NOT NULL
+         WHERE origin = 'inbox' AND bluesky_off = 0 AND hold_reason IS NULL AND scheduled_at_utc IS NOT NULL
            AND status IN ('scheduled','in_progress','partial','posted') AND scheduled_at_utc >= ?`,
       )
       .all(new Date(this.now() - 6 * 3_600_000).toISOString()) as PostRow[]
@@ -130,6 +142,69 @@ export class BlueskySync {
       changed++
     }
     return changed
+  }
+
+  /** What the editor shows for one post. */
+  status(postId: number): BlueskyStatus {
+    const p = this.d.db
+      .prepare('SELECT brand_id, origin, bluesky_off, video_meta_json FROM posts WHERE id = ?')
+      .get(postId) as
+      | { brand_id: number; origin: string; bluesky_off: number; video_meta_json: string | null }
+      | undefined
+    if (!p || p.origin !== 'inbox')
+      return {
+        applies: false,
+        available: false,
+        reason: '',
+        enabled: false,
+        state: 'none',
+        whenUtc: null,
+        url: null,
+        error: null,
+      }
+    const login = this.d.notReady(p.brand_id)
+    const meta = ((): { durationSeconds?: number; sizeBytes?: number } => {
+      try {
+        return JSON.parse(p.video_meta_json ?? '{}')
+      } catch {
+        return {}
+      }
+    })()
+    const tooBig =
+      (meta.durationSeconds ?? 0) > BLUESKY_MAX_SECONDS || (meta.sizeBytes ?? 0) > BLUESKY_MAX_BYTES
+    const row = this.d.db
+      .prepare(
+        "SELECT status, scheduled_at_utc, external_url, error FROM social_posts WHERE post_id = ? AND platform = 'bluesky'",
+      )
+      .get(postId) as
+      | {
+          status: string
+          scheduled_at_utc: string
+          external_url: string | null
+          error: string | null
+        }
+      | undefined
+    return {
+      applies: true,
+      available: !login && !tooBig,
+      reason: login
+        ? 'This channel has no Bluesky login. Add one in Settings, Studio, Bluesky accounts.'
+        : tooBig
+          ? 'Bluesky only takes videos up to 3 minutes and 100 MB.'
+          : '',
+      enabled: p.bluesky_off === 0,
+      state: (row?.status as BlueskyStatus['state']) ?? 'none',
+      whenUtc: row?.scheduled_at_utc ?? null,
+      url: row?.external_url ?? null,
+      error: row?.error ?? null,
+    }
+  }
+
+  /** Switch Bluesky on or off for one post. Off stops a queued post. A post already on Bluesky is not touched. */
+  setEnabled(postId: number, on: boolean): BlueskyStatus {
+    this.d.db.prepare('UPDATE posts SET bluesky_off = ? WHERE id = ?').run(on ? 0 : 1, postId)
+    this.sync()
+    return this.status(postId)
   }
 
   /** Makes sure the queue matches the schedule, then sends what is due. */

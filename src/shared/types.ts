@@ -698,3 +698,14 @@ export interface ArchiveResult {
   removedOriginals: number
   skipped: string[]
 }
+
+export interface BlueskyStatus {
+  applies: boolean
+  available: boolean
+  reason: string
+  enabled: boolean
+  state: 'none' | 'scheduled' | 'posting' | 'posted' | 'failed' | 'skipped'
+  whenUtc: string | null
+  url: string | null
+  error: string | null
+}

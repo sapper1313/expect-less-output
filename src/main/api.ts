@@ -96,6 +96,7 @@ export interface ApiDeps {
   inbox: InboxService
   growth: import('./growth/service').GrowthService
   storage: import('./growth/storage').StorageService
+  bluesky: import('./growth/blueskySync').BlueskySync
   upcoming: UpcomingService
   bots: BotStore
   /** Throws when a paused channel may not be resumed yet. */
@@ -464,6 +465,12 @@ export function buildApi(d: ApiDeps): Api {
         }),
     },
     growth: {
+      blueskyStatus: async (postId) => d.bluesky.status(postId),
+      setBluesky: async (postId, on) => {
+        const r = d.bluesky.setEnabled(postId, on)
+        d.emit()
+        return r
+      },
       storageReport: async () => d.storage.report(),
       archiveOld: async (days, removeOriginals) => {
         const r = await d.storage.archiveOld(days, removeOriginals)

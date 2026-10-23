@@ -49,7 +49,7 @@ import type { SearchHit } from './search'
 import type { EditPatch } from './platformEdit'
 import type { StudioApi } from './studio/api'
 import type { UpcomingEntryT, UpcomingView } from './upcoming'
-import type { GrowthRetract, StorageReport, ArchiveResult } from './types'
+import type { GrowthRetract, StorageReport, ArchiveResult, BlueskyStatus } from './types'
 import type {
   AuditRow,
   FillResult,
@@ -290,6 +290,10 @@ export interface Api {
     retract(episodeId: string): Promise<GrowthRetract>
     /** Sets the sound of a waiting video to -14 LUFS (the old file is kept in Replaced). */
     normalizeAudio(postId: number): Promise<string>
+    /** Bluesky for one post: whether it applies, is on, and what happened. */
+    blueskyStatus(postId: number): Promise<BlueskyStatus>
+    /** Switch Bluesky on or off for one post. */
+    setBluesky(postId: number, on: boolean): Promise<BlueskyStatus>
     /** Where the disk space goes, per channel. */
     storageReport(): Promise<StorageReport>
     /** Makes smaller H.265 copies of posted videos older than `days`. Removes the big original only when asked. */
