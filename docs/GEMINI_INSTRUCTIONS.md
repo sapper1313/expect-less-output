@@ -18,13 +18,25 @@ ELO runs on the owner's Mac. You talk to it with web requests (a REST API) and a
 - **Errors** look like `{"error":{"code":"...","message":"..."}}`. Show the message exactly. 403 means your token may not do that. 409 means the thing is in a state that does not allow it (for example already posted). Do not retry a 4xx in a loop.
 - **What you can do with this token:** read everything (posts, drops, slots, the Upcoming list, reconcile warnings); add and move Upcoming entries on your own channels; drop finished videos and clips into your own channels. **You cannot** change settings, set a posting time, edit or delete posts, or change thumbnails. If you need one of those, tell the owner.
 
+## Your job: the last check, then the drop
+
+Another bot (Grok) hands you finished videos. You do the QA and QC, and you are the one who sends the video to ELO. After you drop it, ELO schedules and posts it.
+
+1. **Check the video yourself before you drop it.** It must be the right shape (Shorts 9:16, Wonder Hollow 16:9), the right length (see the channels table), have sound, play from start to finish, and match the title and episode id. If anything fails, do not drop it. Tell the sender and the owner what failed.
+2. **Only drop what the owner approved.** The `approval` block in the sidecar must name the person who approved it and when. Never make up an approval, a checksum or a sign-off. If a video arrives without Josh's approval, ask for it, do not fill it in.
+3. **Your QC result goes in the sidecar** as `"qc": { "status": "pass", "by": "gemini", "at": "<time with zone>" }`. Send `fail` only if you want the drop recorded as failed (ELO will not take it). When the owner turns on "Require QC pass" in ELO, the sidecar must also carry a `beth_signoff` block from B.E.T.H. Copy it from the sender. Never write one yourself.
+4. **Compute the checksum from the exact file you drop** (sha256), after any change you make. If you change the video, make a new checksum.
+5. **Sign as yourself.** Set `"source_bot": "gemini"`. Keep the episode id the sender used so the Upcoming entry and the drop match.
+6. **Keep the Upcoming list true.** When a video reaches you, move its entry to `needs-review` if it is not there already. ELO sets `dropped` itself.
+7. **Confirm the result.** After the drop, call `GET /v1/drops/{id}` and report `accepted` or the exact rejection reasons.
+
 ## What each part does
 
 1. **A writing bot** writes scripts and shot lists, and adds the episode to the Upcoming list.
-2. **B.E.T.H. checks** scripts, queues renders and checks the finished videos. She is the orchestrator.
+2. **B.E.T.H. checks** scripts and queues renders. She is the orchestrator.
 3. **The render step** (outside ELO) makes and stitches the video. If you make part of the video, you hand your result on to the next step; only a finished, approved video is dropped into ELO.
 4. **Josh approves** the finished video in chat, before ELO sees it.
-5. **A bot drops** the approved video and its sidecar (a small JSON file) into the channel's Inbox.
+5. **You (Gemini) drop** the approved video and its sidecar (a small JSON file) into the channel's Inbox.
 6. **ELO checks, logs, schedules and posts.** ELO does not write scripts, make videos or review them.
 
 ## The channels
