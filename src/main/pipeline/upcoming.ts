@@ -222,7 +222,30 @@ export class UpcomingService {
     const st = this.state()
     if (disk.kind === 'missing') {
       if (!st.json) return false
-      return this.markInvalid('The file is missing. Showing the last good copy.')
+      // The folder or file was moved or deleted. The last good copy is written back, so bots and ELO keep sharing one file.
+      try {
+        const p = this.filePath()
+        mkdirSync(dirname(p), { recursive: true })
+        writeFileSync(`${p}.tmp`, st.json)
+        renameSync(`${p}.tmp`, p)
+        this.d.audit.write({
+          actor: 'system',
+          action: 'upcoming.recreate',
+          target: 'upcoming.json',
+          after: { revision: st.revision, path: p },
+        })
+        this.saveState({ invalidSince: null, invalidReason: null, invalidAlerted: false })
+        this.d.notify(
+          'upcoming.json was missing',
+          `ELO wrote the last good copy (revision ${st.revision}) back to ${p}.`,
+        )
+        this.d.onChange?.()
+        return false
+      } catch (e) {
+        return this.markInvalid(
+          `The file is missing and could not be put back (${(e as Error).message}). Showing the last good copy.`,
+        )
+      }
     }
     if (disk.kind === 'invalid') return this.markInvalid(disk.reason)
     if (st.invalidSince)

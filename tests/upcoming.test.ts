@@ -1,6 +1,6 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
-import { join } from 'path'
+import { dirname, join } from 'path'
 import { describe, expect, it } from 'vitest'
 import { BotStore } from '../src/main/agent/bots'
 import { handleAgentRequest } from '../src/main/agent/server'
@@ -298,6 +298,24 @@ describe('Upcoming: file editing and conflicts (tests 28, 29, 30)', () => {
     writeFileSync(t.file, JSON.stringify({ ...f, revision: f.revision + 1 }))
     t.up.load()
     expect(t.up.view().invalidReason).toBeNull()
+  })
+})
+
+describe('Upcoming: the file or its folder was deleted', () => {
+  it('writes the last good copy back, keeps every entry, and says so once', async () => {
+    const t = setup()
+    await t.up.add(JOSH, { channel: 'trash-panda', working_title: 'Keep me' })
+    const good = readFileSync(t.file, 'utf8')
+    rmSync(dirname(t.file), { recursive: true, force: true })
+    expect(existsSync(t.file)).toBe(false)
+    t.up.load()
+    expect(existsSync(t.file)).toBe(true)
+    expect(readFileSync(t.file, 'utf8')).toBe(good)
+    expect(t.up.view().invalidReason).toBeNull()
+    expect(t.up.view().rows.map((r) => r.working_title)).toEqual(['Keep me'])
+    expect(t.alerts.filter((a) => /missing/.test(a[0]))).toHaveLength(1)
+    t.up.load()
+    expect(t.alerts.filter((a) => /missing/.test(a[0]))).toHaveLength(1)
   })
 })
 

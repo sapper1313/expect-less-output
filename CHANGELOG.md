@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.2 Upcoming puts its file back
+
+- If `Shared/upcoming.json` (or the whole Shared folder) is deleted or moved, ELO now writes its last good copy back right away instead of only warning, and tells you once. The file lives at `<Media Root>/Shared/upcoming.json` unless Settings, Pipeline, Upcoming file path says otherwise.
+
 ## 0.14.1 Finished posts no longer stay "scheduled"
 
 - A post whose platforms are all done but whose status never moved on (for example a failed Facebook was taken off it by editing) is now marked posted and its file moved to Posted, quietly, on the next 30 second check. This fixed Mia & Chloe's `mia-chloe-2026-0102`, which was stuck as "scheduled" since Oct 21.
