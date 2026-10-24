@@ -323,3 +323,14 @@ describe('Snapchat, Bluesky and who counts as connected', () => {
     )
   })
 })
+
+describe('Bluesky errors in plain words', () => {
+  it('says what to do when the email is not confirmed', async () => {
+    const { httpError } = await import('../src/main/studio/social/errors')
+    const res = new Response('{"jobStatus":{"error":"unconfirmed_email"}}', { status: 401 })
+    const e = await httpError('Bluesky', res)
+    expect(e.kind).toBe('permanent')
+    expect(e.message).toContain('email is confirmed')
+    expect(e.message).not.toContain('Check the connection')
+  })
+})

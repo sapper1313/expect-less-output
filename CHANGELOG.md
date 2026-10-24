@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.3 Bluesky says when the email is not confirmed
+
+- Bluesky only takes videos from an account whose email is confirmed. The failure used to read "refused the login (401)". It now says to confirm the email in the Bluesky app and press Retry.
+
 ## 0.14.2 Upcoming puts its file back
 
 - If `Shared/upcoming.json` (or the whole Shared folder) is deleted or moved, ELO now writes its last good copy back right away instead of only warning, and tells you once. The file lives at `<Media Root>/Shared/upcoming.json` unless Settings, Pipeline, Upcoming file path says otherwise.

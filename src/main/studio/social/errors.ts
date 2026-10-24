@@ -24,6 +24,11 @@ export async function httpError(vendor: string, res: Response): Promise<SocialEr
       'transient',
       ra > 0 ? ra * 1000 : undefined,
     )
+  if (/unconfirmed_email/.test(body))
+    return new SocialError(
+      `${vendor} will not take videos until the account's email is confirmed. In the ${vendor} app open Settings, Account, Email, and confirm it (${vendor} sends a link). Then press Retry on this post. The login itself is fine.`,
+      'permanent',
+    )
   if (res.status === 401 || res.status === 403)
     return new SocialError(
       `${vendor} refused the login or token (HTTP ${res.status}). Check the connection in Settings, under the Studio tab. ${body}`.trim(),
