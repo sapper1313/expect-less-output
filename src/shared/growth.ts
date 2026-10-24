@@ -195,6 +195,31 @@ export function morphCaption(platform: Platform, input: MorphInput): string {
   }
 }
 
+/** Characters as people count them (an emoji is one), which is how Bluesky counts its 300. */
+export function graphemeCount(text: string): number {
+  return [...new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(text)].length
+}
+
+/** Cuts text to a number of characters as people count them, ending in "..." when something was cut. */
+export function cutGraphemes(text: string, max: number): string {
+  const parts = [...new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(text)].map(
+    (x) => x.segment,
+  )
+  if (parts.length <= max) return text
+  return (
+    parts
+      .slice(0, Math.max(0, max - 3))
+      .join('')
+      .trimEnd() + '...'
+  )
+}
+
+/** Text that fits a platform's limit: the text as it is when it fits, else shortened by sentence for that platform. */
+export function fitText(platform: Platform, text: string, max: number): string {
+  if (graphemeCount(text) <= max) return text
+  return cutGraphemes(morphCaption(platform, { description: text }), max)
+}
+
 // ---------------------------------------------------------------- viewer questions
 
 const QUESTION_START =

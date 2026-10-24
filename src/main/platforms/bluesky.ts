@@ -6,6 +6,7 @@ import {
   type PlatformAdapter,
 } from '../adapters/types'
 import { durationProblem } from '@shared/platformLimits'
+import { fitText } from '@shared/growth'
 import type { BlueskyClient } from '../studio/social/bluesky'
 import { SocialError } from '../studio/social/errors'
 
@@ -62,7 +63,8 @@ export class BlueskyAdapter implements PlatformAdapter {
           'permanent',
         )
       const r = await client.postVideo({
-        text: ctx.caption || ctx.title,
+        // Bluesky refuses more than 300 characters, so a long description is shortened here whatever put it on the post.
+        text: fitText('bluesky', ctx.caption || ctx.title, 300),
         file: ctx.videoAbsPath,
         width: ctx.videoWidth || 1080,
         height: ctx.videoHeight || 1920,

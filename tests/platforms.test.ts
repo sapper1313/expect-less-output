@@ -334,3 +334,40 @@ describe('Bluesky errors in plain words', () => {
     expect(e.message).not.toContain('Check the connection')
   })
 })
+
+describe('long text is shortened to what the platform takes', () => {
+  it('Bluesky gets at most 300 characters, hashtags kept, emoji counted as one', async () => {
+    const { fitText, graphemeCount } = await import('../src/shared/growth')
+    const long = `${Array.from({ length: 30 }, (_, i) => `Sentence ${i} has some words in it 🎉.`).join(' ')} #money #math #tips #more`
+    expect(graphemeCount(long)).toBeGreaterThan(500)
+    const t = fitText('bluesky', long, 300)
+    expect(graphemeCount(t)).toBeLessThanOrEqual(300)
+    expect(t).toContain('#money #math #tips')
+    expect(fitText('bluesky', 'Short one. #a', 300)).toBe('Short one. #a')
+    // One huge sentence with no stops is cut, not refused.
+    expect(graphemeCount(fitText('bluesky', 'word '.repeat(200), 300))).toBeLessThanOrEqual(300)
+  })
+
+  it('the Bluesky adapter sends the shortened text', async () => {
+    const sent: string[] = []
+    const a = new BlueskyAdapter({
+      client: () =>
+        ({
+          uploadLimits: async () => ({ canUpload: true }),
+          postVideo: async (x: { text: string }) => (
+            sent.push(x.text),
+            { uri: 'at://x', cid: 'c', url: 'u' }
+          ),
+        }) as never,
+      log,
+    })
+    const r = await rig()
+    const caption = Array.from({ length: 40 }, (_, i) => `Line ${i} of a long description.`).join(
+      ' ',
+    )
+    await a.publish(r.ctxFor({ id: 1, status: 'connected' } as Account, { caption }))
+    expect(
+      [...new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(sent[0]!)].length,
+    ).toBeLessThanOrEqual(300)
+  })
+})

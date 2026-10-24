@@ -6,6 +6,7 @@ import {
   type PlatformAdapter,
 } from '../adapters/types'
 import { durationProblem } from '@shared/platformLimits'
+import { fitText } from '@shared/growth'
 import type { Account } from '@shared/types'
 import { call, failure, json, sleep } from './http'
 
@@ -221,7 +222,7 @@ export class XAdapter implements PlatformAdapter {
     const st = ctx.getState() as { mediaId?: string; segment?: number; tweetId?: string }
     if (st.tweetId) return this.done(account, st.tweetId)
     let token = await this.d.accessToken(account.id)
-    const text = (ctx.caption || ctx.title).slice(0, 280)
+    const text = fitText('x', ctx.caption || ctx.title, 280)
     const run = async () => {
       const mediaId = await this.d.client.uploadVideo(
         token,
