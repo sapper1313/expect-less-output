@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.5 The Fine button is now Save
+
+- The main button on New Post, Bulk upload, the post editor and the TikTok demo says **Save** instead of "Fine." (Save as draft is unchanged). The wording lives in `COPY.publishButton`.
+
 ## 0.14.4 Long text is shortened at posting time
 
 - Bluesky refuses text over 300 characters (counted as people count them, so an emoji is one). The Bluesky and X adapters now shorten a long description by whole sentences, keep the hashtags, and cut as a last resort, whatever put the text on the post. Before this a post that got its Bluesky tick in the editor sent the full description and failed with "grapheme too big".

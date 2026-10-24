@@ -52,7 +52,7 @@ const natural = ['clip_1.mp4', 'clip_2.mp4', 'clip_3.mp4', 'clip_4.mp4', 'clip_1
 console.log('natural filename order ok:', JSON.stringify(order) === JSON.stringify(natural))
 console.log('5 correct Eastern slots:', ok)
 
-await page.click('button:has-text("Fine.")')
+await page.click('button:text-is("Save")')
 await page.waitForSelector('.fc', { timeout: 15000 })
 await sleep(800)
 await shot(page, 'p1-calendar-month')

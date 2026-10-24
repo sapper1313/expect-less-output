@@ -2,7 +2,7 @@
 export const COPY = {
   appName: 'Expect Less Output',
   tagline: 'The algorithm has been fed.',
-  publishButton: 'Fine.',
+  publishButton: 'Save',
   draftButton: 'Save as draft',
   success: 'Task adequate.',
   failureHeadline: 'Could not post. Probably for the best.',

@@ -74,7 +74,7 @@ If macOS still refuses: open **System Settings**, then **Privacy and Security**,
 3. Pick the brand. The title and caption fill in for you.
 4. Leave all four platforms ticked. They say "dry run".
 5. Under **When**, pick a time. For a quick test choose **Pick a different time...** and set it 3 minutes from now.
-6. Click **Fine.**
+6. Click **Save**
 7. A message says **Task adequate.** The post shows on the **Calendar**.
 8. Wait until the time. The post turns to **posted**. Open **Queue** to see each platform marked as done.
 9. Open the Media Root folder (Settings, then **Open**). The video moved from the brand's `Queue` folder to `Posted`, then the month.
@@ -89,7 +89,7 @@ If macOS still refuses: open **System Settings**, then **Privacy and Security**,
 
 ## 6. Everyday use
 
-- **Schedule many videos at once:** click **Schedule**, then the tab **Many videos**, pick the brand, choose the videos, click **Assign slots**, fix anything in the table, then click **Fine.**
+- **Schedule many videos at once:** click **Schedule**, then the tab **Many videos**, pick the brand, choose the videos, click **Assign slots**, fix anything in the table, then click **Save**
 - **Move a post:** on the **Calendar**, drag it to another day. Confirm the question.
 - **Edit a post:** click it on the Calendar or in the Queue.
 - **Brand times:** open **Brands**. Each brand has weekday and weekend posting times in Eastern time.
@@ -142,7 +142,7 @@ Each connected channel has a **Mode** box on its card.
 1. On **Connections**, set the brand's mode to **Test private**.
 2. Click **Schedule**. Pick a short vertical video and that brand. Keep only **YouTube** ticked. Tick the **AI** box for YouTube if you want to test it.
 3. Under **When**, choose **Pick a different time...** and set it 5 minutes from now.
-4. Click **Fine.**
+4. Click **Save**
 5. Wait. The app checks every 30 seconds, so allow a minute past the time. Open the post to see the upload progress.
 6. Open **YouTube Studio** (studio.youtube.com) as that brand's account, then **Content**. The video is there as **Private**. Open it and check **Altered content** says Yes if you ticked the AI box.
 7. **Delete the test video:** in YouTube Studio click the three dots next to it, then **Delete forever**. Confirm.
@@ -197,7 +197,7 @@ Keep the keys in your `ELO Keys` folder, outside the project. Never share them.
 2. Pick the brand. Tick **Facebook** and **Instagram**. They show a **live** label.
 3. Optional: type a number in **Instagram cover frame** to pick the cover picture (1500 means 1.5 seconds in).
 4. Under **When**, choose **Pick a different time...** and set it 30 minutes from now.
-5. Click **Fine.**
+5. Click **Save**
 6. What happens:
    - **Facebook:** about 3 hours before the time (the setting on the Settings screen) the app uploads the Reel and tells Facebook to publish it at the exact time. Posts with less than 15 minutes to go are published at their time instead. Open **Meta Business Suite**, then **Content**, then **Scheduled** to see it waiting.
    - **Instagram:** at the scheduled time the app uploads, waits for Instagram to process it (up to 15 minutes, checked every 30 seconds), then publishes.
@@ -245,7 +245,7 @@ Your TikTok app starts in **Sandbox**. That is fine for Drafts mode. Direct post
 1. Click **Schedule**. Pick a short vertical video and the brand. Keep only **TikTok** ticked.
 2. Under **TikTok** you will see "Post to TikTok as" and the account name. In Drafts mode TikTok asks for privacy and settings later, in its own app.
 3. Under **When**, choose **Pick a different time...** and set it 5 minutes from now.
-4. Click **Fine.**
+4. Click **Save**
 5. At the time, the app uploads the video. You get a notification: **TikTok draft ready for (brand). Open TikTok, tap the inbox notification, add the AI label if needed, and post.**
 6. On your phone, open TikTok and tap the **Inbox** notification. Choose the privacy and settings. Add the AI label if the video is AI-made. Tap **Post**. Or delete the draft if it is only a test.
 7. Back in the app, open the post (Calendar or Queue) and click **Mark as posted**. You can paste the video link if you want.
@@ -260,7 +260,7 @@ TikTok wants a screen recording of the whole flow. The demo screen never posts a
    - **1 Connect:** the connected account name. (If you want the real login on camera, first open **Connections**, click **Disconnect**, then **Connect TikTok**, then come back with Command + Shift + D.)
    - **2 Write the post:** type a title and caption.
    - **3 Choose settings:** pick who can view (nothing is chosen for you), the Comment, Duet and Stitch boxes, the commercial content switch with **Your brand** and **Branded content**, and tick the consent line.
-   - **4 Review and send:** click **Fine.** and show the message.
+   - **4 Review and send:** click **Save** and show the message.
 4. Stop recording (the stop button in the menu bar). Upload that file when you submit the app for review (SETUP_C step 9) or the audit (step 10).
 
 ### Switch to Direct post after TikTok approves the audit
@@ -275,7 +275,7 @@ Only do this after TikTok has approved the Direct Post audit.
    - **Comment, Duet, Stitch.** All start unticked. Some may be greyed out because they are off in the TikTok app.
    - **Disclose commercial content** (off by default). Branded content cannot be private.
    - The consent line (Music Usage Confirmation, and the Branded Content Policy when branded content is on).
-5. **Fine.** stays grey until all of it is valid. Bulk Upload has one TikTok box that applies to every row.
+5. **Save** stays grey until all of it is valid. Bulk Upload has one TikTok box that applies to every row.
 6. Until the audit is approved, TikTok only lets the app post privately.
 
 ### Limits and problems
@@ -404,7 +404,7 @@ Every request must send the token: `Authorization: Bearer <token>`. A request wi
 - An agent can create **drafts** (even with a proposed time) and edit drafts.
 - If an agent asks for `status: "scheduled"` or `next_slot: true`, it gets a clear **403 drafts_only** error. Nothing is created and nothing is quietly turned into a draft.
 - Agents cannot edit a post that is already scheduled.
-- You review the drafts in the **Queue** and schedule them yourself with **Fine.**
+- You review the drafts in the **Queue** and schedule them yourself with **Save**
 
 Untick it only when you trust the agent. Then agents can schedule, and a mistake by an agent can post something for real.
 
