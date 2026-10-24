@@ -216,3 +216,48 @@ describe('library', () => {
     expect(existsSync(join(env.root, 'Trash Panda', 'Posted'))).toBe(true)
   })
 })
+
+describe('a post whose other platforms were taken off', () => {
+  it('becomes posted and its file moves when the only platform left has posted', async () => {
+    const env = makeEnv()
+    const post = await env.makePost({
+      whenMs: env.clock.ms + 2 * MIN,
+      platforms: ['youtube', 'facebook'],
+    })
+    env.db
+      .prepare(
+        "UPDATE post_targets SET status = 'posted', posted_at_utc = ? WHERE post_id = ? AND platform = 'youtube'",
+      )
+      .run(new Date(env.clock.ms).toISOString(), post.id)
+    env.db
+      .prepare(
+        "UPDATE post_targets SET status = 'failed', last_error = 'too long' WHERE post_id = ? AND platform = 'facebook'",
+      )
+      .run(post.id)
+    env.db.prepare("UPDATE posts SET status = 'partial' WHERE id = ?").run(post.id)
+    // The owner takes the failed platform off the post.
+    env.posts.update(post.id, { targets: [{ platform: 'youtube', aiFlag: false }] })
+    env.db.prepare("UPDATE posts SET status = 'scheduled' WHERE id = ?").run(post.id)
+    expect(env.posts.get(post.id)!.status).toBe('scheduled')
+    await env.scheduler.tick()
+    const after = env.posts.get(post.id)!
+    expect(after.status).toBe('posted')
+    expect(after.videoPath).toContain('/Posted/')
+    expect(env.events.successes).toHaveLength(0) // a quiet clean up, no new "posted" message
+  })
+
+  it('leaves a post alone while any platform is still waiting', async () => {
+    const env = makeEnv()
+    const post = await env.makePost({
+      whenMs: env.clock.ms + 60 * MIN,
+      platforms: ['youtube', 'facebook'],
+    })
+    env.db
+      .prepare(
+        "UPDATE post_targets SET status = 'posted' WHERE post_id = ? AND platform = 'youtube'",
+      )
+      .run(post.id)
+    expect(env.scheduler.sweepFinished()).toBe(0)
+    expect(env.posts.get(post.id)!.status).toBe('scheduled')
+  })
+})

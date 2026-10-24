@@ -138,6 +138,7 @@ export class Scheduler {
     const nowIso = new Date(nowMs).toISOString()
 
     this.releaseStaleLocks(nowMs)
+    this.sweepFinished()
     const work: Array<Promise<void>> = []
 
     // 1. Pending targets that are due (or due for early handoff).
@@ -295,7 +296,12 @@ export class Scheduler {
 
   private buildContext(row: DueRow): AdapterContext {
     let lastProgressWrite = 0
-    let videoMeta: { durationSeconds?: number; sizeBytes?: number; width?: number; height?: number } = {}
+    let videoMeta: {
+      durationSeconds?: number
+      sizeBytes?: number
+      width?: number
+      height?: number
+    } = {}
     try {
       videoMeta = JSON.parse(row.video_meta_json ?? '{}')
     } catch {
@@ -664,8 +670,32 @@ export class Scheduler {
     this.d.emit?.()
   }
 
+  /**
+   * A post whose platforms are all done but whose status never moved on, for example when a failed platform was taken off
+   * it by editing the post. It is marked posted and its file goes to Posted, like any other finished post.
+   */
+  sweepFinished(): number {
+    const rows = this.d.db
+      .prepare(
+        `SELECT p.id FROM posts p
+         WHERE p.status IN ('scheduled','in_progress','partial','failed')
+           AND EXISTS (SELECT 1 FROM post_targets t WHERE t.post_id = p.id)
+           AND NOT EXISTS (SELECT 1 FROM post_targets t WHERE t.post_id = p.id AND t.status NOT IN ('posted','skipped'))
+           AND EXISTS (SELECT 1 FROM post_targets t WHERE t.post_id = p.id AND t.status = 'posted')`,
+      )
+      .all() as Array<{ id: number }>
+    for (const r of rows) {
+      this.d.log.log('info', 'Every platform of this post is done, so it is now marked posted.', {
+        postId: r.id,
+      })
+      this.afterTargetChange(r.id, true)
+    }
+    if (rows.length) this.d.emit?.()
+    return rows.length
+  }
+
   /** Recomputes the post status and moves the file once every target succeeded. */
-  private afterTargetChange(postId: number): void {
+  private afterTargetChange(postId: number, quiet = false): void {
     const status = this.d.posts.recomputeStatus(postId)
     if (status !== 'posted') return
     const post = this.d.posts.get(postId)
@@ -681,7 +711,7 @@ export class Scheduler {
         postId,
       })
     }
-    this.d.notifier.success(COPY.success, `${post.brandName}: "${post.title}"`)
+    if (!quiet) this.d.notifier.success(COPY.success, `${post.brandName}: "${post.title}"`)
   }
 
   // ---------- user actions ----------

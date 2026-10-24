@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.1 Finished posts no longer stay "scheduled"
+
+- A post whose platforms are all done but whose status never moved on (for example a failed Facebook was taken off it by editing) is now marked posted and its file moved to Posted, quietly, on the next 30 second check. This fixed Mia & Chloe's `mia-chloe-2026-0102`, which was stuck as "scheduled" since Oct 21.
+- Found while looking into a drop that skipped a Saturday slot: "Minimum gap between any two posts" (Settings, Pipeline) blocks a slot when another channel posts in the same minute. Set it to 0 if channels may share a posting time.
+
 ## 0.14.0 More platforms: Bluesky, X, LinkedIn, Pinterest, Snapchat
 
 - Five new platforms next to YouTube, Facebook, Instagram and TikTok. A channel uses one only when it has a login for it (Connections, More platforms). They show as BS, X, LI, PI and SC tags everywhere the other tags show, and in the post editor's platform list.
