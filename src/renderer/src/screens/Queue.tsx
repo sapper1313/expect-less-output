@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { PLATFORMS, PLATFORM_LABELS } from '@shared/platformLimits'
+import { EXTRA_PLATFORMS, PLATFORMS, PLATFORM_LABELS } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
 import { toCsv } from '@shared/csv'
 import { formatEastern, localInputToIso } from '@shared/time'
@@ -26,6 +26,8 @@ import {
 
 export function Queue() {
   const { toast } = useApp()
+  const { data: views } = useLoad(() => api.platforms.views(), [])
+  const extras = (views ?? []).filter((v) => v.state !== 'not_set').map((v) => v.platform)
   const [busy, run] = useBusy()
   const [filter, setFilter] = useState<PostFilter>({
     status: 'upcoming',
@@ -142,7 +144,7 @@ export function Queue() {
             }
           >
             <option value="">All platforms</option>
-            {PLATFORMS.map((p) => (
+            {[...PLATFORMS, ...EXTRA_PLATFORMS.filter((p) => extras.includes(p))].map((p) => (
               <option key={p} value={p}>
                 {PLATFORM_LABELS[p]}
               </option>

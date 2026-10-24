@@ -5,7 +5,17 @@ import type { Platform } from './platformLimits'
 
 // ---------------------------------------------------------------- staggered posting
 
-const STAGGER_ORDER: Platform[] = ['youtube', 'instagram', 'facebook', 'tiktok']
+const STAGGER_ORDER: Platform[] = [
+  'youtube',
+  'instagram',
+  'facebook',
+  'tiktok',
+  'x',
+  'linkedin',
+  'pinterest',
+  'bluesky',
+  'snapchat',
+]
 
 /** A small deterministic random number generator, so a post always gets the same offsets for the same seed. */
 function mulberry32(seed: number): () => number {
@@ -119,7 +129,7 @@ const hashLine = (tags: string[], max: number) =>
  * - TikTok: two short sentences at most, then up to 5 hashtags.
  * - YouTube: the full description, then up to 15 hashtags (YouTube shows the first three above the title).
  */
-export function morphCaption(platform: Platform | 'bluesky', input: MorphInput): string {
+export function morphCaption(platform: Platform, input: MorphInput): string {
   const { body, tags } = splitHashtags(input)
   switch (platform) {
     case 'facebook':
@@ -151,6 +161,32 @@ export function morphCaption(platform: Platform | 'bluesky', input: MorphInput):
       if (!text)
         text = body.slice(0, Math.max(0, room - 3)).trimEnd() + (body.length > room ? '...' : '')
       return (h ? `${text}${text ? ' ' : ''}${h}` : text).slice(0, 300)
+    }
+    case 'x': {
+      // 280 characters in all, hashtags included.
+      const h = hashLine(tags, 2)
+      const room = 280 - (h ? h.length + 1 : 0)
+      let text = ''
+      for (const sentence of sentences(body)) {
+        const next = text ? `${text} ${sentence}` : sentence
+        if (next.length > room) break
+        text = next
+      }
+      if (!text)
+        text = body.slice(0, Math.max(0, room - 3)).trimEnd() + (body.length > room ? '...' : '')
+      return (h ? `${text}${text ? ' ' : ''}${h}` : text).slice(0, 280)
+    }
+    case 'linkedin': {
+      const h = hashLine(tags, 5)
+      return (h ? `${body}${body ? '\n\n' : ''}${h}` : body).slice(0, 3000)
+    }
+    case 'pinterest':
+      return body.slice(0, 800)
+    case 'snapchat': {
+      const h = hashLine(tags, 3)
+      let text = sentences(body).slice(0, 2).join(' ')
+      if (text.length > 200) text = `${text.slice(0, 197).trimEnd()}...`
+      return (h ? `${text}${text ? ' ' : ''}${h}` : text).slice(0, 250)
     }
     case 'youtube': {
       const h = hashLine(tags, 15)

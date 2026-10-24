@@ -295,7 +295,7 @@ export class Scheduler {
 
   private buildContext(row: DueRow): AdapterContext {
     let lastProgressWrite = 0
-    let videoMeta: { durationSeconds?: number; sizeBytes?: number } = {}
+    let videoMeta: { durationSeconds?: number; sizeBytes?: number; width?: number; height?: number } = {}
     try {
       videoMeta = JSON.parse(row.video_meta_json ?? '{}')
     } catch {
@@ -323,6 +323,8 @@ export class Scheduler {
       externalId: row.external_id,
       videoDurationSeconds: videoMeta.durationSeconds ?? 0,
       videoSizeBytes: videoMeta.sizeBytes ?? 0,
+      videoWidth: videoMeta.width ?? 0,
+      videoHeight: videoMeta.height ?? 0,
       settings: this.targetState(row.id),
       nowMs: () => this.now(),
       scheduledAtUtc: row.scheduled_at_utc,

@@ -260,9 +260,9 @@ The beth bot token (every channel) can set a custom thumbnail and a title on a p
 - While **Agents may create drafts only** is on in Settings, only a draft can be changed. For a scheduled or posted post the call is refused (403 `drafts_only`).
 - The answer lists what was done in `applied`: `saved_for_upload`, `set_on_youtube`, `title_updated_on_youtube` or `skipped`.
 
-## Bluesky
+## More platforms
 
-Bluesky is not something a bot chooses. A channel that has a Bluesky login saved in ELO posts there on its own, a few minutes after the other platforms. A channel with no login is ignored. You may list `bluesky` in `platforms`, but it changes nothing. Bluesky takes videos up to 3 minutes and 100 MB, so longer videos are not sent there. The Bluesky text comes from `description` (about 300 characters, up to 3 hashtags).
+Bluesky, X, LinkedIn, Pinterest and Snapchat are not something a bot chooses. A channel that has a login saved for one posts there on its own, a few minutes after the other platforms. A channel with no login is ignored. You may list them in `platforms`, but it changes nothing. Length limits: Bluesky 3 minutes, X 20, LinkedIn 30, Pinterest 15, Snapchat 5. A video that is too long skips that platform. The text for each platform is written from `description` and `tags`, so write the description so the first one or two sentences stand alone.
 
 ## Growth fields in the sidecar (all optional)
 

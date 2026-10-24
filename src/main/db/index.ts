@@ -32,16 +32,26 @@ export function migrate(db: Db): void {
       return { version: parseInt(name.split('_')[0], 10), name, sql }
     })
     .sort((a, b) => a.version - b.version)
-  for (const m of files) {
-    if (applied.has(m.version)) continue
-    db.transaction(() => {
-      db.exec(m.sql)
-      db.prepare('INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)').run(
-        m.version,
-        m.name,
-        new Date().toISOString(),
-      )
-    })()
+  const pending = files.filter((m) => !applied.has(m.version))
+  if (!pending.length) return
+  // Rebuilding a table needs foreign keys off, and that cannot be changed inside a transaction. Rows that point at
+  // the rebuilt tables are checked afterwards.
+  const fk = db.pragma('foreign_keys', { simple: true }) === 1
+  db.pragma('foreign_keys = OFF')
+  try {
+    for (const m of pending) {
+      db.transaction(() => {
+        db.exec(m.sql)
+        db.prepare(
+          'INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)',
+        ).run(m.version, m.name, new Date().toISOString())
+      })()
+    }
+    const bad = db.pragma('foreign_key_check') as unknown[]
+    if (bad.length)
+      throw new Error(`The database update left ${bad.length} row(s) pointing at missing data.`)
+  } finally {
+    db.pragma(`foreign_keys = ${fk ? 'ON' : 'OFF'}`)
   }
 }
 

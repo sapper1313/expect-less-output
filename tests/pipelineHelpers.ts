@@ -19,6 +19,7 @@ export function pipelineSetup(
     env?: Env
     probe?: (p: string) => Promise<ProbeResult>
     suggest?: (q: string) => Promise<string[]>
+    extraPlatforms?: (brandId: number) => import('../src/shared/platformLimits').Platform[]
     loudness?: (p: string) => Promise<import('../src/shared/growth').Loudness | null>
     startMs?: number
     patch?: Record<string, unknown>
@@ -56,6 +57,7 @@ export function pipelineSetup(
     notify: (kind, h, d) => notices.push([kind, h, d]),
     probe: opts.probe,
     suggest: opts.suggest,
+    extraPlatforms: opts.extraPlatforms,
     loudness: opts.loudness,
     now: () => env.clock.ms,
     onAccepted: (i) => opts.hooks?.onAccepted?.(i),

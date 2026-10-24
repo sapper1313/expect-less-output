@@ -27,41 +27,6 @@ import { previewFor } from '@shared/preview'
 import { Suggest } from './Suggest'
 import { emptyTikTokSettings } from '@shared/tiktok'
 
-/** Bluesky is not one of the four scheduled platforms: a channel with a login posts there on its own. This switches it for one post. */
-function BlueskyRow({ postId }: { postId: number }) {
-  const { data, reload } = useLoad(() => api.growth.blueskyStatus(postId), [postId])
-  const [busy, run] = useBusy()
-  if (!data || !data.applies) return null
-  const when = data.whenUtc ? formatEastern(data.whenUtc) : null
-  const note = !data.available
-    ? data.reason
-    : !data.enabled
-      ? 'Off for this post.'
-      : data.state === 'posted'
-        ? `Posted${data.url ? ': ' + data.url : '.'}`
-        : data.state === 'failed'
-          ? `Failed: ${data.error ?? 'unknown reason'}`
-          : when
-            ? `Will post at ${when}.`
-            : 'Will be queued in a minute.'
-  return (
-    <div className="mt-2">
-      <Check
-        checked={data.available && data.enabled}
-        disabled={!data.available || busy || data.state === 'posted'}
-        onChange={async (on) => {
-          await run(() => api.growth.setBluesky(postId, on))
-          reload()
-        }}
-      >
-        Bluesky
-        {!data.available && <span className="text-[11px] text-muted">(not connected)</span>}
-      </Check>
-      <div className="ml-6 text-[12px] text-muted">{note} Saves right away.</div>
-    </div>
-  )
-}
-
 export function PostEditor({ postId, onClose }: { postId: number; onClose: () => void }) {
   const { toast } = useApp()
   const [busy, run] = useBusy()
@@ -441,7 +406,6 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
           )}
           <Field label="Platforms">
             <PlatformPicker brandId={draft.brandId} value={platforms} onChange={setPlatforms} />
-            <BlueskyRow postId={draft.id} />
           </Field>
           <div className="flex flex-wrap items-center gap-2">
             {draft.targets.map((t) => (

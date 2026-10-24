@@ -85,11 +85,16 @@ import { YoutubeClient } from './google/youtubeClient'
 import { YoutubeService } from './google/youtubeService'
 import { makeLocalShow, makeNotifier } from './notifier'
 import { confirmQuit, createTray, resourcesDir } from './tray'
-import { PLATFORMS } from '@shared/platformLimits'
+import { ALL_PLATFORMS } from '@shared/platformLimits'
+import { PlatformService } from './platforms/service'
+import { XAdapter, XClient, xUrls } from './platforms/x'
+import { LinkedInAdapter, LinkedInClient, linkedinUrls } from './platforms/linkedin'
+import { PinterestAdapter, PinterestClient, pinterestUrls } from './platforms/pinterest'
+import { BlueskyAdapter } from './platforms/bluesky'
+import { SnapchatAdapter } from './platforms/snapchat'
 import { GrowthService } from './growth/service'
 import { fetchSuggestions } from './growth/seo'
 import { StorageService } from './growth/storage'
-import { BlueskySync } from './growth/blueskySync'
 import type { PlatformAdapter } from './adapters/types'
 import { COPY } from '@shared/copy'
 import type { Account, AppEvent, Platform, Settings } from '@shared/types'
@@ -424,14 +429,61 @@ async function boot(): Promise<void> {
     },
   })
 
+  // More platforms: Bluesky, X, LinkedIn, Pinterest and Snapchat. A channel uses one only when it has a login for it.
+  const xClient = new XClient({ urls: xUrls() })
+  const linkedinClient = new LinkedInClient({ urls: linkedinUrls() })
+  const pinterestClient = new PinterestClient({ urls: pinterestUrls() })
+  const platformService = new PlatformService({
+    db,
+    secrets,
+    log,
+    clients: { x: xClient, linkedin: linkedinClient, pinterest: pinterestClient },
+    bluesky: {
+      notReady: (b) => studio.socialAccounts.notReady(b),
+      handle: (b) => studio.socialAccounts.blueskyHandle(b),
+    },
+    openBrowser: async (url) => {
+      await shell.openExternal(url)
+    },
+    alert: (headline, detail) => notifier.failure(headline, detail, { kind: 'reauth' }),
+    emit,
+  })
+  const extraLog = (platform: Platform) => (level: 'info' | 'warn' | 'error', message: string, ctx: { postId: number }) =>
+    log.log(level, message, { postId: ctx.postId, platform })
+  const toast = (title: string, body: string) => {
+    if (Notification.isSupported()) new Notification({ title, body }).show()
+    send({ type: 'toast', toast: { kind: 'info', headline: title, detail: body } })
+  }
   const dryRuns = Object.fromEntries(
-    PLATFORMS.map((p) => [p, new DryRunAdapter(p, { getSettings: () => settings.get() })]),
+    ALL_PLATFORMS.map((p) => [p, new DryRunAdapter(p, { getSettings: () => settings.get() })]),
   ) as unknown as Record<Platform, PlatformAdapter>
   const realAdapters = {
     youtube: youtubeAdapter,
     facebook: facebookAdapter,
     instagram: instagramAdapter,
     tiktok: tiktokAdapter,
+    bluesky: new BlueskyAdapter({
+      client: (b) => studio.socialAccounts.blueskyFor(b),
+      log: extraLog('bluesky'),
+    }),
+    x: new XAdapter({
+      client: xClient,
+      accessToken: (id, force) => platformService.accessToken(id, force),
+      log: extraLog('x'),
+    }),
+    linkedin: new LinkedInAdapter({
+      client: linkedinClient,
+      accessToken: (id) => platformService.accessToken(id),
+      log: extraLog('linkedin'),
+    }),
+    pinterest: new PinterestAdapter({
+      client: pinterestClient,
+      accessToken: (id) => platformService.accessToken(id),
+      log: extraLog('pinterest'),
+    }),
+    snapchat: new SnapchatAdapter({
+      host: { notify: toast, copyText: (t) => clipboard.writeText(t), log: extraLog('snapchat') },
+    }),
   } as unknown as Record<Platform, PlatformAdapter>
   const adapterFor = (
     platform: Platform,
@@ -503,6 +555,7 @@ async function boot(): Promise<void> {
     log,
     notify: pipelineNotify,
     probe: (p) => probeVideo(p),
+    extraPlatforms: (brandId) => platformService.connected(brandId),
     suggest: (q) => fetchSuggestions(q),
     loudness: (p) => media.loudness(p),
     onChange: emit,
@@ -764,15 +817,10 @@ async function boot(): Promise<void> {
     duration: async (p) => (await media.probe(p)).durationSeconds,
     brandNames: () => brands.list(true).map((b) => b.name),
   })
-  const bluesky = new BlueskySync({
-    db,
-    settings,
-    social: studio.social,
-    notReady: (b) => studio.socialAccounts.notReady(b),
-    log: (level, message) => log.log(level, message),
-  })
-  setInterval(() => void bluesky.run().catch(() => {}), 60_000)
-  setTimeout(() => void bluesky.run().catch(() => {}), 45_000)
+  setInterval(() => platformService.ensureBluesky(), 5 * 60_000)
+  setTimeout(() => platformService.ensureBluesky(), 30_000)
+  setInterval(() => platformService.checkHealth(), 3_600_000)
+  setTimeout(() => platformService.checkHealth(), 120_000)
   setInterval(() => void growth.tick().catch(() => {}), 5 * 60_000)
   setTimeout(() => void growth.tick().catch(() => {}), 90_000)
 
@@ -1030,7 +1078,7 @@ async function boot(): Promise<void> {
   const api = buildApi({
     growth,
     storage,
-    bluesky,
+    platforms: platformService,
     audit: auditEvents,
     drops: dropLog,
     pipeline,

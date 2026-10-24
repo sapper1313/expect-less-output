@@ -714,8 +714,13 @@ Everything is in Settings, **Growth**. Each tool has its own switch.
 
 What ELO cannot do, because the apps do not allow it: pin comments, set YouTube end screens, post to the YouTube Community tab, hide a video on Facebook, Instagram or TikTok, and detect muted audio on Instagram. Google Drive backup is not built in.
 
-## 26. Bluesky for bot videos (0.13.1)
+## 26. More platforms (0.14.0)
 
-Every channel with a Bluesky handle and app password saved (Settings, Studio, Bluesky accounts) now posts its bot videos to Bluesky too, a few minutes after the other platforms. A channel with no login is ignored. Nothing to switch on. It follows the schedule: if you move or remove a post, the Bluesky post moves or stops with it. Videos over 3 minutes or 100 MB are not sent (Bluesky's limit), so Wonder Hollow's long episodes stay off Bluesky. Failures retry 3 times and alert you like the other platforms.
+Bluesky, X, LinkedIn, Pinterest and Snapchat now work like Facebook and the others: they show as a small tag (BS, X, LI, PI, SC) on posts in the Calendar, Queue and editor, and you can tick them in the platform list.
 
-In the post editor (click a post in the Calendar or Queue), **Bluesky** is listed under Platforms for bot videos. Untick it to keep that one video off Bluesky. It saves right away.
+- **A login decides.** A channel only uses one of these when it has a login for it (Connections, More platforms). With no login, the platform is not part of the channel and is not even listed.
+- **Bots do not choose them.** Every bot video on a channel that has a login goes to that platform too, after the original four and a few minutes apart (see staggered posting).
+- **Setup steps** for the keys and logins are in `docs/SETUP_MORE_PLATFORMS.md`.
+- **Snapchat** is a reminder: ELO copies the caption at the posting time and you post from the Snapchat app, then press Mark as posted.
+- **Stats** for these platforms are not collected yet, so Stats shows them as "not read yet".
+- **Length limits:** Bluesky 3 minutes, X 20 minutes, LinkedIn 30 minutes, Pinterest 15 minutes, Snapchat 5 minutes. A video that is too long skips that platform and the drop log says so.

@@ -69,7 +69,11 @@
           "facebook",
           "instagram",
           "tiktok",
-          "bluesky"
+          "bluesky",
+          "x",
+          "linkedin",
+          "pinterest",
+          "snapchat"
         ]
       }
     },

@@ -96,7 +96,7 @@ export interface ApiDeps {
   inbox: InboxService
   growth: import('./growth/service').GrowthService
   storage: import('./growth/storage').StorageService
-  bluesky: import('./growth/blueskySync').BlueskySync
+  platforms: import('./platforms/service').PlatformService
   upcoming: UpcomingService
   bots: BotStore
   /** Throws when a paused channel may not be resumed yet. */
@@ -464,13 +464,19 @@ export function buildApi(d: ApiDeps): Api {
           postStats: (id) => d.stats.postStats(id),
         }),
     },
+    platforms: {
+      views: async () => d.platforms.views(),
+      credentials: async (p) => d.platforms.credentialsStatus(p),
+      saveCredentials: async (p, id, secret) => d.platforms.saveCredentials(p, id, secret),
+      connect: async (brandId, p) => d.platforms.connect(brandId, p),
+      cancel: async () => d.platforms.cancel(),
+      disconnect: async (brandId, p) => d.platforms.disconnect(brandId, p),
+      setSnapchat: async (brandId, u) => d.platforms.setSnapchat(brandId, u),
+      boards: async (brandId) => d.platforms.boards(brandId),
+      setBoard: async (brandId, id, name) => d.platforms.setBoard(brandId, id, name),
+      connectedFor: async (brandId) => d.platforms.connected(brandId),
+    },
     growth: {
-      blueskyStatus: async (postId) => d.bluesky.status(postId),
-      setBluesky: async (postId, on) => {
-        const r = d.bluesky.setEnabled(postId, on)
-        d.emit()
-        return r
-      },
       storageReport: async () => d.storage.report(),
       archiveOld: async (days, removeOriginals) => {
         const r = await d.storage.archiveOld(days, removeOriginals)

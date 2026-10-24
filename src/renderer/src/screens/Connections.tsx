@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { PLATFORMS, PLATFORM_LABELS } from '@shared/platformLimits'
+import { MorePlatforms } from './MorePlatforms'
 import { COPY } from '@shared/copy'
 import { formatEastern } from '@shared/time'
 import type {
@@ -55,6 +56,7 @@ export function Connections() {
         <GoogleCard />
         <MetaCard />
         <TikTokCard />
+        <MorePlatforms />
         {brands?.map((b) => (
           <BrandCard
             key={b.id}

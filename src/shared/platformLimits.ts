@@ -1,13 +1,26 @@
 // Every platform number lives here. Verified against official docs, see CHANGELOG.md.
-export type Platform = 'youtube' | 'facebook' | 'instagram' | 'tiktok'
+export type CorePlatform = 'youtube' | 'facebook' | 'instagram' | 'tiktok'
+/** Platforms a channel only uses when it has a login saved for them. */
+export type ExtraPlatform = 'bluesky' | 'x' | 'linkedin' | 'pinterest' | 'snapchat'
+export type Platform = CorePlatform | ExtraPlatform
 
+/** The four platforms every channel starts with. */
 export const PLATFORMS: Platform[] = ['youtube', 'facebook', 'instagram', 'tiktok']
+export const EXTRA_PLATFORMS: ExtraPlatform[] = ['bluesky', 'x', 'linkedin', 'pinterest', 'snapchat']
+export const ALL_PLATFORMS: Platform[] = [...PLATFORMS, ...EXTRA_PLATFORMS]
+export const isExtraPlatform = (p: string): p is ExtraPlatform =>
+  (EXTRA_PLATFORMS as string[]).includes(p)
 
 export const PLATFORM_LABELS: Record<Platform, string> = {
   youtube: 'YouTube',
   facebook: 'Facebook',
   instagram: 'Instagram',
   tiktok: 'TikTok',
+  bluesky: 'Bluesky',
+  x: 'X',
+  linkedin: 'LinkedIn',
+  pinterest: 'Pinterest',
+  snapchat: 'Snapchat',
 }
 
 export const PLATFORM_LIMITS = {
@@ -16,6 +29,13 @@ export const PLATFORM_LIMITS = {
   instagram: { minSeconds: 3, maxSeconds: 900, captionMax: 2200, hashtagsMax: 30 },
   // TikTok max duration comes from creator_info at post time; this is a loose default.
   tiktok: { minSeconds: 1, maxSeconds: 600, captionMax: 2200 },
+  // Bluesky: 3 minutes and 100 MB. X: 20 minutes for most accounts. LinkedIn: 3 seconds to 30 minutes.
+  // Pinterest: 4 seconds to 15 minutes. Snapchat Spotlight: about 5 seconds to 5 minutes (posted by hand).
+  bluesky: { minSeconds: 1, maxSeconds: 180, captionMax: 300 },
+  x: { minSeconds: 1, maxSeconds: 1200, captionMax: 280 },
+  linkedin: { minSeconds: 3, maxSeconds: 1800, captionMax: 3000 },
+  pinterest: { minSeconds: 4, maxSeconds: 900, titleMax: 100, descriptionMax: 800 },
+  snapchat: { minSeconds: 5, maxSeconds: 300, captionMax: 250 },
 } as const
 
 export const ASPECT_TARGET = 9 / 16
@@ -121,6 +141,14 @@ export function captionCounters(title: string, caption: string): Record<Platform
       c('Hashtags', countHashtags(caption), ig.hashtagsMax),
     ],
     tiktok: [c('Caption', caption.length, tt.captionMax)],
+    bluesky: [c('Post', caption.length, PLATFORM_LIMITS.bluesky.captionMax)],
+    x: [c('Post', caption.length, PLATFORM_LIMITS.x.captionMax)],
+    linkedin: [c('Post', caption.length, PLATFORM_LIMITS.linkedin.captionMax)],
+    pinterest: [
+      c('Title', title.length, PLATFORM_LIMITS.pinterest.titleMax),
+      c('Description', caption.length, PLATFORM_LIMITS.pinterest.descriptionMax),
+    ],
+    snapchat: [c('Caption', caption.length, PLATFORM_LIMITS.snapchat.captionMax)],
   }
 }
 
@@ -138,6 +166,11 @@ export function durationProblem(platform: Platform, seconds: number): string | n
     if (seconds < l.minSeconds || seconds > l.maxSeconds) {
       return `This video is ${seconds.toFixed(1)} seconds. Instagram Reels must be ${l.minSeconds} seconds to ${fmt(l.maxSeconds)}. Trim the video or untick Instagram.`
     }
+  }
+  if (isExtraPlatform(platform)) {
+    const l = PLATFORM_LIMITS[platform]
+    if (seconds < l.minSeconds || seconds > l.maxSeconds)
+      return `This video is ${seconds.toFixed(1)} seconds. ${PLATFORM_LABELS[platform]} takes ${l.minSeconds} seconds to ${fmt(l.maxSeconds)}.`
   }
   return null
 }

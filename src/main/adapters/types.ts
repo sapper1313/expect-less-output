@@ -31,6 +31,9 @@ export interface AdapterContext {
   /** From ffprobe at import time. 0 when unknown. */
   videoDurationSeconds: number
   videoSizeBytes: number
+  /** Picture size from ffprobe at import time. 0 when unknown. */
+  videoWidth?: number
+  videoHeight?: number
   scheduledAtUtc: string
   account: Account | null
   /** Small per-target memory (for example a video id or upload session) that survives restarts. */

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
-  PLATFORMS,
+  ALL_PLATFORMS,
+  isExtraPlatform,
   PLATFORM_LABELS,
   SOFT_WARN_POSTS_PER_BRAND_PER_DAY,
   type Platform,
@@ -28,9 +29,11 @@ export function PlatformPicker({
   const byPlatform = new Map((accounts ?? []).map((a) => [a.platform, a]))
   return (
     <div className="flex flex-wrap gap-x-5 gap-y-2">
-      {PLATFORMS.map((p) => {
+      {ALL_PLATFORMS.map((p) => {
         const acct = byPlatform.get(p)
         const ok = !!acct && acct.status === 'connected'
+        // Bluesky, X, LinkedIn, Pinterest and Snapchat are only part of a channel that has a login for them.
+        if (isExtraPlatform(p) && !ok) return null
         return (
           <Check
             key={p}

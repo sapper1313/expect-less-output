@@ -54,6 +54,11 @@ export function NewPost({
     facebook: false,
     instagram: false,
     tiktok: false,
+    bluesky: false,
+    x: false,
+    linkedin: false,
+    pinterest: false,
+    snapchat: false,
   })
   const [when, setWhen] = useState<string | null>(initialWhen)
   const { data: defaults } = useLoad(

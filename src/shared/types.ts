@@ -699,13 +699,24 @@ export interface ArchiveResult {
   skipped: string[]
 }
 
-export interface BlueskyStatus {
-  applies: boolean
-  available: boolean
-  reason: string
-  enabled: boolean
-  state: 'none' | 'scheduled' | 'posting' | 'posted' | 'failed' | 'skipped'
-  whenUtc: string | null
-  url: string | null
-  error: string | null
+
+export interface ExtraCredentialsStatus {
+  platform: 'x' | 'linkedin' | 'pinterest'
+  hasClientId: boolean
+  hasClientSecret: boolean
+  clientIdMasked: string
+  clientSecretMasked: string
+  /** The address to type into the platform's developer page. */
+  redirectUri: string
+}
+
+export interface ExtraAccountView {
+  brandId: number
+  brandName: string
+  platform: 'bluesky' | 'x' | 'linkedin' | 'pinterest' | 'snapchat'
+  state: 'not_set' | 'connected' | 'needs_reauth'
+  displayName: string | null
+  /** Pinterest: the board id. Snapchat: the username. Others: the account id. */
+  externalId: string | null
+  expiresAt: string | null
 }

@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon'
 import type { Db } from '../db'
 import type { ActivityLog } from '../services/activity'
-import { PLATFORMS, PLATFORM_LABELS } from '@shared/platformLimits'
+import { ALL_PLATFORMS, PLATFORMS, PLATFORM_LABELS, isExtraPlatform } from '@shared/platformLimits'
 import type {
   Account,
   BrandStats,
@@ -264,6 +264,11 @@ export class StatsService {
         reason:
           'The app does not know this video. Paste the video link when you mark a post as posted.',
       }
+    if (isExtraPlatform(r.platform))
+      return {
+        state: 'unavailable',
+        reason: `ELO does not read numbers from ${PLATFORM_LABELS[r.platform]} yet.`,
+      }
     if (r.platform === 'tiktok' && !isTikTokVideoId(r.external_id)) {
       return {
         state: 'unavailable',
@@ -336,7 +341,7 @@ export class StatsService {
     )
     const posts = new Set(rows.map((r) => r.post_id))
     const old = this.d.imported ? this.d.imported.list(brandId, range) : []
-    const platforms = PLATFORMS.map((platform) => {
+    const platforms = ALL_PLATFORMS.map((platform) => {
       const mine = rows.filter((r) => r.platform === platform)
       let totals = EMPTY
       let videos = 0

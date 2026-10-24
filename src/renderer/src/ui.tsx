@@ -365,6 +365,11 @@ export const PLATFORM_SHORT: Record<Platform, string> = {
   facebook: 'FB',
   instagram: 'IG',
   tiktok: 'TT',
+  bluesky: 'BS',
+  x: 'X',
+  linkedin: 'LI',
+  pinterest: 'PI',
+  snapchat: 'SC',
 }
 export function TargetChip({
   platform,

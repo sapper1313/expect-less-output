@@ -47,7 +47,7 @@ export interface PublishDeps {
   now?: () => number
 }
 
-const FOUR: Platform[] = ['youtube', 'facebook', 'instagram', 'tiktok']
+const FOUR = ['youtube', 'facebook', 'instagram', 'tiktok'] as const
 
 /** Episode statuses while a freshly delivered video is being attached. Only then may its post take the episode's text. */
 const ATTACHING: EpisodeStatus[] = ['Awaiting video', 'Video received', 'Checking video', 'Flagged']

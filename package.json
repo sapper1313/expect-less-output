@@ -1,7 +1,7 @@
 {
   "name": "expect-less-output",
   "productName": "Expect Less Output",
-  "version": "0.13.2",
+  "version": "0.14.0",
   "description": "The algorithm has been fed.",
   "main": "./out/main/index.js",
   "author": "Expect Less Media",

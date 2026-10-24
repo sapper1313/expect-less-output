@@ -10,7 +10,7 @@ import type { SettingsService } from '../services/settings'
 import type { AlertKind } from '../alerts/format'
 import { formatEastern } from '@shared/time'
 import type { Brand, Post, PostTargetInput } from '@shared/types'
-import { PLATFORM_LIMITS, type Platform } from '@shared/platformLimits'
+import { PLATFORM_LIMITS, isExtraPlatform, type Platform } from '@shared/platformLimits'
 import { loudnessProblem, morphCaption, normalizeTopic, type Loudness } from '@shared/growth'
 import {
   CLIP_MAX_SECONDS,
@@ -50,6 +50,8 @@ export interface IntakeDeps {
   now?: () => number
   /** Called after any change a screen should show. */
   onChange?: () => void
+  /** The extra platforms (Bluesky, X, LinkedIn, Pinterest, Snapchat) a channel has a working login for. */
+  extraPlatforms?: (brandId: number) => Platform[]
   /** Search phrases from autocomplete for a title. Without it, no phrases are added by ELO. */
   suggest?: (query: string) => Promise<string[]>
   /** Measures the loudness of a video. Without it the loudness check is skipped. */
@@ -287,9 +289,16 @@ export class PipelineIntake {
     const caption = withHashtags(sc.description, sc.tags)
     const postType: 'episode' | 'clip' = sc.post_type === 'clip' ? 'clip' : 'episode'
     // A clip with no platforms goes to every platform the show has switched on for clips.
-    const asked = (sc.platforms ?? ['youtube', 'facebook', 'instagram', 'tiktok']).filter(
-      (p) => p !== 'bluesky',
-    )
+    // The four original platforms come from the sidecar. Bluesky, X, LinkedIn, Pinterest and Snapchat are not chosen by a
+    // bot: a channel with a login for one posts there on its own, and a channel without one ignores it.
+    const asked: string[] = [
+      ...new Set([
+        ...(sc.platforms ?? ['youtube', 'facebook', 'instagram', 'tiktok']).filter(
+          (p) => !isExtraPlatform(p),
+        ),
+        ...(this.d.extraPlatforms?.(a.brand.id) ?? []),
+      ]),
+    ]
     const off = [...this.switchedOff(a.brand.id, postType), ...this.tooLongFor(asked)]
     const wanted = asked.filter((p) => !off.includes(p))
     if (wanted.length < asked.length)

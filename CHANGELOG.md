@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.14.0 More platforms: Bluesky, X, LinkedIn, Pinterest, Snapchat
+
+- Five new platforms next to YouTube, Facebook, Instagram and TikTok. A channel uses one only when it has a login for it (Connections, More platforms). They show as BS, X, LI, PI and SC tags everywhere the other tags show, and in the post editor's platform list.
+- Bot drops go to every extra platform a channel has a login for, with a caption written for that platform, a few minutes after the others. Bots do not choose them. `bluesky`, `x`, `linkedin`, `pinterest` and `snapchat` may appear in a sidecar's `platforms` and change nothing.
+- Bluesky now posts like the other platforms (retries, alerts, staggering) instead of the separate Studio queue. The 0.13.1 and 0.13.2 Bluesky switch is replaced by the normal platform tick box.
+- X (OAuth 2.0, chunked video upload), LinkedIn (Videos API, personal profile, 60 day login with a warning), Pinterest (video pin to a chosen board). Snapchat is a reminder because Snapchat has no posting API for creators.
+- New database step: the accounts and post targets tables are rebuilt so they accept the new platforms. A copy of the real database was migrated first with every row kept.
+- Setup steps: `docs/SETUP_MORE_PLATFORMS.md`.
+- Not done: reading stats from these platforms, LinkedIn Company Pages, and Pinterest board creation.
+- None of the new adapters has been run against the real platforms yet. They are tested against a local fake of each.
+
 ## 0.13.2 Bluesky switch in the post editor
 
 - The post editor (Calendar and Queue) now shows **Bluesky** under Platforms for bot videos: on or off for that post (saved right away), when it will post, the link once posted, or why it is unavailable (no login, or over 3 minutes or 100 MB). Off stops a queued Bluesky post; on queues it again.

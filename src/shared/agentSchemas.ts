@@ -4,7 +4,17 @@ import { z } from 'zod'
 import { DateTime } from 'luxon'
 import { UPCOMING_STATUSES, UpcomingEntry } from './upcoming'
 
-export const PlatformEnum = z.enum(['youtube', 'facebook', 'instagram', 'tiktok'])
+export const PlatformEnum = z.enum([
+  'youtube',
+  'facebook',
+  'instagram',
+  'tiktok',
+  'bluesky',
+  'x',
+  'linkedin',
+  'pinterest',
+  'snapchat',
+])
 export const PostStatusEnum = z.enum([
   'draft',
   'scheduled',
