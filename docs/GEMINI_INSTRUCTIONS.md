@@ -70,7 +70,7 @@ Each bot has its own token, made by the owner in ELO under Settings, Agent API, 
 - Moving an entry backward needs B.E.T.H. (or Josh) and a note saying why.
 - Never set `dropped`. ELO does that when the video with the exact same episode id is accepted.
 - Always send `entry_revision` (the number you read) with a change. If someone changed the entry after you read it, different fields are merged. If you both changed the same field, ELO keeps both versions, flags a conflict (HTTP 409), and the owner sorts it out. Never retry a conflict by overwriting.
-- You can also edit `upcoming.json` directly (the file is `Shared/upcoming.json` in the Media Root), but ELO then checks what you changed. Raise `revision` and the entry's `entry_revision`, and set `updated_by` to your name. A change you are not allowed to make is flagged and the owner can put the file back.
+- **Never edit `upcoming.json` by hand.** Use `POST /v1/upcoming` and `PATCH /v1/upcoming/{channel}/{episode_id}` only. A hand edit is checked and flagged. In particular never write an entry as `dropped`, never use `system` or any name but your own as `updated_by`, and never invent a `drop_id`: only ELO sets those, when it really accepts the video you dropped. If an episode was dropped before it had an Upcoming entry, add it with `POST /v1/upcoming` as `needs-review` and ELO will not mark it dropped again; tell the owner and he will dismiss the warning.
 
 ## Dropping a finished video
 
