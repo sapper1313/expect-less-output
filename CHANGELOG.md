@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.15.1 Website card keeps what you type
+
+- The Website card used to reset to the saved copy about a minute after you started typing, because the whole page reloads when anything changes. It now keeps your typing until you press Save website details (same fix as the other forms). The website address box is fixed the same way.
+
 ## 0.15.0 Channels update the website
 
 - New **Website** card on each channel (Channels, Channel setup): an **Add to website?** check mark, title, host, tagline, description, YouTube id and handle, links, accent color and a hero picture.

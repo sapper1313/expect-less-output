@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react'
 import { SITE_LINK_KEYS, type SiteLinkKey, type WebsiteProfile as Profile } from '@shared/website'
 import type { Brand } from '@shared/types'
 import { api } from '../api'
-import { useApp, useLoad } from '../hooks'
+import { useApp, useDraft, useLoad } from '../hooks'
 import { Button, Card, Check, Field, Input, Textarea, useBusy } from '../ui'
 
 const LINK_LABELS: Record<SiteLinkKey, string> = {
@@ -44,11 +43,9 @@ function Connection() {
   const [busy, run] = useBusy()
   const { data: cfg, reload: reloadCfg } = useLoad(() => api.website.config())
   const { data: st, reload: reloadSt } = useLoad(() => api.website.status())
-  const [url, setUrl] = useState('')
-  useEffect(() => {
-    if (cfg) setUrl(cfg.repoUrl)
-  }, [cfg])
-  if (!cfg || !st) return null
+  const { draft: urlDraft, setDraft: setUrl } = useDraft(cfg ? cfg.repoUrl : null, 'website-url')
+  if (!cfg || !st || urlDraft === null) return null
+  const url = urlDraft
   const say = (r: { ok: boolean; message: string }) =>
     toast({
       kind: r.ok ? 'success' : 'error',
@@ -138,12 +135,10 @@ export function WebsiteProfileCard({ brand }: { brand: Brand }) {
     () => api.website.heroPreview(brand.id),
     [brand.id, p?.heroImage, p?.heroPending],
   )
-  const [d, setD] = useState<Draft | null>(null)
-  useEffect(() => {
-    if (p) setD(draftOf(p))
-  }, [p])
+  // The page reloads whenever anything changes anywhere (including ELO sending to the site), so the typing lives in a
+  // draft that is only replaced by the saved copy while it has not been edited.
+  const { draft: d, setDraft: setD, dirty: edited } = useDraft(p ? draftOf(p) : null, brand.id)
   if (!p || !d) return null
-  const edited = JSON.stringify(d) !== JSON.stringify(draftOf(p))
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD({ ...d, [k]: v })
 
   return (
