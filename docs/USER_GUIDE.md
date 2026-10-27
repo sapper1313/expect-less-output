@@ -727,7 +727,7 @@ Bluesky, X, LinkedIn, Pinterest and Snapchat now work like Facebook and the othe
 
 ## 27. The website (0.15.0)
 
-Each channel has a **Website** card (Settings, Brands, pick the channel). Fill it in once and ELO keeps expectlessmedia.com in step with it.
+Each channel has a **Website** card (Channels, Channel setup, pick the channel, scroll below Pipeline rules). Fill it in once and ELO keeps expectlessmedia.com in step with it.
 
 - **Add to website?** Tick it to show the channel on the site. Archiving the channel, or unticking it, takes it off the site.
 - **What the card holds:** title on the site, host names, tagline, description, YouTube channel id and handle, links (YouTube, TikTok, Instagram, Facebook, Bluesky), accent color, web address name, and the hero image (**Pick picture**).

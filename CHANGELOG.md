@@ -2,7 +2,7 @@
 
 ## 0.15.0 Channels update the website
 
-- New **Website** card on each channel (Settings, Brands): an **Add to website?** check mark, title, host, tagline, description, YouTube id and handle, links, accent color and a hero picture.
+- New **Website** card on each channel (Channels, Channel setup): an **Add to website?** check mark, title, host, tagline, description, YouTube id and handle, links, accent color and a hero picture.
 - ELO keeps its own clone of the website project, changes only `src/data/channels.json` (and adds the hero image), and pushes to GitHub, so Cloudflare publishes it. Adding, editing, unticking or archiving a channel updates the site about a minute later. Nothing else in the project is touched.
 - **Fill ELO from the website** reads the cards already on the site into ELO so nothing is retyped. A change made in ELO and not yet sent is never overwritten by that read.
 - Safeguards: a card must be complete before it goes up, no more than 2 channels may leave the site in one send, a push that loses a race with the video refresh job is retried, and git problems are shown in plain words.
