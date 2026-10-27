@@ -724,3 +724,16 @@ Bluesky, X, LinkedIn, Pinterest and Snapchat now work like Facebook and the othe
 - **Snapchat** is a reminder: ELO copies the caption at the posting time and you post from the Snapchat app, then press Mark as posted.
 - **Stats** for these platforms are not collected yet, so Stats shows them as "not read yet".
 - **Length limits:** Bluesky 3 minutes, X 20 minutes, LinkedIn 30 minutes, Pinterest 15 minutes, Snapchat 5 minutes. A video that is too long skips that platform and the drop log says so.
+
+## 27. The website (0.15.0)
+
+Each channel has a **Website** card (Settings, Brands, pick the channel). Fill it in once and ELO keeps expectlessmedia.com in step with it.
+
+- **Add to website?** Tick it to show the channel on the site. Archiving the channel, or unticking it, takes it off the site.
+- **What the card holds:** title on the site, host names, tagline, description, YouTube channel id and handle, links (YouTube, TikTok, Instagram, Facebook, Bluesky), accent color, web address name, and the hero image (**Pick picture**).
+- **A card only goes up when it is complete.** The card says what is still missing. A channel that is not complete is left alone.
+- **How it reaches the site.** ELO keeps its own copy of the website project (it does not use the folder on your Desktop, so you can move or delete that). About a minute after you save a change, ELO downloads the latest site, changes only `src/data/channels.json` (and adds the hero picture), and sends it to GitHub. Cloudflare then publishes the site. Other site files are never touched.
+- **First time:** press **Fill ELO from the website**. ELO reads the five channels already on the site and fills their cards, so nothing is retyped. Then add the two new channels by hand and tick **Add to website?**.
+- **If you edit the site by hand** (or on GitHub), ELO picks the change up when it reads the site (every few hours, or press **Fill ELO from the website**), unless you have a newer change in ELO that has not gone up yet. ELO's change wins until it is sent.
+- **Safety:** ELO refuses to take more than 2 channels off the site in one go. If GitHub does not accept this Mac, ELO tells you in plain words. Turn off **Send changes to the website automatically** to send changes yourself with the button.
+- **Needs:** this Mac must be signed in to GitHub with SSH the way Terminal is (`ssh -T git@github.com` should say Hi).

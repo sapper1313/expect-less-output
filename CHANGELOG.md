@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.15.0 Channels update the website
+
+- New **Website** card on each channel (Settings, Brands): an **Add to website?** check mark, title, host, tagline, description, YouTube id and handle, links, accent color and a hero picture.
+- ELO keeps its own clone of the website project, changes only `src/data/channels.json` (and adds the hero image), and pushes to GitHub, so Cloudflare publishes it. Adding, editing, unticking or archiving a channel updates the site about a minute later. Nothing else in the project is touched.
+- **Fill ELO from the website** reads the cards already on the site into ELO so nothing is retyped. A change made in ELO and not yet sent is never overwritten by that read.
+- Safeguards: a card must be complete before it goes up, no more than 2 channels may leave the site in one send, a push that loses a race with the video refresh job is retried, and git problems are shown in plain words.
+- Migration 032 adds `website_profiles` and `website_state`. Setup and use are in `docs/USER_GUIDE.md` section 27.
+
 ## 0.14.5 The Fine button is now Save
 
 - The main button on New Post, Bulk upload, the post editor and the TikTok demo says **Save** instead of "Fine." (Save as draft is unchanged). The wording lives in `COPY.publishButton`.

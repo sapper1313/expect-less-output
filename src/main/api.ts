@@ -95,6 +95,7 @@ export interface ApiDeps {
   pipeline: PipelineIntake
   inbox: InboxService
   growth: import('./growth/service').GrowthService
+  website: import('./website/service').WebsiteService
   storage: import('./growth/storage').StorageService
   platforms: import('./platforms/service').PlatformService
   upcoming: UpcomingService
@@ -173,6 +174,7 @@ export function buildApi(d: ApiDeps): Api {
       },
       archive: async (id, archived) => {
         d.brands.archive(id, archived)
+        d.website.requestSync()
         d.emit()
       },
       getSlots: async (id) => d.brands.getSlots(id),
@@ -475,6 +477,17 @@ export function buildApi(d: ApiDeps): Api {
       boards: async (brandId) => d.platforms.boards(brandId),
       setBoard: async (brandId, id, name) => d.platforms.setBoard(brandId, id, name),
       connectedFor: async (brandId) => d.platforms.connected(brandId),
+    },
+    website: {
+      config: async () => d.website.config(),
+      setConfig: async (patch) => d.website.setConfig(patch),
+      profile: async (brandId) => d.website.profile(brandId),
+      saveProfile: async (brandId, patch) => d.website.saveProfile(brandId, patch),
+      setHero: async (brandId, path) => d.website.setHero(brandId, path),
+      heroPreview: async (brandId) => d.website.heroPreview(brandId),
+      status: async () => d.website.status(),
+      pull: async () => d.website.pull(),
+      publish: async () => d.website.publish(),
     },
     growth: {
       storageReport: async () => d.storage.report(),

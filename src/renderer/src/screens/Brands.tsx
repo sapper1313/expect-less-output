@@ -5,6 +5,7 @@ import type { Brand, BrandDefaults, BrandSlot, HashtagSet } from '@shared/types'
 import { api } from '../api'
 import { useApp, useDraft, useLoad } from '../hooks'
 import { DateList } from './PipelineSettings'
+import { WebsiteProfileCard } from './WebsiteProfile'
 import {
   Button,
   Card,
@@ -221,6 +222,7 @@ function BrandEditor({ brand }: { brand: Brand }) {
         </div>
       </Card>
       <PipelineRules brand={brand} />
+      <WebsiteProfileCard brand={brand} />
       <SlotEditor brandId={brand.id} />
       <DefaultsEditor brandId={brand.id} />
       <HashtagEditor brandId={brand.id} />

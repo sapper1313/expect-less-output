@@ -1,4 +1,11 @@
 import type {
+  WebsiteConfig,
+  WebsiteProfile,
+  WebsiteProfilePatch,
+  WebsiteResult,
+  WebsiteStatus,
+} from './website'
+import type {
   Account,
   AppEvent,
   AgentStatus,
@@ -300,6 +307,22 @@ export interface Api {
     setBoard(brandId: number, boardId: string, boardName: string): Promise<ExtraAccountView>
     /** The extra platforms a channel has a working login for. */
     connectedFor(brandId: number): Promise<ExtraPlatform[]>
+  }
+  website: {
+    config(): Promise<WebsiteConfig>
+    setConfig(patch: Partial<WebsiteConfig>): Promise<WebsiteConfig>
+    /** What ELO sends to the public site for one channel. */
+    profile(brandId: number): Promise<WebsiteProfile>
+    saveProfile(brandId: number, patch: WebsiteProfilePatch): Promise<WebsiteProfile>
+    /** Uses a picked picture as the channel's hero image (sent with the next publish). */
+    setHero(brandId: number, path: string): Promise<WebsiteProfile>
+    /** The hero image as a data URL, or null when there is none yet. */
+    heroPreview(brandId: number): Promise<string | null>
+    status(): Promise<WebsiteStatus>
+    /** Reads the site's channel list and fills ELO with it. Changes nothing on the site. */
+    pull(): Promise<WebsiteResult>
+    /** Makes the site match ELO now. */
+    publish(): Promise<WebsiteResult>
   }
   growth: {
     /** What viewers watched: the text of learnings.md. */

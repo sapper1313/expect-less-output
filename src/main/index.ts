@@ -95,6 +95,7 @@ import { SnapchatAdapter } from './platforms/snapchat'
 import { GrowthService } from './growth/service'
 import { fetchSuggestions } from './growth/seo'
 import { StorageService } from './growth/storage'
+import { WebsiteService } from './website/service'
 import type { PlatformAdapter } from './adapters/types'
 import { COPY } from '@shared/copy'
 import type { Account, AppEvent, Platform, Settings } from '@shared/types'
@@ -448,8 +449,10 @@ async function boot(): Promise<void> {
     alert: (headline, detail) => notifier.failure(headline, detail, { kind: 'reauth' }),
     emit,
   })
-  const extraLog = (platform: Platform) => (level: 'info' | 'warn' | 'error', message: string, ctx: { postId: number }) =>
-    log.log(level, message, { postId: ctx.postId, platform })
+  const extraLog =
+    (platform: Platform) =>
+    (level: 'info' | 'warn' | 'error', message: string, ctx: { postId: number }) =>
+      log.log(level, message, { postId: ctx.postId, platform })
   const toast = (title: string, body: string) => {
     if (Notification.isSupported()) new Notification({ title, body }).show()
     send({ type: 'toast', toast: { kind: 'info', headline: title, detail: body } })
@@ -817,6 +820,16 @@ async function boot(): Promise<void> {
     duration: async (p) => (await media.probe(p)).durationSeconds,
     brandNames: () => brands.list(true).map((b) => b.name),
   })
+  const website = new WebsiteService({
+    db,
+    repoDir: join(dataDir, 'website-repo'),
+    heroDir: join(dataDir, 'website-heroes'),
+    audit: (action, target, after) => auditEvents.write({ actor: 'system', action, target, after }),
+    notify: (headline, detail) => notifier.failure(headline, detail, { kind: 'failure' }),
+    emit,
+  })
+  setInterval(() => void website.tick().catch(() => {}), 30 * 60_000)
+  setTimeout(() => void website.tick().catch(() => {}), 150_000)
   setInterval(() => platformService.ensureBluesky(), 5 * 60_000)
   setTimeout(() => platformService.ensureBluesky(), 30_000)
   setInterval(() => platformService.checkHealth(), 3_600_000)
@@ -1078,6 +1091,7 @@ async function boot(): Promise<void> {
   const api = buildApi({
     growth,
     storage,
+    website,
     platforms: platformService,
     audit: auditEvents,
     drops: dropLog,
