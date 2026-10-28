@@ -13,7 +13,6 @@ export const PlatformEnum = z.enum([
   'x',
   'linkedin',
   'pinterest',
-  'snapchat',
 ])
 export const PostStatusEnum = z.enum([
   'draft',

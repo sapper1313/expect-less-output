@@ -132,7 +132,6 @@ export class BrandService {
         x: true,
         linkedin: true,
         pinterest: true,
-        snapchat: true,
         instagram: !!r.ai_flag_instagram,
       },
       tiktokPrivacyDefault: r.tiktok_privacy_default,

@@ -473,7 +473,6 @@ export function buildApi(d: ApiDeps): Api {
       connect: async (brandId, p) => d.platforms.connect(brandId, p),
       cancel: async () => d.platforms.cancel(),
       disconnect: async (brandId, p) => d.platforms.disconnect(brandId, p),
-      setSnapchat: async (brandId, u) => d.platforms.setSnapchat(brandId, u),
       boards: async (brandId) => d.platforms.boards(brandId),
       setBoard: async (brandId, id, name) => d.platforms.setBoard(brandId, id, name),
       connectedFor: async (brandId) => d.platforms.connected(brandId),

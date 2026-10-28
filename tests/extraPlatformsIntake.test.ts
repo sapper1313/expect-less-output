@@ -30,13 +30,13 @@ const platformsOf = (t: ReturnType<typeof pipelineSetup>) =>
 
 describe('drops use the extra platforms a channel has a login for', () => {
   it('adds them next to the platforms in the sidecar, with their own captions', async () => {
-    const t = rig(['bluesky', 'x', 'snapchat'])
+    const t = rig(['bluesky', 'x'])
     t.drop(TP, 'trash-panda', 701, {
       platforms: ['youtube'],
       description: 'Stop doing this. It saves ten minutes a day. Try it now! #mac #tips',
     })
     await t.settle()
-    expect(platformsOf(t)).toEqual(['bluesky', 'snapchat', 'x', 'youtube'])
+    expect(platformsOf(t)).toEqual(['bluesky', 'x', 'youtube'])
     const rows = Object.fromEntries(
       (
         t.env.db
@@ -64,7 +64,6 @@ describe('drops use the extra platforms a channel has a login for', () => {
   it('knows the length limits of each platform', () => {
     expect(durationProblem('bluesky', 200)).toMatch(/Bluesky takes/)
     expect(durationProblem('x', 200)).toBeNull()
-    expect(durationProblem('snapchat', 400)).toMatch(/Snapchat takes/)
     expect(durationProblem('linkedin', 2)).toMatch(/LinkedIn takes/)
   })
 

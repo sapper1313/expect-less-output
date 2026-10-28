@@ -12,7 +12,6 @@ import {
   escapeCommentary,
 } from '../src/main/platforms/linkedin'
 import { PinterestAdapter, PinterestClient, pinterestUrls } from '../src/main/platforms/pinterest'
-import { SnapchatAdapter } from '../src/main/platforms/snapchat'
 import { BlueskyAdapter } from '../src/main/platforms/bluesky'
 import { AdapterError, type AdapterContext } from '../src/main/adapters/types'
 import { SocialError } from '../src/main/studio/social/errors'
@@ -251,29 +250,7 @@ describe('Pinterest', () => {
   })
 })
 
-describe('Snapchat, Bluesky and who counts as connected', () => {
-  it('Snapchat waits for you and copies the caption', async () => {
-    const notes: string[][] = []
-    const copied: string[] = []
-    const a = new SnapchatAdapter({
-      host: { notify: (t, b) => notes.push([t, b]), copyText: (t) => copied.push(t), log },
-    })
-    const r = await rig()
-    const res = await a.publish(r.ctxFor(null))
-    expect(res.status).toBe('needs_action')
-    expect(copied[0]).toContain('latte')
-    expect(notes[0]![1]).toContain('Mark as posted')
-  })
-
-  it('Snapchat is connected by a name, and removed by clearing it', async () => {
-    const r = await rig()
-    expect(r.svc.connected(1)).toEqual([])
-    r.svc.setSnapchat(1, '@mathofit')
-    expect(r.svc.connected(1)).toEqual(['snapchat'])
-    r.svc.setSnapchat(1, '')
-    expect(r.svc.connected(1)).toEqual([])
-  })
-
+describe('Bluesky and who counts as connected', () => {
   it('a channel with a Bluesky login is connected, and one without is not', async () => {
     let ready = true
     const r = await rig({ bluesky: (b) => (b === 1 && ready ? null : 'no login') })

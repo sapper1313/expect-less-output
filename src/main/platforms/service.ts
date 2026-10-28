@@ -63,7 +63,7 @@ interface Row {
 }
 
 /**
- * Logins for Bluesky, X, LinkedIn, Pinterest and Snapchat. A channel only uses a platform when it has a connected login
+ * Logins for Bluesky, X, LinkedIn and Pinterest. A channel only uses a platform when it has a connected login
  * here: with none, the platform is simply not part of that channel.
  */
 export class PlatformService {
@@ -312,18 +312,6 @@ export class PlatformService {
       )
     this.drop(brandId, platform)
     this.d.emit()
-  }
-
-  /** Snapchat has no login: the account is just the name to show. */
-  setSnapchat(brandId: number, username: string): ExtraAccountView {
-    const u = username.trim().replace(/^@/, '')
-    if (!u) {
-      this.drop(brandId, 'snapchat')
-    } else {
-      this.upsert(brandId, 'snapchat', { externalId: u, displayName: `@${u}`, status: 'connected' })
-    }
-    this.d.emit()
-    return this.view(brandId, 'snapchat')
   }
 
   async boards(brandId: number): Promise<Array<{ id: string; name: string }>> {

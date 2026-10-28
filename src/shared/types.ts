@@ -699,7 +699,6 @@ export interface ArchiveResult {
   skipped: string[]
 }
 
-
 export interface ExtraCredentialsStatus {
   platform: 'x' | 'linkedin' | 'pinterest'
   hasClientId: boolean
@@ -713,10 +712,10 @@ export interface ExtraCredentialsStatus {
 export interface ExtraAccountView {
   brandId: number
   brandName: string
-  platform: 'bluesky' | 'x' | 'linkedin' | 'pinterest' | 'snapchat'
+  platform: 'bluesky' | 'x' | 'linkedin' | 'pinterest'
   state: 'not_set' | 'connected' | 'needs_reauth'
   displayName: string | null
-  /** Pinterest: the board id. Snapchat: the username. Others: the account id. */
+  /** Pinterest: the board id. Others: the account id. */
   externalId: string | null
   expiresAt: string | null
 }

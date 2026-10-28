@@ -716,14 +716,13 @@ What ELO cannot do, because the apps do not allow it: pin comments, set YouTube 
 
 ## 26. More platforms (0.14.0)
 
-Bluesky, X, LinkedIn, Pinterest and Snapchat now work like Facebook and the others: they show as a small tag (BS, X, LI, PI, SC) on posts in the Calendar, Queue and editor, and you can tick them in the platform list.
+Bluesky, X, LinkedIn and Pinterest now work like Facebook and the others: they show as a small tag (BS, X, LI, PI) on posts in the Calendar, Queue and editor, and you can tick them in the platform list.
 
 - **A login decides.** A channel only uses one of these when it has a login for it (Connections, More platforms). With no login, the platform is not part of the channel and is not even listed.
 - **Bots do not choose them.** Every bot video on a channel that has a login goes to that platform too, after the original four and a few minutes apart (see staggered posting).
 - **Setup steps** for the keys and logins are in `docs/SETUP_MORE_PLATFORMS.md`.
-- **Snapchat** is a reminder: ELO copies the caption at the posting time and you post from the Snapchat app, then press Mark as posted.
 - **Stats** for these platforms are not collected yet, so Stats shows them as "not read yet".
-- **Length limits:** Bluesky 3 minutes, X 20 minutes, LinkedIn 30 minutes, Pinterest 15 minutes, Snapchat 5 minutes. A video that is too long skips that platform and the drop log says so.
+- **Length limits:** Bluesky 3 minutes, X 20 minutes, LinkedIn 30 minutes, Pinterest 15 minutes. A video that is too long skips that platform and the drop log says so.
 
 ## 27. The website (0.15.0)
 
@@ -737,3 +736,9 @@ Each channel has a **Website** card (Channels, Channel setup, pick the channel, 
 - **If you edit the site by hand** (or on GitHub), ELO picks the change up when it reads the site (every few hours, or press **Fill ELO from the website**), unless you have a newer change in ELO that has not gone up yet. ELO's change wins until it is sent.
 - **Safety:** ELO refuses to take more than 2 channels off the site in one go. If GitHub does not accept this Mac, ELO tells you in plain words. Turn off **Send changes to the website automatically** to send changes yourself with the button.
 - **Needs:** this Mac must be signed in to GitHub with SSH the way Terminal is (`ssh -T git@github.com` should say Hi).
+
+## 28. TikTok message and no Snapchat (0.16.0)
+
+- **TikTok message.** When a channel sends a video to TikTok, ELO sends you a message with the channel, the title and the description. Drafts mode: open TikTok, look in your inbox, find the video and post it. Turn alerts on under Settings, Alerts (iMessage number). Quiet hours do not hold this message.
+- **Why the description is not in the draft.** TikTok does not let apps fill in text on a draft. Paste it from the message, or from your clipboard (ELO copies it too).
+- **Snapchat** was removed. It never let apps post.

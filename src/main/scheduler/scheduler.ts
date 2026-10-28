@@ -33,6 +33,8 @@ export interface SchedulerDeps {
     settings?: Record<string, unknown>,
   ) => PlatformAdapter
   notifier: Notifier
+  /** Sends the owner one plain message (iMessage and the rest). Used to say what to find in TikTok. */
+  tell?: (text: string) => Promise<void>
   now?: () => number
   emit?: () => void
   /**
@@ -522,6 +524,7 @@ export class Scheduler {
           },
         )
         this.afterTargetChange(row.post_id)
+        this.tellTikTok(row, ctx, 'draft')
       } else if (result.status === 'posted') {
         const nowIso = new Date(this.now()).toISOString()
         this.d.db
@@ -535,6 +538,7 @@ export class Scheduler {
           platform: row.platform,
         })
         this.afterTargetChange(row.post_id)
+        this.tellTikTok(row, ctx, 'live')
       }
     } catch (err) {
       if (err instanceof AdapterError && err.kind === 'permanent') {
@@ -550,6 +554,26 @@ export class Scheduler {
     } finally {
       this.inFlight.delete(row.id)
     }
+  }
+
+  /** Texts the owner which channel just sent a video to TikTok, with its title and description, so it can be found and finished by hand. */
+  private tellTikTok(row: DueRow, ctx: AdapterContext, state: 'draft' | 'live'): void {
+    if (row.platform !== 'tiktok' || !this.d.tell) return
+    const lines = [
+      state === 'draft'
+        ? `TikTok draft from ${ctx.brandName.toUpperCase()}. Open TikTok, check your inbox, and post it.`
+        : `TikTok post from ${ctx.brandName.toUpperCase()} just went live.`,
+      '',
+      `Channel: ${ctx.brandName}`,
+      `Title: ${ctx.title}`,
+    ]
+    if (ctx.caption.trim()) lines.push('', `Description: ${ctx.caption.trim()}`)
+    this.d.tell(lines.join('\n')).catch((e) =>
+      this.d.log.log('warn', `Could not send the TikTok message: ${(e as Error).message}`, {
+        postId: row.post_id,
+        platform: 'tiktok',
+      }),
+    )
   }
 
   private handleFailure(row: DueRow, err: unknown): void {

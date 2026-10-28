@@ -290,7 +290,7 @@ export interface Api {
     reload(): Promise<void>
   }
   platforms: {
-    /** Every channel with Bluesky, X, LinkedIn, Pinterest and Snapchat: signed in or not. */
+    /** Every channel with Bluesky, X, LinkedIn and Pinterest: signed in or not. */
     views(): Promise<ExtraAccountView[]>
     credentials(platform: 'x' | 'linkedin' | 'pinterest'): Promise<ExtraCredentialsStatus>
     saveCredentials(
@@ -302,7 +302,6 @@ export interface Api {
     connect(brandId: number, platform: 'x' | 'linkedin' | 'pinterest'): Promise<ExtraAccountView>
     cancel(): Promise<void>
     disconnect(brandId: number, platform: ExtraPlatform): Promise<void>
-    setSnapchat(brandId: number, username: string): Promise<ExtraAccountView>
     boards(brandId: number): Promise<Array<{ id: string; name: string }>>
     setBoard(brandId: number, boardId: string, boardName: string): Promise<ExtraAccountView>
     /** The extra platforms a channel has a working login for. */

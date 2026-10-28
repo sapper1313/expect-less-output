@@ -50,7 +50,7 @@ export interface IntakeDeps {
   now?: () => number
   /** Called after any change a screen should show. */
   onChange?: () => void
-  /** The extra platforms (Bluesky, X, LinkedIn, Pinterest, Snapchat) a channel has a working login for. */
+  /** The extra platforms (Bluesky, X, LinkedIn and Pinterest) a channel has a working login for. */
   extraPlatforms?: (brandId: number) => Platform[]
   /** Search phrases from autocomplete for a title. Without it, no phrases are added by ELO. */
   suggest?: (query: string) => Promise<string[]>
@@ -289,7 +289,7 @@ export class PipelineIntake {
     const caption = withHashtags(sc.description, sc.tags)
     const postType: 'episode' | 'clip' = sc.post_type === 'clip' ? 'clip' : 'episode'
     // A clip with no platforms goes to every platform the show has switched on for clips.
-    // The four original platforms come from the sidecar. Bluesky, X, LinkedIn, Pinterest and Snapchat are not chosen by a
+    // The four original platforms come from the sidecar. Bluesky, X, LinkedIn and Pinterest are not chosen by a
     // bot: a channel with a login for one posts there on its own, and a channel without one ignores it.
     const asked: string[] = [
       ...new Set([

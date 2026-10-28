@@ -6,14 +6,13 @@ import { DateTime } from 'luxon'
 export const SIDECAR_VERSION = '1.0'
 
 export const PIPELINE_PLATFORMS = ['youtube', 'facebook', 'instagram', 'tiktok'] as const
-/** Bluesky, X, LinkedIn, Pinterest and Snapchat are not chosen by a bot: a channel with a login for one posts there on its own. A sidecar may list them; it changes nothing. */
+/** Bluesky, X, LinkedIn and Pinterest are not chosen by a bot: a channel with a login for one posts there on its own. A sidecar may list them; it changes nothing. */
 export const SIDECAR_PLATFORMS = [
   ...PIPELINE_PLATFORMS,
   'bluesky',
   'x',
   'linkedin',
   'pinterest',
-  'snapchat',
 ] as const
 
 /** Bots the sidecar may name. The allowlist in Settings decides which are accepted. */

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.16.0 TikTok text message, Snapchat removed
+
+- When a channel sends a video to TikTok, you now get a message (iMessage, plus the other alert places you have on) with the **channel**, the **title** and the **description**. In Drafts mode it says the draft is waiting in your TikTok inbox. In Direct post mode it says the post went live. TikTok does not let an app fill in the description of a draft, so the message is there to copy from (ELO also still copies it to your clipboard).
+- Snapchat is gone from ELO (it never allowed apps to post). Any Snapchat login or Snapchat post entry is removed when the app starts.
+
 ## 0.15.1 Website card keeps what you type
 
 - The Website card used to reset to the saved copy about a minute after you started typing, because the whole page reloads when anything changes. It now keeps your typing until you press Save website details (same fix as the other forms). The website address box is fixed the same way.

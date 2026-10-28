@@ -54,6 +54,7 @@ export function makeEnv(
     failures: [] as string[][],
     successes: [] as string[][],
     missed: [] as string[][],
+    told: [] as string[],
   }
   const notifier: Notifier = {
     failure: (h, d) => events.failures.push([h, d]),
@@ -74,6 +75,7 @@ export function makeEnv(
     getSettings: () => settings.get(),
     adapterFor: opts.adapterFor ?? ((platform) => adapters[platform]),
     notifier: opts.notifier ?? notifier,
+    tell: async (text) => void events.told.push(text),
     now: () => clock.ms,
   })
   /** Creates a scheduled post with a real file in the brand Queue. */

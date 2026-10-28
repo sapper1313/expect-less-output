@@ -369,7 +369,6 @@ export const PLATFORM_SHORT: Record<Platform, string> = {
   x: 'X',
   linkedin: 'LI',
   pinterest: 'PI',
-  snapchat: 'SC',
 }
 export function TargetChip({
   platform,

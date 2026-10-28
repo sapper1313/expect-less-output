@@ -14,7 +14,6 @@ const STAGGER_ORDER: Platform[] = [
   'linkedin',
   'pinterest',
   'bluesky',
-  'snapchat',
 ]
 
 /** A small deterministic random number generator, so a post always gets the same offsets for the same seed. */
@@ -182,12 +181,6 @@ export function morphCaption(platform: Platform, input: MorphInput): string {
     }
     case 'pinterest':
       return body.slice(0, 800)
-    case 'snapchat': {
-      const h = hashLine(tags, 3)
-      let text = sentences(body).slice(0, 2).join(' ')
-      if (text.length > 200) text = `${text.slice(0, 197).trimEnd()}...`
-      return (h ? `${text}${text ? ' ' : ''}${h}` : text).slice(0, 250)
-    }
     case 'youtube': {
       const h = hashLine(tags, 15)
       return h ? `${body}${body ? '\n\n' : ''}${h}` : body

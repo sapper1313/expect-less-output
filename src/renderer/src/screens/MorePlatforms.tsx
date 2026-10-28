@@ -110,7 +110,6 @@ function Tile({
   const [busy, run] = useBusy()
   const [confirm, setConfirm] = useState(false)
   const [waiting, setWaiting] = useState(false)
-  const [name, setName] = useState(view.platform === 'snapchat' ? (view.externalId ?? '') : '')
   const [handle, setHandle] = useState(bluesky?.handle ?? '')
   const [pw, setPw] = useState('')
   const [boards, setBoards] = useState<Array<{ id: string; name: string }> | null>(null)
@@ -188,27 +187,6 @@ function Tile({
         </div>
       )}
 
-      {p === 'snapchat' && (
-        <div className="flex flex-wrap items-end gap-2">
-          <Field label="Snapchat username">
-            <Input className="w-44" value={name} onChange={(e) => setName(e.target.value)} />
-          </Field>
-          <Button
-            disabled={busy}
-            onClick={async () => {
-              await run(() => api.platforms.setSnapchat(view.brandId, name))
-              reload()
-            }}
-          >
-            {name.trim() ? 'Save' : 'Remove'}
-          </Button>
-          <div className="basis-full text-[12px] text-muted">
-            Snapchat does not let apps post. ELO copies the caption and tells you at the posting
-            time, and you post from the Snapchat app.
-          </div>
-        </div>
-      )}
-
       {p === 'bluesky' && (
         <div className="flex flex-wrap items-end gap-2">
           <Field label="Handle">
@@ -268,7 +246,7 @@ function Tile({
 }
 
 /**
- * Bluesky, X, LinkedIn, Pinterest and Snapchat. A channel only posts to one of these when it has a login here: a blank
+ * Bluesky, X, LinkedIn and Pinterest. A channel only posts to one of these when it has a login here: a blank
  * one means that platform is not part of the channel.
  */
 export function MorePlatforms() {
@@ -279,10 +257,9 @@ export function MorePlatforms() {
     <>
       <Card title="More platforms: app keys">
         <p className="mb-3 text-[13px] text-muted">
-          Bluesky, X, LinkedIn, Pinterest and Snapchat are optional. A channel only posts to one
-          when you give it a login below. Leave one blank and that platform is simply not part of
-          the channel. X, LinkedIn and Pinterest each need app keys first (one set for all
-          channels).
+          Bluesky, X, LinkedIn and Pinterest are optional. A channel only posts to one when you give
+          it a login below. Leave one blank and that platform is simply not part of the channel. X,
+          LinkedIn and Pinterest each need app keys first (one set for all channels).
         </p>
         <div className="grid gap-3 lg:grid-cols-3">
           {KEY_PLATFORMS.map((k) => (

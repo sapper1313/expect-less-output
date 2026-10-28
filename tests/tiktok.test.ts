@@ -337,6 +337,9 @@ describe('TikTok Drafts mode (upload to inbox)', () => {
       ],
     ])
     expect(t.copied).toEqual(['Draft Test\n\ncaption'])
+    expect(t.env.events.told).toEqual([
+      'TikTok draft from TRASH PANDA. Open TikTok, check your inbox, and post it.\n\nChannel: Trash Panda\nTitle: Draft Test\n\nDescription: caption',
+    ])
     expect(t.env.posts.get(post.id)!.status).toBe('partial')
     expect(t.env.posts.get(post.id)!.videoPath).toContain('/Queue/')
     await t.env.scheduler.tick()

@@ -32,7 +32,7 @@ export function PlatformPicker({
       {ALL_PLATFORMS.map((p) => {
         const acct = byPlatform.get(p)
         const ok = !!acct && acct.status === 'connected'
-        // Bluesky, X, LinkedIn, Pinterest and Snapchat are only part of a channel that has a login for them.
+        // Bluesky, X, LinkedIn and Pinterest are only part of a channel that has a login for them.
         if (isExtraPlatform(p) && !ok) return null
         return (
           <Check

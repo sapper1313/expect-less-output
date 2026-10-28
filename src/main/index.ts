@@ -91,7 +91,6 @@ import { XAdapter, XClient, xUrls } from './platforms/x'
 import { LinkedInAdapter, LinkedInClient, linkedinUrls } from './platforms/linkedin'
 import { PinterestAdapter, PinterestClient, pinterestUrls } from './platforms/pinterest'
 import { BlueskyAdapter } from './platforms/bluesky'
-import { SnapchatAdapter } from './platforms/snapchat'
 import { GrowthService } from './growth/service'
 import { fetchSuggestions } from './growth/seo'
 import { StorageService } from './growth/storage'
@@ -430,7 +429,7 @@ async function boot(): Promise<void> {
     },
   })
 
-  // More platforms: Bluesky, X, LinkedIn, Pinterest and Snapchat. A channel uses one only when it has a login for it.
+  // More platforms: Bluesky, X, LinkedIn and Pinterest. A channel uses one only when it has a login for it.
   const xClient = new XClient({ urls: xUrls() })
   const linkedinClient = new LinkedInClient({ urls: linkedinUrls() })
   const pinterestClient = new PinterestClient({ urls: pinterestUrls() })
@@ -453,10 +452,6 @@ async function boot(): Promise<void> {
     (platform: Platform) =>
     (level: 'info' | 'warn' | 'error', message: string, ctx: { postId: number }) =>
       log.log(level, message, { postId: ctx.postId, platform })
-  const toast = (title: string, body: string) => {
-    if (Notification.isSupported()) new Notification({ title, body }).show()
-    send({ type: 'toast', toast: { kind: 'info', headline: title, detail: body } })
-  }
   const dryRuns = Object.fromEntries(
     ALL_PLATFORMS.map((p) => [p, new DryRunAdapter(p, { getSettings: () => settings.get() })]),
   ) as unknown as Record<Platform, PlatformAdapter>
@@ -484,9 +479,6 @@ async function boot(): Promise<void> {
       accessToken: (id) => platformService.accessToken(id),
       log: extraLog('pinterest'),
     }),
-    snapchat: new SnapchatAdapter({
-      host: { notify: toast, copyText: (t) => clipboard.writeText(t), log: extraLog('snapchat') },
-    }),
   } as unknown as Record<Platform, PlatformAdapter>
   const adapterFor = (
     platform: Platform,
@@ -509,6 +501,7 @@ async function boot(): Promise<void> {
     getSettings: () => settings.get(),
     adapterFor,
     notifier,
+    tell: (text) => alerts.broadcast(text),
     emit,
     preflight: async (postId) => {
       addEpisodeLink(db, postId)
