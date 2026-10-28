@@ -88,6 +88,7 @@ const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
  */
 export class UpcomingService {
   private watcher: FSWatcher | null = null
+  private sweep: NodeJS.Timeout | null = null
   private poll: NodeJS.Timeout | null = null
   private debounce: NodeJS.Timeout | null = null
   private chain: Promise<unknown> = Promise.resolve()
@@ -387,6 +388,28 @@ export class UpcomingService {
     return run
   }
 
+  /**
+   * The copy a change is built on. Normally the file as it is on disk. When the disk copy is an older one (a bot or a sync
+   * put back a copy with a revision ELO has already passed), building on it would silently drop every entry added since.
+   * ELO then builds on its last good copy and keeps any entry that only the old file has.
+   */
+  private baseFor(disk: UpcomingFileT, hash: string): UpcomingFileT {
+    const st = this.state()
+    if (!st.json || hash === st.hash || disk.revision > st.revision) return disk
+    const base = clone(this.cached())
+    const have = new Set(base.episodes.map((e) => `${e.channel}/${e.episode_id}`))
+    for (const e of disk.episodes)
+      if (!have.has(`${e.channel}/${e.episode_id}`)) base.episodes.push(e)
+    this.addViolation({
+      key: `stale:${hash.slice(0, 12)}`,
+      detail: `upcoming.json was replaced by an older copy (revision ${disk.revision}, ELO is at ${st.revision}). ELO kept its newer entries and wrote them back.`,
+      channel: '',
+      episodeId: '',
+      entryRevision: null,
+    })
+    return base
+  }
+
   /** Reads the file fresh, applies the change, and writes it back with a temporary file and a rename. */
   private mutate(actorName: string, action: string, fn: (f: UpcomingFileT) => void): UpcomingFileT {
     if (!this.d.settings.get().upcomingEnabled)
@@ -402,7 +425,7 @@ export class UpcomingService {
       file = this.state().json
         ? this.cached()
         : { schema_version: UPCOMING_VERSION, revision: 0, updated_at: this.iso(), episodes: [] }
-    else file = disk.file
+    else file = this.baseFor(disk.file, disk.hash)
     // The file may have moved on since ELO last looked. Load it first so changes by others are checked and kept.
     if (
       disk.kind === 'ok' &&
@@ -701,7 +724,8 @@ export class UpcomingService {
     return this.serial(() => {
       const f = this.readDiskOrCache()
       const e = this.find(f, channel, episodeId)
-      if (!e) return 'none' as const
+      if (!e)
+        return this.adopt(channel, episodeId, dropId) ? ('dropped' as const) : ('none' as const)
       if (e.status === 'dropped') return 'none' as const
       if (e.status !== 'needs-review') {
         this.addViolation({
@@ -729,6 +753,77 @@ export class UpcomingService {
         after: { drop_id: dropId },
       })
       return 'dropped' as const
+    })
+  }
+
+  /**
+   * A dropped episode that has no entry (the bot never added one, or the entry was lost) gets one, already marked dropped,
+   * so it always shows in Upcoming. Returns true when an entry was made. Runs inside the serial chain.
+   */
+  private adopt(channel: string, episodeId: string, dropId: string): boolean {
+    const brand = this.d.brands.bySlug(channel)
+    if (!brand || channelState(this.d.db, brand.id) === 'archived') return false
+    const d = this.d.db
+      .prepare(
+        "SELECT title FROM drops WHERE drop_id = ? AND result = 'accepted' AND post_type = 'episode'",
+      )
+      .get(dropId) as { title: string | null } | undefined
+    if (!d) return false
+    const t = this.iso()
+    let made = false
+    this.mutate('system', 'adopt', (file) => {
+      if (this.find(file, channel, episodeId)) return
+      file.episodes.push(
+        UpcomingEntryParse({
+          channel,
+          episode_id: episodeId,
+          working_title: d.title?.trim() || episodeId,
+          premise: '',
+          status: 'dropped',
+          source_bot: 'elo',
+          created_by: 'system',
+          created_at: t,
+          updated_by: 'system',
+          updated_at: t,
+          entry_revision: 1,
+          notes: 'Added by ELO because the episode was dropped with no Upcoming entry.',
+          script_path: null,
+          drop_id: dropId,
+        }) as UpcomingEntryT,
+      )
+      made = true
+    })
+    if (made)
+      this.d.audit.write({
+        actor: 'system',
+        action: 'upcoming.adopt',
+        target: `${channel}/${episodeId}`,
+        after: { drop_id: dropId },
+      })
+    return made
+  }
+
+  /** Gives every recent accepted episode drop that has no entry its entry. Safe to run again. */
+  adoptOrphanDrops(): Promise<number> {
+    if (!this.d.settings.get().upcomingEnabled) return Promise.resolve(0)
+    return this.serial(() => {
+      const f = this.readDiskOrCache()
+      const known = new Set(f.episodes.map((e) => `${e.channel}/${e.episode_id}`))
+      const cutoff = new Date(this.now() - 14 * 86_400_000).toISOString()
+      let n = 0
+      for (const d of this.d.db
+        .prepare(
+          "SELECT drop_id, channel, episode_id FROM drops WHERE result = 'accepted' AND post_type = 'episode' AND episode_id IS NOT NULL AND received_at >= ? ORDER BY received_at",
+        )
+        .all(cutoff) as Array<{ drop_id: string; channel: string; episode_id: string }>) {
+        if (known.has(`${d.channel}/${d.episode_id}`)) continue
+        try {
+          if (this.adopt(d.channel, d.episode_id, d.drop_id)) n++
+        } catch {
+          // One bad row must not stop the rest.
+        }
+      }
+      return n
     })
   }
 
@@ -861,6 +956,8 @@ export class UpcomingService {
       }
     }
     this.poll = setInterval(() => this.load(), Math.max(2, s.upcomingPollSeconds) * 1000)
+    void this.adoptOrphanDrops().catch(() => undefined)
+    this.sweep = setInterval(() => void this.adoptOrphanDrops().catch(() => undefined), 5 * 60_000)
   }
 
   stop(): void {
@@ -870,6 +967,8 @@ export class UpcomingService {
     this.poll = null
     if (this.debounce) clearTimeout(this.debounce)
     this.debounce = null
+    if (this.sweep) clearInterval(this.sweep)
+    this.sweep = null
   }
 
   // ---------- reconcile ----------

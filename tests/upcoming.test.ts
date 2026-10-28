@@ -346,9 +346,33 @@ describe('Upcoming: drop link and reconcile (tests 31, 32, 33, 34)', () => {
     })
     expect(rows.find((r) => r.episode_id === a.episode_id)!.postId).toBeTruthy()
     expect(rows.find((r) => r.episode_id === b.episode_id)!.status).toBe('needs-review')
-    t.drop('Trash Panda', 'trash-panda', 8) // no entry
+    t.drop('Trash Panda', 'trash-panda', 8) // no entry: ELO makes one
     await t.settle()
-    expect(t.up.issues().some((i) => /has no entry in Upcoming/.test(i.detail))).toBe(true)
+    const made = t.up.view().rows.find((r) => r.episode_id === 'trash-panda-2026-0008')
+    expect(made).toMatchObject({ status: 'dropped', updated_by: 'system' })
+    expect(t.up.issues().some((i) => /has no entry in Upcoming/.test(i.detail))).toBe(false)
+  })
+
+  it('a stale copy put back on disk does not wipe the newer entries on the next write', async () => {
+    const t = setup()
+    const a = await t.up.add(JOSH, { channel: 'trash-panda', working_title: 'First' })
+    const stale = readFileSync(t.file, 'utf8')
+    const b = await t.up.add(JOSH, { channel: 'trash-panda', working_title: 'Second' })
+    writeFileSync(t.file, stale) // an old copy is put back (a sync or a bot)
+    await t.up.add(JOSH, { channel: 'trash-panda', working_title: 'Third' })
+    const ids = t.read().episodes.map((e: { episode_id: string }) => e.episode_id)
+    expect(ids).toEqual(expect.arrayContaining([a.episode_id, b.episode_id]))
+    expect(ids).toHaveLength(3)
+    expect(t.up.issues().some((i) => /replaced by an older copy/.test(i.detail))).toBe(true)
+  })
+
+  it('adoptOrphanDrops gives earlier drops with no entry their entry, once', async () => {
+    const t = setup()
+    t.drop('Trash Panda', 'trash-panda', 9)
+    await t.settle()
+    const before = t.read().episodes.length
+    expect(await t.up.adoptOrphanDrops()).toBe(0)
+    expect(t.read().episodes.length).toBe(before)
   })
 
   it('a drop that arrives before the status caught up is not advanced and raises a warning', async () => {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.16.1 Dropped episodes always get an Upcoming entry
+
+- Cause of the missing entries: on Oct 25 an older copy of `upcoming.json` was put back on disk. ELO refused to load it, but the next bot write was built on that old file and quietly erased 13 entries (including The Math of It 0108). ELO now builds every write on its own latest copy when the file on disk is older, keeps any entry only the old file has, and shows a warning.
+- A dropped episode with no Upcoming entry now gets one made by ELO, already marked dropped, with the title from the drop. This happens when the drop arrives, when ELO starts, and every 5 minutes.
+
 ## 0.16.0 TikTok text message, Snapchat removed
 
 - When a channel sends a video to TikTok, you now get a message (iMessage, plus the other alert places you have on) with the **channel**, the **title** and the **description**. In Drafts mode it says the draft is waiting in your TikTok inbox. In Direct post mode it says the post went live. TikTok does not let an app fill in the description of a draft, so the message is there to copy from (ELO also still copies it to your clipboard).
