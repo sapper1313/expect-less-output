@@ -464,24 +464,29 @@ function OpenLine({
       <Dot color={slot.brandColor} hollow />
       <div className="min-w-0 flex-1">
         <div className="text-[15px] italic text-muted">
-          <b className="not-italic text-ink">{slot.brandName}</b> has no {what} scheduled
+          <b className="not-italic text-ink">{slot.brandName}</b>{' '}
+          {slot.blockedBy ? 'is blocked at this time' : `has no ${what} scheduled`}
           {slot.kind === 'clip' && <ClipBadge />}
         </div>
         <div className="mt-1 text-[11px] text-muted">
-          {off
-            ? `This channel is ${slot.channelState === 'paused' ? 'paused' : 'on hold'}, so nothing will post in this slot.`
-            : slot.waiting > 0
-              ? `${slot.waiting} finished ${slot.waiting === 1 ? 'video is' : 'videos are'} waiting in the Inbox.`
-              : 'Open slot.'}
+          {slot.blockedBy
+            ? `${slot.blockedBy} already posts at this time and the minimum gap between posts is on, so ELO will not schedule here by itself.`
+            : off
+              ? `This channel is ${slot.channelState === 'paused' ? 'paused' : 'on hold'}, so nothing will post in this slot.`
+              : slot.waiting > 0
+                ? `${slot.waiting} finished ${slot.waiting === 1 ? 'video is' : 'videos are'} waiting in the Inbox.`
+                : 'Open slot.'}
         </div>
       </div>
       <div className="flex shrink-0 gap-2">
-        {slot.waiting > 0 && (
+        {slot.waiting > 0 && !slot.blockedBy && (
           <Button variant="primary" onClick={onFill}>
             Fill with a waiting {slot.kind === 'clip' ? 'clip' : 'video'}
           </Button>
         )}
-        {slot.waiting > 0 && onInbox && <Button onClick={onInbox}>Open Inbox</Button>}
+        {slot.waiting > 0 && !slot.blockedBy && onInbox && (
+          <Button onClick={onInbox}>Open Inbox</Button>
+        )}
         <Button onClick={onAdd}>Add a {slot.kind === 'clip' ? 'clip' : 'video'}</Button>
       </div>
     </div>

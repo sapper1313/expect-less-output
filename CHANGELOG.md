@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.16.2 Calendar shows gap-blocked slots as blocked
+
+- With the minimum gap between posts on, a slot that another channel already uses (same minute) is now shown as **blocked** in the Calendar, with the name of the channel that holds the time. Before, it looked like an empty hole even though ELO would never schedule there by itself.
+- Blocked slots no longer count in the empty slot warning, and **Fill** skips them. You can still add a video to one by hand. The gap setting itself is unchanged.
+
 ## 0.16.1 Dropped episodes always get an Upcoming entry
 
 - Cause of the missing entries: on Oct 25 an older copy of `upcoming.json` was put back on disk. ELO refused to load it, but the next bot write was built on that old file and quietly erased 13 entries (including The Math of It 0108). ELO now builds every write on its own latest copy when the file on disk is older, keeps any entry only the old file has, and shows a warning.

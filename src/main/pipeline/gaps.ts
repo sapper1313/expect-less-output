@@ -37,6 +37,7 @@ export function openSlotsFor(
         kind: s.kind,
         channelState: state,
         waiting: waiting(s.kind),
+        ...(s.blockedBy ? { blockedBy: s.blockedBy } : {}),
       })
   }
   return out.sort((a, c) => a.whenUtc.localeCompare(c.whenUtc))
@@ -72,7 +73,7 @@ export class GapWarner {
       now.toUTC().toISO() as string,
       end.toUTC().toISO() as string,
       null,
-    ).filter((s) => s.channelState === 'active')
+    ).filter((s) => s.channelState === 'active' && !s.blockedBy)
     if (!slots.length) return null
     const lines: string[] = []
     const byDay = new Map<string, OpenSlot[]>()

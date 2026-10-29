@@ -142,7 +142,7 @@ export class InboxService {
           .all(b.id, kind) as Array<{ id: number }>
         const slots = this.d.posts
           .openSlotsInRange(b.id, fromUtc, toUtc)
-          .filter((s) => s.kind === kind)
+          .filter((s) => s.kind === kind && !s.blockedBy)
         let i = 0
         for (; i < waiting.length && i < slots.length; i++) {
           const r = await this.d.intake.scheduleDrop(waiting[i].id, { slot: slots[i].whenUtc })

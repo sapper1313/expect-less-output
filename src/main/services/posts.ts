@@ -373,7 +373,7 @@ export class PostService {
     brandId: number,
     fromUtc: string,
     toUtc: string,
-  ): Array<{ whenUtc: string; kind: 'episode' | 'clip' }> {
+  ): Array<{ whenUtc: string; kind: 'episode' | 'clip'; blockedBy?: string }> {
     const now = new Date(this.now()).toISOString()
     const from = fromUtc > now ? fromUtc : now
     if (from >= toUtc) return []
@@ -400,7 +400,27 @@ export class PostService {
           t: string
         }>
       ).map((r) => r.t)
-    const out: Array<{ whenUtc: string; kind: 'episode' | 'clip' }> = []
+    const out: Array<{ whenUtc: string; kind: 'episode' | 'clip'; blockedBy?: string }> = []
+    // The minimum gap keeps the scheduler out of a slot another channel already uses, so such a slot is marked, not left looking empty.
+    const gapMs = Number(readSetting(this.db, 'minGapMinutes') || 0) * 60_000
+    const others = gapMs
+      ? (this.db
+          .prepare(
+            `SELECT p.scheduled_at_utc AS t, b.name AS name FROM posts p JOIN brands b ON b.id = p.brand_id
+             WHERE p.brand_id != ? AND p.scheduled_at_utc IS NOT NULL AND p.scheduled_at_utc >= ? AND p.scheduled_at_utc < ?
+             AND p.status IN (${RESERVING.map(() => '?').join(',')})`,
+          )
+          .all(
+            brandId,
+            new Date(new Date(fromUtc).getTime() - gapMs).toISOString(),
+            new Date(new Date(toUtc).getTime() + gapMs).toISOString(),
+            ...RESERVING,
+          ) as Array<{ t: string; name: string }>)
+      : []
+    const blockerOf = (iso: string) => {
+      const ms = new Date(iso).getTime()
+      return others.find((o) => Math.abs(new Date(o.t).getTime() - ms) < gapMs)?.name
+    }
     const dayOf = (iso: string) =>
       DateTime.fromISO(iso, { zone: 'utc' }).setZone(ZONE).toFormat('yyyy-MM-dd')
     const collect = (kind: 'episode' | 'clip', all: string[], cap: number) => {
@@ -414,7 +434,8 @@ export class PostService {
         const n = perDay.get(d) ?? 0
         if (cap > 0 && n >= cap) continue
         perDay.set(d, n + 1)
-        out.push({ whenUtc: s, kind })
+        const by = kind === 'episode' && gapMs ? blockerOf(s) : undefined
+        out.push(by ? { whenUtc: s, kind, blockedBy: by } : { whenUtc: s, kind })
       }
     }
     // Look a day wider on both sides so a slot near midnight is judged against the right day.

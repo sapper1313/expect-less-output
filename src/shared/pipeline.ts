@@ -399,6 +399,8 @@ export interface OpenSlot {
   channelState: 'active' | 'paused' | 'on-hold'
   /** Finished videos of this kind waiting in the Inbox for this channel. */
   waiting: number
+  /** Set when the minimum gap rule keeps the scheduler out of this slot: the channel that already posts at that time. */
+  blockedBy?: string
 }
 
 export interface FillResult {
