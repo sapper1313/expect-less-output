@@ -353,7 +353,8 @@ describe('video metadata', () => {
   it('rejects bad titles and descriptions with permanent errors', () => {
     expect(() => buildVideoMetadata({ ...base, title: '' })).toThrow(AdapterError)
     expect(() => buildVideoMetadata({ ...base, title: 'x'.repeat(101) })).toThrow(/limit is 100/)
-    expect(() => buildVideoMetadata({ ...base, title: 'a < b' })).toThrow(/< and >/)
+    expect(buildVideoMetadata({ ...base, title: 'a < b' }).snippet.title).toBe('a ‹ b')
+    expect(buildVideoMetadata({ ...base, title: 'Fix it', caption: 'Android: Settings > Display > Font size.' }).snippet.description).toBe('Android: Settings → Display → Font size.')
     expect(() => buildVideoMetadata({ ...base, caption: 'y'.repeat(5001) })).toThrow(
       /limit is 5000/,
     )

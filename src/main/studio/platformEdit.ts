@@ -1,5 +1,6 @@
 import type { Db } from '../db'
 import { EDIT_CAPABILITY, type EditPatch } from '@shared/platformEdit'
+import { cleanYoutubeText } from '../google/metadata'
 
 export interface EditDeps {
   db: Db
@@ -48,10 +49,10 @@ export class PlatformEditor {
       if (!title) throw new Error('The title cannot be empty.')
       if (platform === 'youtube' && title.length > 100)
         throw new Error('A YouTube title can be at most 100 characters.')
-      clean.title = title
+      clean.title = platform === 'youtube' ? cleanYoutubeText(title).trim() : title
     }
     if (cap.fields.includes('description') && patch.description !== undefined)
-      clean.description = patch.description
+      clean.description = platform === 'youtube' ? cleanYoutubeText(patch.description) : patch.description
     if (cap.fields.includes('tags') && patch.tags !== undefined)
       clean.tags = patch.tags.map((x) => x.replace(/^#/, '').trim()).filter(Boolean)
     if (!Object.keys(clean).length) throw new Error('Nothing was changed.')

@@ -45,8 +45,13 @@ export function tagsFromText(text: string): string[] {
   return out
 }
 
+/** YouTube refuses the characters < and > in titles and descriptions. Menu paths like "Settings > Display" become arrows. */
+export function cleanYoutubeText(text: string): string {
+  return text.replace(/[ \t]*>[ \t]*/g, ' → ').replace(/[ \t]*<[ \t]*/g, ' ‹ ')
+}
+
 export function buildVideoMetadata(i: MetadataInput): VideoMetadata {
-  const title = i.title.trim()
+  const title = cleanYoutubeText(i.title).trim()
   if (!title)
     throw new AdapterError('The YouTube title is empty. Add a title and retry.', 'permanent')
   if (title.length > PLATFORM_LIMITS.youtube.titleMax) {
@@ -55,24 +60,12 @@ export function buildVideoMetadata(i: MetadataInput): VideoMetadata {
       'permanent',
     )
   }
-  if (/[<>]/.test(title)) {
-    throw new AdapterError(
-      'YouTube does not allow the characters < and > in a title. Remove them and retry.',
-      'permanent',
-    )
-  }
-  let description = i.caption.trim()
+  let description = cleanYoutubeText(i.caption).trim()
   if (i.appendShorts && !/#shorts\b/i.test(description))
     description = `${description}${description ? '\n\n' : ''}#Shorts`
   if (description.length > PLATFORM_LIMITS.youtube.descriptionMax) {
     throw new AdapterError(
       `The YouTube description is ${description.length} characters. The limit is ${PLATFORM_LIMITS.youtube.descriptionMax}.`,
-      'permanent',
-    )
-  }
-  if (/[<>]/.test(description)) {
-    throw new AdapterError(
-      'YouTube does not allow the characters < and > in a description. Remove them and retry.',
       'permanent',
     )
   }
@@ -83,7 +76,7 @@ export function buildVideoMetadata(i: MetadataInput): VideoMetadata {
     snippet: {
       title,
       description,
-      tags: mergeSearchTags(tagsFromText(description), i.searchTags ?? []),
+      tags: mergeSearchTags(tagsFromText(description), (i.searchTags ?? []).map((t) => t.replace(/[<>]/g, ''))),
       categoryId: i.categoryId,
     },
     status: {
