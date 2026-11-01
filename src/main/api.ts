@@ -268,6 +268,12 @@ export function buildApi(d: ApiDeps): Api {
             after: { alsoDeleteFile },
           })
       },
+      olderMissingPlatform: async (brandId, platform) => d.posts.olderMissingPlatform(brandId, platform),
+      addPlatform: async (postIds, platform, schedule) => {
+        const r = d.posts.addPlatform(postIds, platform, { schedule })
+        if (r.added) void d.scheduler.tick()
+        return r
+      },
       retryTarget: async (id) => d.scheduler.retryTarget(id),
       markPosted: async (id, url) => d.scheduler.markPosted(id, url),
       duplicate: async (id) => d.posts.duplicate(id),

@@ -52,6 +52,7 @@ import type {
   Settings,
 } from './types'
 import type { HomeSummary } from './home'
+import type { SendSchedule } from './sendSchedule'
 import type { SearchHit } from './search'
 import type { EditPatch } from './platformEdit'
 import type { StudioApi } from './studio/api'
@@ -142,6 +143,10 @@ export interface Api {
     swap(a: number, b: number): Promise<void>
     cancel(ids: number[]): Promise<void>
     remove(ids: number[], alsoDeleteFile: boolean): Promise<void>
+    /** Older posts that never went to this platform and still have their video. */
+    olderMissingPlatform(brandId: number, platform: Platform): Promise<Array<{ postId: number; title: string; postedAtUtc: string | null; platforms: string[] }>>
+    /** Sends already posted videos to one more platform, a few minutes apart. */
+    addPlatform(postIds: number[], platform: Platform, schedule?: SendSchedule): Promise<{ added: number; problems: Array<{ postId: number; title: string; reason: string }>; times: string[] }>
     retryTarget(targetId: number): Promise<void>
     markPosted(targetId: number, url?: string): Promise<void>
     duplicate(id: number): Promise<Post>

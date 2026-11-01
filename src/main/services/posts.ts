@@ -6,7 +6,8 @@ import type { MediaService } from './media'
 import { getNextOpenSlots, getSlotTimes, type SlotDef } from '@shared/slots'
 import { derivePostStatus } from '@shared/scheduling'
 import { readSetting } from './settings'
-import { durationProblem } from '@shared/platformLimits'
+import { PLATFORM_LIMITS, durationProblem } from '@shared/platformLimits'
+import type { SendSchedule } from '@shared/sendSchedule'
 import { tiktokSettingsProblem } from '@shared/tiktok'
 import { DateTime } from 'luxon'
 import { staggerOffsets } from '@shared/growth'
@@ -1033,6 +1034,131 @@ export class PostService {
         .run(next, new Date().toISOString(), postId)
     }
     return next
+  }
+
+  /**
+   * Older posts that were posted but never went to one platform (for example, TikTok was not connected yet), and whose
+   * video file is still there. Newest last.
+   */
+  olderMissingPlatform(brandId: number, platform: Platform): Array<{ postId: number; title: string; postedAtUtc: string | null; platforms: string[] }> {
+    const rows = this.db
+      .prepare(
+        `SELECT p.id, p.title, p.video_path, p.scheduled_at_utc FROM posts p
+         WHERE p.brand_id = ? AND p.status IN ('posted','partial') AND p.media_purged_at IS NULL
+           AND NOT EXISTS (SELECT 1 FROM post_targets t WHERE t.post_id = p.id AND t.platform = ? AND t.status != 'skipped')
+         ORDER BY p.scheduled_at_utc, p.id`,
+      )
+      .all(brandId, platform) as Array<{ id: number; title: string; video_path: string; scheduled_at_utc: string | null }>
+    return rows
+      .filter((r) => existsSync(this.library.resolve(r.video_path)))
+      .map((r) => ({
+        postId: r.id,
+        title: r.title,
+        postedAtUtc: r.scheduled_at_utc,
+        platforms: (this.db.prepare("SELECT platform FROM post_targets WHERE post_id = ? AND status = 'posted'").all(r.id) as Array<{ platform: string }>).map((x) => x.platform),
+      }))
+  }
+
+  /** The channel's own posting times from a moment on, whether or not a post sits in them. */
+  channelPostingTimes(brandId: number, count: number, fromMs: number): string[] {
+    const rules = this.channelRules(brandId)
+    const slots = (this.db.prepare('SELECT * FROM brand_slots WHERE brand_id = ?').all(brandId) as any[]).map<SlotDef>((r) => ({ dayType: r.day_type, timeLocal: r.time_local, enabled: !!r.enabled }))
+    const blackoutDates = [...new Set([...readSetting(this.db, 'blackoutDates'), ...rules.blackoutDates])]
+    const from = new Date(fromMs).toISOString()
+    return getSlotTimes({ slots, from, to: new Date(fromMs + 300 * 86_400_000).toISOString(), weekdays: this.postDays(brandId), blackoutDates, maxPerDay: rules.maxPerDay })
+      .filter((t) => t >= from)
+      .slice(0, count)
+  }
+
+  /**
+   * Sends already posted videos to one more platform, one every few minutes. The post keeps its old date. A platform
+   * entry that was skipped before is reused. Refuses a platform that has no real account connected.
+   */
+  addPlatform(
+    postIds: number[],
+    platform: Platform,
+    opts: { spacingSeconds?: number; allowDryRun?: boolean; schedule?: SendSchedule } = {},
+  ): { added: number; problems: Array<{ postId: number; title: string; reason: string }>; times: string[] } {
+    const sched: SendSchedule = opts.schedule ?? { mode: 'now', spacingSeconds: opts.spacingSeconds ?? 120 }
+    const brandOfFirst = (this.db.prepare('SELECT brand_id FROM posts WHERE id = ?').get(postIds[0] ?? -1) as { brand_id: number } | undefined)?.brand_id
+    const nowMs = this.now()
+    const times: string[] = []
+    let channelTimes: string[] = []
+    if (sched.mode === 'channel' && brandOfFirst) channelTimes = this.channelPostingTimes(brandOfFirst, postIds.length, nowMs + 60_000)
+    const timeFor = (n: number): string | null => {
+      if (sched.mode === 'channel') return channelTimes[n] ?? null
+      if (sched.mode === 'start') return new Date(Math.max(nowMs, new Date(sched.startAtUtc).getTime()) + n * Math.max(1, sched.everyMinutes) * 60_000).toISOString()
+      return new Date(nowMs + n * Math.max(1, sched.spacingSeconds) * 1000).toISOString()
+    }
+    const problems: Array<{ postId: number; title: string; reason: string }> = []
+    let added = 0
+    for (const id of postIds) {
+      const row = this.db.prepare('SELECT * FROM posts WHERE id = ?').get(id) as (PostRow & { media_purged_at: string | null }) | undefined
+      if (!row) continue
+      const fail = (reason: string) => problems.push({ postId: id, title: row.title, reason })
+      const existingFirst = this.db.prepare('SELECT status FROM post_targets WHERE post_id = ? AND platform = ?').get(id, platform) as { status: string } | undefined
+      if (existingFirst && existingFirst.status !== 'skipped') {
+        fail('This post already has a ' + platform + ' entry.')
+        continue
+      }
+      const wentOut = !!this.db.prepare("SELECT 1 FROM post_targets WHERE post_id = ? AND status = 'posted'").get(id)
+      if (!(['posted', 'partial'].includes(row.status) || (row.status === 'in_progress' && wentOut))) {
+        fail('Only a post that already went out can be sent to another platform.')
+        continue
+      }
+      if (row.media_purged_at || !existsSync(this.library.resolve(row.video_path))) {
+        fail('The video file is gone, so it cannot be sent again.')
+        continue
+      }
+      const acct = this.db.prepare('SELECT id, mode, status FROM accounts WHERE brand_id = ? AND platform = ?').get(row.brand_id, platform) as { id: number; mode: string; status: string } | undefined
+      if (!acct || (acct.mode === 'dry_run' && !opts.allowDryRun)) {
+        fail(`No real ${platform} account is connected for this channel. Connect one on the Channels screen first.`)
+        continue
+      }
+      if (acct.status !== 'connected') {
+        fail(`The ${platform} account needs you to sign in again.`)
+        continue
+      }
+      if (platform === 'tiktok' && acct.mode === 'direct') {
+        fail('TikTok Direct Post needs your privacy choices for each video. Use the post editor, or switch the account to Drafts.')
+        continue
+      }
+      const existing = this.db.prepare('SELECT id, status FROM post_targets WHERE post_id = ? AND platform = ?').get(id, platform) as { id: number; status: string } | undefined
+      if (existing && existing.status !== 'skipped') {
+        fail('This post already has a ' + platform + ' entry.')
+        continue
+      }
+      const meta = safeParse(row.video_meta_json) as { durationSeconds?: number }
+      const tooLong = meta.durationSeconds ? durationProblem(platform, meta.durationSeconds) : null
+      if (tooLong) {
+        fail(tooLong)
+        continue
+      }
+      const ai = (this.db.prepare("SELECT ai_flag FROM post_targets WHERE post_id = ? AND status = 'posted' LIMIT 1").get(id) as { ai_flag: number } | undefined)?.ai_flag ?? 0
+      const lim = PLATFORM_LIMITS[platform] as { captionMax?: number; descriptionMax?: number }
+      const max = lim.captionMax ?? lim.descriptionMax ?? 2200
+      const caption = row.caption.length > max ? row.caption.slice(0, max - 1).replace(/\s+\S*$/, '') + '…' : row.caption
+      const when = timeFor(added)
+      if (!when) {
+        fail('The channel has no more posting times to use. Add slot times on the Channels screen.')
+        continue
+      }
+      if (existing) {
+        this.db
+          .prepare("UPDATE post_targets SET status = 'pending', attempts = 0, last_error = NULL, lock_token = NULL, locked_at_utc = NULL, caption_override = ?, account_id = ?, next_attempt_at_utc = ? WHERE id = ?")
+          .run(caption, acct.id, when, existing.id)
+      } else {
+        this.db
+          .prepare("INSERT INTO post_targets (post_id, platform, account_id, caption_override, ai_flag, settings_json, stagger_offset_min, next_attempt_at_utc) VALUES (?, ?, ?, ?, ?, '{}', 0, ?)")
+          .run(id, platform, acct.id, caption, ai, when)
+      }
+      times.push(when)
+      this.recomputeStatus(id)
+      this.log.log('info', `Sending "${row.title}" to ${platform} now that it is connected.`, { postId: id })
+      added++
+    }
+    if (added) this.emit()
+    return { added, problems, times }
   }
 
   setPostStatus(postId: number, status: PostStatus): void {

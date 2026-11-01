@@ -5,6 +5,7 @@ import { toCsv } from '@shared/csv'
 import { formatEastern, localInputToIso } from '@shared/time'
 import type { PostFilter } from '@shared/types'
 import { api } from '../api'
+import { SendOlder } from '../components/SendOlder'
 import { useApp, useLoad } from '../hooks'
 import { fmt } from '../components/StatsPanel'
 import { PostEditor } from '../components/PostEditor'
@@ -25,6 +26,7 @@ import {
 } from '../ui'
 
 export function Queue() {
+  const [sendOlder, setSendOlder] = useState(false)
   const { toast } = useApp()
   const { data: views } = useLoad(() => api.platforms.views(), [])
   const extras = (views ?? []).filter((v) => v.state !== 'not_set').map((v) => v.platform)
@@ -65,6 +67,7 @@ export function Queue() {
   return (
     <div className="h-full overflow-auto pb-10">
       <PageHeader title={COPY.nav.queue}>
+        <Button onClick={() => setSendOlder(true)}>Send older videos to another platform</Button>
         <Button
           disabled={!posts?.length}
           onClick={async () => {
@@ -363,6 +366,7 @@ export function Queue() {
           }}
         />
       )}
+      {sendOlder && <SendOlder onClose={() => setSendOlder(false)} />}
     </div>
   )
 }
