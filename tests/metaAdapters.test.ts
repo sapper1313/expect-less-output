@@ -318,6 +318,25 @@ describe('Instagram Reels', () => {
     expect(Object.keys(m.fake.state.igContainers)).toHaveLength(2)
   })
 
+  it('never reuses an Instagram upload older than a day, and starts a fresh one by itself', async () => {
+    const m = await setup()
+    m.fake.state.igPollsUntilFinished = 10_000
+    const post = await m.env.makePost({ whenMs: m.env.clock.ms + MIN, platforms: ['instagram'] })
+    m.env.clock.ms += 2 * MIN
+    await m.env.scheduler.tick()
+    expect(Object.keys(m.fake.state.igContainers)).toHaveLength(1)
+    m.fake.state.igPollsUntilFinished = 1
+    m.env.clock.ms += 25 * 3600_000
+    await m.env.scheduler.tick()
+    expect(target(m, post.id, 'instagram').lastError).toContain('expired')
+    for (let i = 0; i < 10 && target(m, post.id, 'instagram').status !== 'posted'; i++) {
+      m.env.clock.ms += 3 * MIN
+      await m.env.scheduler.tick()
+    }
+    expect(target(m, post.id, 'instagram').status).toBe('posted')
+    expect(Object.keys(m.fake.state.igContainers)).toHaveLength(2)
+  })
+
   it('gives up on a container stuck for 15 minutes and starts over on the retry schedule', async () => {
     const m = await setup()
     m.fake.state.igPollsUntilFinished = 10_000

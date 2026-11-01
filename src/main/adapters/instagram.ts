@@ -25,6 +25,9 @@ export interface InstagramDeps {
  * Instagram Reels: create a container, upload the local file (resumable), then let the scheduler poll the
  * container every tick. When it is FINISHED the Reel is published. Nothing blocks for minutes.
  */
+/** Instagram expires an unpublished upload after 24 hours. Treat 23 hours as old. */
+const containerIsOld = (createdAtMs: unknown, nowMs: number) => typeof createdAtMs === 'number' && nowMs - createdAtMs > 23 * 3600_000
+
 export class InstagramAdapter implements PlatformAdapter {
   readonly platform = 'instagram' as const
   constructor(private d: InstagramDeps) {}
@@ -89,6 +92,11 @@ export class InstagramAdapter implements PlatformAdapter {
     const token = this.d.host.tokenFor(a)
     const g = this.d.graph
     let st = ctx.getState()
+    // Instagram throws away an upload that was not published within a day. An old one is never reused.
+    if (typeof st.igContainerId === 'string' && containerIsOld(st.igCreatedAtMs, ctx.nowMs())) {
+      ctx.setState({ igContainerId: null, igUploaded: false, igUploadUrl: null, igCreatedAtMs: null })
+      st = ctx.getState()
+    }
     let container = typeof st.igContainerId === 'string' ? st.igContainerId : null
 
     if (!container) {
@@ -174,6 +182,10 @@ export class InstagramAdapter implements PlatformAdapter {
 
     const container = st.igContainerId
     if (typeof container !== 'string') return { status: 'processing' }
+    if (containerIsOld(st.igCreatedAtMs, ctx.nowMs())) {
+      ctx.setState({ igContainerId: null, igUploaded: false, igUploadUrl: null, igCreatedAtMs: null })
+      throw new AdapterError('The earlier Instagram upload sat for more than a day and expired. Starting a fresh upload.', 'transient')
+    }
     const res = await this.guard(() =>
       g.get<{ status_code?: string; status?: string }>(
         `/${container}`,
@@ -193,11 +205,14 @@ export class InstagramAdapter implements PlatformAdapter {
       }
       case 'PUBLISHED':
         return { status: 'posted', externalId: container }
-      case 'ERROR':
       case 'EXPIRED': {
+        ctx.setState({ igContainerId: null, igUploaded: false, igUploadUrl: null, igCreatedAtMs: null })
+        throw new AdapterError('Instagram dropped the old upload because it was not published in time. Starting a fresh upload.', 'transient')
+      }
+      case 'ERROR': {
         const why = res.status || res.status_code
         // Forget this container so a Retry starts a fresh one.
-        ctx.setState({ igContainerId: null, igUploaded: false, igUploadUrl: null })
+        ctx.setState({ igContainerId: null, igUploaded: false, igUploadUrl: null, igCreatedAtMs: null })
         throw new AdapterError(`Instagram could not process the Reel (${why}).`, 'permanent')
       }
       default: {
