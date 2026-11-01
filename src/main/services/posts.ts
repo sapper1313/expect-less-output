@@ -1044,7 +1044,8 @@ export class PostService {
     const rows = this.db
       .prepare(
         `SELECT p.id, p.title, p.video_path, p.scheduled_at_utc FROM posts p
-         WHERE p.brand_id = ? AND p.status IN ('posted','partial') AND p.media_purged_at IS NULL
+         WHERE p.brand_id = ? AND p.status IN ('posted','partial','in_progress') AND p.media_purged_at IS NULL
+           AND EXISTS (SELECT 1 FROM post_targets t WHERE t.post_id = p.id AND t.status = 'posted')
            AND NOT EXISTS (SELECT 1 FROM post_targets t WHERE t.post_id = p.id AND t.platform = ? AND t.status != 'skipped')
          ORDER BY p.scheduled_at_utc, p.id`,
       )
