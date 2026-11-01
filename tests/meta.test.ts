@@ -274,3 +274,15 @@ describe('token expiry warning (mocked date)', () => {
     ).toBe('connected')
   })
 })
+
+describe('Meta error detail', () => {
+  it('reads the upload host reply and never hides an empty one', () => {
+    const upload = classifyMetaError(400, { debug_info: { message: 'The video codec is not supported', type: 'ProcessingFailedError', retriable: false } })
+    expect(upload.message).toContain('The video codec is not supported')
+    expect(upload.message).toContain('ProcessingFailedError')
+    expect(classifyMetaError(400, { error: { code: 100, error_data: { details: 'Caption is too long' } } }).message).toContain('Caption is too long')
+    expect(classifyMetaError(400, { unexpected: 'shape' } as never).message).toContain('"unexpected":"shape"')
+    expect(classifyMetaError(400, null).message).toContain('Meta sent no message at all (HTTP 400)')
+  })
+})
+

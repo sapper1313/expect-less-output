@@ -32,7 +32,20 @@ interface MetaErrorBody {
     error_subcode?: number
     is_transient?: boolean
     error_user_msg?: string
+    error_data?: { details?: string; message?: string }
   }
+  /** The upload host answers in this shape instead of the usual error object. */
+  debug_info?: { message?: string; type?: string; retriable?: boolean }
+  message?: string
+}
+
+/** The most useful words in a Meta reply, whatever shape it came in. */
+export function metaDetail(body: MetaErrorBody | null | undefined, status: number): string {
+  const e = body?.error ?? {}
+  const plain = e.error_user_msg || e.error_data?.details || e.error_data?.message || e.message || body?.debug_info?.message || body?.message
+  if (plain) return body?.debug_info?.type && !plain.includes(body.debug_info.type) ? `${plain} (${body.debug_info.type})` : plain
+  const raw = body ? JSON.stringify(body).slice(0, 300) : ''
+  return raw && raw !== '{}' ? `Meta sent no message. What it sent: ${raw}` : `Meta sent no message at all (HTTP ${status}).`
 }
 
 /** Turns a Meta error response into transient (retry) or permanent (stop and tell the owner). */
@@ -43,7 +56,7 @@ export function classifyMetaError(
   const e = body?.error ?? {}
   const code = e.code ?? 0
   const sub = e.error_subcode ?? 0
-  const text = e.error_user_msg || e.message || `Meta returned an error (HTTP ${status}).`
+  const text = metaDetail(body, status)
   if (code === 190 || (e.type === 'OAuthException' && [458, 459, 460, 463, 467].includes(sub))) {
     return new MetaApiError(
       'Meta no longer accepts the saved login. Reconnect Meta on the Connections screen.',

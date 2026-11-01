@@ -71,11 +71,14 @@ export class InstagramAdapter implements PlatformAdapter {
     this.d.host.tokenFor(a)
   }
 
-  private async guard<T>(fn: () => Promise<T>): Promise<T> {
+  /** Runs one Meta call. A refusal says which step it happened in, so a failure can be understood. */
+  private async guard<T>(fn: () => Promise<T>, step = ''): Promise<T> {
     try {
       return await fn()
     } catch (err) {
       if (err instanceof MetaApiError && err.needsReauth) this.d.host.authFailed(err.message)
+      if (err instanceof MetaApiError && step && !err.needsReauth && !err.message.startsWith('Step: '))
+        throw new MetaApiError(`Step: ${step}. ${err.message}`, err.kind, err.code, err.subcode)
       throw err
     }
   }
@@ -95,6 +98,7 @@ export class InstagramAdapter implements PlatformAdapter {
           { fields: 'quota_usage,config' },
           token,
         ),
+        'checking the daily Instagram post limit',
       )
       const row = limit.data?.[0]
       if (
@@ -125,6 +129,7 @@ export class InstagramAdapter implements PlatformAdapter {
           },
           token,
         ),
+        'starting the Reel on Instagram',
       )
       container = created.id
       ctx.setState({
@@ -148,6 +153,7 @@ export class InstagramAdapter implements PlatformAdapter {
           fileSize: statSync(ctx.videoAbsPath).size,
           onProgress: (f) => ctx.reportProgress(f),
         }),
+        'uploading the video to Instagram',
       )
       ctx.setState({ igUploaded: true })
       this.d.host.log('info', 'Instagram received the video. Waiting for it to process.', ctx)
@@ -174,11 +180,13 @@ export class InstagramAdapter implements PlatformAdapter {
         { fields: 'status_code,status' },
         token,
       ),
+      'asking Instagram if the Reel is ready',
     )
     switch (res.status_code) {
       case 'FINISHED': {
         const pub = await this.guard(() =>
           g.post<{ id: string }>(`/${ig}/media_publish`, { creation_id: container }, token),
+          'publishing the Reel',
         )
         ctx.setState({ igMediaId: pub.id })
         return this.posted(ctx, pub.id, token)
