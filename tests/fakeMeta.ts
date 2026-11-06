@@ -66,6 +66,8 @@ export interface FakeMetaState {
   igPollsUntilFinished: number
   /** If set, new containers end in this status instead of FINISHED. */
   igFinalStatus: 'ERROR' | 'EXPIRED' | null
+  /** How many Instagram uploads to refuse with "container is not in the status to upload". */
+  igRefuseUploads: number
   revokedPermissions: number
   codes: Map<string, string>
   /** The clock used to validate scheduled times. Tests point this at their mock clock. */
@@ -136,6 +138,7 @@ export async function startFakeMeta(port = 0): Promise<FakeMeta> {
     igQuotaTotal: 100,
     igPollsUntilFinished: 2,
     igFinalStatus: null,
+    igRefuseUploads: 0,
     revokedPermissions: 0,
     codes: new Map(),
     nowMs: () => Date.now(),
@@ -340,6 +343,10 @@ export async function startFakeMeta(port = 0): Promise<FakeMeta> {
         const c = state.igContainers[m[1]]
         if (!c) return metaError(res, 400, 100, 'Unknown container')
         if (req.method === 'GET') return json(res, 200, { file_offset: c.bytes })
+        if (state.igRefuseUploads > 0) {
+          state.igRefuseUploads--
+          return metaError(res, 400, 100, 'The ig container is not in the status to upload a video')
+        }
         return await handleUpload(req, res, headers, c, m[1])
       }
       m = new RegExp(`^/${V}/(igc\\d+)$`).exec(path)

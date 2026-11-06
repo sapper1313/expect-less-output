@@ -153,16 +153,29 @@ export class InstagramAdapter implements PlatformAdapter {
         typeof st.igUploadUrl === 'string' && st.igUploadUrl
           ? st.igUploadUrl
           : `${this.d.urls.rupload}/ig-api-upload/${GRAPH_VERSION}/${container}`
-      await this.guard(() =>
-        g.uploadFile({
-          url,
-          token,
-          filePath: ctx.videoAbsPath,
-          fileSize: statSync(ctx.videoAbsPath).size,
-          onProgress: (f) => ctx.reportProgress(f),
-        }),
-        'uploading the video to Instagram',
-      )
+      try {
+        await this.guard(() =>
+          g.uploadFile({
+            url,
+            token,
+            filePath: ctx.videoAbsPath,
+            fileSize: statSync(ctx.videoAbsPath).size,
+            onProgress: (f) => ctx.reportProgress(f),
+          }),
+          'uploading the video to Instagram',
+        )
+      } catch (err) {
+        // Instagram will not take a file for a container it already closed (a first try that broke part way).
+        // That container can never be used again, so the retry has to start a new one.
+        if (err instanceof Error && /not in the status to upload/i.test(err.message)) {
+          ctx.setState({ igContainerId: null, igUploaded: false, igUploadUrl: null, igCreatedAtMs: null })
+          throw new AdapterError(
+            'Instagram closed the earlier upload before it finished. Starting a fresh upload.',
+            'transient',
+          )
+        }
+        throw err
+      }
       ctx.setState({ igUploaded: true })
       this.d.host.log('info', 'Instagram received the video. Waiting for it to process.', ctx)
     }

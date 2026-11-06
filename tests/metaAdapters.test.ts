@@ -318,6 +318,21 @@ describe('Instagram Reels', () => {
     expect(Object.keys(m.fake.state.igContainers)).toHaveLength(2)
   })
 
+  it('starts a fresh container when Instagram refuses an upload for a closed one', async () => {
+    const m = await setup()
+    m.fake.state.igRefuseUploads = 1
+    const post = await m.env.makePost({ whenMs: m.env.clock.ms + MIN, platforms: ['instagram'] })
+    m.env.clock.ms += 2 * MIN
+    await m.env.scheduler.tick()
+    expect(target(m, post.id, 'instagram').lastError).toContain('Starting a fresh upload')
+    for (let i = 0; i < 10 && target(m, post.id, 'instagram').status !== 'posted'; i++) {
+      m.env.clock.ms += 3 * MIN
+      await m.env.scheduler.tick()
+    }
+    expect(target(m, post.id, 'instagram').status).toBe('posted')
+    expect(Object.keys(m.fake.state.igContainers)).toHaveLength(2)
+  })
+
   it('never reuses an Instagram upload older than a day, and starts a fresh one by itself', async () => {
     const m = await setup()
     m.fake.state.igPollsUntilFinished = 10_000
