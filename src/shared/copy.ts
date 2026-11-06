@@ -26,6 +26,7 @@ export const COPY = {
     `${platform}, ${brand}, "${title}": ${reason}`,
   nav: {
     home: 'Home',
+    dashboard: 'Dashboard',
     channels: 'Channels',
     calendar: 'Calendar',
     queue: 'Queue',

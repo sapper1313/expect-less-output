@@ -37,6 +37,7 @@ import type { AlertKind } from './alerts/format'
 import { latestSchemaVersion, openDb } from './db'
 import { AlertService } from './alerts/service'
 import { AgentRuntime } from './agent/runtime'
+import { DashboardService } from './dashboard/service'
 import { InboxWatcher } from './agent/inbox'
 import { Studio } from './studio/studio'
 import { YoutubeAnalyticsReader, YoutubeRetentionReader } from './studio/youtubeAnalytics'
@@ -878,6 +879,7 @@ async function boot(): Promise<void> {
         : join(app.getAppPath(), 'mcp', 'dist', 'elo-mcp.mjs'),
     },
   )
+  const dashboard = new DashboardService({ db, services: agent.services, settings })
   const inbox = new InboxWatcher({
     s: {
       settings,
@@ -1109,6 +1111,7 @@ async function boot(): Promise<void> {
     tiktok,
     alerts,
     agent,
+    dashboard,
     studio,
     stats,
     imported,
@@ -1214,6 +1217,7 @@ async function boot(): Promise<void> {
   alerts.start()
   stats.start()
   void agent.apply()
+  dashboard.start()
   inbox.start()
   upcoming.start()
   const gaps = new GapWarner({

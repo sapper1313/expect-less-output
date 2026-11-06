@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.17.0 Dashboard screen
+
+- New **Dashboard** screen in the menu, right under Home. It is the As Expected. dashboard, with the same look: the week completion ring, open slots, the week map by channel, per channel stats for the last 7 days, top videos and what posts in the next 48 hours.
+- It is read only and is fed by ELO's own data, so it works with the Dell off and needs no token. The Dell version keeps working on its own for your phone.
+- ELO refreshes it every 5 minutes (stats every 30). The Refresh button reads everything again now. The last picture is kept, so the screen is not empty right after the app starts.
+- New table migration 034 keeps one row per day for the trend lines.
+
 ## 0.16.3 Instagram retry fix, YouTube upload retry button
 
 - Instagram: when a first upload broke part way, Instagram closes it, and every retry then failed with "The ig container is not in the status to upload a video". ELO now throws that closed upload away and starts a fresh one on the next try.

@@ -41,6 +41,11 @@ export class AgentRuntime {
     this.server = new AgentServer(s, () => this.token())
   }
 
+  /** The services the agent handlers use. The Dashboard reads through the same ones. */
+  get services(): AgentServices {
+    return this.s
+  }
+
   token(): string | null {
     return this.secrets.get(AGENT_TOKEN_KEY)
   }

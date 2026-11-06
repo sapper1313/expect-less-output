@@ -1,0 +1,107 @@
+<div class="page">
+
+<header class="top">
+  <div>
+    <div class="lab">Expect Less Output</div>
+    <h1>As Expected.</h1>
+  </div>
+  <div class="chips">
+    <div class="chip glass" id="week-chip">Loading week</div>
+    <div class="chip glass" id="sync-chip">Starting up</div>
+    <div class="chip glass warn-chip" id="check-chip" hidden>check data</div>
+    <button class="chip glass btn" id="refresh" type="button" aria-label="Refresh now">Refresh</button>
+  </div>
+</header>
+
+<div id="banner" class="banner" role="status" hidden></div>
+<section id="empty-state" class="glass empty" hidden>
+  <div class="lab">No active channels</div>
+  <p>ELO has no active channels this week. When one is added or resumed it appears here by itself.</p>
+</section>
+
+<section class="hero">
+  <div class="glass card ring-card">
+    <div class="lab self-start">Week completion</div>
+    <div class="ring">
+      <svg width="220" height="220" viewBox="0 0 220 220" role="img" id="ring-svg" aria-label="Weekly completion">
+        <defs>
+          <linearGradient id="ringg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#22e5ff"/><stop offset="55%" stop-color="#8a5cff"/><stop offset="100%" stop-color="#ff3df2"/>
+          </linearGradient>
+          <filter id="glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <circle cx="110" cy="110" r="88" fill="none" stroke="rgba(255,255,255,0.10)" stroke-width="16"/>
+        <circle id="ring-arc" cx="110" cy="110" r="88" fill="none" stroke="url(#ringg)" stroke-width="16" stroke-linecap="round" stroke-dasharray="0 553" transform="rotate(-90 110 110)" filter="url(#glow)"/>
+        <circle cx="110" cy="110" r="68" fill="none" stroke="rgba(255,255,255,0.10)" stroke-width="1" stroke-dasharray="2 6"/>
+      </svg>
+      <div class="ring-center">
+        <div class="ring-num"><span id="ring-percent">0%</span></div>
+        <div class="ring-sub" id="ring-sub">0 of 0 slots</div>
+      </div>
+    </div>
+    <div class="pills">
+      <div class="pill open-pill" id="open-pill">0 open</div>
+      <div class="pill fill-pill" id="filled-pill">0 filled</div>
+    </div>
+    <div id="attention-box" class="att-box" hidden>
+      <div class="lab att-lab" id="attention-title">Needs attention</div>
+      <div id="attention-list"></div>
+    </div>
+    <div class="trend" id="trend-box" hidden>
+      <div><div class="lab">Weekly trend</div><div class="muted small" id="trend-best"></div></div>
+      <svg width="170" height="44" viewBox="0 0 170 44" role="img" id="trend-svg" aria-label="Completion trend">
+        <polyline id="trend-line" points="" fill="none" stroke="#22e5ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle id="trend-dot" cx="165" cy="22" r="4" fill="#ff3df2"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="glass card">
+    <div class="row-between"><div class="lab">Open slots</div><div class="open-count" id="open-count"></div></div>
+    <div id="open-list" class="stack"></div>
+  </div>
+
+  <div class="stack-col">
+    <div class="glass card grow tile">
+      <div class="lab">All channels, last 7 days</div>
+      <div class="totals" id="totals"></div>
+    </div>
+    <div class="revenue" id="revenue">
+      <div class="lab rev-lab">Revenue</div>
+      <div class="rev-title">Reserved</div>
+      <div class="rev-sub">Connect a revenue source to light this up.</div>
+    </div>
+  </div>
+</section>
+
+<section class="glass card map-card">
+  <div class="row-between wrap">
+    <div class="lab">Week map, channel by day</div>
+    <div class="legend">
+      <span><i class="slot episode filled demo"></i>Episode filled</span>
+      <span><i class="slot clip filled demo"></i>Clip filled</span>
+      <span><i class="slot episode open demo"></i>Open</span>
+      <span><i class="slot episode attention demo"></i>Needs attention</span>
+    </div>
+  </div>
+  <div class="scroll-x">
+    <div class="map" id="week-map"></div>
+  </div>
+</section>
+
+<div class="lab section-lab">Channel stats</div>
+<section class="cards" id="channel-cards"></section>
+
+<section class="two">
+  <div class="glass card">
+    <div class="row-between"><div class="lab">Top videos</div><div class="muted small mono">Views, last 7 days</div></div>
+    <div id="top-videos"></div>
+  </div>
+  <div class="glass card">
+    <div class="row-between"><div class="lab">Up next, 48 hours</div><div class="muted small mono">Scheduled</div></div>
+    <div id="up-next"></div>
+  </div>
+</section>
+
+<footer class="foot" id="foot">As Expected.</footer>
+</div>

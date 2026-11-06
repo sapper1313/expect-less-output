@@ -269,3 +269,12 @@ h2,
     transition: none;
   }
 }
+
+/* Dashboard screen fonts */
+@font-face{font-family:'Sora';font-weight:400;font-display:swap;src:url(./assets/dashboard-fonts/sora-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Sora';font-weight:500;font-display:swap;src:url(./assets/dashboard-fonts/sora-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Sora';font-weight:600;font-display:swap;src:url(./assets/dashboard-fonts/sora-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:'Sora';font-weight:700;font-display:swap;src:url(./assets/dashboard-fonts/sora-latin-700-normal.woff2) format('woff2')}
+@font-face{font-family:'JetBrains Mono';font-weight:400;font-display:swap;src:url(./assets/dashboard-fonts/jetbrains-mono-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'JetBrains Mono';font-weight:500;font-display:swap;src:url(./assets/dashboard-fonts/jetbrains-mono-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'JetBrains Mono';font-weight:700;font-display:swap;src:url(./assets/dashboard-fonts/jetbrains-mono-latin-700-normal.woff2) format('woff2')}

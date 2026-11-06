@@ -52,6 +52,7 @@ import type {
   Settings,
 } from './types'
 import type { HomeSummary } from './home'
+import type { DashboardSnapshot } from './dashboard'
 import type { SendSchedule } from './sendSchedule'
 import type { SearchHit } from './search'
 import type { EditPatch } from './platformEdit'
@@ -388,6 +389,11 @@ export interface Api {
   }
   home: {
     summary(): Promise<HomeSummary>
+  }
+  /** The Dashboard screen. Read only. */
+  dashboard: {
+    snapshot(): Promise<DashboardSnapshot | null>
+    refresh(): Promise<DashboardSnapshot | null>
   }
   search: {
     query(q: string): Promise<SearchHit[]>

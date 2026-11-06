@@ -8,6 +8,7 @@ import { Queue } from './screens/Queue'
 import { Stats, type AnalyticsTab } from './screens/Stats'
 import { Studio, type Tab as StudioTab } from './screens/Studio'
 import { Home, type GoTarget } from './screens/Home'
+import { Dashboard } from './screens/Dashboard'
 import { Channels, type ChannelsTab } from './screens/Channels'
 import { PostDetail } from './components/ItemDetail'
 import { PostEditor } from './components/PostEditor'
@@ -23,6 +24,7 @@ import logoWide from './assets/logo-wide.png'
 
 type Screen =
   | 'home'
+  | 'dashboard'
   | 'channels'
   | 'tiktokDemo'
   | 'calendar'
@@ -43,7 +45,7 @@ const SHORTCUTS: Partial<Record<Screen, string>> = {
 }
 /** The menu follows the work: see how things are, create and schedule, make with the Studio, check results, set up. */
 const NAV_GROUPS: Array<{ label: string; items: Screen[] }> = [
-  { label: '', items: ['home'] },
+  { label: '', items: ['home', 'dashboard'] },
   { label: 'Plan', items: ['upcoming'] },
   { label: 'Create and schedule', items: ['schedule', 'inbox', 'calendar', 'queue'] },
   { label: 'Make', items: ['studio'] },
@@ -293,6 +295,7 @@ function Shell() {
           </div>
         )}
         {screen === 'home' && <Home go={go} openPost={setDetailPost} />}
+        {screen === 'dashboard' && <Dashboard />}
         {screen === 'calendar' && (
           <Calendar
             onNewPost={(when) => openSchedule('one', when)}

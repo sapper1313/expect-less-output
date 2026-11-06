@@ -29,6 +29,7 @@ import type { AgentRuntime } from './agent/runtime'
 import type { StatsService } from './stats/service'
 import type { ImportService } from './stats/imported'
 import { buildHomeSummary } from './homeSummary'
+import type { DashboardService } from './dashboard/service'
 import { searchAll } from './search'
 import type { PlatformEditor } from './studio/platformEdit'
 import type { TelegramAssistant } from './studio/telegram'
@@ -78,6 +79,7 @@ export interface ApiDeps {
   tiktok: TikTokService
   alerts: AlertService
   agent: AgentRuntime
+  dashboard: DashboardService
   studio: Studio
   editor: PlatformEditor
   telegram: TelegramAssistant
@@ -451,6 +453,10 @@ export function buildApi(d: ApiDeps): Api {
       test: async () => d.telegram.test(),
     },
     platform: { edit: async (postId, platform, patch) => d.editor.edit(postId, platform, patch) },
+    dashboard: {
+      snapshot: async () => d.dashboard.snapshot(),
+      refresh: async () => d.dashboard.refresh(),
+    },
     home: {
       summary: async () =>
         buildHomeSummary({
