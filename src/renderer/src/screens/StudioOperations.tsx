@@ -1,19 +1,21 @@
 import { useState } from 'react'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
-import { Button, Card, Check, Empty, Field, Input, Select, Textarea, useBusy } from '../ui'
+import { Button, Card, Check, Empty, Field, Input, Select, useBusy } from '../ui'
 
+/** Read only list of the comments on the channels' videos. Replying is not built yet on purpose. */
 export function StudioComments() {
-  const { toast } = useApp()
-  const [busy, run] = useBusy()
   const { data: brands } = useLoad(() => api.studio.brands())
   const [brandId, setBrandId] = useState<number | 'all'>('all')
-  const [status, setStatus] = useState('draft')
-  const { data: items, reload } = useLoad(
-    () => api.studio.commentList({ brandId: brandId === 'all' ? null : brandId, status }),
+  const [status, setStatus] = useState('')
+  const { data: items } = useLoad(
+    () =>
+      api.studio.commentList({
+        brandId: brandId === 'all' ? null : brandId,
+        status: status || undefined,
+      }),
     [brandId, status],
   )
-  const [edit, setEdit] = useState<Record<number, string>>({})
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -22,7 +24,7 @@ export function StudioComments() {
           value={brandId}
           onChange={(e) => setBrandId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
         >
-          <option value="all">All brands</option>
+          <option value="all">All channels</option>
           {brands?.map((b) => (
             <option key={b.brandId} value={b.brandId}>
               {b.name}
@@ -30,82 +32,26 @@ export function StudioComments() {
           ))}
         </Select>
         <Select className="w-56" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="draft">Drafts waiting for you</option>
-          <option value="flagged">Flagged (not answered)</option>
-          <option value="queued">Waiting for their turn</option>
+          <option value="">All comments</option>
+          <option value="draft">Waiting</option>
+          <option value="flagged">Flagged</option>
           <option value="replied">Replied</option>
           <option value="spam">Spam hidden</option>
           <option value="discarded">Discarded</option>
-          <option value="failed">Could not send</option>
         </Select>
-        {brandId !== 'all' && (
-          <Button
-            disabled={busy}
-            onClick={() =>
-              run(async () => {
-                const r = await api.studio.runComments(brandId)
-                toast({
-                  kind: 'info',
-                  headline: 'Comments checked.',
-                  detail: `${r.checked} looked at, ${r.replied} replied, ${r.drafted} drafted, ${r.flagged} flagged.`,
-                })
-                reload()
-              })
-            }
-          >
-            Check comments now
-          </Button>
-        )}
       </div>
       <p className="text-[12px] text-muted">
-        Set each brand to Auto reply, Draft only or Off in Settings. Only praise, thanks, simple
-        questions and light jokes are answered. Replies are limited per day and spread out. TikTok
-        comments are not available through its API.
+        You can read comments here. Replying from the app is not built yet. TikTok comments are not
+        available through its API.
       </p>
       {!items?.length ? (
-        <Empty>Nothing here.</Empty>
+        <Empty>No comments yet.</Empty>
       ) : (
         items.map((c) => (
           <Card key={c.id} title={`${c.platform}: ${c.author || 'someone'}`}>
             <div className="text-[13px]">"{c.text}"</div>
-            {c.reason && <div className="mt-1 text-[12px] text-muted">{c.reason}</div>}
-            {(c.status === 'draft' || c.status === 'flagged' || c.status === 'failed') && (
-              <>
-                <Textarea
-                  className="mt-2 min-h-[56px]"
-                  placeholder="Type a reply"
-                  value={edit[c.id] ?? c.replyText ?? ''}
-                  onChange={(e) => setEdit({ ...edit, [c.id]: e.target.value })}
-                />
-                <div className="mt-2 flex gap-2">
-                  <Button
-                    variant="primary"
-                    disabled={busy}
-                    onClick={() =>
-                      run(async () => {
-                        await api.studio.approveComment(c.id, edit[c.id] ?? c.replyText ?? '')
-                        reload()
-                      })
-                    }
-                  >
-                    Send this reply
-                  </Button>
-                  <Button
-                    variant="danger"
-                    disabled={busy}
-                    onClick={() =>
-                      run(async () => {
-                        await api.studio.discardComment(c.id)
-                        reload()
-                      })
-                    }
-                  >
-                    Discard
-                  </Button>
-                </div>
-              </>
-            )}
-            {c.status === 'replied' && (
+            <div className="mt-1 text-[11px] text-muted">{c.createdUtc.slice(0, 10)}</div>
+            {c.status === 'replied' && c.replyText && (
               <div className="mt-1 text-[13px]">
                 <b>Replied:</b> {c.replyText}
               </div>
@@ -316,9 +262,11 @@ function RepostCard({ brandId }: { brandId: number }) {
 export function OperationsCards({
   cfg,
   reload,
+  only = ['digest', 'watchdog', 'backups'],
 }: {
   cfg: import('@shared/studio/types').StudioConfig
   reload: () => void
+  only?: Array<'digest' | 'watchdog' | 'backups'>
 }) {
   const { toast } = useApp()
   const [busy, run] = useBusy()
@@ -335,187 +283,197 @@ export function OperationsCards({
     })
   return (
     <>
-      <Card title="Morning digest">
-        <p className="mb-2 text-[12px] text-muted">
-          One short iMessage a day: what posted, what is coming, how many days of scripts are ready,
-          spend against caps, flags, comment activity, and any login about to expire.
-        </p>
-        <div className="flex flex-wrap items-end gap-3">
-          <Check
-            checked={cfg.digestEnabled}
-            onChange={(v) =>
-              run(async () => {
-                await api.studio.setConfig({ digestEnabled: v })
-                reload()
-              })
-            }
-          >
-            Send it
-          </Check>
-          <Field label="Time (Eastern)">
-            <Input
-              className="w-28"
-              defaultValue={cfg.digestTime}
-              onBlur={(e) =>
-                /^\d{1,2}:\d{2}$/.test(e.target.value) &&
-                e.target.value !== cfg.digestTime &&
+      {only.includes('digest') && (
+        <Card title="Morning digest">
+          <p className="mb-2 text-[12px] text-muted">
+            One short iMessage a day: what posted, what is coming, how many days of scripts are
+            ready, spend against caps, flags, comment activity, and any login about to expire.
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <Check
+              checked={cfg.digestEnabled}
+              onChange={(v) =>
                 run(async () => {
-                  await api.studio.setConfig({ digestTime: e.target.value })
+                  await api.studio.setConfig({ digestEnabled: v })
                   reload()
                 })
               }
-            />
-          </Field>
-          <Button
-            disabled={busy}
-            onClick={() => run(async () => setPreview(await api.studio.digestPreview()))}
-          >
-            Preview
-          </Button>
-          <Button
-            disabled={busy}
-            onClick={() =>
-              run(async () => {
-                await api.studio.sendDigest()
-                toast({ kind: 'success', headline: 'Sent.' })
-              })
-            }
-          >
-            Send it now
-          </Button>
-        </div>
-        {preview && (
-          <pre className="mt-3 whitespace-pre-wrap rounded-md bg-bg p-3 text-[12px]">{preview}</pre>
-        )}
-      </Card>
-      <Card title="Watchdog (alerts you if the app stops)">
-        <p className="mb-2 text-[12px] text-muted">
-          A small separate launchd job checks every 5 minutes that the Director is still checking
-          in. If it has not for the limit below during run hours, you get an iMessage, even if this
-          app is not running.
-        </p>
-        <div className="flex flex-wrap items-end gap-3">
-          <Check checked={w.enabled} onChange={(v) => saveW({ enabled: v })}>
-            On
-          </Check>
-          <Field label="Run hours from">
-            <Input
-              className="w-24"
-              defaultValue={w.runStart}
-              onBlur={(e) =>
-                /^\d{1,2}:\d{2}$/.test(e.target.value) && saveW({ runStart: e.target.value })
-              }
-            />
-          </Field>
-          <Field label="to">
-            <Input
-              className="w-24"
-              defaultValue={w.runEnd}
-              onBlur={(e) =>
-                /^\d{1,2}:\d{2}$/.test(e.target.value) && saveW({ runEnd: e.target.value })
-              }
-            />
-          </Field>
-          <Field label="Minutes without a check in">
-            <Input
-              className="w-24"
-              defaultValue={w.thresholdMinutes}
-              onBlur={(e) =>
-                Number(e.target.value) >= 5 && saveW({ thresholdMinutes: Number(e.target.value) })
-              }
-            />
-          </Field>
-        </div>
-        {wd && (
-          <div className="mt-3 text-[13px]">
-            <div>
-              {wd.installed ? 'Installed.' : 'Not installed yet.'} Last check in:{' '}
-              {wd.heartbeatAgeMinutes === null
-                ? 'never'
-                : `${wd.heartbeatAgeMinutes} minute(s) ago`}
-              .
-            </div>
-            <div className="mt-2 text-[12px] text-muted">To install, paste this into Terminal:</div>
-            <pre className="select-all whitespace-pre-wrap rounded-md bg-bg p-2 text-[12px]">
-              {wd.installCommand}
-            </pre>
-            <div className="mt-1 text-[12px] text-muted">To remove it:</div>
-            <pre className="select-all whitespace-pre-wrap rounded-md bg-bg p-2 text-[12px]">
-              {wd.uninstallCommand}
-            </pre>
-          </div>
-        )}
-      </Card>
-      <Card
-        title="Backups"
-        actions={
-          <Button
-            disabled={busy}
-            onClick={() =>
-              run(async () => {
-                await api.studio.backupNow()
-                reloadBackups()
-                toast({ kind: 'success', headline: 'Backup made.' })
-              })
-            }
-          >
-            Back up now
-          </Button>
-        }
-      >
-        <p className="mb-2 text-[12px] text-muted">
-          Every night after 2 AM Eastern: the database (settings without any key, series bibles,
-          thumbnail guidelines, ledger, stats) and the episode Library. The last {cfg.backupKeep}{' '}
-          are kept in {cfg.backupDir}.
-        </p>
-        {!backups?.length ? (
-          <Empty>No backups yet.</Empty>
-        ) : (
-          backups.map((b) => (
-            <div
-              key={b.stamp}
-              className="flex items-center justify-between border-b border-line py-1 text-[13px]"
             >
-              <span>
-                {b.stamp.replace(/-(\d{6})$/, ' $1')} ({(b.bytes / 1024 / 1024).toFixed(1)} MB)
-              </span>
-              <Button variant="ghost" onClick={() => setConfirm(b.stamp)}>
-                Restore from this
-              </Button>
-            </div>
-          ))
-        )}
-        {confirm && backups && (
-          <div className="mt-3 rounded-md border border-bad p-3 text-[13px]">
-            <b>Restore from {confirm}?</b> The Library files in this backup replace the ones on
-            disk. To bring back the database too, use Restore on the Settings screen with the file
-            named elo-backup-{confirm}.zip in the backup folder. This cannot be undone.
-            <div className="mt-2 flex gap-2">
-              <Button
-                variant="danger"
-                disabled={busy}
-                onClick={() =>
+              Send it
+            </Check>
+            <Field label="Time (Eastern)">
+              <Input
+                className="w-28"
+                defaultValue={cfg.digestTime}
+                onBlur={(e) =>
+                  /^\d{1,2}:\d{2}$/.test(e.target.value) &&
+                  e.target.value !== cfg.digestTime &&
                   run(async () => {
-                    const b = backups.find((x) => x.stamp === confirm)
-                    if (b?.libraryZip) {
-                      const n = await api.studio.restoreLibrary(b.libraryZip)
-                      toast({
-                        kind: 'success',
-                        headline: 'Library restored.',
-                        detail: `${n} files.`,
-                      })
-                    }
-                    setConfirm(null)
+                    await api.studio.setConfig({ digestTime: e.target.value })
+                    reload()
                   })
                 }
-              >
-                Yes, restore the Library
-              </Button>
-              <Button onClick={() => setConfirm(null)}>Cancel</Button>
-            </div>
+              />
+            </Field>
+            <Button
+              disabled={busy}
+              onClick={() => run(async () => setPreview(await api.studio.digestPreview()))}
+            >
+              Preview
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  await api.studio.sendDigest()
+                  toast({ kind: 'success', headline: 'Sent.' })
+                })
+              }
+            >
+              Send it now
+            </Button>
           </div>
-        )}
-      </Card>
+          {preview && (
+            <pre className="mt-3 whitespace-pre-wrap rounded-md bg-bg p-3 text-[12px]">
+              {preview}
+            </pre>
+          )}
+        </Card>
+      )}
+      {only.includes('watchdog') && (
+        <Card title="Watchdog (alerts you if the app stops)">
+          <p className="mb-2 text-[12px] text-muted">
+            A small separate launchd job checks every 5 minutes that the Director is still checking
+            in. If it has not for the limit below during run hours, you get an iMessage, even if
+            this app is not running.
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <Check checked={w.enabled} onChange={(v) => saveW({ enabled: v })}>
+              On
+            </Check>
+            <Field label="Run hours from">
+              <Input
+                className="w-24"
+                defaultValue={w.runStart}
+                onBlur={(e) =>
+                  /^\d{1,2}:\d{2}$/.test(e.target.value) && saveW({ runStart: e.target.value })
+                }
+              />
+            </Field>
+            <Field label="to">
+              <Input
+                className="w-24"
+                defaultValue={w.runEnd}
+                onBlur={(e) =>
+                  /^\d{1,2}:\d{2}$/.test(e.target.value) && saveW({ runEnd: e.target.value })
+                }
+              />
+            </Field>
+            <Field label="Minutes without a check in">
+              <Input
+                className="w-24"
+                defaultValue={w.thresholdMinutes}
+                onBlur={(e) =>
+                  Number(e.target.value) >= 5 && saveW({ thresholdMinutes: Number(e.target.value) })
+                }
+              />
+            </Field>
+          </div>
+          {wd && (
+            <div className="mt-3 text-[13px]">
+              <div>
+                {wd.installed ? 'Installed.' : 'Not installed yet.'} Last check in:{' '}
+                {wd.heartbeatAgeMinutes === null
+                  ? 'never'
+                  : `${wd.heartbeatAgeMinutes} minute(s) ago`}
+                .
+              </div>
+              <div className="mt-2 text-[12px] text-muted">
+                To install, paste this into Terminal:
+              </div>
+              <pre className="select-all whitespace-pre-wrap rounded-md bg-bg p-2 text-[12px]">
+                {wd.installCommand}
+              </pre>
+              <div className="mt-1 text-[12px] text-muted">To remove it:</div>
+              <pre className="select-all whitespace-pre-wrap rounded-md bg-bg p-2 text-[12px]">
+                {wd.uninstallCommand}
+              </pre>
+            </div>
+          )}
+        </Card>
+      )}
+      {only.includes('backups') && (
+        <Card
+          title="Nightly backups (studio and library)"
+          actions={
+            <Button
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  await api.studio.backupNow()
+                  reloadBackups()
+                  toast({ kind: 'success', headline: 'Backup made.' })
+                })
+              }
+            >
+              Back up now
+            </Button>
+          }
+        >
+          <p className="mb-2 text-[12px] text-muted">
+            Every night after 2 AM Eastern: the database (settings without any key, series bibles,
+            thumbnail guidelines, ledger, stats) and the episode Library. The last {cfg.backupKeep}{' '}
+            are kept in {cfg.backupDir}.
+          </p>
+          {!backups?.length ? (
+            <Empty>No backups yet.</Empty>
+          ) : (
+            backups.map((b) => (
+              <div
+                key={b.stamp}
+                className="flex items-center justify-between border-b border-line py-1 text-[13px]"
+              >
+                <span>
+                  {b.stamp.replace(/-(\d{6})$/, ' $1')} ({(b.bytes / 1024 / 1024).toFixed(1)} MB)
+                </span>
+                <Button variant="ghost" onClick={() => setConfirm(b.stamp)}>
+                  Restore from this
+                </Button>
+              </div>
+            ))
+          )}
+          {confirm && backups && (
+            <div className="mt-3 rounded-md border border-bad p-3 text-[13px]">
+              <b>Restore from {confirm}?</b> The Library files in this backup replace the ones on
+              disk. To bring back the database too, use Restore on the Settings screen with the file
+              named elo-backup-{confirm}.zip in the backup folder. This cannot be undone.
+              <div className="mt-2 flex gap-2">
+                <Button
+                  variant="danger"
+                  disabled={busy}
+                  onClick={() =>
+                    run(async () => {
+                      const b = backups.find((x) => x.stamp === confirm)
+                      if (b?.libraryZip) {
+                        const n = await api.studio.restoreLibrary(b.libraryZip)
+                        toast({
+                          kind: 'success',
+                          headline: 'Library restored.',
+                          detail: `${n} files.`,
+                        })
+                      }
+                      setConfirm(null)
+                    })
+                  }
+                >
+                  Yes, restore the Library
+                </Button>
+                <Button onClick={() => setConfirm(null)}>Cancel</Button>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
     </>
   )
 }

@@ -3,12 +3,12 @@ import { COPY } from '@shared/copy'
 import { api } from './api'
 import { AppProvider, useLoad } from './hooks'
 import { Toasts } from './ui'
-import { Calendar } from './screens/Calendar'
 import { Queue } from './screens/Queue'
 import { Stats, type AnalyticsTab } from './screens/Stats'
 import { Studio, type Tab as StudioTab } from './screens/Studio'
 import { Home, type GoTarget } from './screens/Home'
-import { Dashboard } from './screens/Dashboard'
+import { Financial } from './screens/Financial'
+import { AiSettings } from './screens/AiSettings'
 import { Channels, type ChannelsTab } from './screens/Channels'
 import { PostDetail } from './components/ItemDetail'
 import { PostEditor } from './components/PostEditor'
@@ -17,41 +17,43 @@ import { EpisodePeek } from './screens/StudioLibrary'
 import type { SearchHit } from '@shared/search'
 import { Schedule, type ScheduleMode } from './screens/Schedule'
 import { Inbox } from './screens/Inbox'
-import { Upcoming } from './screens/Upcoming'
-import { About, Activity, SettingsScreen, type SettingsTab } from './screens/Simple'
-import { TikTokDemo } from './screens/TikTokDemo'
+import { About, SettingsScreen, type SettingsTab } from './screens/Simple'
 import logoWide from './assets/logo-wide.png'
 
 type Screen =
   | 'home'
-  | 'dashboard'
-  | 'channels'
-  | 'tiktokDemo'
-  | 'calendar'
-  | 'queue'
-  | 'inbox'
-  | 'upcoming'
-  | 'stats'
-  | 'studio'
   | 'schedule'
-  | 'activity'
+  | 'inbox'
+  | 'queue'
+  | 'stats'
+  | 'channels'
   | 'settings'
+  | 'financial'
+  | 'aiSettings'
+  | 'aiStudio'
   | 'about'
 const SHORTCUTS: Partial<Record<Screen, string>> = {
   schedule: '⌘N',
   home: '⌘0',
-  calendar: '⌘1',
   queue: '⌘2',
 }
-/** The menu follows the work: see how things are, create and schedule, make with the Studio, check results, set up. */
+/** The menu, in the order Josh drew it. One flat list, no group headings. */
 const NAV_GROUPS: Array<{ label: string; items: Screen[] }> = [
-  { label: '', items: ['home', 'dashboard'] },
-  { label: 'Plan', items: ['upcoming'] },
-  { label: 'Create and schedule', items: ['schedule', 'inbox', 'calendar', 'queue'] },
-  { label: 'Make', items: ['studio'] },
-  { label: 'Results', items: ['stats'] },
-  { label: 'Set up', items: ['channels', 'settings'] },
-  { label: 'Records', items: ['activity'] },
+  {
+    label: '',
+    items: [
+      'home',
+      'schedule',
+      'inbox',
+      'queue',
+      'stats',
+      'channels',
+      'settings',
+      'financial',
+      'aiSettings',
+      'aiStudio',
+    ],
+  },
 ]
 
 function Shell() {
@@ -95,15 +97,32 @@ function Shell() {
     if (t.episodeId) setPeekEpisode(t.episodeId)
     if (t.postId) setDetailPost(t.postId)
   }
+  /** Old screen names still work (search, bots, saved links): they land on where the thing lives now. */
   const go = (t: GoTarget) => {
-    if (t.channelsTab) setChannelsTab(t.channelsTab as ChannelsTab)
-    if (t.settingsTab) setSettingsTab(t.settingsTab as SettingsTab)
+    let screenName = t.screen as string
+    let studioTarget = t.studioTab
+    let channels = t.channelsTab
+    const settingsTarget = t.settingsTab
+    if (channels === 'studio') channels = 'other'
+    if (screenName === 'dashboard') screenName = 'home'
+    else if (screenName === 'calendar') screenName = 'queue'
+    else if (screenName === 'upcoming') screenName = 'inbox'
+    else if (screenName === 'activity') screenName = 'about'
+    else if (screenName === 'studio') {
+      if (studioTarget === 'spend') screenName = 'financial'
+      else if (studioTarget === 'comments') screenName = 'inbox'
+      else screenName = 'aiStudio'
+    } else if (screenName === 'settings' && (settingsTarget === 'ai' || settingsTarget === 'api')) {
+      screenName = 'aiSettings'
+    }
+    if (channels) setChannelsTab(channels as ChannelsTab)
+    if (settingsTarget) setSettingsTab(settingsTarget as SettingsTab)
     if (t.statsTab) setStatsTab(t.statsTab as AnalyticsTab)
-    if (t.screen === 'studio') {
-      setStudioTab((t.studioTab as StudioTab) ?? 'overview')
+    if (screenName === 'aiStudio') {
+      setStudioTab((studioTarget as StudioTab) ?? 'overview')
       setStudioKey((k) => k + 1)
     }
-    setScreen(t.screen)
+    setScreen(screenName as Screen)
   }
   const { data: settings } = useLoad(() => api.settings.get())
   const { data: status } = useLoad(() => api.scheduler.status())
@@ -112,12 +131,10 @@ function Shell() {
   const { data: studio } = useLoad(() => api.studio.overview())
   const { data: home } = useLoad(() => api.home.summary())
   const { data: inboxCounts } = useLoad(() => api.pipeline.counts())
-  const { data: reviewCount } = useLoad(() => api.upcoming.needsReview())
   const badge: Partial<Record<Screen, number>> = {
-    studio: home?.badges.studio,
+    aiStudio: home?.badges.studio,
     queue: home?.badges.queue,
     inbox: inboxCounts?.badge,
-    upcoming: reviewCount ?? 0,
     channels: home?.badges.channels,
   }
 
@@ -138,7 +155,7 @@ function Shell() {
     return () => mq.removeEventListener('change', apply)
   }, [settings?.theme])
 
-  // Keyboard shortcuts: Command+N new post, Shift+Command+N bulk upload, Command+1 calendar, Command+2 queue.
+  // Keyboard shortcuts: Command+N new post, Shift+Command+N bulk upload, Command+2 queue.
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (!e.metaKey || e.altKey || e.ctrlKey) return
@@ -157,24 +174,9 @@ function Shell() {
       } else if (k === '0' && !e.shiftKey) {
         e.preventDefault()
         setScreenRaw('home')
-      } else if (k === '1' && !e.shiftKey) {
-        e.preventDefault()
-        setScreenRaw('calendar')
       } else if (k === '2' && !e.shiftKey) {
         e.preventDefault()
         setScreenRaw('queue')
-      }
-    }
-    window.addEventListener('keydown', h)
-    return () => window.removeEventListener('keydown', h)
-  }, [])
-
-  // Hidden: Command+Shift+D opens the TikTok demo screen used to record the review video.
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 'd') {
-        e.preventDefault()
-        setScreenRaw('tiktokDemo')
       }
     }
     window.addEventListener('keydown', h)
@@ -198,12 +200,7 @@ function Shell() {
           <span className="text-[11px] opacity-70">⌘K</span>
         </button>
         <nav className="no-drag flex-1 space-y-0.5 overflow-y-auto px-3" aria-label="Main">
-          {NAV_GROUPS.map((g) => ({
-            ...g,
-            items: g.items.filter((s) => s !== 'upcoming' || settings?.upcomingEnabled !== false),
-          }))
-            .filter((g) => g.items.length)
-            .flatMap((g) => [
+          {NAV_GROUPS.flatMap((g) => [
               g.label ? (
                 <div
                   key={`h-${g.label}`}
@@ -294,32 +291,24 @@ function Shell() {
             </div>
           </div>
         )}
-        {screen === 'home' && <Home go={go} openPost={setDetailPost} />}
-        {screen === 'dashboard' && <Dashboard />}
-        {screen === 'calendar' && (
-          <Calendar
-            onNewPost={(when) => openSchedule('one', when)}
-            openInbox={() => setScreen('inbox')}
-          />
-        )}
+        {screen === 'home' && <Home go={go} />}
         {screen === 'queue' && <Queue />}
         {screen === 'inbox' && <Inbox />}
-        {screen === 'upcoming' && <Upcoming openQueue={() => setScreen('queue')} />}
         {screen === 'stats' && <Stats key={statsTab} initialTab={statsTab} />}
-        {screen === 'studio' && <Studio key={studioKey} initialTab={studioTab} />}
+        {screen === 'aiStudio' && <Studio key={studioKey} initialTab={studioTab} />}
         {screen === 'schedule' && (
           <Schedule
             key={scheduleKey}
             initialMode={scheduleMode}
             initialWhen={scheduleWhen}
-            onDone={() => setScreen('calendar')}
+            onDone={() => setScreen('queue')}
           />
         )}
         {screen === 'channels' && <Channels key={channelsTab} initialTab={channelsTab} />}
-        {screen === 'activity' && <Activity />}
         {screen === 'settings' && <SettingsScreen key={settingsTab} initialTab={settingsTab} />}
+        {screen === 'financial' && <Financial />}
+        {screen === 'aiSettings' && <AiSettings />}
         {screen === 'about' && <About />}
-        {screen === 'tiktokDemo' && <TikTokDemo onExit={() => setScreen('connections')} />}
       </main>
       {detailPost !== null && (
         <PostDetail

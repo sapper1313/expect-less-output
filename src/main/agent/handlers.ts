@@ -109,7 +109,9 @@ function brandOut(s: AgentServices, b: Brand) {
     inbox_enabled: settings.inboxBrandIds.includes(b.id),
     slots: s.brands
       .getSlots(b.id)
-      .map((x) => ({ day_type: x.dayType, time_local: x.timeLocal, enabled: x.enabled })),
+      .map((x) => ({ day_type: x.dayType, time_local: x.timeLocal, enabled: x.enabled }))
+      // The same time can sit in both Shorts and Long form. A bot sees it once.
+      .filter((x, i, all) => all.findIndex((y) => y.day_type === x.day_type && y.time_local === x.time_local) === i),
     defaults: {
       caption_template: d.captionTemplate,
       default_hashtags: sets.find((h) => h.id === d.defaultHashtagSetId)?.tagsText ?? '',

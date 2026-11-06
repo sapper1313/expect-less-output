@@ -5,8 +5,8 @@ import { Bulk } from './Bulk'
 export type ScheduleMode = 'one' | 'many'
 
 /**
- * The one place to schedule videos. One video, or many at once. Everything else (the calendar, the queue, the Inbox
- * folder, the Studio) either shows what is scheduled or schedules by itself.
+ * Manual Schedule: the one place to schedule videos yourself. One video, or many at once. By default a video goes to
+ * the next open slot for its channel. A checkbox lets you pick your own date and time instead.
  */
 export function Schedule({
   initialMode = 'one',
@@ -20,8 +20,8 @@ export function Schedule({
 }) {
   const [mode, setMode] = useState<ScheduleMode>(initialMode)
   const tabs: Array<[ScheduleMode, string, string]> = [
-    ['one', 'One video', 'Pick a video, check each platform, choose a time'],
-    ['many', 'Many videos', 'Drop several videos and give each one a time'],
+    ['one', 'New Post', 'Pick a video, check each platform. It goes to the next open slot, or pick your own time'],
+    ['many', 'Bulk Upload', 'Drop several videos. They fill the next open slots, or pick your own times'],
   ]
   return (
     <div className="flex h-full flex-col">

@@ -31,7 +31,7 @@ export class YoutubeAnalyticsReader implements AnalyticsReader {
     })
     if (res.status === 403 || res.status === 401)
       throw new Error(
-        'YouTube Analytics refused the request. Reconnect YouTube on the Connections screen to allow analytics.',
+        'YouTube Analytics refused the request. Reconnect YouTube in Setup Channels, on the Connections tab to allow analytics.',
       )
     if (!res.ok) throw new Error(`YouTube Analytics answered HTTP ${res.status}.`)
     const d = (await res.json()) as { rows?: number[][] }
@@ -67,7 +67,7 @@ export class YoutubeRetentionReader {
     })
     if (res.status === 401 || res.status === 403)
       throw new Error(
-        'YouTube Analytics refused the request. Reconnect YouTube on the Connections screen to allow analytics.',
+        'YouTube Analytics refused the request. Reconnect YouTube in Setup Channels, on the Connections tab to allow analytics.',
       )
     if (!res.ok) throw new Error(`YouTube Analytics answered HTTP ${res.status}.`)
     return ((await res.json()) as { rows?: number[][] }).rows ?? []

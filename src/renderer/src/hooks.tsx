@@ -1,3 +1,4 @@
+import { friendlyError } from '@shared/friendlyError'
 import { api } from './api'
 import {
   createContext,
@@ -36,7 +37,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const toast = useCallback(
     (t: Omit<ToastItem, 'id'>) => {
       const id = next.current++
-      setToasts((list) => [...list.slice(-3), { ...t, id }])
+      const shown = t.kind === 'error' && t.detail ? { ...t, detail: friendlyError(t.detail) } : t
+      setToasts((list) => [...list.slice(-3), { ...shown, id }])
       setTimeout(() => dismiss(id), t.kind === 'error' ? 12000 : 5000)
     },
     [dismiss],

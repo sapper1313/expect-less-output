@@ -7,6 +7,8 @@ import type {
 } from './website'
 import type {
   Account,
+  ChannelOverrides,
+  ChannelOverridePatch,
   AppEvent,
   AgentStatus,
   AlertChannel,
@@ -104,9 +106,18 @@ export interface Api {
     update(id: number, patch: { name?: string; color?: string; slug?: string }): Promise<Brand>
     archive(id: number, archived: boolean): Promise<void>
     getSlots(brandId: number): Promise<BrandSlot[]>
+    /** Which kinds (Shorts, Long form) the channel makes, and the days each posts on. */
+    getSlotKinds(brandId: number): Promise<Array<{ kind: 'short' | 'long'; enabled: boolean; days: number[] | null }>>
+    setSlotKinds(
+      brandId: number,
+      kinds: Array<{ kind: 'short' | 'long'; enabled: boolean; days: number[] | null }>,
+    ): Promise<Array<{ kind: 'short' | 'long'; enabled: boolean; days: number[] | null }>>
+    /** The channel's own handoff and missed post settings. A missing value follows the app wide setting. */
+    getOverrides(brandId: number): Promise<ChannelOverrides>
+    setOverrides(brandId: number, patch: ChannelOverridePatch): Promise<ChannelOverrides>
     setSlots(
       brandId: number,
-      slots: Array<Pick<BrandSlot, 'dayType' | 'timeLocal' | 'enabled'>>,
+      slots: Array<Pick<BrandSlot, 'dayType' | 'timeLocal' | 'enabled'> & { kind?: 'short' | 'long' }>,
     ): Promise<BrandSlot[]>
     getDefaults(brandId: number): Promise<BrandDefaults>
     setDefaults(defaults: BrandDefaults): Promise<BrandDefaults>
@@ -128,6 +139,8 @@ export interface Api {
   slots: {
     next(brandId: number, count: number, fromUtc?: string): Promise<string[]>
     countOnDay(brandId: number, dayIso: string): Promise<number>
+    /** Heads ups for a hand picked time (not a slot, daily limit, minimum gap). Empty means it fits. */
+    checkTime(brandId: number, whenUtc: string): Promise<string[]>
     /** The slots in a window that have nothing in them, from every channel's settings (or one channel). */
     open(fromUtc: string, toUtc: string, brandId: number | null): Promise<OpenSlot[]>
   }

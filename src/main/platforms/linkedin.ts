@@ -300,7 +300,7 @@ export class LinkedInAdapter implements PlatformAdapter {
   async validate(ctx: AdapterContext): Promise<void> {
     if (!ctx.account || ctx.account.status !== 'connected' || !ctx.account.externalId)
       throw new AdapterError(
-        `${ctx.brandName} is not signed in to LinkedIn. Connect it on the Connections screen.`,
+        `${ctx.brandName} is not signed in to LinkedIn. Connect it in Setup Channels, on the Connections tab.`,
         'permanent',
       )
     const problem = durationProblem('linkedin', ctx.videoDurationSeconds)

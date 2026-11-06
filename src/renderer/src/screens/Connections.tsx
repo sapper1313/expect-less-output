@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { PLATFORMS, PLATFORM_LABELS } from '@shared/platformLimits'
-import { MorePlatforms } from './MorePlatforms'
+import { MorePlatformKeys, MorePlatformsForBrand } from './MorePlatforms'
 import { COPY } from '@shared/copy'
 import { formatEastern } from '@shared/time'
 import type {
@@ -21,7 +21,6 @@ import {
   Dialog,
   Field,
   Input,
-  PageHeader,
   Select,
   useBusy,
 } from '../ui'
@@ -39,7 +38,11 @@ const MODE_NOTES: Record<YoutubeMode, string> = {
   auto: 'Uploads early and YouTube publishes at the exact time. Switch to Auto only after Google approves your audit (SETUP_A step 9).',
 }
 
-export function Connections() {
+/**
+ * The Connections tab: every non AI login for the selected channel on one page (YouTube, Facebook, Instagram,
+ * TikTok, Bluesky and the other platforms), then the platform credentials (app keys) at the bottom.
+ */
+export function Connections({ brandId }: { brandId: number }) {
   const { data: brands } = useLoad(() => api.brands.list())
   const { data: accounts } = useLoad(() => api.accounts.list())
   const [picker, setPicker] = useState<{
@@ -47,31 +50,26 @@ export function Connections() {
     channels: YoutubeChannel[]
     brandName: string
   } | null>(null)
+  const brand = brands?.find((b) => b.id === brandId)
 
   return (
-    <div className="h-full overflow-auto pb-10">
-      <PageHeader title={COPY.nav.connections} />
-      <div className="space-y-4 px-8">
-        <HealthCard />
-        <GoogleCard />
-        <MetaCard />
-        <TikTokCard />
-        <MorePlatforms />
-        {brands?.map((b) => (
-          <BrandCard
-            key={b.id}
-            brand={b}
-            accounts={accounts ?? []}
-            onPick={(sessionId, channels) => setPicker({ sessionId, channels, brandName: b.name })}
-          />
-        ))}
-        <Card>
-          <p className="text-muted">
-            TikTok is still a dry run. It waits a few seconds and reports success, and never
-            contacts the platform. The real connection arrives in a later phase.
-          </p>
-        </Card>
+    <div className="space-y-4">
+      <HealthCard />
+      {brand && (
+        <BrandCard
+          brand={brand}
+          accounts={accounts ?? []}
+          onPick={(sessionId, channels) => setPicker({ sessionId, channels, brandName: brand.name })}
+        />
+      )}
+      <MetaCard />
+      <MorePlatformsForBrand brandId={brandId} />
+      <div className="pt-2 text-[11px] font-bold uppercase tracking-wider text-muted">
+        Platform credentials (app keys, the same for every channel)
       </div>
+      <GoogleCard />
+      <TikTokCard />
+      <MorePlatformKeys />
       {picker && <ChannelPicker picker={picker} onClose={() => setPicker(null)} />}
     </div>
   )
@@ -332,7 +330,7 @@ function BrandCard({
               <div className="text-[12px] text-muted">
                 {real
                   ? a?.displayName
-                  : 'Not connected yet. Use the Meta box at the top, then match it to this brand.'}
+                  : 'Not connected yet. Use the Meta box below, then match it to this brand.'}
               </div>
             </div>
           )

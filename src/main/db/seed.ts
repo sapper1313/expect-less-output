@@ -82,9 +82,12 @@ export function initBrandRows(db: Db, brandId: number): void {
       ).run(key, JSON.stringify([...ids, brandId]))
   }
   const addSlot = db.prepare(
-    'INSERT INTO brand_slots (brand_id, day_type, time_local, enabled) VALUES (?, ?, ?, 1)',
+    "INSERT INTO brand_slots (brand_id, day_type, time_local, enabled, kind) VALUES (?, ?, ?, 1, 'short')",
   )
   for (const s of DEFAULT_SLOTS) addSlot.run(brandId, s.dayType, s.timeLocal)
+  // A new channel starts as a Shorts channel. Josh ticks Long form if it makes that too.
+  db.prepare("INSERT OR IGNORE INTO brand_slot_kinds (brand_id, kind, enabled) VALUES (?, 'short', 1)").run(brandId)
+  db.prepare("INSERT OR IGNORE INTO brand_slot_kinds (brand_id, kind, enabled) VALUES (?, 'long', 0)").run(brandId)
   db.prepare('INSERT OR IGNORE INTO brand_defaults (brand_id, caption_template) VALUES (?, ?)').run(
     brandId,
     DEFAULT_CAPTION_TEMPLATE,

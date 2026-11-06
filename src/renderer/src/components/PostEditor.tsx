@@ -1,3 +1,4 @@
+import { friendlyError } from '@shared/friendlyError'
 import { useEffect, useState } from 'react'
 import { PLATFORM_LABELS, captionCounters } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
@@ -127,7 +128,7 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
                       PLATFORM_LABELS[t.platform],
                       draft.brandName,
                       draft.title,
-                      t.lastError ?? 'Unknown error.',
+                      friendlyError(t.lastError),
                     )}
                   </span>
                   <Button disabled={busy} onClick={() => run(() => api.posts.retryTarget(t.id))}>

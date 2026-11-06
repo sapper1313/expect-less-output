@@ -159,7 +159,7 @@ describe('search and episode cost', () => {
     expect(searchAll(e.db, 'x')).toEqual([])
     expect(
       searchAll(e.db, 'spend caps').some(
-        (h) => h.kind === 'page' && h.target.settingsTab === 'studio',
+        (h) => h.kind === 'page' && h.target.screen === 'financial',
       ),
     ).toBe(true)
     expect(

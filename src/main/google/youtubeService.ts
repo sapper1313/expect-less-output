@@ -157,7 +157,7 @@ export class YoutubeService {
     if (this.server) this.cancelActive?.()
     if (!this.d.secrets.has(SECRET_CLIENT_ID) || !this.d.secrets.has(SECRET_CLIENT_SECRET)) {
       throw new Error(
-        'Save the Google Client ID and Client Secret first (Connections screen, Google credentials).',
+        'Save the Google Client ID and Client Secret first (Setup Channels, Connections tab, Google credentials).',
       )
     }
     const state = randomBytes(16).toString('hex')

@@ -35,7 +35,7 @@ export class BlueskyAdapter implements PlatformAdapter {
   async validate(ctx: AdapterContext): Promise<void> {
     if (!ctx.account || ctx.account.status !== 'connected')
       throw new AdapterError(
-        `${ctx.brandName} has no Bluesky login saved. Add it on the Connections screen.`,
+        `${ctx.brandName} has no Bluesky login saved. Add it in Setup Channels, on the Connections tab.`,
         'permanent',
       )
     const problem = durationProblem('bluesky', ctx.videoDurationSeconds)

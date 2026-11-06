@@ -2,7 +2,19 @@
 
 This guide is for you, the owner. Every step is meant to be followed exactly, one at a time.
 
-**The left menu follows the work (version 0.10.0).** Home, then **Create and schedule** (Schedule, Calendar, Queue), **Make** (Studio), **Results** (Analytics), **Set up** (Channels, Settings), and **Records** (Activity Log). Older sections of this guide say **New Post**, **Bulk Upload**, **Brands**, **Connections** and **Stats**. They are now: **Schedule** (tab One video), **Schedule** (tab Many videos), **Channels** (tab Channel setup), **Channels** (tab Connections) and **Analytics**. Times are chosen with hour, minute and AM or PM drop-downs, not typed.
+**Where everything is (version 0.18.0).** The left menu is one list, in this order: Search, **Home**, **Manual Schedule**, **Inbox**, **Queue**, **Analytics**, **Setup Channels**, **Settings**, **Financial**, **AI Settings**, **AI Studio**, and **About** (with the Activity Log at the bottom of About).
+
+- **Home**: every number in one place. The top strip shows Being written, Ready for video, Video in progress, Open slots, Scheduled, Posted this week and Needs a look. Click a tile to jump to where you fix it. Below it are the last 7 days, the best videos, a card for each channel, and the week map.
+- **Manual Schedule**: New Post and Bulk Upload. A post goes to the next open slot for its channel. Tick **Pick my own date and time** to choose your own. ELO warns if it breaks a rule, and you can still go ahead.
+- **Inbox**: the videos waiting for you, plus a **Comments** tab where you can read comments (read only for now).
+- **Queue** and **Analytics**: the same as before.
+- **Setup Channels**: pick a channel on the left, or add a new one. Tabs: **Channel Setup** (name, color, pause, archive, pipeline rules, posting slots for Shorts and Long form), **Connections** (every login in one place: Facebook, YouTube, Instagram, TikTok, Bluesky, and the platform keys at the bottom), **Other settings by channel**, and **Website**.
+- **Settings**: only things that are the same for every channel. One long page with a list at the top to jump to a part.
+- **Financial**: spend caps, generate settings and the spend table.
+- **AI Settings**: AI models, local AI, the Agent API and the AI keys.
+- **AI Studio**: the studio's Overview, Research, Bible, Library, Flagged, Publishing and Director's Log.
+
+Older sections below use the old names. Translate them like this: **Schedule** is now **Manual Schedule**. **Channels** is now **Setup Channels**. **Calendar**, **Upcoming**, **Dashboard**, **TikTok demo** and **Testing tools** are gone (Home replaces Dashboard and Calendar). **Studio** is now **AI Studio**. Studio keys are in **AI Settings**. Anything about the Studio tab in Settings is now in **AI Settings**, **Financial** or **Settings**. Times are chosen with hour, minute and AM or PM drop-downs, not typed.
 
 Phase note: Stats (Phase 7) are covered in section 17. YouTube (Phase 2), Facebook Pages and Instagram (Phase 3) are real now. TikTok (Phase 4) is real now too. A dry run waits a few seconds and says it worked, and never contacts the platform. Their real connections come in later phases.
 
@@ -81,11 +93,7 @@ If macOS still refuses: open **System Settings**, then **Privacy and Security**,
 
 ### Test a failure
 
-1. Open **Settings**. Under **Testing tools**, set **Force a failure on** to a platform, for example Instagram.
-2. Tick **Short retry waits** so you do not wait half an hour.
-3. Schedule a post for 1 minute from now.
-4. Watch **Activity Log**. It tries 4 times in total (the first try and 3 retries), then shows **Could not post. Probably for the best.** with the real reason and a **Retry** button.
-5. Set **Force a failure on** back to **No platform** and untick the short waits when you are done.
+The Testing tools were removed from the app in 0.18.0 because they were not used. Failed posts still show a plain reason and a **Try the upload again** or **Retry** button in the Queue.
 
 ## 6. Everyday use
 

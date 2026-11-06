@@ -6,7 +6,7 @@ export function failure(name: string, status: number, body: string): AdapterErro
   const text = body.replace(/\s+/g, ' ').slice(0, 300)
   if (status === 401)
     return new AdapterError(
-      `${name} refused the saved login (401). Reconnect ${name} on the Connections screen. ${text}`.trim(),
+      `${name} refused the saved login (401). Reconnect ${name} in Setup Channels, on the Connections tab. ${text}`.trim(),
       'permanent',
     )
   if (status === 403)

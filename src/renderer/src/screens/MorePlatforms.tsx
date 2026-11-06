@@ -245,47 +245,47 @@ function Tile({
   )
 }
 
-/**
- * Bluesky, X, LinkedIn and Pinterest. A channel only posts to one of these when it has a login here: a blank
- * one means that platform is not part of the channel.
- */
-export function MorePlatforms() {
+/** The app keys for X, LinkedIn and Pinterest (one set for all channels). They sit in Platform credentials. */
+export function MorePlatformKeys() {
+  return (
+    <Card title="More platforms: app keys">
+      <p className="mb-3 text-[13px] text-muted">
+        Bluesky, X, LinkedIn and Pinterest are optional. A channel only posts to one when you give
+        it a login above. Leave one blank and that platform is simply not part of the channel. X,
+        LinkedIn and Pinterest each need app keys first (one set for all channels).
+      </p>
+      <div className="grid gap-3 lg:grid-cols-3">
+        {KEY_PLATFORMS.map((k) => (
+          <KeysCard key={k} platform={k} />
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+/** Bluesky, X, LinkedIn and Pinterest logins for one channel. A blank one means that platform is not part of the channel. */
+export function MorePlatformsForBrand({ brandId }: { brandId: number }) {
   const { data, reload } = useLoad(() => api.platforms.views(), [])
   const { data: social } = useLoad(() => api.studio.socialAccountList(), [])
-  const brands = [...new Map((data ?? []).map((v) => [v.brandId, v.brandName])).entries()]
+  const brandName = (data ?? []).find((v) => v.brandId === brandId)?.brandName
+  if (!brandName) return null
   return (
-    <>
-      <Card title="More platforms: app keys">
-        <p className="mb-3 text-[13px] text-muted">
-          Bluesky, X, LinkedIn and Pinterest are optional. A channel only posts to one when you give
-          it a login below. Leave one blank and that platform is simply not part of the channel. X,
-          LinkedIn and Pinterest each need app keys first (one set for all channels).
-        </p>
-        <div className="grid gap-3 lg:grid-cols-3">
-          {KEY_PLATFORMS.map((k) => (
-            <KeysCard key={k} platform={k} />
-          ))}
-        </div>
-      </Card>
-      {brands.map(([brandId, brandName]) => (
-        <Card key={brandId} title={`${brandName}: more platforms`}>
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-            {EXTRA_PLATFORMS.map((p: ExtraPlatform) => {
-              const v = (data ?? []).find((x) => x.brandId === brandId && x.platform === p)
-              if (!v) return null
-              const s = social?.find((x) => x.brandId === brandId)?.bluesky
-              return (
-                <Tile
-                  key={p}
-                  view={v}
-                  reload={reload}
-                  bluesky={s ? { handle: s.handle, hasPassword: s.hasPassword } : undefined}
-                />
-              )
-            })}
-          </div>
-        </Card>
-      ))}
-    </>
+    <Card title={`${brandName}: Bluesky and more platforms`}>
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        {EXTRA_PLATFORMS.map((p: ExtraPlatform) => {
+          const v = (data ?? []).find((x) => x.brandId === brandId && x.platform === p)
+          if (!v) return null
+          const s = social?.find((x) => x.brandId === brandId)?.bluesky
+          return (
+            <Tile
+              key={p}
+              view={v}
+              reload={reload}
+              bluesky={s ? { handle: s.handle, hasPassword: s.hasPassword } : undefined}
+            />
+          )
+        })}
+      </div>
+    </Card>
   )
 }

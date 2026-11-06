@@ -7,22 +7,18 @@ import { useApp, useLoad, useWritingOff } from '../hooks'
 import { BrandDot, Button, Card, Empty, PageHeader, Select, Textarea, useBusy } from '../ui'
 import { StudioBible } from './StudioBible'
 import { StudioPublishing } from './StudioPublishing'
-import { StudioComments } from './StudioOperations'
 import { StudioLibrary } from './StudioLibrary'
 import { StudioResearch } from './StudioResearch'
-import { StudioSpend } from './StudioSpend'
 
 export type Tab =
   | 'overview'
   | 'bible'
   | 'library'
   | 'publishing'
-  | 'comments'
   | 'research'
-  | 'spend'
   | 'log'
   | 'flagged'
-/** In the order the work happens: look, plan, make, check, publish, answer, then the money and the record. */
+/** In the order the work happens: look, plan, make, check, publish, then the record. */
 const TABS: Array<[Tab, string]> = [
   ['overview', 'Overview'],
   ['research', 'Research'],
@@ -30,8 +26,6 @@ const TABS: Array<[Tab, string]> = [
   ['library', 'Library'],
   ['flagged', 'Flagged'],
   ['publishing', 'Publishing'],
-  ['comments', 'Comments'],
-  ['spend', 'Spend'],
   ['log', "Director's Log"],
 ]
 
@@ -41,7 +35,7 @@ export function Studio({ initialTab = 'overview' }: { initialTab?: Tab }) {
   const writingOff = useWritingOff()
   return (
     <div className="flex h-full flex-col">
-      <PageHeader title="Studio">
+      <PageHeader title="AI Studio">
         {ov?.mockMode && (
           <span className="rounded-md border border-warn px-2 py-1 text-[11px] font-bold uppercase text-warn">
             Mock mode: nothing real is spent
@@ -51,7 +45,7 @@ export function Studio({ initialTab = 'overview' }: { initialTab?: Tab }) {
       {writingOff && (
         <div className="mx-8 mb-3 rounded-md border border-line bg-surface px-3 py-2 text-[13px] text-muted">
           Writing and production are off. Bots write and render the episodes and drop them in the
-          Inbox. The Library, Comments, Spend and the Director's Log still work.
+          Inbox. The Library and the Director's Log still work.
         </div>
       )}
       <div className="flex gap-1 px-8 pb-3">
@@ -75,9 +69,7 @@ export function Studio({ initialTab = 'overview' }: { initialTab?: Tab }) {
         {tab === 'bible' && <StudioBible />}
         {tab === 'library' && <StudioLibrary />}
         {tab === 'publishing' && <StudioPublishing />}
-        {tab === 'comments' && <StudioComments />}
         {tab === 'research' && <StudioResearch />}
-        {tab === 'spend' && <StudioSpend />}
         {tab === 'log' && <DirectorLog />}
         {tab === 'flagged' && <Flagged />}
       </div>

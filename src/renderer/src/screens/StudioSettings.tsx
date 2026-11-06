@@ -14,36 +14,71 @@ import { OperationsCards } from './StudioOperations'
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-export function StudioSettings() {
+/** App wide studio settings. They live on the Settings screen. */
+export function StudioAppSettings({ only }: { only?: 'production' | 'rules' }) {
   const { data: cfg, reload } = useLoad(() => api.studio.getConfig())
   if (!cfg) return null
   return (
     <div className="space-y-4">
-      <ModeCard cfg={cfg} reload={reload} />
-      <KeysCard />
-      <CapsCard cfg={cfg} reload={reload} />
-      <GenerateCard cfg={cfg} reload={reload} />
-      <ProductionCard cfg={cfg} reload={reload} />
-      <GuidelinesCard />
-      <CapsTableCard cfg={cfg} reload={reload} />
-      <PublicHostCard cfg={cfg} reload={reload} />
-      <RetentionCard cfg={cfg} reload={reload} />
-      <OperationsCards cfg={cfg} reload={reload} />
-      <WritingCard cfg={cfg} reload={reload} />
-      <Card title="Chapters">
-        <Check
-          checked={cfg.autoChapters}
-          onChange={(v) => api.studio.setConfig({ autoChapters: v }).then(reload)}
-        >
-          Add chapters to the YouTube description of long videos when they are published
-        </Check>
-        <p className="mt-1 text-[12px] text-muted">
-          Chapters are timed from the script. Leave this off if a video has an intro or outro that
-          moves the timing.
-        </p>
-      </Card>
+      {only !== 'rules' && <ProductionCard cfg={cfg} reload={reload} />}
+      {only !== 'production' && (
+        <>
+          <GuidelinesCard />
+          <CapsTableCard cfg={cfg} reload={reload} />
+          <PublicHostCard cfg={cfg} reload={reload} />
+          <RetentionCard cfg={cfg} reload={reload} />
+          <WritingCard cfg={cfg} reload={reload} />
+          <Card title="Chapters">
+            <Check
+              checked={cfg.autoChapters}
+              onChange={(v) => api.studio.setConfig({ autoChapters: v }).then(reload)}
+            >
+              Add chapters to the YouTube description of long videos when they are published
+            </Check>
+            <p className="mt-1 text-[12px] text-muted">
+              Chapters are timed from the script. Leave this off if a video has an intro or outro
+              that moves the timing.
+            </p>
+          </Card>
+        </>
+      )}
     </div>
   )
+}
+
+/** Money settings: the spend caps and the generate settings. They live on the Financial screen. */
+export function StudioFinancialCards() {
+  const { data: cfg, reload } = useLoad(() => api.studio.getConfig())
+  if (!cfg) return null
+  return (
+    <div className="space-y-4">
+      <CapsCard cfg={cfg} reload={reload} />
+      <GenerateCard cfg={cfg} reload={reload} />
+    </div>
+  )
+}
+
+/** AI keys and mock mode. They live on the AI Settings screen. */
+export function StudioAiKeys() {
+  const { data: cfg, reload } = useLoad(() => api.studio.getConfig())
+  if (!cfg) return null
+  return (
+    <div className="space-y-4">
+      <KeysCard />
+      <ModeCard cfg={cfg} reload={reload} />
+    </div>
+  )
+}
+
+/** Morning digest, watchdog and the nightly studio backups. They live on the Settings screen. */
+export function StudioOperationsSettings({
+  only,
+}: {
+  only: Array<'digest' | 'watchdog' | 'backups'>
+}) {
+  const { data: cfg, reload } = useLoad(() => api.studio.getConfig())
+  if (!cfg) return null
+  return <OperationsCards cfg={cfg} reload={reload} only={only} />
 }
 
 /** Per channel studio settings: cadence, platforms, flags and the Bluesky account. Shown on the Channels screen. */
@@ -520,18 +555,40 @@ function BrandsCard() {
   )
 }
 
+/** One channel's studio settings (cadence, platforms, flags) for the Other settings by channel tab. */
+export function StudioBrandSettings({ brandId }: { brandId: number }) {
+  const { data: brands, reload } = useLoad(() => api.studio.brands())
+  const b = brands?.find((x) => x.brandId === brandId)
+  if (!b) return null
+  return (
+    <Card title="Studio: cadence, platforms, flags">
+      <BrandRow
+        id={b.brandId}
+        name={b.name}
+        cfg={b.config}
+        nextDue={b.nextDue}
+        reload={reload}
+        hideFormat
+      />
+    </Card>
+  )
+}
+
 function BrandRow({
   id,
   name,
   cfg,
   nextDue,
   reload,
+  hideFormat,
 }: {
   id: number
   name: string
   cfg: StudioBrandConfig
   nextDue: string | null
   reload: () => void
+  /** The video type now comes from the Shorts and Long form ticks on Channel Setup. */
+  hideFormat?: boolean
 }) {
   const [, run] = useBusy()
   const [n, setN] = useState(String(cfg.everyN))
@@ -551,7 +608,7 @@ function BrandRow({
           from the posting times on Channel setup.
         </span>
       </div>
-      <div className="mb-3">
+      <div className="mb-3" hidden={hideFormat}>
         <Field
           label="Video type"
           hint="Short is tall (9:16), 5 to 180 seconds, all platforms. Long is wide (16:9), 1 to 12 minutes. A platform that cannot take a video that long (Facebook Reels stop at 90 seconds) is skipped for that video. Bot drops are checked against this."

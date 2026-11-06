@@ -210,7 +210,7 @@ export class XAdapter implements PlatformAdapter {
   async validate(ctx: AdapterContext): Promise<void> {
     if (!ctx.account || ctx.account.status !== 'connected')
       throw new AdapterError(
-        `${ctx.brandName} is not signed in to X. Connect it on the Connections screen.`,
+        `${ctx.brandName} is not signed in to X. Connect it in Setup Channels, on the Connections tab.`,
         'permanent',
       )
     const problem = durationProblem('x', ctx.videoDurationSeconds)

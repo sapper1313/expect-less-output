@@ -90,7 +90,14 @@ export interface Snapshot {
     status: string
   }[]
   channels: SnapshotChannel[]
-  stats: { views: number; likes: number; comments: number; shares: number } | null
+  stats: {
+    views: number
+    likes: number
+    comments: number
+    shares: number
+    /** YouTube watch hours for videos posted in the last 7 days. null when not read yet. */
+    watchHours?: number | null
+  } | null
   topVideos: {
     rank: number
     title: string

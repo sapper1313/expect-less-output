@@ -111,7 +111,7 @@ export class PlatformService {
     const secret = this.d.secrets.get(secretKey(platform))
     if (!id || !secret)
       throw new Error(
-        `Save the ${PLATFORM_LABELS[platform]} Client ID and Client Secret first (Connections screen, More platforms).`,
+        `Save the ${PLATFORM_LABELS[platform]} Client ID and Client Secret first (Setup Channels, Connections tab, More platforms).`,
       )
     return { id, secret }
   }
@@ -353,7 +353,7 @@ export class PlatformService {
     const t = this.tokens.get(platform, accountId)
     if (!t)
       throw new AdapterError(
-        `${PLATFORM_LABELS[platform]} is not signed in for this channel. Connect it on the Connections screen.`,
+        `${PLATFORM_LABELS[platform]} is not signed in for this channel. Connect it in Setup Channels, on the Connections tab.`,
         'permanent',
       )
     const due = force || (t.expiresAt !== null && t.expiresAt - this.now() < SOON_MS)
@@ -422,7 +422,7 @@ export class PlatformService {
         this.d.secrets.set(key, '1')
         this.d.alert(
           `${PLATFORM_LABELS[a.platform as ExtraPlatform]} login ends soon`,
-          `The ${PLATFORM_LABELS[a.platform as ExtraPlatform]} login for ${this.brandName(a.brand_id)} ends on ${new Date(end).toDateString()}. Press Connect again on the Connections screen before then.`,
+          `The ${PLATFORM_LABELS[a.platform as ExtraPlatform]} login for ${this.brandName(a.brand_id)} ends on ${new Date(end).toDateString()}. Press Connect again in Setup Channels, on the Connections tab before then.`,
         )
         n++
       }

@@ -1,3 +1,4 @@
+import { friendlyError } from '@shared/friendlyError'
 import { useEffect, useState } from 'react'
 import { EDIT_CAPABILITY } from '@shared/platformEdit'
 import { PLATFORM_LABELS } from '@shared/platformLimits'
@@ -224,7 +225,7 @@ export function PostDetail({
               key={t.id}
               className="mt-3 rounded-2xl border border-red-400/60 bg-red-500/15 p-3 text-[13px]"
             >
-              <b>{PLATFORM_LABELS[t.platform]}:</b> {t.lastError}
+              <b>{PLATFORM_LABELS[t.platform]}:</b> {friendlyError(t.lastError)}
             </div>
           ),
       )}

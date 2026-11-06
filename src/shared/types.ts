@@ -149,6 +149,8 @@ export interface BrandSlot {
   dayType: 'weekday' | 'weekend'
   timeLocal: string
   enabled: boolean
+  /** Shorts or Long form. */
+  kind: 'short' | 'long'
 }
 
 export interface HashtagSet {
@@ -718,4 +720,21 @@ export interface ExtraAccountView {
   /** Pinterest: the board id. Others: the account id. */
   externalId: string | null
   expiresAt: string | null
+}
+
+/** The settings a channel may set for itself, with the value it really uses and which ones are its own. */
+export interface ChannelOverrides {
+  values: Pick<
+    Settings,
+    | 'schedulingMode'
+    | 'handoffHoursYoutube'
+    | 'handoffHoursFacebook'
+    | 'missedBehavior'
+    | 'missedGraceMinutes'
+  >
+  /** Keys this channel has changed. The rest follow the app wide setting. */
+  own: string[]
+}
+export type ChannelOverridePatch = {
+  [K in keyof ChannelOverrides['values']]?: ChannelOverrides['values'][K] | null
 }

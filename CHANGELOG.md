@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.18.0 One place for everything
+
+The whole menu was reorganized from Josh's sketch. Nothing was deleted from the database. Settings that were only moved still hold the same values.
+
+- **New menu:** Search, Home, Manual Schedule, Inbox, Queue, Analytics, Setup Channels, Settings, Financial, AI Settings, AI Studio, About. Dashboard, Calendar, Upcoming, TikTok demo and Testing tools are gone from the app (their data and the bot API stay). The Activity Log is at the bottom of About.
+- **Home** is now the colorful analytics page: Being written, Ready for video, Video in progress, Open slots, Scheduled, Posted this week and Needs a look (every tile clicks through), totals for the last 7 days with watch hours, best 3 videos, a card per channel, and the week map.
+- **Manual Schedule:** New Post and Bulk Upload go to the next open slot. Tick **Pick my own date and time** to choose your own. ELO warns when it breaks a rule and lets you go ahead.
+- **Inbox** has a read only **Comments** tab (moved from the Studio).
+- **Setup Channels:** channel list with Add new channel, and four tabs: Channel Setup, Connections, Other settings by channel, Website. All logins are on the Connections tab.
+- **Shorts and Long form:** a channel can do shorts, long form or both. Shape decides which: tall is a Short, wide is Long form. Long form has no length limit. This fixes videos being rejected when a channel did both.
+- **Settings** is one long page for app wide things, with a jump list. **Financial** holds spend caps, generate settings and the spend table. **AI Settings** holds AI models, local AI, the Agent API and AI keys. **AI Studio** keeps its own tabs only (comments moved to Inbox, spend moved to Financial).
+- **Plain error messages:** errors now say what went wrong in plain words (for example, Instagram closing an upload) instead of showing codes and JSON. Messages that named old screens now point to where things live now.
+
 ## 0.17.0 Dashboard screen
 
 - New **Dashboard** screen in the menu, right under Home. It is the As Expected. dashboard, with the same look: the week completion ring, open slots, the week map by channel, per channel stats for the last 7 days, top videos and what posts in the next 48 hours.

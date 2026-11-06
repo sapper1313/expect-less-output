@@ -1,6 +1,4 @@
-import { PipelineSettings } from './PipelineSettings'
-import { GrowthSettings } from './GrowthSettings'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { PLATFORMS, PLATFORM_LABELS } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
 import { formatEastern } from '@shared/time'
@@ -10,22 +8,23 @@ import { useApp, useLoad } from '../hooks'
 import { Button, Card, Check, Empty, Field, Input, PageHeader, Select } from '../ui'
 import logoStacked from '../assets/logo-stacked.jpg'
 import { AlertsCard, BackupCard } from './AlertsBackup'
-import { AgentsCard, BotsCard, TextAssistCard } from './Agents'
-import { StudioSettings } from './StudioSettings'
+import { GrowthSettings } from './GrowthSettings'
+import { PipelineSettings } from './PipelineSettings'
+import { StudioAppSettings, StudioOperationsSettings } from './StudioSettings'
 import { TelegramCard } from './TelegramCard'
-import { StudioLocalAi } from './StudioLocalAi'
-import { AgentModelsCard, ModelGuideCard } from './StudioModels'
+import { useSettings } from './settingsKit'
 
 const LEVEL_STYLE = { info: 'text-muted', warn: 'text-warn', error: 'text-bad' }
 
+/** The Activity Log and the Audit log. They sit at the bottom of About. */
 export function Activity() {
   const [tab, setTab] = useState<'log' | 'audit'>('log')
   const [filter, setFilter] = useState<LogFilter>({ level: 'all', platform: null })
   const { data } = useLoad(() => api.log.list({ ...filter, limit: 500 }), [JSON.stringify(filter)])
   return (
-    <div className="h-full overflow-auto pb-10">
-      <PageHeader title={COPY.nav.activity} />
-      <div className="space-y-4 px-8">
+    <div>
+      <h2 className="display mb-3 text-2xl">{COPY.nav.activity}</h2>
+      <div className="space-y-4">
         <div className="flex gap-1">
           {(
             [
@@ -191,53 +190,86 @@ export function About() {
         <div className="display text-3xl">{COPY.tagline}</div>
         <div className="text-muted">Version {info?.version}. Everything stays on this Mac.</div>
       </div>
+      <div className="mx-8 mt-10 border-t border-line pt-6">
+        <Activity />
+      </div>
     </div>
   )
 }
 
-const TABS = [
+/** Where each old tab name scrolls to on the one long Settings page. */
+export type SettingsTab =
+  'general' | 'pipeline' | 'growth' | 'studio' | 'alerts' | 'ai' | 'api' | 'testing'
+
+const SECTIONS = [
   ['general', 'General'],
   ['pipeline', 'Pipeline'],
   ['growth', 'Growth'],
-  ['studio', 'Studio'],
-  ['ai', 'AI models and Local AI'],
-  ['alerts', 'Alerts and backup'],
-  ['api', 'Agent API'],
-  ['testing', 'Testing tools'],
+  ['studio', 'Studio rules'],
+  ['alerts', 'Alerts and backups'],
 ] as const
+type SectionId = (typeof SECTIONS)[number][0]
 
-export type SettingsTab = (typeof TABS)[number][0]
+const SECTION_OF: Record<SettingsTab, SectionId> = {
+  general: 'general',
+  pipeline: 'pipeline',
+  growth: 'growth',
+  studio: 'studio',
+  alerts: 'alerts',
+  ai: 'general',
+  api: 'general',
+  testing: 'general',
+}
 
+/** Everything that has to be app wide, on one long page. The row of buttons at the top jumps to a part. */
 export function SettingsScreen({ initialTab = 'general' }: { initialTab?: SettingsTab }) {
-  const { toast } = useApp()
-  const { data: s } = useLoad(() => api.settings.get())
+  const { s, save } = useSettings()
   const { data: info } = useLoad(() => api.app.info())
   const { data: status } = useLoad(() => api.scheduler.status())
-  const [tab, setTab] = useState<SettingsTab>(initialTab)
-  const save = async (patch: Partial<Settings>) => {
-    try {
-      await api.settings.set(patch)
-    } catch (e) {
-      toast({ kind: 'error', headline: 'That did not work.', detail: String((e as Error).message) })
-    }
-  }
+  const refs = useRef<Record<string, HTMLElement | null>>({})
+  const jump = (id: string) => refs.current[id]?.scrollIntoView({ behavior: 'smooth' })
+  const startAt = SECTION_OF[initialTab]
+  const first = useRef(true)
   if (!s) return null
+  const section = (id: SectionId, title: string, children: React.ReactNode) => (
+    <section
+      key={id}
+      ref={(el) => {
+        refs.current[id] = el
+        if (el && first.current && id === startAt && startAt !== 'general') {
+          first.current = false
+          setTimeout(() => el.scrollIntoView(), 0)
+        }
+      }}
+      className="space-y-4"
+    >
+      <h2 className="display border-b border-line pb-1 pt-4 text-xl">{title}</h2>
+      {children}
+    </section>
+  )
   return (
     <div className="h-full overflow-auto pb-10">
       <PageHeader title={COPY.nav.settings} />
       <div className="max-w-4xl space-y-4 px-8">
-        <div className="flex flex-wrap gap-1">
-          {TABS.map(([id, label]) => (
+        <p className="text-[13px] text-muted">
+          Only things that are the same for the whole app live here. Anything that belongs to one
+          channel is on Setup Channels. AI is under AI Settings. Money is under Financial.
+        </p>
+        <div className="sticky top-0 z-10 flex flex-wrap gap-1 bg-bg py-2">
+          {SECTIONS.map(([id, label]) => (
             <button
               key={id}
-              onClick={() => setTab(id)}
-              className={`rounded-md px-3 py-1.5 text-[13px] font-semibold ${tab === id ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}
+              onClick={() => jump(id)}
+              className="rounded-md px-3 py-1.5 text-[13px] font-semibold text-ink hover:bg-surface2"
             >
               {label}
             </button>
           ))}
         </div>
-        {tab === 'general' && (
+
+        {section(
+          'general',
+          'General',
           <>
             <Card title="Media library">
               <Field
@@ -259,46 +291,9 @@ export function SettingsScreen({ initialTab = 'general' }: { initialTab?: Settin
               </Field>
             </Card>
 
-            <Card title="Scheduling">
+            <Card title="If the Mac was asleep or off">
               <div className="grid gap-4 md:grid-cols-2">
-                <Field
-                  label="Scheduling mode"
-                  hint="Slots: next open slot only. Manual: pick any time. Both: slot pre-filled, you can override."
-                >
-                  <Select
-                    value={s.schedulingMode}
-                    onChange={(e) =>
-                      save({ schedulingMode: e.target.value as Settings['schedulingMode'] })
-                    }
-                  >
-                    <option value="both">Both</option>
-                    <option value="slots">Slots</option>
-                    <option value="manual">Manual</option>
-                  </Select>
-                </Field>
-                <div />
-                <Field
-                  label="Early handoff to YouTube (hours before)"
-                  hint="The platform publishes at the exact time by itself."
-                >
-                  <Input
-                    type="number"
-                    min={0}
-                    max={72}
-                    value={s.handoffHoursYoutube}
-                    onChange={(e) => save({ handoffHoursYoutube: Number(e.target.value) })}
-                  />
-                </Field>
-                <Field label="Early handoff to Facebook (hours before)">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={72}
-                    value={s.handoffHoursFacebook}
-                    onChange={(e) => save({ handoffHoursFacebook: Number(e.target.value) })}
-                  />
-                </Field>
-                <Field label="If a post was missed (Mac asleep or off)">
+                <Field label="If a post was missed">
                   <Select
                     value={s.missedBehavior}
                     onChange={(e) =>
@@ -319,11 +314,9 @@ export function SettingsScreen({ initialTab = 'general' }: { initialTab?: Settin
                   />
                 </Field>
               </div>
-              <div className="mt-4 flex items-center gap-4">
-                <span className="text-[12px] text-muted">
-                  {status?.pendingCount ?? 0} post(s) waiting. To pause everything, use the pause
-                  button at the bottom of the left menu or the menu bar icon.
-                </span>
+              <div className="mt-4 text-[12px] text-muted">
+                {status?.pendingCount ?? 0} post(s) waiting. To pause everything, use the pause
+                button at the bottom of the left menu or the menu bar icon.
               </div>
             </Card>
 
@@ -336,7 +329,7 @@ export function SettingsScreen({ initialTab = 'general' }: { initialTab?: Settin
                   Closing the window keeps the scheduler running from the menu bar. Use Quit in the
                   menu bar menu to stop it.
                 </div>
-                <Field label="Theme">
+                <Field label="Theme (light, dark or match the Mac)">
                   <Select
                     className="w-56"
                     value={s.theme}
@@ -350,86 +343,37 @@ export function SettingsScreen({ initialTab = 'general' }: { initialTab?: Settin
               </div>
             </Card>
 
-            <Card title="Connections">
-              <p className="text-muted">
-                Google and YouTube logins are on the Connections screen. Secrets are stored
-                encrypted in the macOS Keychain and are never shown in full. Keychain encryption is{' '}
-                {info?.encryptionAvailable ? 'available' : 'NOT available'} on this Mac.
-              </p>
-            </Card>
             <Card title="Where things live">
               <div className="space-y-1 text-[12px] text-muted">
                 <div>Database: {info?.dbPath}</div>
                 <div>App data: {info?.dataDir}</div>
-              </div>
-            </Card>
-          </>
-        )}
-        {tab === 'pipeline' && <PipelineSettings s={s} save={save} />}
-        {tab === 'growth' && <GrowthSettings s={s} save={save} />}
-        {tab === 'studio' && <StudioSettings />}
-        {tab === 'ai' && (
-          <>
-            <AgentModelsCard />
-            <ModelGuideCard />
-            <TextAssistCard s={s} save={save} />
-            <StudioLocalAi />
-          </>
-        )}
-        {tab === 'alerts' && (
-          <>
-            <AlertsCard s={s} save={save} />
-            <TelegramCard />
-            <BackupCard />
-          </>
-        )}
-        {tab === 'api' && (
-          <>
-            <AgentsCard s={s} save={save} />
-            <BotsCard />
-          </>
-        )}
-        {tab === 'testing' && (
-          <>
-            <Card title="Testing tools (dry run)">
-              <div className="grid gap-4 md:grid-cols-3">
-                <Field label="Force a failure on">
-                  <Select
-                    value={s.dryRunFailPlatform ?? ''}
-                    onChange={(e) =>
-                      save({
-                        dryRunFailPlatform: (e.target.value ||
-                          null) as Settings['dryRunFailPlatform'],
-                      })
-                    }
-                  >
-                    <option value="">No platform</option>
-                    {PLATFORMS.map((p) => (
-                      <option key={p} value={p}>
-                        {PLATFORM_LABELS[p]}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="Kind of failure">
-                  <Select
-                    value={s.dryRunFailKind}
-                    onChange={(e) =>
-                      save({ dryRunFailKind: e.target.value as Settings['dryRunFailKind'] })
-                    }
-                  >
-                    <option value="transient">Temporary (retries)</option>
-                    <option value="permanent">Permanent (no retries)</option>
-                  </Select>
-                </Field>
-                <div className="pt-6">
-                  <Check checked={s.fastBackoff} onChange={(v) => save({ fastBackoff: v })}>
-                    Short retry waits (5, 10, 15 seconds)
-                  </Check>
+                <div>
+                  Logins are stored encrypted in the macOS Keychain and never shown in full.
+                  Keychain encryption is {info?.encryptionAvailable ? 'available' : 'NOT available'}{' '}
+                  on this Mac. The logins themselves are on Setup Channels, Connections.
                 </div>
               </div>
             </Card>
-          </>
+          </>,
+        )}
+
+        {section('pipeline', 'Pipeline', <PipelineSettings s={s} save={save} />)}
+        {section('growth', 'Growth', <GrowthSettings s={s} save={save} />)}
+        {section(
+          'studio',
+          'Studio rules (production, thumbnails, limits, retention, writing)',
+          <StudioAppSettings />,
+        )}
+        {section(
+          'alerts',
+          'Alerts and backups',
+          <>
+            <AlertsCard s={s} save={save} />
+            <TelegramCard />
+            <StudioOperationsSettings only={['digest', 'watchdog']} />
+            <BackupCard />
+            <StudioOperationsSettings only={['backups']} />
+          </>,
         )}
       </div>
     </div>

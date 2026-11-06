@@ -48,7 +48,7 @@ function transport(s: AgentServices): EloTransport {
 export class DashboardService {
   private poller: Poller
 
-  constructor(deps: {
+  constructor(private deps: {
     db: Db
     services: AgentServices
     settings: SettingsService
@@ -82,13 +82,34 @@ export class DashboardService {
   }
 
   snapshot(): Snapshot | null {
-    return this.poller.latest()
+    return this.withWatch(this.poller.latest())
+  }
+
+  /** Adds YouTube watch hours for videos posted in the last 7 days (read from the saved retention numbers). */
+  private withWatch(s: Snapshot | null): Snapshot | null {
+    if (!s || !s.stats) return s
+    let hours: number | null = null
+    try {
+      const since = new Date(Date.now() - 7 * 86_400_000).toISOString()
+      const r = this.deps.db
+        .prepare(
+          `SELECT SUM(r.minutes_watched) AS m, COUNT(*) AS n
+           FROM video_retention r
+           JOIN post_targets t ON t.post_id = r.post_id AND t.platform = r.platform
+           WHERE r.platform = 'youtube' AND t.status = 'posted' AND t.posted_at_utc >= ?`,
+        )
+        .get(since) as { m: number | null; n: number }
+      hours = r.n > 0 && r.m !== null ? Math.round((r.m / 60) * 10) / 10 : null
+    } catch {
+      hours = null
+    }
+    return { ...s, stats: { ...s.stats, watchHours: hours } }
   }
 
   /** The Refresh button: reads everything again now. */
   async refresh(): Promise<Snapshot | null> {
     await this.poller.refreshSlots()
     await this.poller.refreshStats()
-    return this.poller.latest()
+    return this.withWatch(this.poller.latest())
   }
 }

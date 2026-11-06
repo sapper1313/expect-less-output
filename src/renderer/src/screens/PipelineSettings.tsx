@@ -214,34 +214,99 @@ function FreshStartCard() {
 }
 
 /** The switches for the bot pipeline: who writes, and what ELO does with finished videos. */
+/** AI: who writes. Lives on the AI Settings screen. */
+export function WhoWritesCard({ s, save }: { s: Settings; save: Save }) {
+  return (
+    <Card title="Who writes">
+      <p className="mb-3 text-[13px] text-muted">
+        In the bot pipeline, bots write and render every episode and drop finished videos in the
+        Inbox. ELO takes the drops, schedules them with the slots you set, and posts them. The
+        schedule is only ever what you set in the app. A bot never picks or promises a time.
+      </p>
+      <div className="space-y-3">
+        <Switch
+          checked={s.claudeApiEnabled}
+          onChange={(v) => save({ claudeApiEnabled: v })}
+          label="Allow ELO to use the Claude API"
+          hint="Off means ELO makes no call to Anthropic at all. Models running on your own computer through Ollama still work."
+        />
+        <Switch
+          checked={s.studioProductionEnabled}
+          onChange={(v) => save({ studioProductionEnabled: v })}
+          label="Let ELO write and produce episodes itself (Studio production)"
+          hint="Off stops the Director from planning new episodes, and stops the Show Writer, the Producer and the idea refill. Library, Comments, Spend and the Director's Log keep working."
+        />
+      </div>
+    </Card>
+  )
+}
+
+/** Per channel home for these two: Setup Channels, Other settings by channel. */
+export function ScheduleRulesCard({ s, save }: { s: Settings; save: Save }) {
+  return (
+    <Card title="Schedule rules">
+      <p className="mb-3 text-[13px] text-muted">
+        These apply to every next open slot. Each channel also has its own daily limit and blackout
+        dates on Channel setup. A daily limit of 1 means only the first slot of each day is used.
+      </p>
+      <div className="grid gap-4 md:grid-cols-2">
+        <NumberSetting
+          label="Minimum gap between any two posts (minutes)"
+          hint="0 turns it off."
+          value={s.minGapMinutes}
+          min={0}
+          max={1440}
+          onSave={(v) => save({ minGapMinutes: v })}
+        />
+        <NumberSetting
+          label="Low queue alert (days of posts scheduled ahead)"
+          hint="One alert when a channel has fewer days than this. 0 turns it off."
+          value={s.lowQueueDays}
+          min={0}
+          max={60}
+          onSave={(v) => save({ lowQueueDays: v })}
+        />
+      </div>
+      <div className="mt-3">
+        <DateList
+          label="Blackout dates for every channel"
+          dates={s.blackoutDates}
+          onChange={(d) => save({ blackoutDates: d })}
+        />
+      </div>
+    </Card>
+  )
+}
+
+export function EmptySlotWarningsCard({ s, save }: { s: Settings; save: Save }) {
+  return (
+    <Card title="Empty slot warnings">
+      <div className="space-y-3">
+        <Switch
+          checked={s.gapWarnEnabled}
+          onChange={(v) => save({ gapWarnEnabled: v })}
+          label="Warn me about empty slots once a day"
+          hint="A message (iMessage, email and Telegram, the same as your other alerts) listing the slots from now to the end of tomorrow that have nothing in them, for channels that are running. Nothing is sent when every slot is filled."
+        />
+        <Field label="Send it at (Eastern)">
+          <TimeSelect
+            value={s.gapWarnTime}
+            label="Warning time"
+            onChange={(v) => save({ gapWarnTime: v })}
+          />
+        </Field>
+      </div>
+    </Card>
+  )
+}
+
+/** App wide pipeline settings: intake, posting, the Upcoming file, fresh start, and the alerts list. */
 export function PipelineSettings({ s, save }: { s: Settings; save: Save }) {
   const [bots, setBots] = useState(s.pipelineSourceBots.join(', '))
   useEffect(() => setBots(s.pipelineSourceBots.join(', ')), [s.pipelineSourceBots])
   const minutes = [0, 1, 2].map((i) => s.retryMinutes[i] ?? [5, 15, 60][i])
   return (
     <>
-      <Card title="Who writes">
-        <p className="mb-3 text-[13px] text-muted">
-          In the bot pipeline, bots write and render every episode and drop finished videos in the
-          Inbox. ELO takes the drops, schedules them with the slots you set, and posts them. The
-          schedule is only ever what you set in the app. A bot never picks or promises a time.
-        </p>
-        <div className="space-y-3">
-          <Switch
-            checked={s.claudeApiEnabled}
-            onChange={(v) => save({ claudeApiEnabled: v })}
-            label="Allow ELO to use the Claude API"
-            hint="Off means ELO makes no call to Anthropic at all. Models running on your own computer through Ollama still work."
-          />
-          <Switch
-            checked={s.studioProductionEnabled}
-            onChange={(v) => save({ studioProductionEnabled: v })}
-            label="Let ELO write and produce episodes itself (Studio production)"
-            hint="Off stops the Director from planning new episodes, and stops the Show Writer, the Producer and the idea refill. Library, Comments, Spend and the Director's Log keep working."
-          />
-        </div>
-      </Card>
-
       <Card title="Drop intake">
         <div className="space-y-3">
           <Switch
@@ -294,57 +359,6 @@ export function PipelineSettings({ s, save }: { s: Settings; save: Save }) {
         </div>
       </Card>
 
-      <Card title="Schedule rules">
-        <p className="mb-3 text-[13px] text-muted">
-          These apply to every next open slot. Each channel also has its own daily limit and
-          blackout dates on Channel setup. A daily limit of 1 means only the first slot of each day
-          is used.
-        </p>
-        <div className="grid gap-4 md:grid-cols-2">
-          <NumberSetting
-            label="Minimum gap between any two posts (minutes)"
-            hint="0 turns it off."
-            value={s.minGapMinutes}
-            min={0}
-            max={1440}
-            onSave={(v) => save({ minGapMinutes: v })}
-          />
-          <NumberSetting
-            label="Low queue alert (days of posts scheduled ahead)"
-            hint="One alert when a channel has fewer days than this. 0 turns it off."
-            value={s.lowQueueDays}
-            min={0}
-            max={60}
-            onSave={(v) => save({ lowQueueDays: v })}
-          />
-        </div>
-        <div className="mt-3">
-          <DateList
-            label="Blackout dates for every channel"
-            dates={s.blackoutDates}
-            onChange={(d) => save({ blackoutDates: d })}
-          />
-        </div>
-      </Card>
-
-      <Card title="Empty slot warnings">
-        <div className="space-y-3">
-          <Switch
-            checked={s.gapWarnEnabled}
-            onChange={(v) => save({ gapWarnEnabled: v })}
-            label="Warn me about empty slots once a day"
-            hint="A message (iMessage, email and Telegram, the same as your other alerts) listing the slots from now to the end of tomorrow that have nothing in them, for channels that are running. Nothing is sent when every slot is filled."
-          />
-          <Field label="Send it at (Eastern)">
-            <TimeSelect
-              value={s.gapWarnTime}
-              label="Warning time"
-              onChange={(v) => save({ gapWarnTime: v })}
-            />
-          </Field>
-        </div>
-      </Card>
-
       <Card title="Posting">
         <div className="space-y-3">
           <div className="grid gap-4 md:grid-cols-3">
@@ -388,8 +402,8 @@ export function PipelineSettings({ s, save }: { s: Settings; save: Save }) {
           <Switch
             checked={s.upcomingEnabled}
             onChange={(v) => save({ upcomingEnabled: v })}
-            label="Use the Upcoming list"
-            hint="Off hides the Upcoming screen and leaves the shared file alone."
+            label="Read the shared Upcoming file"
+            hint="Off means ELO ignores the shared file. Bots that write ideas to it keep working through the agent API."
           />
           <Switch
             checked={s.upcomingLiveWatch}

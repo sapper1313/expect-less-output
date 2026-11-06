@@ -137,6 +137,13 @@ export class StudioConfigService {
         continue
       }
       const seed = SEED_FORMATS.find((s) => b.name.toLowerCase().startsWith(s.prefix))
+      // A brand seen for the first time starts with the Shorts / Long form tick that matches its format.
+      const kindRow = this.db.prepare(
+        `INSERT INTO brand_slot_kinds (brand_id, kind, enabled) VALUES (?, ?, ?)
+         ON CONFLICT(brand_id, kind) DO UPDATE SET enabled = excluded.enabled`,
+      )
+      kindRow.run(b.id, 'short', seed?.format === 'long' ? 0 : 1)
+      kindRow.run(b.id, 'long', seed?.format === 'long' ? 1 : 0)
       ins.run(
         b.id,
         JSON.stringify({

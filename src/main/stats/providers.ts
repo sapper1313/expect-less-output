@@ -114,7 +114,7 @@ function metaFailure(e: unknown, permissionHelp: string, deps: MetaStatsDeps): S
       return {
         ok: false,
         unavailable: true,
-        reason: 'Meta needs you to sign in again. Reconnect Meta on the Connections screen.',
+        reason: 'Meta needs you to sign in again. Reconnect Meta in Setup Channels, on the Connections tab.',
       }
     }
     if (e.code === 10 || (e.code >= 200 && e.code <= 299))

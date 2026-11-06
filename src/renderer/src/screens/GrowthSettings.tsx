@@ -245,36 +245,41 @@ function BriefCard({ s, save }: { s: Settings; save: Save }) {
   )
 }
 
+/** Per channel home: Setup Channels, Other settings by channel. */
+export function StaggeredPostingCard({ s, save }: { s: Settings; save: Save }) {
+  return (
+    <Card title="Staggered posting">
+      <div className="space-y-3">
+        <Switch
+          checked={s.staggerEnabled}
+          onChange={(v) => save({ staggerEnabled: v })}
+          label="Post to each platform a few minutes after the one before"
+          hint="Instead of every platform going live in the same second, YouTube posts on the slot and Instagram, Facebook and TikTok follow a few minutes apart. It only applies to posts made from now on, and the slot time you set does not change."
+        />
+        <div className="flex gap-4">
+          <NumberSetting
+            label="Shortest wait (minutes)"
+            value={s.staggerGapMin}
+            min={0}
+            max={60}
+            onSave={(v) => save({ staggerGapMin: v })}
+          />
+          <NumberSetting
+            label="Longest wait (minutes)"
+            value={s.staggerGapMax}
+            min={0}
+            max={60}
+            onSave={(v) => save({ staggerGapMax: v })}
+          />
+        </div>
+      </div>
+    </Card>
+  )
+}
+
 export function GrowthSettings({ s, save }: { s: Settings; save: Save }) {
   return (
     <>
-      <Card title="Staggered posting">
-        <div className="space-y-3">
-          <Switch
-            checked={s.staggerEnabled}
-            onChange={(v) => save({ staggerEnabled: v })}
-            label="Post to each platform a few minutes after the one before"
-            hint="Instead of every platform going live in the same second, YouTube posts on the slot and Instagram, Facebook and TikTok follow a few minutes apart. It only applies to posts made from now on, and the slot time you set does not change."
-          />
-          <div className="flex gap-4">
-            <NumberSetting
-              label="Shortest wait (minutes)"
-              value={s.staggerGapMin}
-              min={0}
-              max={60}
-              onSave={(v) => save({ staggerGapMin: v })}
-            />
-            <NumberSetting
-              label="Longest wait (minutes)"
-              value={s.staggerGapMax}
-              min={0}
-              max={60}
-              onSave={(v) => save({ staggerGapMax: v })}
-            />
-          </div>
-        </div>
-      </Card>
-
       <Card title="Captions and search">
         <div className="space-y-3">
           <Switch

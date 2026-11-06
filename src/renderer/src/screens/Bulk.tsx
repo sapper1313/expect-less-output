@@ -14,6 +14,7 @@ import {
   Button,
   Card,
   Check,
+  Confirm,
   Counter,
   Empty,
   Field,
@@ -55,6 +56,9 @@ export function Bulk({ onDone }: { onDone: () => void }) {
   const [rows, setRows] = useState<Row[]>([])
   const [dragOver, setDragOver] = useState(false)
   const [bulkCaption, setBulkCaption] = useState('')
+  /** Josh's override: type each row's own date and time instead of using the channel's next open slots. */
+  const [own, setOwn] = useState(false)
+  const [heads, setHeads] = useState<string[] | null>(null)
   const brand = brands?.find((b) => b.id === brandId)
   const { data: accounts } = useLoad(
     () => (brandId ? api.accounts.list(brandId) : Promise.resolve([])),
@@ -141,6 +145,33 @@ export function Bulk({ onDone }: { onDone: () => void }) {
     rows.every((r) => r.when && r.platforms.length > 0 && r.title.trim()) &&
     !ttProblem
 
+  /** Back to the default: each row takes the next open slot for this channel, in order. */
+  async function resetToSlots() {
+    if (!brandId) return
+    const slots = await run(() => api.slots.next(brandId, rows.length))
+    if (slots) setRows((r) => r.map((x, i) => ({ ...x, when: slots[i] ?? null })))
+  }
+
+  /** Hand picked times that break a rule show a plain warning first. Josh can still go ahead. */
+  async function trySchedule() {
+    if (!brandId) return
+    if (own) {
+      const found = await run(async () => {
+        const list: string[] = []
+        for (let i = 0; i < rows.length; i++) {
+          const w = rows[i].when
+          if (!w) continue
+          for (const msg of await api.slots.checkTime(brandId, w)) list.push(`Row ${i + 1}: ${msg}`)
+        }
+        if (dup.size) list.push('Some rows share the same time.')
+        return list
+      })
+      if (found === undefined) return
+      if (found.length) return setHeads(found)
+    }
+    await confirm()
+  }
+
   async function confirm() {
     if (!brandId) return
     const created = await run(() =>
@@ -172,7 +203,7 @@ export function Bulk({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="h-full overflow-auto pb-10">
-      <PageHeader title={COPY.nav.bulk} />
+      <PageHeader title={COPY.nav.schedule} />
       <div className="space-y-4 px-8">
         <Card>
           <div className="grid gap-4 md:grid-cols-2">
@@ -337,6 +368,23 @@ export function Bulk({ onDone }: { onDone: () => void }) {
               </div>
             </Card>
 
+            <Card title="When">
+              <Check
+                checked={own}
+                onChange={(v) => {
+                  setOwn(v)
+                  if (!v) void resetToSlots()
+                }}
+              >
+                Pick my own dates and times
+              </Check>
+              <div className="ml-6 text-[12px] text-muted">
+                {own
+                  ? 'Type a date and time on each row. You get a warning if a time breaks a rule, and you can still go ahead.'
+                  : 'Off means each video takes the next open slot for this channel, in order.'}
+              </div>
+            </Card>
+
             <div className="overflow-hidden rounded-lg border border-line">
               <table className="w-full text-left text-[13px]">
                 <thead className="bg-surface2 text-[11px] uppercase tracking-wider text-muted">
@@ -394,11 +442,13 @@ export function Bulk({ onDone }: { onDone: () => void }) {
                           </div>
                         </td>
                         <td className="w-52 p-3">
-                          <DateTimeSelect
-                            value={isoToLocalInput(r.when)}
-                            onChange={(v) => patch(i, { when: localInputToIso(v) })}
-                            label={`Row ${i + 1} time`}
-                          />
+                          {own && (
+                            <DateTimeSelect
+                              value={isoToLocalInput(r.when)}
+                              onChange={(v) => patch(i, { when: localInputToIso(v) })}
+                              label={`Row ${i + 1} time`}
+                            />
+                          )}
                           <div className="mt-1 text-[11px] text-muted">{formatEastern(r.when)}</div>
                           {r.when && dup.has(r.when) && (
                             <div className="text-[11px] font-bold text-warn">
@@ -457,13 +507,25 @@ export function Bulk({ onDone }: { onDone: () => void }) {
               <Button
                 variant="fine"
                 disabled={!ready || busy}
-                onClick={confirm}
+                onClick={() => void trySchedule()}
                 title={`Schedule ${rows.length} posts for ${brand?.name ?? ''} to ${platforms.map((p) => PLATFORM_LABELS[p]).join(', ')}`}
                 aria-label={`Schedule ${rows.length} posts for ${brand?.name ?? ''} to ${platforms.map((p) => PLATFORM_LABELS[p]).join(', ')}`}
               >
                 {COPY.publishButton}
               </Button>
             </div>
+            {heads && (
+              <Confirm
+                title="Check these times"
+                message={`${heads.join(' ')} Do you want to schedule them anyway?`}
+                confirmLabel="Schedule anyway"
+                onCancel={() => setHeads(null)}
+                onConfirm={() => {
+                  setHeads(null)
+                  void confirm()
+                }}
+              />
+            )}
           </>
         )}
       </div>

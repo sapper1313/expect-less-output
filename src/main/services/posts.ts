@@ -3,7 +3,8 @@ import type { Db } from '../db'
 import type { Library } from './library'
 import type { ActivityLog } from './activity'
 import type { MediaService } from './media'
-import { getNextOpenSlots, getSlotTimes, type SlotDef } from '@shared/slots'
+import { getNextOpenSlots, getSlotTimes, type SlotDef, type SlotKind } from '@shared/slots'
+import { slotsForKind } from './channelSettings'
 import { derivePostStatus } from '@shared/scheduling'
 import { readSetting } from './settings'
 import { PLATFORM_LIMITS, durationProblem } from '@shared/platformLimits'
@@ -318,10 +319,9 @@ export class PostService {
 
   // ---------- slots ----------
 
-  nextSlots(brandId: number, count: number, fromUtc?: string, extraTaken: string[] = []): string[] {
-    const slots = (
-      this.db.prepare('SELECT * FROM brand_slots WHERE brand_id = ?').all(brandId) as any[]
-    ).map<SlotDef>((r) => ({ dayType: r.day_type, timeLocal: r.time_local, enabled: !!r.enabled }))
+  /** `kind` is the kind of the video (Shorts or Long form). Left out, every time the channel has is used. */
+  nextSlots(brandId: number, count: number, fromUtc?: string, extraTaken: string[] = [], kind?: SlotKind): string[] {
+    const { slots, days: kindDays } = slotsForKind(this.db, brandId, kind)
     const taken = (
       this.db
         .prepare(
@@ -354,7 +354,7 @@ export class PostService {
       taken: [...taken, ...extraTaken],
       count,
       from: fromUtc ?? new Date(this.now()).toISOString(),
-      weekdays: this.postDays(brandId),
+      weekdays: kindDays ?? this.postDays(brandId),
       blackoutDates: [
         ...new Set([...readSetting(this.db, 'blackoutDates'), ...rules.blackoutDates]),
       ],
@@ -592,6 +592,58 @@ export class PostService {
         )
         .get(brandId, from, to) as { n: number }
     ).n
+  }
+
+  /**
+   * Plain-language heads ups for a time Josh picked by hand. Never blocks: the screen shows these and lets him go on.
+   * Looks at: not a posting time for the channel, a time already gone, the channel's daily limit, and the minimum gap
+   * to any other post (any channel).
+   */
+  checkCustomTime(brandId: number, whenUtc: string): string[] {
+    const whenMs = new Date(whenUtc).getTime()
+    if (!Number.isFinite(whenMs)) return []
+    const out: string[] = []
+    if (whenMs < this.now()) out.push('That time is already in the past.')
+    const key = (iso: string) => new Date(iso).toISOString().slice(0, 16)
+    const times = this.channelPostingTimes(brandId, 2000, whenMs - 2 * 86_400_000)
+    if (!times.some((t) => key(t) === key(whenUtc))) {
+      out.push('That is not one of this channel\'s posting times.')
+    }
+    const rules = this.channelRules(brandId)
+    if (rules.maxPerDay > 0) {
+      const day = DateTime.fromMillis(whenMs, { zone: ZONE }).startOf('day')
+      const n = (
+        this.db
+          .prepare(
+            `SELECT COUNT(*) AS n FROM posts WHERE brand_id = ? AND scheduled_at_utc >= ? AND scheduled_at_utc < ?
+             AND post_type = 'episode' AND status NOT IN ('canceled','draft')`,
+          )
+          .get(brandId, day.toUTC().toISO(), day.plus({ days: 1 }).toUTC().toISO()) as { n: number }
+      ).n
+      if (n >= rules.maxPerDay) {
+        out.push(
+          `This channel already has ${n} post${n === 1 ? '' : 's'} that day. Its daily limit is ${rules.maxPerDay}.`,
+        )
+      }
+    }
+    const gap = Number(readSetting(this.db, 'minGapMinutes') || 0)
+    if (gap > 0) {
+      const near = this.db
+        .prepare(
+          `SELECT p.scheduled_at_utc AS t, b.name AS name FROM posts p JOIN brands b ON b.id = p.brand_id
+           WHERE p.scheduled_at_utc >= ? AND p.scheduled_at_utc <= ? AND p.status IN (${RESERVING.map(() => '?').join(',')})`,
+        )
+        .all(
+          new Date(whenMs - gap * 60_000).toISOString(),
+          new Date(whenMs + gap * 60_000).toISOString(),
+          ...RESERVING,
+        ) as Array<{ t: string; name: string }>
+      const hit = near[0]
+      if (hit) {
+        out.push(`That is less than ${gap} minutes from a post on ${hit.name}. The minimum gap is ${gap} minutes.`)
+      }
+    }
+    return out
   }
 
   // ---------- writing ----------

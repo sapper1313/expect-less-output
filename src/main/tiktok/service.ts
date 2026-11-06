@@ -97,7 +97,7 @@ export class TikTokService {
     const secret = this.d.secrets.get(TT_SECRET_SECRET)
     if (!key || !secret)
       throw new Error(
-        'Save the TikTok Client Key and Client Secret first (Connections screen, TikTok).',
+        'Save the TikTok Client Key and Client Secret first (Setup Channels, Connections tab, TikTok).',
       )
     return { key, secret, redirect: this.d.secrets.get(TT_SECRET_REDIRECT) ?? DEFAULT_REDIRECT_URI }
   }
@@ -363,14 +363,14 @@ export class TikTokService {
     if (!status) throw new AdapterError('That TikTok connection no longer exists.', 'permanent')
     if (status === 'needs_reauth')
       throw new AdapterError(
-        'TikTok needs you to sign in again. Reconnect it on the Connections screen.',
+        'TikTok needs you to sign in again. Reconnect it in Setup Channels, on the Connections tab.',
         'permanent',
       )
     const t = this.readTokens(accountId)
     if (!t) {
       this.markReauth(accountId, 'No saved TikTok login.')
       throw new AdapterError(
-        'TikTok needs you to sign in again. Reconnect it on the Connections screen.',
+        'TikTok needs you to sign in again. Reconnect it in Setup Channels, on the Connections tab.',
         'permanent',
       )
     }
@@ -388,7 +388,7 @@ export class TikTokService {
     if (t.refreshExpiresAt <= this.now()) {
       this.markReauth(accountId, 'The saved TikTok login expired.')
       throw new AdapterError(
-        'TikTok needs you to sign in again. Reconnect it on the Connections screen.',
+        'TikTok needs you to sign in again. Reconnect it in Setup Channels, on the Connections tab.',
         'permanent',
       )
     }
@@ -407,7 +407,7 @@ export class TikTokService {
       if (err instanceof TikTokApiError && err.code === 'invalid_grant') {
         this.markReauth(accountId, err.message)
         throw new AdapterError(
-          'TikTok needs you to sign in again. Reconnect it on the Connections screen.',
+          'TikTok needs you to sign in again. Reconnect it in Setup Channels, on the Connections tab.',
           'permanent',
         )
       }
@@ -428,7 +428,7 @@ export class TikTokService {
     })
     this.d.alert(
       COPY.tiktokReauthHeadline,
-      `${a.name}: reconnect TikTok on the Connections screen.`,
+      `${a.name}: reconnect TikTok in Setup Channels, on the Connections tab.`,
     )
     this.d.emit()
   }

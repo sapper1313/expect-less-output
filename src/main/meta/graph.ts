@@ -59,7 +59,7 @@ export function classifyMetaError(
   const text = metaDetail(body, status)
   if (code === 190 || (e.type === 'OAuthException' && [458, 459, 460, 463, 467].includes(sub))) {
     return new MetaApiError(
-      'Meta no longer accepts the saved login. Reconnect Meta on the Connections screen.',
+      'Meta no longer accepts the saved login. Reconnect Meta in Setup Channels, on the Connections tab.',
       'permanent',
       code,
       sub,

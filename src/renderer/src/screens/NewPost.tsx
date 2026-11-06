@@ -15,6 +15,7 @@ import {
   Button,
   Card,
   Check,
+  Confirm,
   Counter,
   Field,
   Input,
@@ -35,7 +36,6 @@ export function NewPost({
 }) {
   const { toast } = useApp()
   const [busy, run] = useBusy()
-  const { data: settings } = useLoad(() => api.settings.get())
   const { data: brands } = useLoad(() => api.brands.list())
   const [source, setSource] = useState<MediaInspection | null>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -60,6 +60,9 @@ export function NewPost({
     pinterest: false,
   })
   const [when, setWhen] = useState<string | null>(initialWhen)
+  /** Josh's override: pick any date and time instead of the channel's next open slot. */
+  const [own, setOwn] = useState(initialWhen !== null)
+  const [heads, setHeads] = useState<string[] | null>(null)
   const { data: defaults } = useLoad(
     () => (brandId ? api.brands.getDefaults(brandId) : Promise.resolve(null)),
     [brandId],
@@ -141,13 +144,22 @@ export function NewPost({
   }
 
   const counters = useMemo(() => captionCounters(title, caption), [title, caption])
-  const mode = settings?.schedulingMode ?? 'both'
   const labels = platforms.map((p) => PLATFORM_LABELS[p])
   const ttProblem = ttDirect
     ? tiktokSettingsProblem(tt, creator.info, source?.meta.durationSeconds ?? 0)
     : null
   const canSchedule =
     !!source && !!brandId && platforms.length > 0 && !!when && title.trim().length > 0 && !ttProblem
+
+  /** A hand picked time that breaks a rule shows a plain warning first. Josh can still go ahead. */
+  async function trySchedule() {
+    if (!brandId || !when) return
+    if (own) {
+      const warnings = await run(() => api.slots.checkTime(brandId, when))
+      if (warnings && warnings.length) return setHeads(warnings)
+    }
+    await save('scheduled')
+  }
 
   async function save(status: 'draft' | 'scheduled') {
     if (!source || !brandId) return
@@ -188,7 +200,7 @@ export function NewPost({
 
   return (
     <div className="h-full overflow-auto pb-10">
-      <PageHeader title={COPY.nav.newPost} />
+      <PageHeader title={COPY.nav.schedule} />
       <div className="grid gap-5 px-8 lg:grid-cols-[320px_1fr]">
         <div>
           <div
@@ -413,12 +425,29 @@ export function NewPost({
 
           <Card>
             <Field label="When (Eastern time)">
+              <div className="mb-2">
+                <Check
+                  checked={own}
+                  onChange={(v) => {
+                    setOwn(v)
+                    // Back to the default: the next open slot for this channel.
+                    if (!v) setWhen(null)
+                  }}
+                >
+                  Pick my own date and time
+                </Check>
+                {!own && (
+                  <div className="ml-6 text-[12px] text-muted">
+                    Off means the next open slot for this channel.
+                  </div>
+                )}
+              </div>
               <SchedulePicker
-                key={brandId ?? 0}
+                key={`${brandId ?? 0}-${own ? 'own' : 'slot'}`}
                 brandId={brandId}
                 value={when}
                 onChange={setWhen}
-                mode={mode}
+                mode={own ? 'manual' : 'slots'}
               />
             </Field>
           </Card>
@@ -430,13 +459,25 @@ export function NewPost({
             <Button
               variant="fine"
               disabled={!canSchedule || busy}
-              onClick={() => save('scheduled')}
+              onClick={() => void trySchedule()}
               aria-label={COPY.scheduleTooltip(labels, formatEastern(when))}
               title={COPY.scheduleTooltip(labels, formatEastern(when))}
             >
               {COPY.publishButton}
             </Button>
           </div>
+          {heads && (
+            <Confirm
+              title="Check this time"
+              message={`${heads.join(' ')} Do you want to schedule it anyway?`}
+              confirmLabel="Schedule anyway"
+              onCancel={() => setHeads(null)}
+              onConfirm={() => {
+                setHeads(null)
+                void save('scheduled')
+              }}
+            />
+          )}
           {ttLive && creator.info && (
             <div className="flex justify-end">
               <PostingAs info={creator.info} />

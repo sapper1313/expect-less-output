@@ -258,7 +258,7 @@ async function boot(): Promise<void> {
       log.log('error', `YouTube sign-in expired for ${name}: ${reason}`, { platform: 'youtube' })
       notifier.failure(
         COPY.reauthHeadline,
-        `${name}: reconnect YouTube on the Connections screen.`,
+        `${name}: reconnect YouTube in Setup Channels, on the Connections tab.`,
         { kind: 'reauth' },
       )
       emit()

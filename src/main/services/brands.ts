@@ -1,6 +1,7 @@
 import type { Db } from '../db'
 import { DEFAULT_CAPTION_TEMPLATE, ensureSlugs, initBrandRows } from '../db/seed'
 import { canonicalSlug } from '@shared/pipeline'
+import { slotKinds } from './channelSettings'
 import type { Account, Brand, BrandDefaults, BrandSlot, HashtagSet, Platform } from '@shared/types'
 
 const mapBrand = (r: any): Brand => ({
@@ -88,12 +89,34 @@ export class BrandService {
       dayType: r.day_type,
       timeLocal: r.time_local,
       enabled: !!r.enabled,
+      kind: r.kind ?? 'short',
     }))
+  }
+
+  getSlotKinds(brandId: number) {
+    return slotKinds(this.db, brandId)
+  }
+
+  /** Which kinds the channel makes and the days each posts on. */
+  setSlotKinds(brandId: number, kinds: Array<{ kind: 'short' | 'long'; enabled: boolean; days: number[] | null }>) {
+    this.db.transaction(() => {
+      for (const k of kinds) {
+        if (k.kind !== 'short' && k.kind !== 'long') throw new Error('Kind must be short or long.')
+        const days = k.days?.filter((d) => Number.isInteger(d) && d >= 1 && d <= 7) ?? []
+        this.db
+          .prepare(
+            `INSERT INTO brand_slot_kinds (brand_id, kind, enabled, days) VALUES (?, ?, ?, ?)
+             ON CONFLICT(brand_id, kind) DO UPDATE SET enabled = excluded.enabled, days = excluded.days`,
+          )
+          .run(brandId, k.kind, k.enabled ? 1 : 0, days.length ? JSON.stringify(days) : null)
+      }
+    })()
+    return this.getSlotKinds(brandId)
   }
 
   setSlots(
     brandId: number,
-    slots: Array<Pick<BrandSlot, 'dayType' | 'timeLocal' | 'enabled'>>,
+    slots: Array<Pick<BrandSlot, 'dayType' | 'timeLocal' | 'enabled'> & { kind?: 'short' | 'long' }>,
   ): BrandSlot[] {
     for (const s of slots) {
       if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(s.timeLocal)) {
@@ -103,9 +126,12 @@ export class BrandService {
     this.db.transaction(() => {
       this.db.prepare('DELETE FROM brand_slots WHERE brand_id = ?').run(brandId)
       const ins = this.db.prepare(
-        'INSERT INTO brand_slots (brand_id, day_type, time_local, enabled) VALUES (?, ?, ?, ?)',
+        'INSERT INTO brand_slots (brand_id, day_type, time_local, enabled, kind) VALUES (?, ?, ?, ?, ?)',
       )
-      for (const s of slots) ins.run(brandId, s.dayType, pad(s.timeLocal), s.enabled ? 1 : 0)
+      // A time with no kind (an older bot or script) counts for both kinds, as before.
+      for (const s of slots)
+        for (const kind of s.kind ? [s.kind] : (['short', 'long'] as const))
+          ins.run(brandId, s.dayType, pad(s.timeLocal), s.enabled ? 1 : 0, kind)
     })()
     return this.getSlots(brandId)
   }

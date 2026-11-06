@@ -29,7 +29,7 @@ export function makeOAuthClient(
   const clientSecret = secrets.get(SECRET_CLIENT_SECRET)
   if (!clientId || !clientSecret) {
     throw new AdapterError(
-      'Google Client ID and Client Secret are not saved yet. Add them on the Connections screen.',
+      'Google Client ID and Client Secret are not saved yet. Add them in Setup Channels, on the Connections tab.',
       'permanent',
     )
   }
@@ -77,14 +77,14 @@ export class TokenManager {
     if (!acct) throw new AdapterError('That YouTube connection no longer exists.', 'permanent')
     if (acct.status === 'needs_reauth')
       throw new AdapterError(
-        'YouTube needs you to sign in again. Reconnect it on the Connections screen.',
+        'YouTube needs you to sign in again. Reconnect it in Setup Channels, on the Connections tab.',
         'permanent',
       )
     const refreshToken = this.d.secrets.get(refreshTokenKey(accountId))
     if (!refreshToken) {
       this.markReauth(accountId, 'No saved sign-in for this channel.')
       throw new AdapterError(
-        'YouTube needs you to sign in again. Reconnect it on the Connections screen.',
+        'YouTube needs you to sign in again. Reconnect it in Setup Channels, on the Connections tab.',
         'permanent',
       )
     }
@@ -113,13 +113,13 @@ export class TokenManager {
           e.response?.data?.error_description ?? 'Google no longer accepts the saved sign-in.',
         )
         throw new AdapterError(
-          'YouTube needs you to sign in again. Reconnect it on the Connections screen.',
+          'YouTube needs you to sign in again. Reconnect it in Setup Channels, on the Connections tab.',
           'permanent',
         )
       }
       if (code === 'invalid_client' || code === 'unauthorized_client') {
         throw new AdapterError(
-          'Google rejected the Client ID or Client Secret. Check them on the Connections screen.',
+          'Google rejected the Client ID or Client Secret. Check them in Setup Channels, on the Connections tab.',
           'permanent',
         )
       }

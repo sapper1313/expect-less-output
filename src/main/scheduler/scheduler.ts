@@ -5,6 +5,7 @@ import type { Library } from '../services/library'
 import type { PostService } from '../services/posts'
 import { AdapterError, type AdapterContext, type PlatformAdapter } from '../adapters/types'
 import { backoffMs, decideMissed, handoffDueMs } from '@shared/scheduling'
+import { effectiveBrandSettings } from '../services/channelSettings'
 import { COPY } from '@shared/copy'
 import { parseVideoId } from '../stats/ids'
 import type { AlertItem } from '../alerts/format'
@@ -166,11 +167,12 @@ export class Scheduler {
       const scheduledMs = new Date(row.scheduled_at_utc).getTime()
       const account = this.loadAccount(row.account_id)
       const adapter = this.d.adapterFor(row.platform, account, this.targetState(row.id))
+      const own = effectiveBrandSettings(this.d.db, row.brand_id, settings)
       const hours =
         row.platform === 'youtube'
-          ? settings.handoffHoursYoutube
+          ? own.handoffHoursYoutube
           : row.platform === 'facebook'
-            ? settings.handoffHoursFacebook
+            ? own.handoffHoursFacebook
             : 0
       const wantsHandoff = adapter.wantsHandoff(account) && !!adapter.handOff && hours > 0
       const handoffMs = handoffDueMs(scheduledMs, hours)
@@ -190,8 +192,8 @@ export class Scheduler {
         const decision = decideMissed(
           scheduledMs,
           nowMs,
-          settings.missedBehavior,
-          settings.missedGraceMinutes,
+          own.missedBehavior,
+          own.missedGraceMinutes,
         )
         if (decision === 'missed') {
           missedPosts.add(row.post_id)

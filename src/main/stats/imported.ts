@@ -204,7 +204,7 @@ export class ImportService {
           result.problems.push({
             brand: a.brandName,
             platform: a.platform,
-            message: 'Sign in again on the Connections screen first.',
+            message: 'Sign in again in Setup Channels, on the Connections tab first.',
           })
           continue
         }

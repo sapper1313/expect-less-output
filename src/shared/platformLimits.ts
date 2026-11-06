@@ -76,7 +76,8 @@ export function validateVideo(meta: VideoMeta, fileName: string): ValidationWarn
   }
   if (meta.width > 0 && meta.height > 0) {
     const ratio = meta.width / meta.height
-    if (Math.abs(ratio - ASPECT_TARGET) > ASPECT_TOLERANCE) {
+    // A wide 16:9 video is Long form. Only a video that is neither tall nor wide gets this note.
+    if (Math.abs(ratio - ASPECT_TARGET) > ASPECT_TOLERANCE && Math.abs(ratio - 16 / 9) > 0.1) {
       out.push({
         platform: 'all',
         message: `Video is ${meta.width}x${meta.height}. Vertical 9:16 is expected.`,
@@ -91,7 +92,9 @@ export function validateVideo(meta: VideoMeta, fileName: string): ValidationWarn
       message: `Facebook Reels must be ${fb.minSeconds} to ${fb.maxSeconds} seconds. This is ${d.toFixed(1)}.`,
     })
   }
-  if (d > PLATFORM_LIMITS.youtube.maxSeconds) {
+  // The 3 minute limit is for tall Shorts only. A wide Long form video can be any length on YouTube.
+  const tall = meta.width > 0 && meta.height > 0 && meta.height > meta.width
+  if (tall && d > PLATFORM_LIMITS.youtube.maxSeconds) {
     out.push({
       platform: 'youtube',
       message: `YouTube Shorts treatment needs ${PLATFORM_LIMITS.youtube.maxSeconds / 60} minutes or less.`,

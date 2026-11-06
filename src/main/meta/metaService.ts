@@ -98,7 +98,7 @@ export class MetaService {
     const id = this.d.secrets.get(META_SECRET_APP_ID)
     const secret = this.d.secrets.get(META_SECRET_APP_SECRET)
     if (!id || !secret)
-      throw new Error('Save the Meta App ID and App Secret first (Connections screen, Meta).')
+      throw new Error('Save the Meta App ID and App Secret first (Setup Channels, Connections tab, Meta).')
     return { id, secret }
   }
 
@@ -581,8 +581,8 @@ export class MetaService {
     const left = st.daysLeft ?? 0
     const detail =
       left < 0
-        ? 'The Meta login has expired. Click Reconnect Meta on the Connections screen.'
-        : `The Meta login runs out in ${left} day${left === 1 ? '' : 's'}. Click Reconnect Meta on the Connections screen.`
+        ? 'The Meta login has expired. Click Reconnect Meta in Setup Channels, on the Connections tab.'
+        : `The Meta login runs out in ${left} day${left === 1 ? '' : 's'}. Click Reconnect Meta in Setup Channels, on the Connections tab.`
     this.d.log.log('warn', detail)
     this.d.alert(COPY.metaExpiryHeadline, detail)
   }
@@ -599,7 +599,7 @@ export class MetaService {
       )
       .run()
     this.d.log.log('error', `Meta sign-in needs renewing: ${reason}`)
-    this.d.alert(COPY.metaReauthHeadline, 'Reconnect Meta on the Connections screen.')
+    this.d.alert(COPY.metaReauthHeadline, 'Reconnect Meta in Setup Channels, on the Connections tab.')
     this.d.emit()
   }
 
@@ -627,7 +627,7 @@ export class MetaService {
     const t = key ? this.d.secrets.get(key) : null
     if (!t)
       throw new AdapterError(
-        'The saved Meta login for this account is missing. Reconnect Meta on the Connections screen.',
+        'The saved Meta login for this account is missing. Reconnect Meta in Setup Channels, on the Connections tab.',
         'permanent',
       )
     return t

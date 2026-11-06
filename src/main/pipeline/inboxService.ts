@@ -12,6 +12,7 @@ import type { FreshStart } from './freshStart'
 import type { BrandService } from '../services/brands'
 import { channelState } from './state'
 import type { FillResult } from '@shared/pipeline'
+import { slotKindFor } from '@shared/slots'
 import { verifyPipelinePost, sha256File } from './verify'
 import type { ChannelRules, InboxItem } from '@shared/pipeline'
 
@@ -111,7 +112,7 @@ export class InboxService {
     const n = Math.min(Math.max(count, 1), 60)
     return p.postType === 'clip'
       ? this.d.posts.nextClipSlots(p.brandId, n)
-      : this.d.posts.nextSlots(p.brandId, n)
+      : this.d.posts.nextSlots(p.brandId, n, undefined, [], slotKindFor(p.videoMeta))
   }
 
   async pickSlot(postId: number, slotUtc: string) {

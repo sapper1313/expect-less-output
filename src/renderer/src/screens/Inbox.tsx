@@ -3,6 +3,7 @@ import { COPY } from '@shared/copy'
 import { formatEastern } from '@shared/time'
 import type { DropRow, InboxItem } from '@shared/pipeline'
 import { api } from '../api'
+import { StudioComments } from './StudioOperations'
 import { useApp, useLoad } from '../hooks'
 import {
   Button,
@@ -16,13 +17,14 @@ import {
   useBusy,
 } from '../ui'
 
-type Tab = 'waiting' | 'held' | 'rejected' | 'log' | 'issues'
+type Tab = 'waiting' | 'held' | 'rejected' | 'log' | 'issues' | 'comments'
 const TABS: Array<[Tab, string]> = [
   ['waiting', 'Waiting'],
   ['held', 'Held'],
   ['rejected', 'Rejected'],
   ['log', 'Log'],
   ['issues', 'Issues'],
+  ['comments', 'Comments'],
 ]
 
 const mins = (s: number | null) =>
@@ -358,6 +360,7 @@ export function Inbox() {
           ))}
         {tab === 'log' &&
           (log?.length ? <DropTable rows={log} showResult /> : <Empty>No drops yet.</Empty>)}
+        {tab === 'comments' && <StudioComments />}
         {tab === 'issues' && (
           <p className="max-w-3xl text-[12px] text-muted">
             Dismiss hides a message. It comes back only if the problem goes away and then happens

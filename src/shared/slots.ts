@@ -1,6 +1,15 @@
 import { DateTime } from 'luxon'
 import { ZONE } from './time'
 
+/** Shorts are vertical videos of 3 minutes or less. Everything else is Long form. */
+export type SlotKind = 'short' | 'long'
+export function slotKindFor(meta?: { width?: number; height?: number; durationSeconds?: number } | null): SlotKind | undefined {
+  if (!meta || !meta.width || !meta.height) return undefined
+  const vertical = meta.height > meta.width
+  const short = meta.durationSeconds === undefined || meta.durationSeconds <= 180
+  return vertical && short ? 'short' : 'long'
+}
+
 export interface SlotDef {
   dayType: 'weekday' | 'weekend'
   timeLocal: string // HH:MM, Eastern

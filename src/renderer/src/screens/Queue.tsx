@@ -1,3 +1,4 @@
+import { friendlyError } from '@shared/friendlyError'
 import { useEffect, useState } from 'react'
 import { EXTRA_PLATFORMS, PLATFORMS, PLATFORM_LABELS } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
@@ -320,7 +321,7 @@ export function Queue() {
                       <StatusBadge status={p.status} />
                       {p.targets.some((t) => t.lastError && t.status === 'failed') && (
                         <div className="mt-1 max-w-[260px] text-[11px] text-bad">
-                          {p.targets.find((t) => t.status === 'failed')?.lastError}
+                          {friendlyError(p.targets.find((t) => t.status === 'failed')?.lastError)}
                         </div>
                       )}
                     </td>

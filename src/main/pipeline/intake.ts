@@ -9,6 +9,8 @@ import type { PostService } from '../services/posts'
 import type { SettingsService } from '../services/settings'
 import type { AlertKind } from '../alerts/format'
 import { formatEastern } from '@shared/time'
+import { slotKindFor } from '@shared/slots'
+import { slotKinds } from '../services/channelSettings'
 import type { Brand, Post, PostTargetInput } from '@shared/types'
 import { PLATFORM_LIMITS, isExtraPlatform, type Platform } from '@shared/platformLimits'
 import { loudnessProblem, morphCaption, normalizeTopic, type Loudness } from '@shared/growth'
@@ -105,6 +107,12 @@ export class PipelineIntake {
     return isPipelineSidecar(raw)
   }
 
+  /** The kinds this channel makes, from its Shorts and Long form ticks. Before any tick exists it is the Studio format. */
+  private kinds(brandId: number): Array<'short' | 'long'> {
+    const rows = slotKinds(this.d.db, brandId).filter((r) => r.enabled)
+    return rows.length ? rows.map((r) => r.kind) : [this.format(brandId)]
+  }
+
   private format(brandId: number): 'short' | 'long' {
     const row = this.d.db
       .prepare('SELECT config_json FROM studio_brands WHERE brand_id = ?')
@@ -122,8 +130,9 @@ export class PipelineIntake {
     const r = this.d.db
       .prepare('SELECT min_seconds, max_seconds FROM channel_rules WHERE brand_id = ?')
       .get(brandId) as { min_seconds: number | null; max_seconds: number | null } | undefined
-    const dflt: [number, number] = fmt === 'long' ? [60, 720] : [5, 180]
-    return [r?.min_seconds ?? dflt[0], r?.max_seconds ?? dflt[1]]
+    // Long form has no length limit at all. Only a Short has one (5 to 180 seconds, unless the channel sets its own).
+    if (fmt === 'long') return [0, Number.POSITIVE_INFINITY]
+    return [r?.min_seconds ?? 5, r?.max_seconds ?? 180]
   }
 
   /** Platforms that cannot take a video this long. They are skipped for this video with a note. */
@@ -363,7 +372,8 @@ export class PipelineIntake {
       const dest = uniquePath(dirname(stem), `${basename(stem)}_thumb${extname(thumb)}`)
       try {
         moveFile(thumb, dest)
-        if (fmt === 'long' && postType === 'episode') this.setYoutubeThumbnail(post.id, dest)
+        if ((slotKindFor(post.videoMeta) ?? fmt) === 'long' && postType === 'episode')
+          this.setYoutubeThumbnail(post.id, dest)
       } catch {
         notes.push('The thumbnail could not be moved.')
       }
@@ -475,8 +485,21 @@ export class PipelineIntake {
       if (!info.hasAudio) reasons.push({ code: 'no_audio', message: 'The video has no sound.' })
       return
     }
-    const fmt = this.format(brand.id)
     const ratio = info.height ? info.width / info.height : 0
+    const near = (want: number) => !!ratio && Math.abs(ratio - want) / want <= 0.03
+    const kinds = this.kinds(brand.id)
+    if (kinds.length > 1) {
+      // The channel does both. The shape of the video decides: tall is a Short, wide is Long form.
+      const fmt: 'short' | 'long' | null = near(9 / 16) ? 'short' : near(16 / 9) ? 'long' : null
+      const [smin, smax] = this.durationRange(brand.id, 'short')
+      const base = `This channel takes tall shorts or wide long videos. Shorts are ${smin} to ${smax} seconds, long videos have no length limit. This one is ${info.width}x${info.height} and ${Math.round(info.durationSeconds)} seconds.`
+      if (!fmt) reasons.push({ code: 'bad_format', message: base })
+      else if (fmt === 'short' && (info.durationSeconds < smin || info.durationSeconds > smax))
+        reasons.push({ code: 'bad_duration', message: base })
+      if (!info.hasAudio) reasons.push({ code: 'no_audio', message: 'The video has no sound.' })
+      return
+    }
+    const fmt = kinds[0]!
     const want = fmt === 'long' ? 16 / 9 : 9 / 16
     if (!ratio || Math.abs(ratio - want) / want > 0.03)
       reasons.push({
@@ -752,7 +775,9 @@ export class PipelineIntake {
     }
     const isClip = post.postType === 'clip'
     const open = (n: number) =>
-      isClip ? this.d.posts.nextClipSlots(post.brandId, n) : this.d.posts.nextSlots(post.brandId, n)
+      isClip
+        ? this.d.posts.nextClipSlots(post.brandId, n)
+        : this.d.posts.nextSlots(post.brandId, n, undefined, [], slotKindFor(post.videoMeta))
     const slot = opts.slot ?? open(1)[0]
     if (!slot)
       return {

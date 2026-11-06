@@ -12,6 +12,8 @@ export interface SearchTarget {
     | 'stats'
     | 'settings'
     | 'activity'
+    | 'financial'
+    | 'aiSettings'
   studioTab?: string
   statsTab?: string
   channelsTab?: string
@@ -34,7 +36,7 @@ export const PAGES: Array<{ title: string; words: string; target: SearchTarget }
     words: 'home dashboard overview pipeline health',
     target: { screen: 'home' },
   },
-  { title: 'Calendar', words: 'calendar schedule month week', target: { screen: 'calendar' } },
+
   { title: 'Queue', words: 'queue waiting failed missed posts', target: { screen: 'queue' } },
   {
     title: 'Studio: Library',
@@ -52,9 +54,9 @@ export const PAGES: Array<{ title: string; words: string; target: SearchTarget }
     target: { screen: 'studio', studioTab: 'flagged' },
   },
   {
-    title: 'Studio: Spend',
-    words: 'spend money cost budget cap',
-    target: { screen: 'studio', studioTab: 'spend' },
+    title: 'Financial: Spend and caps',
+    words: 'spend caps cap money cost budget financial generate',
+    target: { screen: 'financial' },
   },
   {
     title: 'Studio: Comments',
@@ -82,8 +84,8 @@ export const PAGES: Array<{ title: string; words: string; target: SearchTarget }
     target: { screen: 'studio', studioTab: 'log' },
   },
   {
-    title: 'Channel setup',
-    words: 'channel brand setup colors slots hashtags defaults',
+    title: 'Channel Setup',
+    words: 'channel brand setup add new colors slots shorts long form posting times pause archive',
     target: { screen: 'channels', channelsTab: 'setup' },
   },
   {
@@ -92,30 +94,35 @@ export const PAGES: Array<{ title: string; words: string; target: SearchTarget }
     target: { screen: 'channels', channelsTab: 'connections' },
   },
   {
-    title: 'Studio settings per channel',
-    words: 'cadence bluesky platforms flags per channel',
-    target: { screen: 'channels', channelsTab: 'studio' },
+    title: 'Other settings by channel',
+    words: 'scheduling mode early handoff missed pipeline inbox hold cadence platforms flags per channel',
+    target: { screen: 'channels', channelsTab: 'other' },
   },
   {
-    title: 'Settings: Studio (keys, spend caps, retention)',
+    title: 'Settings: Studio rules (retention, writing, thumbnails, limits)',
     words:
-      'keys api spend caps retention mock mode production writing checks thumbnail guidelines platform limits',
+      'retention production writing checks thumbnail guidelines platform limits chapters public host qc',
     target: { screen: 'settings', settingsTab: 'studio' },
   },
   {
-    title: 'Settings: AI models and Local AI',
-    words: 'models prices haiku sonnet ollama local ai text assist suggest whisper',
-    target: { screen: 'settings', settingsTab: 'ai' },
+    title: 'AI Settings: Keys and mock mode',
+    words: 'keys api gemini mock mode anthropic claude token',
+    target: { screen: 'aiSettings' },
   },
   {
-    title: 'Settings: Alerts and backup',
+    title: 'AI Settings: Models and Local AI',
+    words: 'models prices haiku sonnet ollama local ai text assist suggest whisper',
+    target: { screen: 'aiSettings' },
+  },
+  {
+    title: 'Settings: Alerts and backups',
     words: 'alerts backup restore imessage email telegram',
     target: { screen: 'settings', settingsTab: 'alerts' },
   },
   {
-    title: 'Settings: Agent API',
+    title: 'AI Settings: Agent API',
     words: 'agent api mcp token grok bot',
-    target: { screen: 'settings', settingsTab: 'api' },
+    target: { screen: 'aiSettings' },
   },
   { title: 'New post', words: 'new post upload create', target: { screen: 'newPost' } },
   { title: 'Stats', words: 'stats views likes numbers', target: { screen: 'stats' } },

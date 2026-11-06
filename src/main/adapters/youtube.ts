@@ -49,12 +49,12 @@ export class YoutubeAdapter implements PlatformAdapter {
     const a = ctx.account
     if (!a)
       throw new AdapterError(
-        `${ctx.brandName} has no YouTube connection. Connect one on the Connections screen.`,
+        `${ctx.brandName} has no YouTube connection. Connect one in Setup Channels, on the Connections tab.`,
         'permanent',
       )
     if (a.status === 'needs_reauth') {
       throw new AdapterError(
-        `YouTube needs you to sign in again for ${ctx.brandName}. Reconnect it on the Connections screen.`,
+        `YouTube needs you to sign in again for ${ctx.brandName}. Reconnect it in Setup Channels, on the Connections tab.`,
         'permanent',
       )
     }

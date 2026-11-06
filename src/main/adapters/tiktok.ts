@@ -65,12 +65,12 @@ export class TikTokAdapter implements PlatformAdapter {
     const a = ctx.account
     if (!a || !a.externalId)
       throw new AdapterError(
-        `${ctx.brandName} has no TikTok account connected. Connect one on the Connections screen.`,
+        `${ctx.brandName} has no TikTok account connected. Connect one in Setup Channels, on the Connections tab.`,
         'permanent',
       )
     if (a.status === 'needs_reauth') {
       throw new AdapterError(
-        `TikTok needs you to sign in again for ${ctx.brandName}. Reconnect it on the Connections screen.`,
+        `TikTok needs you to sign in again for ${ctx.brandName}. Reconnect it in Setup Channels, on the Connections tab.`,
         'permanent',
       )
     }

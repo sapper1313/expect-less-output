@@ -54,6 +54,10 @@ describe('clips: tagging and validation', () => {
     // an episode on the same wide show still follows the show's own rule
     const ep = pipelineSetup({ probe: probeOf(1920, 1080, 420) })
     setCfg(ep, { format: 'long' })
+    ep.env.brands.setSlotKinds(1, [
+      { kind: 'short', enabled: false, days: null },
+      { kind: 'long', enabled: true, days: null },
+    ])
     ep.drop(TP, 'trash-panda', 105, {})
     await ep.settle()
     expect(ep.env.posts.list()).toHaveLength(1)

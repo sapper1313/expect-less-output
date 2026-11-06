@@ -1,7 +1,7 @@
 /* eslint-disable */
 // @ts-nocheck
 // The As Expected. dashboard page logic, run inside a shadow root so its styles stay apart from ELO's.
-export function mountDashboard(root, loadSnapshot, onGone) {
+export function mountDashboard(root, loadSnapshot, loadTiles, onGo) {
 // All dynamic text goes through textContent. Nothing from the snapshot is ever parsed as HTML.
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -79,90 +79,60 @@ function renderStatus(s) {
     banner.textContent = msg;
     banner.hidden = false;
   }
-  $('check-chip').hidden = s.checks.slotsAgree !== false;
-}
-
-function renderRing(s) {
-  const circ = 2 * Math.PI * 88;
-  const pct = Math.max(0, Math.min(100, s.totals.percent));
-  $('ring-arc').setAttribute('stroke-dasharray', (circ * pct / 100).toFixed(1) + ' ' + circ.toFixed(1));
-  $('ring-percent').textContent = pct + '%';
-  $('ring-sub').textContent = s.totals.filled + ' of ' + s.totals.slots + ' slots';
-  $('ring-svg').setAttribute('aria-label', pct + ' percent of weekly slots filled');
-  $('open-pill').textContent = s.totals.open + ' open';
-  $('filled-pill').textContent = s.totals.filled + ' filled';
 }
 
 function renderAttention(s) {
   const box = $('attention-box');
   const list = s.attentionSlots || [];
   box.hidden = !(list.length > 0 || s.totals.attention > 0);
-  $('attention-title').textContent = (list.length || s.totals.attention) + ' need attention';
+  $('attention-title').textContent = (list.length || s.totals.attention) + ' need a look';
   const host = clear($('attention-list'));
   for (const a of list) {
     host.appendChild(e('div', 'att-row', `${a.brand}, ${typeLabel(a.type).toLowerCase()}, ${a.day} ${a.timeET} (${a.status})`));
   }
 }
 
-function renderTrend(s) {
-  const box = $('trend-box');
-  const t = s.trend || [];
-  box.hidden = t.length < 2;
-  if (t.length < 2) return;
-  const vals = t.map((x) => x.percent);
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
-  const span = Math.max(1, max - min);
-  const pts = vals.map((v, i) => [5 + (i * 160) / (vals.length - 1), 38 - ((v - min) / span) * 32]);
-  $('trend-line').setAttribute('points', pts.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' '));
-  const lastPt = pts[pts.length - 1];
-  $('trend-dot').setAttribute('cx', lastPt[0].toFixed(1));
-  $('trend-dot').setAttribute('cy', lastPt[1].toFixed(1));
-  $('trend-best').textContent = 'Best: ' + max + '%';
-  $('trend-svg').setAttribute('aria-label', 'Completion over ' + vals.length + ' weeks: ' + vals.join(', ') + ' percent');
-}
-
-function renderOpen(s) {
-  const host = clear($('open-list'));
-  $('open-count').textContent = s.totals.open > 0 ? s.totals.open + ' to fill' : '';
-  if (s.openSlots.length === 0) {
-    host.appendChild(e('div', 'all-clear', s.totals.empty ? 'No slots this week.' : 'Every slot this week is filled.'));
-    return;
-  }
-  for (const o of s.openSlots) {
-    const row = e('div', 'open-row');
-    row.appendChild(e('span', 'slot open ' + o.type));
-    const who = e('div', 'who');
-    who.appendChild(e('div', 'name', o.brand));
-    who.appendChild(e('div', 'kind', typeLabel(o.type)));
-    row.appendChild(who);
-    const when = e('div', 'when');
-    when.appendChild(e('div', 'day', o.day));
-    when.appendChild(e('div', 'time', o.timeET));
-    row.appendChild(when);
-    host.appendChild(row);
-  }
-}
-
 function renderTotals(s) {
   const host = clear($('totals'));
   const st = s.stats;
+  const hours = st && st.watchHours !== undefined && st.watchHours !== null ? st.watchHours : null;
   const items = [
-    ['Views', st && st.views],
-    ['Likes', st && st.likes],
-    ['Comments', st && st.comments],
-    ['Shares', st && st.shares]
+    ['Views', st ? fmtNum(st.views) : '-'],
+    ['Likes', st ? fmtNum(st.likes) : '-'],
+    ['Shares', st ? fmtNum(st.shares) : '-'],
+    ['Comments', st ? fmtNum(st.comments) : '-'],
+    ['Watch hours', hours === null ? '-' : hours >= 100 ? String(Math.round(hours)) : hours.toFixed(1)]
   ];
   for (const [label, v] of items) {
-    const d = e('div');
-    d.appendChild(e('div', 'big', st ? fmtNum(v) : '-'));
+    const d = e('div', 'tot');
+    d.appendChild(e('div', 'big', v));
     d.appendChild(e('div', 'cap', label));
     host.appendChild(d);
   }
-  const line = e('div', 'attn-line');
-  line.appendChild(e('span', null, 'Failed or missed posts'));
-  line.appendChild(e('span', 'n' + (s.totals.attention > 0 ? ' bad' : ''), String(s.totals.attention)));
-  host.appendChild(line);
+}
+
+function renderStrip(t, s) {
+  const host = clear($('strip'));
+  const stage = (key) => (t && t.stages.find((x) => x.key === key)) || { count: 0 };
+  const flagged = stage('flagged').count + (s ? s.totals.attention : 0);
+  const open = s ? s.totals.open : 0;
+  const tiles = [
+    ['Being written', stage('writing').count, 'inbox', ''],
+    ['Ready for video', stage('ready').count, 'inbox', ''],
+    ['Video in progress', stage('making').count, 'inbox', ''],
+    ['Open slots', open, 'schedule', open > 0 ? 'amber' : ''],
+    ['Scheduled', stage('scheduled').count, 'queue', ''],
+    ['Posted this week', stage('posted').count, 'stats', ''],
+    ['Needs a look', flagged, s && s.totals.attention > 0 ? 'queue' : 'flagged', flagged > 0 ? 'bad' : '']
+  ];
+  for (const [label, n, go, tone] of tiles) {
+    const b = e('button', 'glass tile-btn ' + tone);
+    b.type = 'button';
+    b.appendChild(e('div', 'big', String(n)));
+    b.appendChild(e('div', 'cap', label));
+    b.addEventListener('click', () => onGo(go));
+    host.appendChild(b);
+  }
 }
 
 function renderMap(s) {
@@ -240,7 +210,7 @@ function renderVideos(s) {
   }
   const colors = new Map(s.channels.map((c) => [c.name, c.color]));
   const rankColor = ['#ffcf7a', '#d7defa', '#ffa56b'];
-  for (const v of s.topVideos) {
+  for (const v of s.topVideos.slice(0, 3)) {
     const row = e('div', 'video-row');
     row.appendChild(e('div', 'rank', String(v.rank), { color: rankColor[v.rank - 1] || '#9ca7da' }));
     const base = colors.get(v.channel) || '#22e5ff';
@@ -256,39 +226,20 @@ function renderVideos(s) {
   }
 }
 
-function renderNext(s) {
-  const host = clear($('up-next'));
-  if (s.upNext.length === 0) {
-    host.appendChild(e('div', 'none-msg', 'Nothing scheduled in the next 48 hours.'));
-    return;
-  }
-  for (const u of s.upNext) {
-    const row = e('div', 'next-row');
-    row.appendChild(e('div', 'when', u.whenET));
-    const info = e('div', 'info');
-    info.appendChild(e('div', 'ch', u.channel));
-    info.appendChild(e('div', 'ty', typeLabel(u.type)));
-    row.appendChild(info);
-    host.appendChild(row);
-  }
-}
-
+let tiles = null;
 function renderSnapshot(s) {
   last = s;
   root.host.classList.remove('loading');
   $('week-chip').textContent = `${DAYS[0]} ${fmtDate(s.week.start)} to ${DAYS[6]} ${fmtDate(s.week.end)} · ET`;
   renderStatus(s);
   $('empty-state').hidden = !s.totals.empty;
-  renderRing(s);
   renderAttention(s);
-  renderTrend(s);
-  renderOpen(s);
+  renderStrip(tiles, s);
   renderTotals(s);
   renderMap(s);
   renderCards(s);
   renderVideos(s);
-  renderNext(s);
-  $('foot').textContent = 'As Expected. · data from ELO · updated ' + fmtTime(s.generatedAt, s.week.tz);
+  $('foot').textContent = 'Data from ELO · updated ' + fmtTime(s.generatedAt, s.week.tz);
 }
 
 function renderStartup(info) {
@@ -310,6 +261,7 @@ function renderStartup(info) {
 let timer = null;
 async function load(force) {
   try {
+    try { tiles = await loadTiles(); } catch { /* keep the last tiles */ }
     const s = await loadSnapshot(force);
     if (!s) {
       if (!last) setChip($('sync-chip'), 'amber', 'Starting up, waiting for first data');

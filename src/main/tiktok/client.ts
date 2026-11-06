@@ -168,7 +168,7 @@ export class TikTokClient {
       )
     if (code === 'invalid_client')
       return new TikTokApiError(
-        'TikTok rejected the Client Key or Client Secret. Check them on the Connections screen.',
+        'TikTok rejected the Client Key or Client Secret. Check them in Setup Channels, on the Connections tab.',
         'permanent',
         code,
       )

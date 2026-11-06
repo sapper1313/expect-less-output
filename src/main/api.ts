@@ -19,6 +19,7 @@ import type { MediaService } from './services/media'
 import type { PostService } from './services/posts'
 import type { SecretStore } from './services/secrets'
 import type { SettingsService } from './services/settings'
+import { channelOverrides, setBrandOverrides } from './services/channelSettings'
 import type { Scheduler } from './scheduler/scheduler'
 import type { Library } from './services/library'
 import type { YoutubeService } from './google/youtubeService'
@@ -181,6 +182,19 @@ export function buildApi(d: ApiDeps): Api {
       },
       getSlots: async (id) => d.brands.getSlots(id),
       setSlots: async (id, slots) => d.brands.setSlots(id, slots),
+      getSlotKinds: async (id) => d.brands.getSlotKinds(id),
+      setSlotKinds: async (id, kinds) => {
+        const out = d.brands.setSlotKinds(id, kinds)
+        // The Studio makes what the channel makes. With one kind ticked it follows; with both it keeps its own format.
+        const on = out.filter((k) => k.enabled)
+        if (on.length === 1) await d.studio.setBrand(id, { format: on[0]!.kind }).catch(() => undefined)
+        return out
+      },
+      getOverrides: async (id) => channelOverrides(d.db, id, d.settings.get()),
+      setOverrides: async (id, patch) => {
+        setBrandOverrides(d.db, id, patch)
+        return channelOverrides(d.db, id, d.settings.get())
+      },
       getDefaults: async (id) => d.brands.getDefaults(id),
       setDefaults: async (defaults) => d.brands.setDefaults(defaults),
     },
@@ -205,6 +219,7 @@ export function buildApi(d: ApiDeps): Api {
     slots: {
       next: async (brandId, count, fromUtc) => d.posts.nextSlots(brandId, count, fromUtc),
       countOnDay: async (brandId, dayIso) => d.posts.countOnDay(brandId, dayIso),
+      checkTime: async (brandId, whenUtc) => d.posts.checkCustomTime(brandId, whenUtc),
       open: async (fromUtc, toUtc, brandId) =>
         openSlotsFor({ db: d.db, brands: d.brands, posts: d.posts }, fromUtc, toUtc, brandId),
     },
