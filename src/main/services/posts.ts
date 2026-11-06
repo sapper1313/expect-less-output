@@ -562,22 +562,26 @@ export class PostService {
   }
 
   /**
-   * The weekdays a brand may post on when it runs a weekly schedule in the Studio (Wonder Hollow: Wednesday and Friday).
+   * The weekdays a channel may post on, from its Shorts and Long form days in Setup Channels.
    * Every way of picking the next slot goes through nextSlots, so none of them can land on another day.
+   * No days set (or a ticked kind with no days) means every day.
    */
   postDays(brandId: number): number[] | undefined {
-    const row = this.db
-      .prepare('SELECT config_json FROM studio_brands WHERE brand_id = ?')
-      .get(brandId) as { config_json: string } | undefined
-    if (!row) return undefined
-    try {
-      const c = JSON.parse(row.config_json) as { cadenceMode?: string; postDays?: unknown }
-      if (c.cadenceMode !== 'weekly' || !Array.isArray(c.postDays)) return undefined
-      const days = c.postDays.filter((d): d is number => Number.isInteger(d) && d >= 1 && d <= 7)
-      return days.length ? days : undefined
-    } catch {
-      return undefined
+    const rows = this.db
+      .prepare('SELECT days FROM brand_slot_kinds WHERE brand_id = ? AND enabled = 1')
+      .all(brandId) as Array<{ days: string | null }>
+    if (rows.length === 0) return undefined
+    const all = new Set<number>()
+    for (const r of rows) {
+      if (!r.days) return undefined
+      try {
+        for (const d of JSON.parse(r.days) as unknown[])
+          if (typeof d === 'number' && Number.isInteger(d) && d >= 1 && d <= 7) all.add(d)
+      } catch {
+        return undefined
+      }
     }
+    return all.size ? [...all].sort() : undefined
   }
 
   countOnDay(brandId: number, dayIso: string): number {

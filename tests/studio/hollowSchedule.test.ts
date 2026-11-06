@@ -34,7 +34,9 @@ describe('Wonder Hollow posts on Wednesday and Friday only', () => {
   it('every next-slot lookup for Hollow lands on Wednesday or Friday, even though its brand slots are Monday to Friday', () => {
     const e = makeStudioEnv({ startMs: TUE })
     const hid = hollowId(e)
-    expect(e.studio.cfg.getBrand(hid).postDays).toEqual([3, 5])
+    // the days come from the channel's own Setup Channels days (the migration copies the old Studio days there)
+    e.brands.setSlotKinds(hid, [{ kind: 'short', enabled: false, days: null }, { kind: 'long', enabled: true, days: [3, 5] }])
+    expect(e.posts.postDays(hid)).toEqual([3, 5])
     const slots = e.posts.nextSlots(hid, 8, new Date(TUE).toISOString())
     expect(slots).toHaveLength(8)
     expect(slots.every((s) => [3, 5].includes(weekdayOf(s)))).toBe(true)
@@ -92,6 +94,7 @@ describe('Wonder Hollow posts on Wednesday and Friday only', () => {
       { days: [7, 1], forPostDay: 3 },
       { days: [3, 4], forPostDay: 5 },
     ])
+    e.brands.setSlotKinds(hid, [{ kind: 'short', enabled: false, days: null }, { kind: 'long', enabled: true, days: [3, 5] }])
     expect(
       e.posts
         .nextSlots(hid, 4, new Date(TUE).toISOString())

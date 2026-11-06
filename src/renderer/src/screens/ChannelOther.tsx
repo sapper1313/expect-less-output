@@ -3,7 +3,6 @@ import type { Brand, ChannelOverridePatch, MissedBehavior, SchedulingMode } from
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { Button, Card, Check, Field, Select, useBusy } from '../ui'
-import { StudioBrandSettings } from './StudioSettings'
 
 const MODE_LABEL: Record<SchedulingMode, string> = {
   slots: 'Slots only (next open time)',
@@ -163,7 +162,6 @@ export function ChannelOther({ brand }: { brand: Brand }) {
           </div>
         </div>
       </Card>
-      <StudioBrandSettings brandId={brand.id} />
       <div className="text-[12px] text-muted">
         <Button
           disabled={busy || o.own.length === 0}

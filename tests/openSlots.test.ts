@@ -84,6 +84,7 @@ describe('open slots for the Calendar', () => {
   it('a blackout date removes the slot, and a channel that posts weekly shows only its days', async () => {
     const e = makeStudioEnv({ startMs: MON })
     const id = hollowId(e)
+    e.brands.setSlotKinds(id, [{ kind: 'short', enabled: false, days: null }, { kind: 'long', enabled: true, days: [3, 5] }])
     e.db
       .prepare('UPDATE channel_rules SET blackout_json = ? WHERE brand_id = ?')
       .run(JSON.stringify(['2026-10-23']), id)

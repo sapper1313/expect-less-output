@@ -84,6 +84,7 @@ export interface BrandStudioRow {
 }
 
 export interface StudioOverview {
+  enabled: boolean
   mockMode: boolean
   paused: boolean
   openFlags: number
@@ -361,6 +362,7 @@ export interface StudioApi {
   setConfig(patch: Partial<StudioConfig>): Promise<StudioConfig>
   setFormatModel(format: BrandFormat, tier: ModelTier, checked: boolean): Promise<StudioConfig>
   setMockMode(on: boolean): Promise<StudioConfig>
+  setEnabled(on: boolean): Promise<StudioConfig>
   pauseAll(paused: boolean): Promise<void>
   brands(): Promise<BrandStudioRow[]>
   setBrand(brandId: number, patch: Partial<StudioBrandConfig>): Promise<StudioBrandConfig>

@@ -4,7 +4,7 @@ import { describeFlag } from '@shared/studio/flagText'
 import type { DirectorActionView } from '../../../main/studio/directorChat'
 import { api } from '../api'
 import { useApp, useLoad, useWritingOff } from '../hooks'
-import { BrandDot, Button, Card, Empty, PageHeader, Select, Textarea, useBusy } from '../ui'
+import { BrandDot, Button, Card, Check, Empty, PageHeader, Select, Textarea, useBusy } from '../ui'
 import { StudioBible } from './StudioBible'
 import { StudioPublishing } from './StudioPublishing'
 import { StudioLibrary } from './StudioLibrary'
@@ -31,17 +31,42 @@ const TABS: Array<[Tab, string]> = [
 
 export function Studio({ initialTab = 'overview' }: { initialTab?: Tab }) {
   const [tab, setTab] = useState<Tab>(initialTab)
-  const { data: ov } = useLoad(() => api.studio.overview())
+  const { data: ov, reload } = useLoad(() => api.studio.overview())
   const writingOff = useWritingOff()
+  const [switching, setSwitching] = useState(false)
+  const on = ov?.enabled !== false
   return (
     <div className="flex h-full flex-col">
       <PageHeader title="AI Studio">
+        {ov && (
+          <Check
+            checked={on}
+            disabled={switching}
+            onChange={async (v) => {
+              setSwitching(true)
+              try {
+                await api.studio.setEnabled(v)
+                reload()
+              } finally {
+                setSwitching(false)
+              }
+            }}
+          >
+            {on ? 'AI Studio is on' : 'AI Studio is off'}
+          </Check>
+        )}
         {ov?.mockMode && (
           <span className="rounded-md border border-warn px-2 py-1 text-[11px] font-bold uppercase text-warn">
             Mock mode: nothing real is spent
           </span>
         )}
       </PageHeader>
+      {!on && (
+        <div className="mx-8 mb-3 rounded-md border border-line bg-surface px-3 py-2 text-[13px] text-muted">
+          AI Studio is off. It sends no flag alerts and shows no flag counts. Posting and your
+          schedule keep working. Switch it on when the studio is running again.
+        </div>
+      )}
       {writingOff && (
         <div className="mx-8 mb-3 rounded-md border border-line bg-surface px-3 py-2 text-[13px] text-muted">
           Writing and production are off. Bots write and render the episodes and drop them in the

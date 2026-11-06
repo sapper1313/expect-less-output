@@ -487,7 +487,7 @@ export function buildApi(d: ApiDeps): Api {
             }),
           bluesky: () => d.studio.socialAccountList(),
           studioBrands: () => d.studio.brands(),
-          openFlags: () => d.studio.tasks.list({ status: ['flagged', 'stopped'] }).length,
+          openFlags: () => d.studio.openFlagCount(),
           spend: () => d.studio.spendSummary(),
           mockMode: () => d.studio.cfg.get().mockMode,
           postStats: (id) => d.stats.postStats(id),

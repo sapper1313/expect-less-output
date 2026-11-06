@@ -219,6 +219,10 @@ export class Studio implements StudioApi {
   constructor(readonly d: StudioDeps) {
     const now = d.now ?? Date.now
     this.cfg = new StudioConfigService(d.db, now)
+    /** With the AI Studio switched off, nothing it does makes a sound. */
+    const alert = (headline: string, detail: string) => {
+      if (this.cfg.get().enabled !== false) d.alert(headline, detail)
+    }
     if (d.startPaused && !this.cfg.exists()) this.cfg.set({ paused: true })
     this.cfg.ensureBrandRows()
     this.applyBrandDefaults()
@@ -227,7 +231,7 @@ export class Studio implements StudioApi {
         ?.name ?? `Brand ${id}`
     this.audit = new AuditLog(d.db, now)
     this.tasks = new TaskStore(d.db, now)
-    this.spend = new SpendService(d.db, this.cfg, d.alert, now, brandName)
+    this.spend = new SpendService(d.db, this.cfg, alert, now, brandName)
     this.mockVideo = new MockVideoClient(now)
     this.xai = new XaiClient(() => d.secrets.get(KEY_NAMES.xai.secret), d.fetchImpl)
     this.anthropic = new AnthropicClient(
@@ -322,7 +326,7 @@ export class Studio implements StudioApi {
       config: this.cfg,
       now,
       onFlag: (task, reason) => {
-        d.alert(
+        alert(
           'Something needs a look.',
           `${task.brandId ? brandName(task.brandId) : 'Studio'}: ${task.type} was flagged. ${reason}`.slice(
             0,
@@ -393,7 +397,11 @@ export class Studio implements StudioApi {
       db: d.db,
       cfg: this.cfg,
       bluesky: (b) => this.socialAccounts.blueskyFor(b),
-      alert: (item) => (d.alertItem ? d.alertItem(item) : d.alert(item.headline, item.detail)),
+      alert: (item) => {
+        if (this.cfg.get().enabled === false) return
+        if (d.alertItem) d.alertItem(item)
+        else d.alert(item.headline, item.detail)
+      },
       log: (level, message) => d.log.log(level, message),
       brandName,
       postVideo: (id) => {
@@ -541,7 +549,7 @@ export class Studio implements StudioApi {
       config: this.cfg,
       tasks: this.tasks,
       audit: this.audit,
-      alert: d.alert,
+      alert,
       now,
       productionEnabled: () => this.productionOn(),
       onTick: () => this.heartbeat(),
@@ -890,7 +898,7 @@ export class Studio implements StudioApi {
   /** Once a day at the set time (7:30 AM Eastern by default). */
   async maybeDigest(): Promise<void> {
     const c = this.cfg.get()
-    if (!c.digestEnabled || c.paused || !this.d.broadcast) return
+    if (!c.digestEnabled || c.paused || c.enabled === false || !this.d.broadcast) return
     const et = new Date(this.now()).toLocaleString('en-US', {
       timeZone: 'America/New_York',
       hour12: false,
@@ -968,7 +976,7 @@ export class Studio implements StudioApi {
           brandId: b.brandId,
           detail: { key },
         })
-        this.d.alert(
+        if (this.cfg.get().enabled !== false) this.d.alert(
           'The Mac slept through a production time.',
           `${b.name}: the ${c.runTime} production window passed while the Mac was asleep or off. It is catching up now.`,
         )
@@ -1201,6 +1209,11 @@ export class Studio implements StudioApi {
   }
   async retentionFor(postId: number) {
     return this.retention.get(postId)
+  }
+  /** Reads real YouTube watch time for the newest videos (used by Home). Never fakes numbers in mock mode. */
+  async refreshRecentWatchTime(): Promise<number> {
+    if (this.cfg.get().mockMode) return 0
+    return this.retention.refreshRecent(30)
   }
   async refreshRetention(postId: number) {
     return this.retention.refresh(postId)
@@ -1630,6 +1643,18 @@ export class Studio implements StudioApi {
     this.d.emit()
     return c
   }
+  async setEnabled(on: boolean) {
+    const c = this.cfg.set({ enabled: on })
+    this.audit.write({ agent: 'Director', action: on ? 'studio_on' : 'studio_off' })
+    this.d.emit()
+    return c
+  }
+  /** Flags the owner should hear about: none while the AI Studio is off. */
+  openFlagCount(): number {
+    return this.cfg.get().enabled === false
+      ? 0
+      : this.tasks.list({ status: ['flagged', 'stopped'] }).length
+  }
   async setMockMode(on: boolean) {
     const c = this.cfg.set({ mockMode: on })
     this.audit.write({ agent: 'Director', action: on ? 'mock_on' : 'mock_off' })
@@ -1679,6 +1704,7 @@ export class Studio implements StudioApi {
   async overview(): Promise<StudioOverview> {
     const c = this.cfg.get()
     return {
+      enabled: c.enabled !== false,
       mockMode: c.mockMode,
       paused: c.paused,
       openFlags: this.tasks.list({ status: ['flagged', 'stopped'] }).length,

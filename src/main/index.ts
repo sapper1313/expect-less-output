@@ -879,7 +879,12 @@ async function boot(): Promise<void> {
         : join(app.getAppPath(), 'mcp', 'dist', 'elo-mcp.mjs'),
     },
   )
-  const dashboard = new DashboardService({ db, services: agent.services, settings })
+  const dashboard = new DashboardService({
+    db,
+    services: agent.services,
+    settings,
+    refreshWatchTime: () => studio.refreshRecentWatchTime(),
+  })
   const inbox = new InboxWatcher({
     s: {
       settings,

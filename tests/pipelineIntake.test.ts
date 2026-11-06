@@ -254,6 +254,7 @@ describe('Wonder Hollow Wednesday and Friday (test 3)', () => {
     const { makeStudioEnv, hollowId } = await import('./studio/helpers')
     const e = makeStudioEnv({ startMs: Date.UTC(2026, 9, 19, 14, 0, 0) })
     const id = hollowId(e)
+    e.brands.setSlotKinds(id, [{ kind: 'short', enabled: false, days: null }, { kind: 'long', enabled: true, days: [3, 5] }])
     const t = pipelineSetup({ env: e, live: [[id, 'youtube']] })
     const slug = e.brands.get(id).slug!
     expect(slug).toBe('wonder-hollow')

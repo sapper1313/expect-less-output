@@ -50,3 +50,34 @@ describe('Dashboard screen data', () => {
     again.stop()
   })
 })
+
+describe('best videos on Home', () => {
+  it('counts a post that is live on one platform while another failed, and adds views across platforms', async () => {
+    const { a, dash } = await setup()
+    const env = a.env
+    const brand = env.brands.list()[0]
+    const now = new Date().toISOString()
+    const mk = (title: string) =>
+      env.db
+        .prepare("INSERT INTO posts (brand_id, title, video_path, status, post_type, scheduled_at_utc) VALUES (?, ?, 'x.mp4', 'partial', 'episode', ?)")
+        .run(brand.id, title, now).lastInsertRowid
+    const hit = mk('Hit video')
+    const other = mk('Smaller video')
+    const tgt = (post: unknown, platform: string, status: string, views: number | null) => {
+      const id = env.db
+        .prepare("INSERT INTO post_targets (post_id, platform, status, posted_at_utc) VALUES (?, ?, ?, ?)")
+        .run(post, platform, status, status === 'posted' ? now : null).lastInsertRowid
+      if (views !== null)
+        env.db
+          .prepare('INSERT INTO post_stats (post_target_id, fetched_at_utc, views) VALUES (?, ?, ?)')
+          .run(id, now, views)
+    }
+    tgt(hit, 'youtube', 'posted', 1500)
+    tgt(hit, 'instagram', 'failed', null)
+    tgt(other, 'youtube', 'posted', 100)
+    tgt(other, 'facebook', 'posted', 50)
+    const best = (dash as unknown as { bestVideos(): { title: string; views: number }[] }).bestVideos()
+    expect(best[0]).toMatchObject({ title: 'Hit video', views: 1500 })
+    expect(best[1]).toMatchObject({ title: 'Smaller video', views: 150 })
+  })
+})

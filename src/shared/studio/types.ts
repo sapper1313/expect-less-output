@@ -105,6 +105,8 @@ export interface LocalAiConfig {
 }
 
 export interface StudioConfig {
+  /** The AI Studio on/off switch. When off it raises no flag alerts and no studio notices. */
+  enabled: boolean
   mockMode: boolean
   paused: boolean
   globalCap: Cap

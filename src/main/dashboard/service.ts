@@ -52,6 +52,8 @@ export class DashboardService {
     db: Db
     services: AgentServices
     settings: SettingsService
+    /** Reads YouTube watch time for recent videos. Optional, so tests need no Studio. */
+    refreshWatchTime?: () => Promise<unknown>
     now?: () => Date
   }) {
     const now = deps.now ?? (() => new Date())
@@ -73,11 +75,18 @@ export class DashboardService {
     })
   }
 
+  private watchTimer: ReturnType<typeof setInterval> | null = null
+
   start(): void {
     this.poller.start()
+    const read = () => void this.deps.refreshWatchTime?.().catch(() => {})
+    setTimeout(read, 60_000).unref?.()
+    this.watchTimer = setInterval(read, 30 * 60_000)
+    this.watchTimer.unref?.()
   }
 
   stop(): void {
+    if (this.watchTimer) clearInterval(this.watchTimer)
     this.poller.stop()
   }
 
@@ -87,7 +96,9 @@ export class DashboardService {
 
   /** Adds YouTube watch hours for videos posted in the last 7 days (read from the saved retention numbers). */
   private withWatch(s: Snapshot | null): Snapshot | null {
-    if (!s || !s.stats) return s
+    if (!s) return s
+    s = { ...s, topVideos: this.bestVideos() ?? s.topVideos }
+    if (!s.stats) return s
     let hours: number | null = null
     try {
       const since = new Date(Date.now() - 7 * 86_400_000).toISOString()
@@ -106,10 +117,57 @@ export class DashboardService {
     return { ...s, stats: { ...s.stats, watchHours: hours } }
   }
 
+  /**
+   * The best videos of the last 7 days, read straight from ELO's saved numbers. A post counts as soon as one platform
+   * has it live (a post where Instagram failed is still a hit on YouTube), views add up across its platforms, and
+   * videos found on the channels by the import count too.
+   */
+  private bestVideos(limit = 5): Snapshot['topVideos'] | null {
+    try {
+      const since = new Date(Date.now() - 7 * 86_400_000).toISOString()
+      const latest = (col: string, id: string) =>
+        `COALESCE((SELECT views FROM ${col} WHERE ${id} ORDER BY id DESC LIMIT 1), 0)`
+      const mine = this.deps.db
+        .prepare(
+          `SELECT p.title AS title, b.name AS channel,
+                  SUM(${latest('post_stats ps', 'ps.post_target_id = t.id')}) AS views
+           FROM post_targets t
+           JOIN posts p ON p.id = t.post_id
+           JOIN brands b ON b.id = p.brand_id
+           WHERE t.status = 'posted' AND t.posted_at_utc >= ?
+           GROUP BY p.id`,
+        )
+        .all(since) as { title: string; channel: string; views: number }[]
+      const old = this.deps.db
+        .prepare(
+          `SELECT iv.title AS title, b.name AS channel,
+                  ${latest('imported_stats s', 's.imported_id = iv.id')} AS views
+           FROM imported_videos iv
+           JOIN brands b ON b.id = iv.brand_id
+           WHERE iv.published_at_utc >= ?`,
+        )
+        .all(since) as { title: string; channel: string; views: number }[]
+      return [...mine, ...old]
+        .filter((r) => r.views > 0)
+        .sort((a, b) => b.views - a.views)
+        .slice(0, limit)
+        .map((r, i) => ({
+          rank: i + 1,
+          title: r.title,
+          channel: r.channel,
+          views: r.views,
+          approximate: false,
+        }))
+    } catch {
+      return null
+    }
+  }
+
   /** The Refresh button: reads everything again now. */
   async refresh(): Promise<Snapshot | null> {
     await this.poller.refreshSlots()
     await this.poller.refreshStats()
+    await this.deps.refreshWatchTime?.().catch(() => {})
     return this.withWatch(this.poller.latest())
   }
 }

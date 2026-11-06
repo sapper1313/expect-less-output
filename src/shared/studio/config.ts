@@ -14,6 +14,7 @@ const noCap = (): Cap => ({ value: 0, none: true })
 
 /** Prices and model names come from the xAI docs read on 2026-10-09 and the owner's notes. Edit in Settings. */
 export const DEFAULT_STUDIO_CONFIG: StudioConfig = {
+  enabled: true,
   mockMode: true,
   paused: false,
   globalCap: noCap(),
