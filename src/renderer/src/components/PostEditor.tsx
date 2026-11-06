@@ -171,7 +171,7 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
                 <div key={t.id} className="mt-2 space-y-2 text-[13px]">
                   <div>
                     {PLATFORM_LABELS[t.platform]}, {draft.brandName}, "{draft.title}": the title and
-                    description were copied. Upload the video by hand, then mark it done.
+                    description were copied. Upload the video by hand, then mark it done. If the account is set to upload for you, use Try the upload again.
                   </div>
                   <div className="flex gap-2">
                     <Input
@@ -185,6 +185,9 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
                       onClick={() => run(() => api.posts.markPosted(t.id, urls[t.id]))}
                     >
                       Mark as posted
+                    </Button>
+                    <Button disabled={busy} onClick={() => run(() => api.posts.retryTarget(t.id))}>
+                      Try the upload again
                     </Button>
                   </div>
                 </div>

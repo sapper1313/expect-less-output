@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.16.3 Instagram retry fix, YouTube upload retry button
+
+- Instagram: when a first upload broke part way, Instagram closes it, and every retry then failed with "The ig container is not in the status to upload a video". ELO now throws that closed upload away and starts a fresh one on the next try.
+- A post waiting on "Waiting for you" (a platform set to hand-upload) now has a **Try the upload again** button next to Mark as posted. Use it after switching YouTube from Manual assist to Auto or Test private, so ELO uploads the video itself.
+
 ## 0.16.2 Calendar shows gap-blocked slots as blocked
 
 - With the minimum gap between posts on, a slot that another channel already uses (same minute) is now shown as **blocked** in the Calendar, with the name of the channel that holds the time. Before, it looked like an empty hole even though ELO would never schedule there by itself.
