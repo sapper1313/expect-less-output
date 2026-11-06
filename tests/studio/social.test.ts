@@ -157,7 +157,7 @@ describe('Social publisher (Threads and Bluesky)', () => {
     await pub.tick()
     expect(pub.get(r.id)).toMatchObject({ status: 'failed', attempts: 4 })
     expect(alerts).toHaveLength(1)
-    expect(alerts[0]).toMatchObject({ kind: 'failure', headline: 'Could not post. Probably for the best.', platform: 'Bluesky', brand: 'Trash Panda' })
+    expect(alerts[0]).toMatchObject({ kind: 'failure', headline: 'The post failed.', platform: 'Bluesky', brand: 'Trash Panda' })
     pub.retry(r.id)
     expect(pub.get(r.id)).toMatchObject({ status: 'scheduled', attempts: 0 })
   })

@@ -39,7 +39,7 @@ export function clip(text: string, max: number): string {
 
 /**
  * One alert as a short message. A post that failed uses the exact format:
- * Could not post. Probably for the best. <platform>, <brand>, "<title>", <time ET>. Reason: <reason>. Open Expect Less Output to retry.
+ * The post failed. <platform>, <brand>, "<title>", <time ET>. Reason: <reason>. Open Expect Less Output to retry.
  */
 export function formatAlert(a: AlertItem): string {
   if (a.kind === 'failure' && a.platform && a.brand && a.title) {

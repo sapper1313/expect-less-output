@@ -341,7 +341,7 @@ If more than 3 alerts happen within 5 minutes, the first 3 are sent right away a
 
 ### What an alert looks like
 
-> Could not post. Probably for the best. Instagram, Trash Panda, "Fridge Math", Tue Jun 2, 5:00 PM ET. Reason: token expired. Open Expect Less Output to retry.
+> The post failed. Instagram, Trash Panda, "Fridge Math", Tue Jun 2, 5:00 PM ET. Reason: token expired. Open Expect Less Output to retry.
 
 Open the app, find the post (Calendar or Queue) and click **Retry**.
 

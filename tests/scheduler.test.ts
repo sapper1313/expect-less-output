@@ -126,7 +126,7 @@ describe('scheduler with dry run adapters', () => {
     expect(final.status).toBe('partial') // TikTok succeeded
     expect(final.videoPath).toContain('/Queue/') // file stays until resolved
     expect(env.events.failures).toHaveLength(1)
-    expect(env.events.failures[0][0]).toBe('Could not post. Probably for the best.')
+    expect(env.events.failures[0][0]).toBe('The post failed.')
     expect(env.events.failures[0][1]).toContain('Instagram, Trash Panda, "Test Clip"')
   })
 

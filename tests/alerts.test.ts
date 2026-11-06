@@ -29,7 +29,7 @@ const HOUR = 60 * MIN
 
 const failure = (n = 1): AlertItem => ({
   kind: 'failure',
-  headline: 'Could not post. Probably for the best.',
+  headline: 'The post failed.',
   detail: 'x',
   platform: 'Instagram',
   brand: 'Trash Panda',
@@ -41,7 +41,7 @@ const failure = (n = 1): AlertItem => ({
 describe('alert text', () => {
   it('uses the exact failure format', () => {
     expect(formatAlert(failure())).toBe(
-      'Could not post. Probably for the best. Instagram, Trash Panda, "Fridge Math 1", Tue Jun 2, 5:00 PM ET. Reason: token expired. Open Expect Less Output to retry.',
+      'The post failed. Instagram, Trash Panda, "Fridge Math 1", Tue Jun 2, 5:00 PM ET. Reason: token expired. Open Expect Less Output to retry.',
     )
   })
 
@@ -50,7 +50,7 @@ describe('alert text', () => {
     const text = formatAlert(big)
     expect(text.length).toBeLessThanOrEqual(MAX_ALERT_CHARS)
     expect(text).toContain('Open Expect Less Output')
-    expect(text.startsWith('Could not post. Probably for the best.')).toBe(true)
+    expect(text.startsWith('The post failed.')).toBe(true)
     const other = formatAlert({
       kind: 'expiry',
       headline: 'Meta sign-in runs out soon.',
@@ -290,7 +290,7 @@ describe('AlertService', () => {
     t.setIMessage({ ok: false, message: PERMISSION_HELP })
     await t.svc.alert(failure())
     expect(t.local.map((l) => l[0])).toEqual([
-      'Could not post. Probably for the best.',
+      'The post failed.',
       'Could not send the iMessage alert',
     ])
     expect(t.sent).toHaveLength(0)
@@ -361,7 +361,7 @@ describe('forced failure through the real scheduler', () => {
     expect(env.posts.get(post.id)!.targets[0].status).toBe('failed')
     expect(sent).toHaveLength(1)
     expect(sent[0]).toMatch(
-      /^Could not post\. Probably for the best\. Instagram, Trash Panda, "Fridge Math", .* ET\. Reason: .* Open Expect Less Output to retry\.$/,
+      /^The post failed\. Instagram, Trash Panda, "Fridge Math", .* ET\. Reason: .* Open Expect Less Output to retry\.$/,
     )
     expect(sent[0].length).toBeLessThanOrEqual(300)
   })

@@ -11,6 +11,7 @@ The whole menu was reorganized from Josh's sketch. Nothing was deleted from the 
 - **Setup Channels:** channel list with Add new channel, and four tabs: Channel Setup, Connections, Other settings by channel, Website. All logins are on the Connections tab.
 - **Shorts and Long form:** a channel can do shorts, long form or both. Shape decides which: tall is a Short, wide is Long form. Long form has no length limit. This fixes videos being rejected when a channel did both.
 - **Settings** is one long page for app wide things, with a jump list. **Financial** holds spend caps, generate settings and the spend table. **AI Settings** holds AI models, local AI, the Agent API and AI keys. **AI Studio** keeps its own tabs only (comments moved to Inbox, spend moved to Financial).
+- **Plain failure message:** a failed post now says "The post failed." instead of "Could not post. Probably for the best." Also the alert text and texts to your phone use it.
 - **Plain error messages:** errors now say what went wrong in plain words (for example, Instagram closing an upload) instead of showing codes and JSON. Messages that named old screens now point to where things live now.
 
 ## 0.17.0 Dashboard screen
