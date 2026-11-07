@@ -672,8 +672,8 @@ export class Scheduler {
       .prepare('SELECT post_id, status, platform FROM post_targets WHERE id = ?')
       .get(targetId) as { post_id: number; status: TargetStatus; platform: Platform } | undefined
     if (!t) throw new Error('That platform entry no longer exists.')
-    if (t.status !== 'needs_action')
-      throw new Error('Only a post waiting for you can be marked as posted.')
+    if (t.status !== 'needs_action' && t.status !== 'failed')
+      throw new Error('Only a post waiting for you or a failed one can be marked as posted.')
     const link = url?.trim() || null
     if (link && !/^https?:\/\//i.test(link))
       throw new Error('The video link must start with http:// or https://')

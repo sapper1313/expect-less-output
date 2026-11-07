@@ -131,9 +131,22 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
                       friendlyError(t.lastError),
                     )}
                   </span>
-                  <Button disabled={busy} onClick={() => run(() => api.posts.retryTarget(t.id))}>
-                    Retry
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Input
+                      placeholder="Video link (optional)"
+                      value={urls[t.id] ?? ''}
+                      onChange={(e) => setUrls({ ...urls, [t.id]: e.target.value })}
+                    />
+                    <Button disabled={busy} onClick={() => run(() => api.posts.retryTarget(t.id))}>
+                      Retry
+                    </Button>
+                    <Button
+                      disabled={busy}
+                      onClick={() => run(() => api.posts.markPosted(t.id, urls[t.id]))}
+                    >
+                      Already posted
+                    </Button>
+                  </div>
                 </div>
               ))}
               {draft.status === 'missed' && (
