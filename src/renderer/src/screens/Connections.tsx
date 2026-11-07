@@ -55,6 +55,7 @@ export function Connections({ brandId }: { brandId: number }) {
   return (
     <div className="space-y-4">
       <HealthCard />
+      <PostToCard brandId={brandId} />
       {brand && (
         <BrandCard
           brand={brand}
@@ -1048,6 +1049,60 @@ function HealthCard() {
           {quota.warn && <b className="ml-2 text-warn">Over 80 percent of a limit.</b>}
         </div>
       )}
+    </Card>
+  )
+}
+
+
+/** The platforms this channel posts to. Off means a video skips that platform even when it is connected. */
+function PostToCard({ brandId }: { brandId: number }) {
+  const { data: brands, reload } = useLoad(() => api.studio.brands(), [brandId])
+  const [, run] = useBusy()
+  const b = brands?.find((x) => x.brandId === brandId)
+  if (!b) return null
+  const cfg = b.config
+  const save = (patch: Record<string, unknown>) =>
+    run(async () => {
+      await api.studio.setBrand(brandId, patch as never)
+      reload()
+    })
+  const names: Record<string, string> = {
+    youtube: 'YouTube',
+    facebook: 'Facebook',
+    instagram: 'Instagram',
+    tiktok: 'TikTok',
+    bluesky: 'Bluesky',
+  }
+  return (
+    <Card title="Post to these platforms">
+      <p className="mb-2 text-[12px] text-muted">
+        A video goes to every ticked platform that is also connected below. Untick one to skip it for
+        this channel. Connecting an account alone does not turn it on.
+      </p>
+      <div className="mb-3 text-[12px] font-bold uppercase tracking-wider text-muted">Full videos</div>
+      <div className="flex flex-wrap gap-4">
+        {Object.keys(names).map((p) => (
+          <Check
+            key={p}
+            checked={!!(cfg.platforms as Record<string, boolean>)[p]}
+            onChange={(v) => save({ platforms: { ...cfg.platforms, [p]: v } })}
+          >
+            {names[p]}
+          </Check>
+        ))}
+      </div>
+      <div className="mb-3 mt-4 text-[12px] font-bold uppercase tracking-wider text-muted">Clips</div>
+      <div className="flex flex-wrap gap-4">
+        {Object.keys(names).map((p) => (
+          <Check
+            key={p}
+            checked={!!(cfg.clipPlatforms as Record<string, boolean>)[p]}
+            onChange={(v) => save({ clipPlatforms: { ...cfg.clipPlatforms, [p]: v } })}
+          >
+            {names[p]}
+          </Check>
+        ))}
+      </div>
     </Card>
   )
 }
