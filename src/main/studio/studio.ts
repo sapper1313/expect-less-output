@@ -1658,6 +1658,9 @@ export class Studio implements StudioApi {
     this.d.emit()
     return c
   }
+  isOff(): boolean {
+    return this.cfg.get().enabled === false
+  }
   /** Flags the owner should hear about: none while the AI Studio is off. */
   openFlagCount(): number {
     return this.cfg.get().enabled === false

@@ -12,6 +12,8 @@ export interface Brand {
   dailyCap: number
   /** 'HH:MM' Eastern times. */
   episodeTimes: { weekday: string[]; weekend: string[] }
+  /** Shorts and Long form: the days each posts on (null means every day) and its own times. Empty when not known. */
+  kinds?: { kind: 'short' | 'long'; days: number[] | null; times: { weekday: string[]; weekend: string[] } }[]
   clipDays: number[]
   clipTime: string | null
   /** 'YYYY-MM-DD' Eastern dates. */

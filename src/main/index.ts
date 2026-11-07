@@ -884,6 +884,7 @@ async function boot(): Promise<void> {
     services: agent.services,
     settings,
     refreshWatchTime: () => studio.refreshRecentWatchTime(),
+    studioOn: () => !studio.isOff(),
   })
   const inbox = new InboxWatcher({
     s: {

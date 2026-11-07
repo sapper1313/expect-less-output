@@ -11,9 +11,26 @@ export function buildSlots(brands: Brand[], week: Week, tz: string): Slot[] {
       if (blackout.has(date)) continue
       const weekday = isoWeekday(date)
       const weekend = weekday >= 6
-      if (b.postDays === null || b.postDays.includes(weekday)) {
+      // Each kind (Shorts, Long form) has its own days and times. Without kinds, the channel's one list is used.
+      const own = b.kinds
+      const dayTimes = (): string[] | null => {
+        if (own && own.length > 0) {
+          const out: string[] = []
+          for (const k of own)
+            if (k.days === null || k.days.includes(weekday))
+              out.push(...(weekend ? k.times.weekend : k.times.weekday))
+          return out.length ? out : null
+        }
+        return b.postDays === null || b.postDays.includes(weekday)
+          ? weekend
+            ? b.episodeTimes.weekend
+            : b.episodeTimes.weekday
+          : null
+      }
+      const picked = dayTimes()
+      if (picked) {
         // ELO expects only the earliest `dailyCap` slot times each day (0 means every enabled time).
-        const all = [...new Set(weekend ? b.episodeTimes.weekend : b.episodeTimes.weekday)].sort()
+        const all = [...new Set(picked)].sort()
         const times = b.dailyCap > 0 ? all.slice(0, b.dailyCap) : all
         for (const time of times) {
           slots.push(make(b.id, 'episode', date, weekday, time, tz))

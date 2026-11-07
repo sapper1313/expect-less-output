@@ -4,6 +4,7 @@
 
 The whole menu was reorganized from Josh's sketch. Nothing was deleted from the database. Settings that were only moved still hold the same values.
 
+- **Week map math fixed:** the map mixed every channel's Shorts and Long form times together on every day, and added a clip slot on clip days. Each day now shows only the slots that day's kind posts (Shorts Mon to Sat and Long form Sun is one slot a day). Clip slots are left off while the AI Studio is off. The bot API's channel list also now has a `kinds` list (days and times per kind).
 - **Home:** the strip tile is now **Open slots, next 3 days** (today and the next 2 days). A new row under it shows **Best video, last 24 hrs** and **Best video, last 48 hrs**. The week map has arrows to look at next week and later weeks. A second, empty "Channel stats" heading is gone.
 - **Analytics:** click a heading (Views, Likes, Published, and so on) in either table to sort, click again to flip. The note under Existing videos now says plainly what they are: videos on your channels that were not posted through ELO, including ones you uploaded by hand.
 - **AI Studio off switch fixed:** the Director's and other Studio alerts (like a missed slot warning) were still getting through. Every alert the Studio can send is now silent while it is off.

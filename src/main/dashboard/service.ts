@@ -12,7 +12,7 @@ import type { Snapshot } from './types'
 const TZ = 'America/New_York'
 
 /** Asks ELO's own agent handlers the same questions the agent API answers, without any network. */
-function transport(s: AgentServices): EloTransport {
+function transport(s: AgentServices, clipsOn: () => boolean): EloTransport {
   const run = async (id: string, params: unknown, query: unknown) => {
     try {
       const out = await HANDLERS[id]({ s, params, query, body: {}, caller: OWNER })
@@ -23,7 +23,13 @@ function transport(s: AgentServices): EloTransport {
   }
   return async (path, p = {}) => {
     if (path === '/v1/health') return { ok: true }
-    if (path === '/v1/brands') return run('listBrands', {}, {})
+    if (path === '/v1/brands') {
+      const out = await run('listBrands', {}, {})
+      // Clip days belong to the AI Studio. While it is off, the Home map expects no clip slots.
+      if (!clipsOn() && out && Array.isArray(out.brands))
+        for (const b of out.brands) b.clip_post_days = []
+      return out
+    }
     if (path === '/v1/posts')
       return run(
         'listPosts',
@@ -54,10 +60,12 @@ export class DashboardService {
     settings: SettingsService
     /** Reads YouTube watch time for recent videos. Optional, so tests need no Studio. */
     refreshWatchTime?: () => Promise<unknown>
+    /** False while the AI Studio is off. Clip slots are then left off the week map. */
+    studioOn?: () => boolean
     now?: () => Date
   }) {
     const now = deps.now ?? (() => new Date())
-    const client = new EloClient(transport(deps.services))
+    const client = new EloClient(transport(deps.services, () => deps.studioOn?.() ?? true))
     const cfg = {
       tz: TZ,
       pollSlotsMinutes: 5,

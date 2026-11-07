@@ -107,6 +107,16 @@ function brandOut(s: AgentServices, b: Brand) {
     archived: b.archived,
     paused: settings.pausedBrandIds.includes(b.id),
     inbox_enabled: settings.inboxBrandIds.includes(b.id),
+    // Shorts and Long form each have their own days and times. Bots and the Home week map read these.
+    kinds: s.brands.getSlotKinds(b.id).map((k) => ({
+      kind: k.kind,
+      enabled: k.enabled,
+      days: k.days,
+      slots: s.brands
+        .getSlots(b.id)
+        .filter((x) => x.kind === k.kind)
+        .map((x) => ({ day_type: x.dayType, time_local: x.timeLocal, enabled: x.enabled })),
+    })),
     slots: s.brands
       .getSlots(b.id)
       .map((x) => ({ day_type: x.dayType, time_local: x.timeLocal, enabled: x.enabled }))

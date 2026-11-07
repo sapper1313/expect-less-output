@@ -91,6 +91,15 @@ export function normalizeBrand(raw: unknown): Brand {
     dailyCap:
       typeof raw.daily_cap === 'number' && raw.daily_cap >= 0 ? Math.floor(raw.daily_cap) : 1,
     episodeTimes: normalizeSlots(raw.slots),
+    kinds: Array.isArray(raw.kinds)
+      ? raw.kinds
+          .filter((k): k is Record<string, unknown> => isObj(k) && k.enabled !== false)
+          .map((k) => ({
+            kind: (k.kind === 'long' ? 'long' : 'short') as 'short' | 'long',
+            days: Array.isArray(k.days) && k.days.length > 0 ? intList(k.days) : null,
+            times: normalizeSlots(k.slots),
+          }))
+      : undefined,
     clipDays: intList(raw.clip_post_days),
     clipTime: timeStr(raw.clip_time),
     blackoutDates: Array.isArray(raw.blackout_dates)
