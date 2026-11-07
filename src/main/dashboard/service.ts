@@ -90,6 +90,10 @@ export class DashboardService {
     this.poller.stop()
   }
 
+  weekMap(offset: number) {
+    return this.poller.weekMap(Math.max(0, Math.floor(Number(offset) || 0)))
+  }
+
   snapshot(): Snapshot | null {
     return this.withWatch(this.poller.latest())
   }
@@ -97,7 +101,11 @@ export class DashboardService {
   /** Adds YouTube watch hours for videos posted in the last 7 days (read from the saved retention numbers). */
   private withWatch(s: Snapshot | null): Snapshot | null {
     if (!s) return s
-    s = { ...s, topVideos: this.bestVideos() ?? s.topVideos }
+    const one = (h: number) => {
+      const top = this.bestVideos(1, h * 3_600_000)?.[0]
+      return top ? { title: top.title, channel: top.channel, views: top.views } : null
+    }
+    s = { ...s, topVideos: this.bestVideos() ?? s.topVideos, best24h: one(24), best48h: one(48) }
     if (!s.stats) return s
     let hours: number | null = null
     try {
@@ -122,9 +130,9 @@ export class DashboardService {
    * has it live (a post where Instagram failed is still a hit on YouTube), views add up across its platforms, and
    * videos found on the channels by the import count too.
    */
-  private bestVideos(limit = 5): Snapshot['topVideos'] | null {
+  private bestVideos(limit = 5, windowMs = 7 * 86_400_000): Snapshot['topVideos'] | null {
     try {
-      const since = new Date(Date.now() - 7 * 86_400_000).toISOString()
+      const since = new Date(Date.now() - windowMs).toISOString()
       const latest = (col: string, id: string) =>
         `COALESCE((SELECT views FROM ${col} WHERE ${id} ORDER BY id DESC LIMIT 1), 0)`
       const mine = this.deps.db

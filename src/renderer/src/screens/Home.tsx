@@ -39,6 +39,7 @@ export function Home({ go }: { go: (t: GoTarget) => void }) {
       (force?: boolean) => (force ? api.dashboard.refresh() : api.dashboard.snapshot()),
       () => api.home.summary(),
       (where) => goRef.current(TILE_TARGET[where] ?? { screen: 'home' }),
+      (offset: number) => api.dashboard.week(offset),
     )
     return () => {
       stop?.()

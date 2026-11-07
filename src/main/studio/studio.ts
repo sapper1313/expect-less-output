@@ -220,9 +220,18 @@ export class Studio implements StudioApi {
     const now = d.now ?? Date.now
     this.cfg = new StudioConfigService(d.db, now)
     /** With the AI Studio switched off, nothing it does makes a sound. */
-    const alert = (headline: string, detail: string) => {
-      if (this.cfg.get().enabled !== false) d.alert(headline, detail)
+    const rawAlert = d.alert
+    const rawAlertItem = d.alertItem
+    const on = () => this.cfg.get().enabled !== false
+    // Every alert the Studio can send goes through these two, including the Director's and the agents'.
+    d.alert = (headline, detail) => {
+      if (on()) rawAlert(headline, detail)
     }
+    if (rawAlertItem)
+      d.alertItem = (item) => {
+        if (on()) rawAlertItem(item)
+      }
+    const alert = (headline: string, detail: string) => d.alert(headline, detail)
     if (d.startPaused && !this.cfg.exists()) this.cfg.set({ paused: true })
     this.cfg.ensureBrandRows()
     this.applyBrandDefaults()

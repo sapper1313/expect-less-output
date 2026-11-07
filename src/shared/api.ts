@@ -407,6 +407,8 @@ export interface Api {
   dashboard: {
     snapshot(): Promise<DashboardSnapshot | null>
     refresh(): Promise<DashboardSnapshot | null>
+    /** The week map for this week (0) or a later week (1, 2, ...). */
+    week(offset: number): Promise<import('./dashboard').WeekMap | null>
   }
   search: {
     query(q: string): Promise<SearchHit[]>

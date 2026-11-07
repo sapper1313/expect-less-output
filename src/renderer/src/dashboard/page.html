@@ -19,6 +19,7 @@
 </section>
 
 <section class="strip" id="strip" aria-label="Pipeline"></section>
+<section class="best2" id="best2" aria-label="Best videos, last 24 and 48 hours"></section>
 <div id="attention-box" class="att-box strip-att" hidden>
   <div class="lab att-lab" id="attention-title">Needs a look</div>
   <div id="attention-list"></div>
@@ -35,7 +36,14 @@
 
 <section class="glass card map-card">
   <div class="row-between wrap">
-    <div class="lab">Week map, channel by day</div>
+    <div class="maphead-left">
+      <div class="lab">Week map, channel by day</div>
+      <div class="weeknav">
+        <button type="button" class="chip glass btn" id="week-prev" aria-label="Previous week">&#9664;</button>
+        <span id="week-range" class="week-range"></span>
+        <button type="button" class="chip glass btn" id="week-next" aria-label="Next week">&#9654;</button>
+      </div>
+    </div>
     <div class="legend">
       <span><i class="slot episode filled demo"></i>Episode filled</span>
       <span><i class="slot clip filled demo"></i>Clip filled</span>
@@ -47,9 +55,6 @@
     <div class="map" id="week-map"></div>
   </div>
 </section>
-
-<div class="lab section-lab">Channel stats</div>
-<section class="cards" id="channel-cards"></section>
 
 <footer class="foot" id="foot"></footer>
 </div>

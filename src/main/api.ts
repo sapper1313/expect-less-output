@@ -471,6 +471,7 @@ export function buildApi(d: ApiDeps): Api {
     dashboard: {
       snapshot: async () => d.dashboard.snapshot(),
       refresh: async () => d.dashboard.refresh(),
+      week: async (offset) => d.dashboard.weekMap(offset),
     },
     home: {
       summary: async () =>

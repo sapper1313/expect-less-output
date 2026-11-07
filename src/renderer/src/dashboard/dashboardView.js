@@ -1,7 +1,7 @@
 /* eslint-disable */
 // @ts-nocheck
 // The As Expected. dashboard page logic, run inside a shadow root so its styles stay apart from ELO's.
-export function mountDashboard(root, loadSnapshot, loadTiles, onGo) {
+export function mountDashboard(root, loadSnapshot, loadTiles, onGo, loadWeek) {
 // All dynamic text goes through textContent. Nothing from the snapshot is ever parsed as HTML.
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -115,12 +115,12 @@ function renderStrip(t, s) {
   const host = clear($('strip'));
   const stage = (key) => (t && t.stages.find((x) => x.key === key)) || { count: 0 };
   const flagged = stage('flagged').count + (s ? s.totals.attention : 0);
-  const open = s ? s.totals.open : 0;
+  const open = s ? (s.open3d !== undefined ? s.open3d : s.totals.open) : 0;
   const tiles = [
     ['Being written', stage('writing').count, 'inbox', ''],
     ['Ready for video', stage('ready').count, 'inbox', ''],
     ['Video in progress', stage('making').count, 'inbox', ''],
-    ['Open slots', open, 'schedule', open > 0 ? 'amber' : ''],
+    ['Open slots, next 3 days', open, 'schedule', open > 0 ? 'amber' : ''],
     ['Scheduled', stage('scheduled').count, 'queue', ''],
     ['Posted this week', stage('posted').count, 'stats', ''],
     ['Needs a look', flagged, s && s.totals.attention > 0 ? 'queue' : 'flagged', flagged > 0 ? 'bad' : '']
@@ -135,8 +135,44 @@ function renderStrip(t, s) {
   }
 }
 
+let weekOffset = 0;
+let weekData = null;
+function renderBest2(s) {
+  const host = clear($('best2'));
+  for (const [label, v] of [['Best video, last 24 hrs', s.best24h], ['Best video, last 48 hrs', s.best48h]]) {
+    const card = e('div', 'glass best-tile');
+    card.appendChild(e('div', 'cap', label));
+    if (!v) {
+      card.appendChild(e('div', 'c', 'No posted video with numbers yet.'));
+    } else {
+      card.appendChild(e('div', 't', v.title));
+      card.appendChild(e('div', 'c', v.channel));
+      const views = e('div', 'v', fmtNum(v.views));
+      views.appendChild(e('small', null, 'views'));
+      card.appendChild(views);
+    }
+    host.appendChild(card);
+  }
+}
+function showWeek(s) {
+  if (weekOffset === 0 || !weekData) { renderMap(s); return; }
+  renderMap({ week: weekData.week, channels: weekData.channels });
+}
+async function goWeek(delta) {
+  const next = Math.max(0, weekOffset + delta);
+  if (next === weekOffset) return;
+  weekOffset = next;
+  weekData = null;
+  if (weekOffset > 0 && loadWeek) {
+    try { weekData = await loadWeek(weekOffset); } catch { weekData = null; }
+    if (!weekData) weekOffset = 0;
+  }
+  if (last) showWeek(last);
+}
 function renderMap(s) {
   const host = clear($('week-map'));
+  $('week-range').textContent = `${fmtDate(s.week.start)} to ${fmtDate(s.week.end)}` + (weekOffset === 0 ? ' (this week)' : '');
+  $('week-prev').disabled = weekOffset === 0;
   const head = e('div', 'map-head');
   head.appendChild(e('div'));
   s.week.days.forEach((date, i) => {
@@ -236,7 +272,10 @@ function renderSnapshot(s) {
   renderAttention(s);
   renderStrip(tiles, s);
   renderTotals(s);
-  renderMap(s);
+  renderBest2(s);
+  if (weekOffset > 0 && loadWeek) {
+    loadWeek(weekOffset).then((w) => { weekData = w; showWeek(s); }).catch(() => showWeek(s));
+  } else showWeek(s);
   renderCards(s);
   renderVideos(s);
   $('foot').textContent = 'Data from ELO · updated ' + fmtTime(s.generatedAt, s.week.tz);
@@ -275,6 +314,8 @@ async function load(force) {
     else setChip($('sync-chip'), 'red', 'No data yet');
   }
 }
+$('week-prev').addEventListener('click', () => goWeek(-1));
+$('week-next').addEventListener('click', () => goWeek(1));
 $('refresh').addEventListener('click', () => load(true));
 timer = setInterval(() => load(), 60000);
 load();

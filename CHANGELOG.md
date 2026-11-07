@@ -4,6 +4,9 @@
 
 The whole menu was reorganized from Josh's sketch. Nothing was deleted from the database. Settings that were only moved still hold the same values.
 
+- **Home:** the strip tile is now **Open slots, next 3 days** (today and the next 2 days). A new row under it shows **Best video, last 24 hrs** and **Best video, last 48 hrs**. The week map has arrows to look at next week and later weeks. A second, empty "Channel stats" heading is gone.
+- **Analytics:** click a heading (Views, Likes, Published, and so on) in either table to sort, click again to flip. The note under Existing videos now says plainly what they are: videos on your channels that were not posted through ELO, including ones you uploaded by hand.
+- **AI Studio off switch fixed:** the Director's and other Studio alerts (like a missed slot warning) were still getting through. Every alert the Studio can send is now silent while it is off.
 - **Post to, per kind:** Setup Channels, Channel Setup, inside the Shorts and Long form boxes, each has its own "post to" ticks (YouTube, Facebook, Instagram, TikTok, Bluesky). A tall video uses the Shorts ticks, a wide video uses the Long form ticks. Only platforms that are also connected are used. They start from each channel's old Studio ticks (migration 037).
 - **New menu:** Search, Home, Manual Schedule, Inbox, Queue, Analytics, Setup Channels, Settings, Financial, AI Settings, AI Studio, About. Dashboard, Calendar, Upcoming, TikTok demo and Testing tools are gone from the app (their data and the bot API stay). The Activity Log is at the bottom of About.
 - **Home** is now the colorful analytics page: Being written, Ready for video, Video in progress, Open slots, Scheduled, Posted this week and Needs a look (every tile clicks through), totals for the last 7 days with watch hours, best 3 videos, a card per channel, and the week map.

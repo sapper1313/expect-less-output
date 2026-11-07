@@ -61,7 +61,7 @@ export const COPY = {
       'Suggestions appear once the app has numbers for at least 10 videos that are a week old or more. Use Import existing videos on the Analytics screen.',
     importProblems: 'Imported with problems',
     importedNote:
-      'Videos that were on your channels before this app. They are read once and then every day for 90 days after they were published.',
+      'These videos are on your channels but were not posted through ELO: older videos from before ELO, and any video you uploaded by hand on the site. Click Import existing videos to bring in new ones. ELO then keeps their numbers up to date for 90 days after they were published. Click a heading to sort.',
     empty:
       'No posts were published in this time range yet. Click Import existing videos to add the ones already on your channels.',
     summaryNote:

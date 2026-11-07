@@ -166,3 +166,16 @@ p{margin:6px 0 0}
 .totals5{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:14px 18px}
 .totals5 .big{font-family:var(--mono);font-size:28px;font-weight:700;line-height:1.1}
 .totals5 .cap{font-size:12px;color:var(--label);margin-top:2px}
+
+.best2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:18px}
+.best-tile{padding:16px 18px}
+.best-tile .cap{font-size:12px;color:var(--label);margin-bottom:6px}
+.best-tile .t{font-weight:700;font-size:15px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.best-tile .c{font-size:12px;color:var(--label);margin-top:2px}
+.best-tile .v{font-family:var(--mono);font-size:26px;font-weight:700;margin-top:8px}
+.best-tile .v small{font-size:12px;color:var(--label);font-weight:400;margin-left:4px}
+.maphead-left{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.weeknav{display:flex;align-items:center;gap:8px}
+.weeknav .btn{cursor:pointer;min-width:34px;text-align:center}
+.weeknav .btn[disabled]{opacity:.35;cursor:default}
+.week-range{font-size:12px;color:var(--label);min-width:150px;text-align:center}

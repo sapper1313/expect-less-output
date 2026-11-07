@@ -80,4 +80,26 @@ describe('best videos on Home', () => {
     expect(best[0]).toMatchObject({ title: 'Hit video', views: 1500 })
     expect(best[1]).toMatchObject({ title: 'Smaller video', views: 150 })
   })
+
+  it('the 24 and 48 hour windows only count videos posted inside them', async () => {
+    const { a, dash } = await setup()
+    const env = a.env
+    const brand = env.brands.list()[0]
+    const add = (title: string, hoursAgo: number, views: number) => {
+      const at = new Date(Date.now() - hoursAgo * 3_600_000).toISOString()
+      const post = env.db
+        .prepare("INSERT INTO posts (brand_id, title, video_path, status, post_type, scheduled_at_utc) VALUES (?, ?, 'x.mp4', 'posted', 'episode', ?)")
+        .run(brand.id, title, at).lastInsertRowid
+      const t = env.db
+        .prepare("INSERT INTO post_targets (post_id, platform, status, posted_at_utc) VALUES (?, 'youtube', 'posted', ?)")
+        .run(post, at).lastInsertRowid
+      env.db.prepare('INSERT INTO post_stats (post_target_id, fetched_at_utc, views) VALUES (?, ?, ?)').run(t, at, views)
+    }
+    add('Today video', 5, 40)
+    add('Yesterday big', 30, 900)
+    add('Old huge', 100, 5000)
+    const best = (dash as unknown as { bestVideos(l: number, w: number): { title: string }[] }).bestVideos
+    expect(best.call(dash, 1, 24 * 3_600_000)[0]!.title).toBe('Today video')
+    expect(best.call(dash, 1, 48 * 3_600_000)[0]!.title).toBe('Yesterday big')
+  })
 })

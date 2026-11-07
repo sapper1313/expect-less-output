@@ -3,6 +3,8 @@ import type { History } from './history'
 import { buildSnapshot } from './snapshot'
 import type { StatsService, TopVideo } from './stats'
 import type { Brand, Post, Snapshot } from './types'
+import type { WeekMap } from '@shared/dashboard'
+import { DateTime } from 'luxon'
 import { weekWindow } from './week'
 
 interface Deps {
@@ -132,10 +134,76 @@ export class Poller {
       null,
     )
     if (built) {
+      built.open3d = safe('open slots next 3 days', () => this.countOpen3d(t, built), 0)
       this.snapshot = built
       if (this.eloStatus === 'ok') {
         safe('save snapshot', () => history.saveSnapshot(JSON.stringify(built)), undefined)
       }
+    }
+  }
+
+  /** Open slots on today and the next 2 days. A window that runs into next week uses next week's slots too. */
+  private countOpen3d(t: Date, built: Snapshot): number {
+    const { cfg } = this.deps
+    const today = built.week.today
+    const last = DateTime.fromISO(today, { zone: 'utc' }).plus({ days: 2 }).toISODate() as string
+    const channels = [...built.channels]
+    if (last > built.week.end) {
+      const next = buildSnapshot({
+        now: new Date(t.getTime() + 7 * DAY_MS),
+        tz: cfg.tz,
+        brands: this.brands,
+        posts: this.posts,
+        brandStats: this.brandStats,
+        topVideos: [],
+        trend: [],
+        viewsDelta: new Map(),
+        nextOpenByBrand: null,
+        elo: { status: this.eloStatus, lastGoodAt: this.lastGoodAt },
+        minGapMinutes: cfg.minGapMinutes,
+      })
+      channels.push(...next.channels)
+    }
+    let n = 0
+    for (const c of channels) {
+      if (c.state !== 'active') continue
+      for (const d of c.days) {
+        if (d.date < today || d.date > last) continue
+        n += d.slots.filter((s) => s.state === 'open').length
+      }
+    }
+    return n
+  }
+
+  /** The week map for a later week. Reads that week's posts when asked. */
+  async weekMap(offset: number): Promise<WeekMap | null> {
+    if (!this.haveData || offset < 0 || offset > 26) return null
+    const { client, cfg, now } = this.deps
+    const real = now()
+    const t = new Date(real.getTime() + offset * 7 * DAY_MS)
+    const week = weekWindow(t, cfg.tz)
+    let posts = this.posts
+    if (offset > 0) {
+      posts = []
+      for (const b of this.brands.filter((x) => x.state !== 'archived'))
+        posts.push(...(await client.posts(b.id, week.startUtc, week.endUtcExclusive)))
+    }
+    const built = buildSnapshot({
+      now: t,
+      tz: cfg.tz,
+      brands: this.brands,
+      posts,
+      brandStats: this.brandStats,
+      topVideos: [],
+      trend: [],
+      viewsDelta: new Map(),
+      nextOpenByBrand: null,
+      elo: { status: this.eloStatus, lastGoodAt: this.lastGoodAt },
+      minGapMinutes: cfg.minGapMinutes,
+    })
+    return {
+      week: { ...built.week, today: weekWindow(real, cfg.tz).today },
+      channels: built.channels,
     }
   }
 
@@ -162,7 +230,7 @@ export class Poller {
         Math.min(Date.parse(week.startUtc), t.getTime() - 7 * DAY_MS),
       ).toISOString()
       const to = new Date(
-        Math.max(Date.parse(week.endUtcExclusive), t.getTime() + 48 * HOUR_MS),
+        Math.max(Date.parse(week.endUtcExclusive) + 7 * DAY_MS, t.getTime() + 48 * HOUR_MS),
       ).toISOString()
       posts = []
       for (const b of brands.filter((x) => x.state !== 'archived')) {

@@ -58,6 +58,17 @@ export interface SnapshotChannel {
   days: { date: string; slots: SnapshotSlot[] }[]
 }
 
+export interface BestVideo {
+  title: string
+  channel: string
+  views: number
+}
+
+export interface WeekMap {
+  week: { start: string; end: string; tz: string; today: string; days: string[] }
+  channels: SnapshotChannel[]
+}
+
 export interface Snapshot {
   generatedAt: string
   status: {
@@ -105,6 +116,11 @@ export interface Snapshot {
     views: number
     approximate: boolean
   }[]
+  /** Open posting slots today and the next 2 days, for channels that are on. */
+  open3d?: number
+  /** The best video posted in the last 24 and 48 hours. null when none has numbers. */
+  best24h?: BestVideo | null
+  best48h?: BestVideo | null
   upNext: { whenET: string; channel: string; type: PostType }[]
   trend: { week: string; percent: number }[]
   checks: {

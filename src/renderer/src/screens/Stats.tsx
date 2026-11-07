@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { PLATFORM_LABELS } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
 import { toCsv } from '@shared/csv'
@@ -11,6 +11,44 @@ import { BestTimes } from '../components/BestTimes'
 import { StudioInsights } from './StudioOperations'
 import { Button, Card, Empty, PageHeader, Select, useBusy } from '../ui'
 
+type SortDir = 'asc' | 'desc'
+/** Click a heading to sort by it. Click again to flip. */
+function useSort<T>(rows: T[] | null | undefined, pick: Record<string, (r: T) => number | string>, first: string) {
+  const [key, setKey] = useState(first)
+  const [dir, setDir] = useState<SortDir>('desc')
+  const sorted = useMemo(() => {
+    const f = pick[key]
+    if (!rows || !f) return rows
+    return [...rows].sort((a, b) => {
+      const x = f(a)
+      const y = f(b)
+      const c = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))
+      return dir === 'asc' ? c : -c
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, key, dir])
+  const th = (k: string, label: string) => (
+    <th className="p-2">
+      <button
+        type="button"
+        className="font-bold uppercase tracking-wider hover:text-ink"
+        aria-label={`Sort by ${label}`}
+        onClick={() => {
+          if (k === key) setDir(dir === 'asc' ? 'desc' : 'asc')
+          else {
+            setKey(k)
+            setDir(k === 'title' || k === 'platform' ? 'asc' : 'desc')
+          }
+        }}
+      >
+        {label}
+        {k === key ? (dir === 'asc' ? ' ▲' : ' ▼') : ''}
+      </button>
+    </th>
+  )
+  return { sorted, th }
+}
+
 function StatsNumbers() {
   const { toast } = useApp()
   const [busy, run] = useBusy()
@@ -22,6 +60,28 @@ function StatsNumbers() {
     () => api.stats.imported(brandId, range),
     [brandId, range],
   )
+
+  const num = (
+    v: { state: string; numbers: object },
+    k: 'views' | 'likes' | 'comments' | 'shares',
+  ) => (v.state === 'ok' ? ((v.numbers as Record<string, number | null>)[k] ?? -1) : -1)
+  const oldSort = useSort(old, {
+    title: (v) => (v.title || '').toLowerCase(),
+    platform: (v) => v.platform,
+    published: (v) => v.publishedAt ?? '',
+    views: (v) => num(v, 'views'),
+    likes: (v) => num(v, 'likes'),
+    comments: (v) => num(v, 'comments'),
+    shares: (v) => num(v, 'shares'),
+  }, 'published')
+  const platSort = useSort(data?.platforms, {
+    platform: (p) => PLATFORM_LABELS[p.platform],
+    videos: (p) => p.videos,
+    views: (p) => p.views ?? 0,
+    likes: (p) => p.likes ?? 0,
+    comments: (p) => p.comments ?? 0,
+    shares: (p) => p.shares ?? 0,
+  }, 'views')
 
   return (
     <div className="h-full overflow-auto pb-10">
@@ -117,16 +177,16 @@ function StatsNumbers() {
             <table className="w-full text-left text-[13px]">
               <thead className="text-[11px] uppercase tracking-wider text-muted">
                 <tr>
-                  <th className="p-2">Platform</th>
-                  <th className="p-2">Videos</th>
-                  <th className="p-2">Views</th>
-                  <th className="p-2">Likes</th>
-                  <th className="p-2">Comments</th>
-                  <th className="p-2">Shares</th>
+                  {platSort.th('platform', 'Platform')}
+                  {platSort.th('videos', 'Videos')}
+                  {platSort.th('views', 'Views')}
+                  {platSort.th('likes', 'Likes')}
+                  {platSort.th('comments', 'Comments')}
+                  {platSort.th('shares', 'Shares')}
                 </tr>
               </thead>
               <tbody>
-                {data?.platforms.map((p) => (
+                {platSort.sorted?.map((p) => (
                   <tr key={p.platform} className="border-t border-line">
                     <td className="p-2 font-semibold">{PLATFORM_LABELS[p.platform]}</td>
                     <td className="p-2">{p.videos}</td>
@@ -165,17 +225,17 @@ function StatsNumbers() {
             <table className="w-full text-left text-[13px]">
               <thead className="text-[11px] uppercase tracking-wider text-muted">
                 <tr>
-                  <th className="p-2">Video</th>
-                  <th className="p-2">Platform</th>
-                  <th className="p-2">Published</th>
-                  <th className="p-2">Views</th>
-                  <th className="p-2">Likes</th>
-                  <th className="p-2">Comments</th>
-                  <th className="p-2">Shares</th>
+                  {oldSort.th('title', 'Video')}
+                  {oldSort.th('platform', 'Platform')}
+                  {oldSort.th('published', 'Published')}
+                  {oldSort.th('views', 'Views')}
+                  {oldSort.th('likes', 'Likes')}
+                  {oldSort.th('comments', 'Comments')}
+                  {oldSort.th('shares', 'Shares')}
                 </tr>
               </thead>
               <tbody>
-                {old.map((v) => (
+                {(oldSort.sorted ?? old).map((v) => (
                   <tr key={v.id} className="border-t border-line">
                     <td className="max-w-[280px] p-2">
                       <div className="truncate font-semibold" title={v.title}>
