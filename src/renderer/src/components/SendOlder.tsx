@@ -17,7 +17,7 @@ export function SendOlder({ onClose }: { onClose: () => void }) {
   const [brandId, setBrandId] = useState<number | null>(null)
   const id = brandId ?? brands?.[0]?.id ?? null
   const { data: accounts } = useLoad(() => (id ? api.accounts.list(id) : Promise.resolve([])), [id])
-  const real = (accounts ?? []).filter((a) => a.mode !== 'dry_run' && a.status === 'connected' && ['facebook', 'tiktok', 'instagram'].includes(a.platform))
+  const real = (accounts ?? []).filter((a) => a.mode !== 'dry_run' && a.status === 'connected' && ['facebook', 'tiktok', 'instagram', 'bluesky', 'youtube'].includes(a.platform))
   const [platform, setPlatform] = useState<Platform | ''>('')
   const chosenPlatform = (real.find((a) => a.platform === platform)?.platform ?? real[0]?.platform ?? '') as Platform | ''
   const [mode, setMode] = useState<'now' | 'start' | 'channel'>('now')
@@ -57,7 +57,7 @@ export function SendOlder({ onClose }: { onClose: () => void }) {
           {real.map((a) => <option key={a.platform} value={a.platform}>{PLATFORM_LABELS[a.platform]}</option>)}
         </Select>
       </div>
-      {!real.length && <div className="rounded-md border border-line p-3 text-[13px]">This channel has no real Facebook, Instagram or TikTok account connected yet. Connect one on the Channels screen first.</div>}
+      {!real.length && <div className="rounded-md border border-line p-3 text-[13px]">This channel has no real Facebook, Instagram, TikTok, Bluesky or YouTube account connected yet. Connect one in Setup Channels, Connections tab, first.</div>}
       {!!real.length && !list.length && <div className="rounded-md border border-line p-3 text-[13px]">Nothing to send. Every older video that still has its file already has a {label} entry.</div>}
       {!!list.length && (
         <>
