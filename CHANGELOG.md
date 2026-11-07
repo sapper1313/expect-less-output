@@ -4,6 +4,7 @@
 
 The whole menu was reorganized from Josh's sketch. Nothing was deleted from the database. Settings that were only moved still hold the same values.
 
+- **Post to, per kind:** Setup Channels, Channel Setup, inside the Shorts and Long form boxes, each has its own "post to" ticks (YouTube, Facebook, Instagram, TikTok, Bluesky). A tall video uses the Shorts ticks, a wide video uses the Long form ticks. Only platforms that are also connected are used. They start from each channel's old Studio ticks (migration 037).
 - **New menu:** Search, Home, Manual Schedule, Inbox, Queue, Analytics, Setup Channels, Settings, Financial, AI Settings, AI Studio, About. Dashboard, Calendar, Upcoming, TikTok demo and Testing tools are gone from the app (their data and the bot API stay). The Activity Log is at the bottom of About.
 - **Home** is now the colorful analytics page: Being written, Ready for video, Video in progress, Open slots, Scheduled, Posted this week and Needs a look (every tile clicks through), totals for the last 7 days with watch hours, best 3 videos, a card per channel, and the week map.
 - **Manual Schedule:** New Post and Bulk Upload go to the next open slot. Tick **Pick my own date and time** to choose your own. ELO warns when it breaks a rule and lets you go ahead.

@@ -107,11 +107,11 @@ export interface Api {
     archive(id: number, archived: boolean): Promise<void>
     getSlots(brandId: number): Promise<BrandSlot[]>
     /** Which kinds (Shorts, Long form) the channel makes, and the days each posts on. */
-    getSlotKinds(brandId: number): Promise<Array<{ kind: 'short' | 'long'; enabled: boolean; days: number[] | null }>>
+    getSlotKinds(brandId: number): Promise<Array<{ kind: 'short' | 'long'; enabled: boolean; days: number[] | null; platforms?: Record<string, boolean> | null }>>
     setSlotKinds(
       brandId: number,
-      kinds: Array<{ kind: 'short' | 'long'; enabled: boolean; days: number[] | null }>,
-    ): Promise<Array<{ kind: 'short' | 'long'; enabled: boolean; days: number[] | null }>>
+      kinds: Array<{ kind: 'short' | 'long'; enabled: boolean; days: number[] | null; platforms?: Record<string, boolean> | null }>,
+    ): Promise<Array<{ kind: 'short' | 'long'; enabled: boolean; days: number[] | null; platforms?: Record<string, boolean> | null }>>
     /** The channel's own handoff and missed post settings. A missing value follows the app wide setting. */
     getOverrides(brandId: number): Promise<ChannelOverrides>
     setOverrides(brandId: number, patch: ChannelOverridePatch): Promise<ChannelOverrides>

@@ -147,7 +147,11 @@ export class PipelineIntake {
   }
 
   /** Platforms the owner switched off for this channel in the Studio's per-channel settings. */
-  private switchedOff(brandId: number, type: 'episode' | 'clip' = 'episode'): string[] {
+  private switchedOff(
+    brandId: number,
+    type: 'episode' | 'clip' = 'episode',
+    kind?: 'short' | 'long' | null,
+  ): string[] {
     const row = this.d.db
       .prepare('SELECT config_json FROM studio_brands WHERE brand_id = ?')
       .get(brandId) as { config_json: string } | undefined
@@ -156,7 +160,9 @@ export class PipelineIntake {
         platforms?: Record<string, boolean>
         clipPlatforms?: Record<string, boolean>
       }
-      const p = (type === 'clip' ? c.clipPlatforms : c.platforms) ?? {}
+      // A Short or Long form video uses its own platform ticks from Setup Channels. A clip uses the clip ticks.
+      const own = type === 'episode' && kind ? slotKinds(this.d.db, brandId).find((r) => r.kind === kind)?.platforms : null
+      const p = (type === 'clip' ? c.clipPlatforms : (own ?? c.platforms)) ?? {}
       return Object.entries(p)
         .filter(([, on]) => on === false)
         .map(([k]) => k)
@@ -308,7 +314,9 @@ export class PipelineIntake {
         ...(this.d.extraPlatforms?.(a.brand.id) ?? []),
       ]),
     ]
-    const off = [...this.switchedOff(a.brand.id, postType), ...this.tooLongFor(asked)]
+    const kindNow = this.lastKind ?? (this.kinds(a.brand.id).length === 1 ? this.kinds(a.brand.id)[0]! : null)
+    this.lastKind = null
+    const off = [...this.switchedOff(a.brand.id, postType, kindNow), ...this.tooLongFor(asked)]
     const wanted = asked.filter((p) => !off.includes(p))
     if (wanted.length < asked.length)
       notes.push(
@@ -444,6 +452,8 @@ export class PipelineIntake {
 
   /** Length of the last video checked, so platforms that cannot take it can be skipped. */
   private lastSeconds: number | null = null
+  /** Short or Long form, from the shape of the last video checked. */
+  private lastKind: 'short' | 'long' | null = null
 
   /** The reasons a video does not fit a channel (shape, length, sound), for a replacement file. Empty means it fits. */
   async videoProblems(brand: Brand, path: string, type: 'episode' | 'clip'): Promise<Reason[]> {
@@ -469,6 +479,7 @@ export class PipelineIntake {
       return
     }
     this.lastSeconds = info.durationSeconds
+    this.lastKind = null
     if (type === 'clip') {
       // A clip is always tall, whatever the show's video type is.
       const r = info.height ? info.width / info.height : 0
@@ -491,6 +502,7 @@ export class PipelineIntake {
     if (kinds.length > 1) {
       // The channel does both. The shape of the video decides: tall is a Short, wide is Long form.
       const fmt: 'short' | 'long' | null = near(9 / 16) ? 'short' : near(16 / 9) ? 'long' : null
+      this.lastKind = fmt
       const [smin, smax] = this.durationRange(brand.id, 'short')
       const base = `This channel takes tall shorts or wide long videos. Shorts are ${smin} to ${smax} seconds, long videos have no length limit. This one is ${info.width}x${info.height} and ${Math.round(info.durationSeconds)} seconds.`
       if (!fmt) reasons.push({ code: 'bad_format', message: base })
@@ -500,6 +512,7 @@ export class PipelineIntake {
       return
     }
     const fmt = kinds[0]!
+    this.lastKind = fmt
     const want = fmt === 'long' ? 16 / 9 : 9 / 16
     if (!ratio || Math.abs(ratio - want) / want > 0.03)
       reasons.push({

@@ -98,17 +98,25 @@ export class BrandService {
   }
 
   /** Which kinds the channel makes and the days each posts on. */
-  setSlotKinds(brandId: number, kinds: Array<{ kind: 'short' | 'long'; enabled: boolean; days: number[] | null }>) {
+  setSlotKinds(brandId: number, kinds: Array<{ kind: 'short' | 'long'; enabled: boolean; days: number[] | null; platforms?: Record<string, boolean> | null }>) {
     this.db.transaction(() => {
       for (const k of kinds) {
         if (k.kind !== 'short' && k.kind !== 'long') throw new Error('Kind must be short or long.')
         const days = k.days?.filter((d) => Number.isInteger(d) && d >= 1 && d <= 7) ?? []
         this.db
           .prepare(
-            `INSERT INTO brand_slot_kinds (brand_id, kind, enabled, days) VALUES (?, ?, ?, ?)
-             ON CONFLICT(brand_id, kind) DO UPDATE SET enabled = excluded.enabled, days = excluded.days`,
+            `INSERT INTO brand_slot_kinds (brand_id, kind, enabled, days, platforms) VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(brand_id, kind) DO UPDATE SET enabled = excluded.enabled, days = excluded.days,
+               platforms = CASE WHEN ? THEN excluded.platforms ELSE brand_slot_kinds.platforms END`,
           )
-          .run(brandId, k.kind, k.enabled ? 1 : 0, days.length ? JSON.stringify(days) : null)
+          .run(
+            brandId,
+            k.kind,
+            k.enabled ? 1 : 0,
+            days.length ? JSON.stringify(days) : null,
+            k.platforms ? JSON.stringify(k.platforms) : null,
+            k.platforms === undefined ? 0 : 1,
+          )
       }
     })()
     return this.getSlotKinds(brandId)

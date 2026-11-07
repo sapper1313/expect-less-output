@@ -7,6 +7,8 @@ export interface SlotKindRow {
   enabled: boolean
   /** ISO weekdays (1 Monday to 7 Sunday) this kind posts on. Null means the channel's usual days. */
   days: number[] | null
+  /** Platforms this kind posts to. A platform that is false is skipped. Null means the old Studio ticks. */
+  platforms: Record<string, boolean> | null
 }
 
 /** The kinds a channel makes (Shorts, Long form, or both). A channel with no rows yet uses every time it has. */
@@ -14,9 +16,9 @@ export function slotKinds(db: Db, brandId: number): SlotKindRow[] {
   return (
     db
       .prepare(
-        'SELECT kind, enabled, days FROM brand_slot_kinds WHERE brand_id = ? ORDER BY kind DESC',
+        'SELECT kind, enabled, days, platforms FROM brand_slot_kinds WHERE brand_id = ? ORDER BY kind DESC',
       )
-      .all(brandId) as Array<{ kind: SlotKind; enabled: number; days: string | null }>
+      .all(brandId) as Array<{ kind: SlotKind; enabled: number; days: string | null; platforms: string | null }>
   ).map((r) => {
     let days: number[] | null = null
     try {
@@ -26,7 +28,14 @@ export function slotKinds(db: Db, brandId: number): SlotKindRow[] {
     } catch {
       days = null
     }
-    return { kind: r.kind, enabled: !!r.enabled, days: days?.length ? days : null }
+    let platforms: Record<string, boolean> | null = null
+    try {
+      const x = r.platforms ? (JSON.parse(r.platforms) as unknown) : null
+      if (x && typeof x === 'object' && !Array.isArray(x)) platforms = x as Record<string, boolean>
+    } catch {
+      platforms = null
+    }
+    return { kind: r.kind, enabled: !!r.enabled, days: days?.length ? days : null, platforms }
   })
 }
 

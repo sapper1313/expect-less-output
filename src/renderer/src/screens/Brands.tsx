@@ -8,7 +8,16 @@ import { Button, Card, Check, Confirm, Field, Input, Select, TimeSelect, useBusy
 
 type Kind = 'short' | 'long'
 type SlotDraft = Pick<BrandSlot, 'dayType' | 'timeLocal' | 'enabled' | 'kind'>
+const POST_TO: Array<[string, string]> = [
+  ['youtube', 'YouTube'],
+  ['facebook', 'Facebook'],
+  ['instagram', 'Instagram'],
+  ['tiktok', 'TikTok'],
+  ['bluesky', 'Bluesky'],
+]
+
 interface KindDraft {
+  platforms: Record<string, boolean> | null
   enabled: boolean
   /** ISO weekdays this kind posts on. */
   days: number[]
@@ -121,7 +130,7 @@ function SlotEditor({ brandId }: { brandId: number }) {
     if (!slotRows || !kindRows) return null
     const kind = (k: Kind): KindDraft => {
       const r = kindRows.find((x) => x.kind === k)
-      return { enabled: r?.enabled ?? false, days: r?.days ?? ALL_DAYS }
+      return { enabled: r?.enabled ?? false, days: r?.days ?? ALL_DAYS, platforms: r?.platforms ?? null }
     }
     return {
       slots: slotRows.map(({ dayType, timeLocal, enabled, kind: k }) => ({
@@ -198,6 +207,27 @@ function SlotEditor({ brandId }: { brandId: number }) {
       </Check>
       {kinds[k].enabled && (
         <div className="mt-3 space-y-3">
+          <div>
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">
+              {KIND_LABEL[k]} post to
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {POST_TO.map(([p, label]) => (
+                <Check
+                  key={p}
+                  checked={kinds[k].platforms?.[p] !== false}
+                  onChange={(v) =>
+                    setKind(k, { platforms: { ...(kinds[k].platforms ?? {}), [p]: v } })
+                  }
+                >
+                  {label}
+                </Check>
+              ))}
+            </div>
+            <div className="text-[11px] text-muted">
+              Only platforms that are also connected on the Connections tab are used.
+            </div>
+          </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {ALL_DAYS.map((d) => (
               <Check
@@ -242,6 +272,7 @@ function SlotEditor({ brandId }: { brandId: number }) {
                   enabled: kinds[k].enabled,
                   days:
                     kinds[k].days.length === 0 || kinds[k].days.length === 7 ? null : kinds[k].days,
+                  platforms: kinds[k].platforms,
                 })),
               )
               return true
