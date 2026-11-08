@@ -148,11 +148,12 @@ export class PipelineIntake {
   }
 
   /** Platforms the owner switched off for this channel in the Studio's per-channel settings. */
-  private switchedOff(
+  /** The platform ticks that apply to a video: its kind's ticks on Setup Channels, or the clip ticks for a clip. */
+  private tickMap(
     brandId: number,
-    type: 'episode' | 'clip' = 'episode',
+    type: 'episode' | 'clip',
     kind?: 'short' | 'long' | null,
-  ): string[] {
+  ): Record<string, boolean> {
     const row = this.d.db
       .prepare('SELECT config_json FROM studio_brands WHERE brand_id = ?')
       .get(brandId) as { config_json: string } | undefined
@@ -162,14 +163,34 @@ export class PipelineIntake {
         clipPlatforms?: Record<string, boolean>
       }
       // A Short or Long form video uses its own platform ticks from Setup Channels. A clip uses the clip ticks.
-      const own = type === 'episode' && kind ? slotKinds(this.d.db, brandId).find((r) => r.kind === kind)?.platforms : null
-      const p = (type === 'clip' ? c.clipPlatforms : (own ?? c.platforms)) ?? {}
-      return Object.entries(p)
-        .filter(([, on]) => on === false)
-        .map(([k]) => k)
+      const own =
+        type === 'episode' && kind
+          ? slotKinds(this.d.db, brandId).find((r) => r.kind === kind)?.platforms
+          : null
+      return (type === 'clip' ? c.clipPlatforms : (own ?? c.platforms)) ?? {}
     } catch {
-      return []
+      return {}
     }
+  }
+
+  private switchedOff(
+    brandId: number,
+    type: 'episode' | 'clip' = 'episode',
+    kind?: 'short' | 'long' | null,
+  ): string[] {
+    return Object.entries(this.tickMap(brandId, type, kind))
+      .filter(([, on]) => on === false)
+      .map(([k]) => k)
+  }
+
+  /**
+   * The four main platforms ticked for this kind of video. The ticks decide where a video goes, so a platform that is
+   * ticked is used even when the bot's list left it out. A platform with no connected account is dropped later.
+   */
+  private tickedCore(brandId: number, type: 'episode' | 'clip', kind?: 'short' | 'long' | null): string[] {
+    if (type !== 'episode') return []
+    const m = this.tickMap(brandId, type, kind)
+    return ['youtube', 'facebook', 'instagram', 'tiktok'].filter((p) => m[p] === true)
   }
 
   /** Why a drop for this channel would wait instead of being scheduled, or null when it can be scheduled now. */
@@ -307,16 +328,17 @@ export class PipelineIntake {
     // A clip with no platforms goes to every platform the show has switched on for clips.
     // The four original platforms come from the sidecar. Bluesky, X, LinkedIn and Pinterest are not chosen by a
     // bot: a channel with a login for one posts there on its own, and a channel without one ignores it.
+    const kindNow = this.lastKind ?? (this.kinds(a.brand.id).length === 1 ? this.kinds(a.brand.id)[0]! : null)
+    this.lastKind = null
     const asked: string[] = [
       ...new Set([
         ...(sc.platforms ?? ['youtube', 'facebook', 'instagram', 'tiktok']).filter(
           (p) => !isExtraPlatform(p),
         ),
+        ...this.tickedCore(a.brand.id, postType, kindNow),
         ...(this.d.extraPlatforms?.(a.brand.id) ?? []),
       ]),
     ]
-    const kindNow = this.lastKind ?? (this.kinds(a.brand.id).length === 1 ? this.kinds(a.brand.id)[0]! : null)
-    this.lastKind = null
     const off = [...this.switchedOff(a.brand.id, postType, kindNow), ...this.tooLongFor(asked)]
     const wanted = asked.filter((p) => !off.includes(p))
     if (wanted.length < asked.length)

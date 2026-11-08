@@ -126,7 +126,7 @@ The full format is in `docs/sidecar.schema.json`. In plain words:
 | `tags` | no | Up to 30. They go to YouTube as tags, and are added as hashtags to the caption where the caption does not have them already. |
 | `thumbnail_path` | no | A JPG or PNG under 2 MB, next to the sidecar. Used as the YouTube thumbnail on long videos. |
 | `video_file` | yes | The exact name of the video you dropped. |
-| `platforms` | yes | Any of `youtube`, `facebook`, `instagram`, `tiktok`. A platform with no connected account is skipped and noted. TikTok always goes to Drafts. |
+| `platforms` | yes | Any of `youtube`, `facebook`, `instagram`, `tiktok`. A platform with no connected account is skipped and noted. ELO also adds every platform the owner ticked for this kind of video (Shorts or Long form) on Setup Channels, and drops any that are unticked, so this list is only a hint. TikTok goes to Drafts unless the owner turned on Upload-Post for the channel. |
 | `approval` | yes | Who approved it and when (with a time zone). Without it the drop is rejected. |
 | `checksum` | yes | SHA-256 of the mp4. Make it with `shasum -a 256 file.mp4`. ELO checks it when the drop arrives, before it is scheduled, and again right before it posts. |
 | `source_bot` | yes | `grok-bot`, `kids-comedy` or `beth`. |

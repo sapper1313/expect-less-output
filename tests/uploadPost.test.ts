@@ -375,3 +375,34 @@ describe('Saving a partly posted post', () => {
     expect(p.targets.find((t) => t.platform === 'tiktok')!.status).toBe('needs_action')
   })
 })
+
+describe('TikTok comment on a post finished by hand', () => {
+  it('is marked not sent instead of sending a draft id, and uses the video link when there is one', async () => {
+    const { FirstCommentService } = await import('../src/main/services/firstComments')
+    const s = setup()
+    s.svc.setKey('k')
+    s.svc.setLink(2, 'Clock_Out_Early', { tiktok: true })
+    const sent: any[] = []
+    const fc = new FirstCommentService({
+      db: s.env.db,
+      uploadPost: s.svc,
+      client: { async createComment(_k: string, i: any) { sent.push(i); return { id: 'c', warnings: [] } }, async status() { return { status: 'in_progress', results: [] } } } as any,
+      log: s.env.log,
+      alert: () => {},
+      now: () => s.env.clock.ms,
+    })
+    const mk = (url: string | null) => {
+      const id = Number(s.env.db.prepare("INSERT INTO posts (brand_id, video_path, title, caption, status, first_comment) VALUES (2, 'x.mp4', 't', 'c', 'posted', 'Hi')").run().lastInsertRowid)
+      return Number(s.env.db.prepare("INSERT INTO post_targets (post_id, platform, status, external_id, external_url, posted_at_utc) VALUES (?, 'tiktok', 'posted', 'v_inbox_file~v2.123', ?, ?)").run(id, url, new Date(s.env.clock.ms - 3_600_000).toISOString()).lastInsertRowid)
+    }
+    const a = mk(null)
+    const b = mk('https://www.tiktok.com/@x/video/7555')
+    await fc.sweep()
+    const row = (t: number) => s.env.db.prepare('SELECT status,last_error FROM first_comment_jobs WHERE target_id = ?').get(t) as any
+    expect(row(a).status).toBe('skipped')
+    expect(row(a).last_error).toMatch(/finished by hand/)
+    expect(row(b).status).toBe('done')
+    expect(sent).toHaveLength(1)
+    expect(sent[0].postId).toBe('7555')
+  })
+})

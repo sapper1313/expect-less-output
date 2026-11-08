@@ -174,6 +174,20 @@ export class FirstCommentService {
     const ctx = { postId: j.post_id, platform: j.platform as Platform }
     try {
       let postId = t.external_id
+      // A TikTok post finished by hand from a draft has no video id in ELO, only the draft's. Use the link when it has one.
+      if (j.platform === 'tiktok' && postId && !/^\d+$/.test(postId) && !postId.startsWith('elo-')) {
+        const fromLink = t.external_url?.match(/\/video\/(\d+)/)?.[1]
+        if (fromLink) postId = fromLink
+        else {
+          this.setStatus(
+            j.target_id,
+            'skipped',
+            'This TikTok post was finished by hand from a draft, so ELO does not know its video id. Add the comment by hand, or mark it posted with the video link.',
+            j.attempts,
+          )
+          return
+        }
+      }
       // TikTok: ELO only knows Upload-Post's request id until TikTok releases the public video id.
       if (j.platform === 'tiktok' && (!postId || postId.startsWith('elo-'))) {
         const st = postId ? await this.d.client.status(key, postId) : null

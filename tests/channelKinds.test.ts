@@ -192,3 +192,26 @@ describe('platforms per kind', () => {
     expect(platforms).toEqual(['facebook', 'youtube'])
   })
 })
+
+describe('ticked platforms are used even when the bot left them out', () => {
+  it('a Short with Facebook ticked goes to Facebook although the sidecar only lists YouTube', async () => {
+    const t = pipelineSetup({ probe: probeOf(1080, 1920, 30), live: [[1, 'youtube'], [1, 'facebook']] })
+    t.env.brands.setSlotKinds(1, [
+      { kind: 'short', enabled: true, days: null, platforms: { youtube: true, facebook: true, instagram: false, tiktok: false } },
+      { kind: 'long', enabled: true, days: null, platforms: { youtube: true, facebook: false, instagram: false, tiktok: false } },
+    ])
+    t.drop(TP, 'trash-panda', 11, { platforms: ['youtube'] })
+    await t.settle()
+    expect(t.env.posts.list()[0]!.targets.map((x) => x.platform).sort()).toEqual(['facebook', 'youtube'])
+  })
+  it('an unticked platform stays out even when the bot asks for it', async () => {
+    const t = pipelineSetup({ probe: probeOf(1080, 1920, 30), live: [[1, 'youtube'], [1, 'facebook']] })
+    t.env.brands.setSlotKinds(1, [
+      { kind: 'short', enabled: true, days: null, platforms: { youtube: true, facebook: false, instagram: false, tiktok: false } },
+      { kind: 'long', enabled: true, days: null, platforms: { youtube: true, facebook: false, instagram: false, tiktok: false } },
+    ])
+    t.drop(TP, 'trash-panda', 12, { platforms: ['youtube', 'facebook'] })
+    await t.settle()
+    expect(t.env.posts.list()[0]!.targets.map((x) => x.platform)).toEqual(['youtube'])
+  })
+})
