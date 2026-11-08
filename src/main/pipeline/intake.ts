@@ -184,13 +184,16 @@ export class PipelineIntake {
   }
 
   /**
-   * The four main platforms ticked for this kind of video. The ticks decide where a video goes, so a platform that is
-   * ticked is used even when the bot's list left it out. A platform with no connected account is dropped later.
+   * The four main platforms ticked for this kind of video. The ticks decide where a video goes, so the bot's list does
+   * not matter. Null means this channel has no ticks (or it is a clip), so the bot's list is used. A platform with no
+   * connected account is dropped later with a note.
    */
-  private tickedCore(brandId: number, type: 'episode' | 'clip', kind?: 'short' | 'long' | null): string[] {
-    if (type !== 'episode') return []
+  private tickedCore(brandId: number, type: 'episode' | 'clip', kind?: 'short' | 'long' | null): string[] | null {
+    if (type !== 'episode') return null
     const m = this.tickMap(brandId, type, kind)
-    return ['youtube', 'facebook', 'instagram', 'tiktok'].filter((p) => m[p] === true)
+    const core = ['youtube', 'facebook', 'instagram', 'tiktok']
+    if (!core.some((p) => p in m)) return null
+    return core.filter((p) => m[p] === true)
   }
 
   /** Why a drop for this channel would wait instead of being scheduled, or null when it can be scheduled now. */
@@ -330,20 +333,29 @@ export class PipelineIntake {
     // bot: a channel with a login for one posts there on its own, and a channel without one ignores it.
     const kindNow = this.lastKind ?? (this.kinds(a.brand.id).length === 1 ? this.kinds(a.brand.id)[0]! : null)
     this.lastKind = null
+    // The ticks on Setup Channels decide where a video goes. The bot's list is used only for a channel with no ticks yet.
+    const ticked = this.tickedCore(a.brand.id, postType, kindNow)
+    const fromBot = (sc.platforms ?? ['youtube', 'facebook', 'instagram', 'tiktok']).filter(
+      (p) => !isExtraPlatform(p),
+    )
     const asked: string[] = [
       ...new Set([
-        ...(sc.platforms ?? ['youtube', 'facebook', 'instagram', 'tiktok']).filter(
-          (p) => !isExtraPlatform(p),
-        ),
-        ...this.tickedCore(a.brand.id, postType, kindNow),
+        ...(ticked === null ? fromBot : ticked),
         ...(this.d.extraPlatforms?.(a.brand.id) ?? []),
       ]),
     ]
-    const off = [...this.switchedOff(a.brand.id, postType, kindNow), ...this.tooLongFor(asked)]
+    // Platforms the bot asked for that are not ticked stay out, and the note says so.
+    const notTicked = ticked === null ? [] : fromBot.filter((p) => !ticked.includes(p))
+    const everAsked = [...asked, ...notTicked]
+    const off = [
+      ...this.switchedOff(a.brand.id, postType, kindNow),
+      ...this.tooLongFor(asked),
+      ...notTicked,
+    ]
     const wanted = asked.filter((p) => !off.includes(p))
-    if (wanted.length < asked.length)
+    if (wanted.length < everAsked.length)
       notes.push(
-        `Skipped (switched off or too long for the platform): ${asked.filter((p) => off.includes(p)).join(', ')}.`,
+        `Skipped (switched off or too long for the platform): ${everAsked.filter((p) => off.includes(p)).join(', ')}.`,
       )
     if (wanted.length === 0 && !hold)
       hold = 'Every platform for this video is switched off for this channel.'

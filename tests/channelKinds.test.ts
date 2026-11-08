@@ -215,3 +215,16 @@ describe('ticked platforms are used even when the bot left them out', () => {
     expect(t.env.posts.list()[0]!.targets.map((x) => x.platform)).toEqual(['youtube'])
   })
 })
+
+describe('the bot cannot add a platform that is not ticked', () => {
+  it('Instagram is left out when it is not ticked, even if the bot asks for it', async () => {
+    const t = pipelineSetup({ probe: probeOf(1080, 1920, 30), live: [[1, 'youtube'], [1, 'instagram']] })
+    t.env.brands.setSlotKinds(1, [
+      { kind: 'short', enabled: true, days: null, platforms: { youtube: true, facebook: true } },
+      { kind: 'long', enabled: true, days: null, platforms: { youtube: true, facebook: true } },
+    ])
+    t.drop(TP, 'trash-panda', 13, { platforms: ['youtube', 'instagram'] })
+    await t.settle()
+    expect(t.env.posts.list()[0]!.targets.map((x) => x.platform)).toEqual(['youtube'])
+  })
+})
