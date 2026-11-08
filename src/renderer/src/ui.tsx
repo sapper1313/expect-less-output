@@ -30,16 +30,18 @@ export function Button({ variant = 'secondary', className, ...p }: BtnProps) {
   return <button {...p} className={cx(base, styles, className)} />
 }
 
-const field =
-  'w-full rounded-md border border-line bg-bg px-3 py-2 text-[13px] text-ink outline-none focus:border-accent'
+const fieldBase =
+  'rounded-md border border-line bg-bg px-3 py-2 text-[13px] text-ink outline-none focus:border-accent'
+/** Full width unless the caller gives a width (w-64 and so on), so filter rows sit side by side. */
+const field = (cls?: string) => cx(/(^|\s)(w-|max-w-)/.test(cls ?? '') ? '' : 'w-full', fieldBase, cls)
 export function Input(p: InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...p} className={cx(field, p.className)} />
+  return <input {...p} className={field(p.className)} />
 }
 export function Textarea(p: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...p} className={cx(field, 'min-h-[84px] resize-y', p.className)} />
+  return <textarea {...p} className={cx(field(p.className), 'min-h-[84px] resize-y')} />
 }
 export function Select(p: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...p} className={cx(field, p.className)} />
+  return <select {...p} className={field(p.className)} />
 }
 
 const to12 = (h24: number) => (h24 % 12 === 0 ? 12 : h24 % 12)

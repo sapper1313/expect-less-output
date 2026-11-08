@@ -2,7 +2,7 @@
 
 This guide is for you, the owner. Every step is meant to be followed exactly, one at a time.
 
-**Where everything is (version 0.20.0).** The left menu is one list, in this order: Search, **Home**, **Manual Schedule**, **Inbox**, **Queue**, **Analytics**, **Setup Channels**, **Settings**, **Financial**, **AI Settings**, **AI Studio**, and **About** (with the Activity Log at the bottom of About).
+**Where everything is (version 0.20.0).** The whole app except the left menu uses one glass look, and you pick its colors in **Settings, App, Color theme** (Midnight, Ocean, Aurora, Sunset, Graphite or Daylight). The left menu is one list, in this order: Search, **Home**, **Manual Schedule**, **Inbox**, **Queue**, **Analytics**, **Setup Channels**, **Settings**, **Financial**, **AI Settings**, **AI Studio**, and **About** (with the Activity Log at the bottom of About).
 
 - **Home**: every number in one place. The top strip shows Being written, Ready for video, Video in progress, Open slots, Scheduled, Posted this week and Needs a look. Click a tile to jump to where you fix it. Below it are the last 7 days, the best videos, a card for each channel, and the week map.
 - **Manual Schedule**: New Post and Bulk Upload. A post goes to the next open slot for its channel. Tick **Pick my own date and time** to choose your own. ELO warns if it breaks a rule, and you can still go ahead.

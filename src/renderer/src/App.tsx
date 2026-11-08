@@ -141,22 +141,11 @@ function Shell() {
     channels: home?.badges.channels,
   }
 
+  // The left menu keeps its dark palette. The main area takes its look from the color theme.
   useEffect(() => {
-    const root = document.documentElement
-    const apply = () => {
-      const t = settings?.theme ?? 'dark'
-      root.dataset.theme =
-        t === 'system'
-          ? window.matchMedia('(prefers-color-scheme: light)').matches
-            ? 'light'
-            : 'dark'
-          : t
-    }
-    apply()
-    const mq = window.matchMedia('(prefers-color-scheme: light)')
-    mq.addEventListener('change', apply)
-    return () => mq.removeEventListener('change', apply)
-  }, [settings?.theme])
+    document.documentElement.dataset.theme = 'dark'
+  }, [])
+  const look = settings?.colorTheme ?? 'midnight'
 
   // Keyboard shortcuts: Command+N new post, Shift+Command+N bulk upload, Command+2 queue.
   useEffect(() => {
@@ -272,7 +261,8 @@ function Shell() {
           </button>
         </div>
       </aside>
-      <main className="min-w-0 flex-1">
+      <div className="glass-app contents" data-look={look}>
+      <main className="glass-bg min-w-0 flex-1">
         {report && (
           <div className="mx-8 mt-3 flex items-center justify-between gap-4 rounded-md border border-warn p-3 text-[13px]">
             <div>
@@ -328,6 +318,7 @@ function Shell() {
       {searching && <SearchPalette onPick={pick} onClose={() => setSearching(false)} />}
       {peekEpisode && <EpisodePeek id={peekEpisode} onClose={() => setPeekEpisode(null)} />}
       <Toasts />
+      </div>
     </div>
   )
 }

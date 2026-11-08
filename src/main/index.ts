@@ -1035,7 +1035,7 @@ async function boot(): Promise<void> {
           log.log('warn', `Could not change the launch at login setting: ${(err as Error).message}`)
         }
       }
-      if (prev.theme !== next.theme) nativeTheme.themeSource = next.theme
+      if (prev.colorTheme !== next.colorTheme) nativeTheme.themeSource = next.colorTheme === 'daylight' ? 'light' : 'dark'
       if (
         prev.agentApiEnabled !== next.agentApiEnabled ||
         prev.agentApiPort !== next.agentApiPort ||
@@ -1236,7 +1236,7 @@ async function boot(): Promise<void> {
 
   // The bounce page on the website sends the TikTok login back through expectless://
   if (app.isPackaged) app.setAsDefaultProtocolClient('expectless')
-  nativeTheme.themeSource = settings.get().theme
+  nativeTheme.themeSource = settings.get().colorTheme === 'daylight' ? 'light' : 'dark'
   if (settings.get().launchAtLogin) app.setLoginItemSettings({ openAtLogin: true })
 
   trayApi = createTray({

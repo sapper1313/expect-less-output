@@ -278,3 +278,314 @@ h2,
 @font-face{font-family:'JetBrains Mono';font-weight:400;font-display:swap;src:url(./assets/dashboard-fonts/jetbrains-mono-latin-400-normal.woff2) format('woff2')}
 @font-face{font-family:'JetBrains Mono';font-weight:500;font-display:swap;src:url(./assets/dashboard-fonts/jetbrains-mono-latin-500-normal.woff2) format('woff2')}
 @font-face{font-family:'JetBrains Mono';font-weight:700;font-display:swap;src:url(./assets/dashboard-fonts/jetbrains-mono-latin-700-normal.woff2) format('woff2')}
+
+/* ------------------------------------------------------------------------------------------------------------------
+   Color themes. The main area (everything except the left menu) uses the Home glass look. Each theme only changes
+   these variables, so every screen follows. The dashboard pages inside shadow roots read the same variables.
+   ------------------------------------------------------------------------------------------------------------------ */
+.glass-app,
+.swatch {
+  /* Midnight: the Home look */
+  --g-bg: #060818;
+  --g-glow1: rgba(138, 92, 255, 0.35);
+  --g-glow2: rgba(255, 61, 242, 0.22);
+  --g-glow3: rgba(34, 229, 255, 0.22);
+  --g-text: #e9edff;
+  --g-label: #9ca7da;
+  --g-soft: #b9c2ee;
+  --g-c1: #22e5ff;
+  --g-c1-rgb: 34, 229, 255;
+  --g-c2: #8a5cff;
+  --g-c2-rgb: 138, 92, 255;
+  --g-hot: #ff3df2;
+  --g-hot-rgb: 255, 61, 242;
+  --g-ok: #2dffa8;
+  --g-ok-rgb: 45, 255, 168;
+  --g-warn: #ffb020;
+  --g-warn-rgb: 255, 176, 32;
+  --g-bad: #ff5d6c;
+  --g-bad-rgb: 255, 93, 108;
+  --g-ov: 255, 255, 255;
+  --g-edge: 160, 190, 255;
+  --g-card-top: rgba(255, 255, 255, 0.09);
+  --g-card-bot: rgba(255, 255, 255, 0.03);
+  --g-shadow: 0 10px 40px rgba(0, 0, 20, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  --g-t-c1: #9af0ff;
+  --g-t-c2: #c9b3ff;
+  --g-t-hot: #ffb3f8;
+  --g-t-ok: #9dffd6;
+  --g-t-warn: #ffd68a;
+  --g-t-bad: #ffc2c8;
+  --g-ink: #06121a;
+  --g-opt: #0d1130;
+  color-scheme: dark;
+}
+.glass-app[data-look='ocean'],
+.swatch[data-look='ocean'] {
+  --g-bg: #04111f;
+  --g-glow1: rgba(56, 130, 246, 0.35);
+  --g-glow2: rgba(14, 165, 233, 0.25);
+  --g-glow3: rgba(45, 212, 191, 0.2);
+  --g-text: #e6f3ff;
+  --g-label: #8fb0cf;
+  --g-soft: #b5cfe6;
+  --g-c1: #38bdf8;
+  --g-c1-rgb: 56, 189, 248;
+  --g-c2: #6366f1;
+  --g-c2-rgb: 99, 102, 241;
+  --g-hot: #f472b6;
+  --g-hot-rgb: 244, 114, 182;
+  --g-ok: #34d399;
+  --g-ok-rgb: 52, 211, 153;
+  --g-warn: #fbbf24;
+  --g-warn-rgb: 251, 191, 36;
+  --g-bad: #fb7185;
+  --g-bad-rgb: 251, 113, 133;
+  --g-edge: 140, 190, 240;
+  --g-t-c1: #bae6fd;
+  --g-t-c2: #c7d2fe;
+  --g-t-hot: #fbcfe8;
+  --g-t-ok: #a7f3d0;
+  --g-t-warn: #fde68a;
+  --g-t-bad: #fecdd3;
+  --g-ink: #03121c;
+  --g-opt: #07182b;
+}
+.glass-app[data-look='aurora'],
+.swatch[data-look='aurora'] {
+  --g-bg: #03130f;
+  --g-glow1: rgba(16, 185, 129, 0.3);
+  --g-glow2: rgba(45, 212, 191, 0.22);
+  --g-glow3: rgba(132, 204, 22, 0.16);
+  --g-text: #e6fff5;
+  --g-label: #8fbfae;
+  --g-soft: #b7e3d2;
+  --g-c1: #2dd4bf;
+  --g-c1-rgb: 45, 212, 191;
+  --g-c2: #a3e635;
+  --g-c2-rgb: 163, 230, 53;
+  --g-hot: #f0abfc;
+  --g-hot-rgb: 240, 171, 252;
+  --g-ok: #4ade80;
+  --g-ok-rgb: 74, 222, 128;
+  --g-warn: #facc15;
+  --g-warn-rgb: 250, 204, 21;
+  --g-bad: #fb7185;
+  --g-bad-rgb: 251, 113, 133;
+  --g-edge: 130, 220, 190;
+  --g-t-c1: #99f6e4;
+  --g-t-c2: #d9f99d;
+  --g-t-hot: #f5d0fe;
+  --g-t-ok: #bbf7d0;
+  --g-t-warn: #fef08a;
+  --g-t-bad: #fecdd3;
+  --g-ink: #031a14;
+  --g-opt: #06201a;
+}
+.glass-app[data-look='sunset'],
+.swatch[data-look='sunset'] {
+  --g-bg: #14070f;
+  --g-glow1: rgba(244, 63, 94, 0.3);
+  --g-glow2: rgba(251, 146, 60, 0.22);
+  --g-glow3: rgba(168, 85, 247, 0.22);
+  --g-text: #fff1ea;
+  --g-label: #d4a39a;
+  --g-soft: #ecc3b8;
+  --g-c1: #fb923c;
+  --g-c1-rgb: 251, 146, 60;
+  --g-c2: #e879f9;
+  --g-c2-rgb: 232, 121, 249;
+  --g-hot: #f43f5e;
+  --g-hot-rgb: 244, 63, 94;
+  --g-ok: #4ade80;
+  --g-ok-rgb: 74, 222, 128;
+  --g-warn: #fde047;
+  --g-warn-rgb: 253, 224, 71;
+  --g-bad: #fb7185;
+  --g-bad-rgb: 251, 113, 133;
+  --g-edge: 255, 170, 150;
+  --g-t-c1: #fed7aa;
+  --g-t-c2: #f5d0fe;
+  --g-t-hot: #fecdd3;
+  --g-t-ok: #bbf7d0;
+  --g-t-warn: #fef08a;
+  --g-t-bad: #fecdd3;
+  --g-ink: #1c0b06;
+  --g-opt: #240c18;
+}
+.glass-app[data-look='graphite'],
+.swatch[data-look='graphite'] {
+  --g-bg: #0b0c0f;
+  --g-glow1: rgba(148, 163, 184, 0.18);
+  --g-glow2: rgba(100, 116, 139, 0.18);
+  --g-glow3: rgba(203, 213, 225, 0.1);
+  --g-text: #f1f5f9;
+  --g-label: #94a3b8;
+  --g-soft: #cbd5e1;
+  --g-c1: #e2e8f0;
+  --g-c1-rgb: 226, 232, 240;
+  --g-c2: #94a3b8;
+  --g-c2-rgb: 148, 163, 184;
+  --g-hot: #fda4af;
+  --g-hot-rgb: 253, 164, 175;
+  --g-ok: #86efac;
+  --g-ok-rgb: 134, 239, 172;
+  --g-warn: #fcd34d;
+  --g-warn-rgb: 252, 211, 77;
+  --g-bad: #fca5a5;
+  --g-bad-rgb: 252, 165, 165;
+  --g-edge: 180, 190, 205;
+  --g-t-c1: #f1f5f9;
+  --g-t-c2: #cbd5e1;
+  --g-t-hot: #fecdd3;
+  --g-t-ok: #bbf7d0;
+  --g-t-warn: #fde68a;
+  --g-t-bad: #fecaca;
+  --g-ink: #0b0c0f;
+  --g-opt: #14161b;
+}
+.glass-app[data-look='daylight'],
+.swatch[data-look='daylight'] {
+  --g-bg: #e8f1ff;
+  --g-glow1: rgba(99, 153, 255, 0.35);
+  --g-glow2: rgba(167, 139, 250, 0.22);
+  --g-glow3: rgba(56, 189, 248, 0.28);
+  --g-text: #0f1f3d;
+  --g-label: #5a6f94;
+  --g-soft: #3b4f73;
+  --g-c1: #2563eb;
+  --g-c1-rgb: 37, 99, 235;
+  --g-c2: #7c3aed;
+  --g-c2-rgb: 124, 58, 237;
+  --g-hot: #db2777;
+  --g-hot-rgb: 219, 39, 119;
+  --g-ok: #059669;
+  --g-ok-rgb: 5, 150, 105;
+  --g-warn: #b45309;
+  --g-warn-rgb: 180, 83, 9;
+  --g-bad: #dc2626;
+  --g-bad-rgb: 220, 38, 38;
+  --g-ov: 30, 64, 140;
+  --g-edge: 80, 110, 180;
+  --g-card-top: rgba(255, 255, 255, 0.85);
+  --g-card-bot: rgba(255, 255, 255, 0.55);
+  --g-shadow: 0 10px 30px rgba(40, 70, 140, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --g-t-c1: #1d4ed8;
+  --g-t-c2: #6d28d9;
+  --g-t-hot: #be185d;
+  --g-t-ok: #047857;
+  --g-t-warn: #92400e;
+  --g-t-bad: #b91c1c;
+  --g-ink: #ffffff;
+  --g-opt: #ffffff;
+  color-scheme: light;
+}
+
+/* The picture on a theme tile in Settings. */
+.swatch {
+  background:
+    radial-gradient(60px 40px at 15% 10%, var(--g-glow1), transparent 70%),
+    radial-gradient(60px 40px at 90% 20%, var(--g-glow2), transparent 70%),
+    radial-gradient(60px 40px at 60% 100%, var(--g-glow3), transparent 70%),
+    var(--g-bg);
+  box-shadow: inset 0 -6px 0 var(--g-c1);
+}
+
+/* The main area: same tokens the screens already use, mapped onto the theme. */
+.glass-app {
+  --bg: var(--g-bg);
+  --surface: color-mix(in srgb, var(--g-bg) 86%, rgb(var(--g-ov)));
+  --surface2: color-mix(in srgb, var(--g-bg) 76%, rgb(var(--g-ov)));
+  --line: rgba(var(--g-edge), 0.3);
+  --ink: var(--g-text);
+  --muted: var(--g-label);
+  --accent: var(--g-c1);
+  --hot: var(--g-hot);
+  --fine: var(--g-label);
+  --ok: var(--g-ok);
+  --bad: var(--g-bad);
+  --warn: var(--g-warn);
+  font-family: 'Sora', system-ui, sans-serif;
+  color: var(--g-text);
+}
+.glass-bg {
+  background:
+    radial-gradient(900px 600px at 8% 0%, var(--g-glow1), transparent 60%),
+    radial-gradient(800px 600px at 95% 12%, var(--g-glow2), transparent 60%),
+    radial-gradient(900px 700px at 60% 100%, var(--g-glow3), transparent 60%),
+    var(--g-bg);
+  background-attachment: fixed;
+  min-height: 100%;
+}
+.glass-app h1,
+.glass-app h2,
+.glass-app .display {
+  font-family: 'Sora', system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.glass-app h1 {
+  font-size: clamp(26px, 3.2vw, 36px);
+}
+/* Cards and panels are frosted glass. */
+.glass-app .bg-surface.border,
+.glass-app .bg-surface.rounded-lg {
+  background: linear-gradient(145deg, var(--g-card-top), var(--g-card-bot));
+  border-color: rgba(var(--g-edge), 0.22);
+  border-radius: 18px;
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: var(--g-shadow);
+}
+.glass-app .overflow-hidden.rounded-lg.border {
+  border-radius: 18px;
+  background: linear-gradient(145deg, var(--g-card-top), var(--g-card-bot));
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+.glass-app [role='dialog'] {
+  background: color-mix(in srgb, var(--g-bg) 92%, rgb(var(--g-ov)));
+  border-color: rgba(var(--g-edge), 0.3);
+  border-radius: 22px;
+  box-shadow: 0 24px 70px rgba(0, 0, 20, 0.55);
+}
+.glass-app .bg-accent {
+  color: var(--g-ink) !important;
+}
+.glass-app thead {
+  background: rgba(var(--g-ov), 0.06) !important;
+}
+.glass-app input:not([type='checkbox']):not([type='radio']):not([type='range']),
+.glass-app select,
+.glass-app textarea {
+  background: rgba(var(--g-ov), 0.07);
+  border: 1px solid rgba(var(--g-edge), 0.28);
+  border-radius: 12px;
+  color: var(--g-text);
+}
+.glass-app input::placeholder,
+.glass-app textarea::placeholder {
+  color: var(--g-label);
+}
+.glass-app select option {
+  background: var(--g-opt);
+  color: var(--g-text);
+}
+.glass-app input:focus-visible,
+.glass-app select:focus-visible,
+.glass-app textarea:focus-visible,
+.glass-app button:focus-visible {
+  outline: 2px solid var(--g-c1);
+  outline-offset: 2px;
+}
+.glass-app ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.glass-app ::-webkit-scrollbar-thumb {
+  background: rgba(var(--g-edge), 0.35);
+  border-radius: 999px;
+}
+.glass-app ::-webkit-scrollbar-track {
+  background: transparent;
+}

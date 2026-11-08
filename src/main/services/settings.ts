@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS: Settings = {
   launchAtLogin: false,
   schedulerPaused: false,
   theme: 'dark',
+  colorTheme: 'midnight',
   dryRunFailPlatform: null,
   dryRunFailKind: 'transient',
   fastBackoff: false,

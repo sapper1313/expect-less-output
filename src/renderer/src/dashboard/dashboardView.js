@@ -257,7 +257,7 @@ function renderCards(s) {
     head.appendChild(active ? e('div', 'pct', c.percent + '%') : e('div', 'state-label', c.state));
     card.appendChild(head);
     const track = e('div', 'track');
-    track.appendChild(e('div', 'fillbar', null, { width: (active ? c.percent : 0) + '%', background: `linear-gradient(90deg, ${c.color}, #ff3df2)` }));
+    track.appendChild(e('div', 'fillbar', null, { width: (active ? c.percent : 0) + '%', background: `linear-gradient(90deg, ${c.color}, var(--open))` }));
     card.appendChild(track);
     const facts = e('div', 'facts');
     for (const [v, k] of [
@@ -285,9 +285,9 @@ function renderVideos(s) {
   const rankColor = ['#ffcf7a', '#d7defa', '#ffa56b'];
   for (const v of s.topVideos.slice(0, 3)) {
     const row = e('div', 'video-row');
-    row.appendChild(e('div', 'rank', String(v.rank), { color: rankColor[v.rank - 1] || '#9ca7da' }));
-    const base = colors.get(v.channel) || '#22e5ff';
-    row.appendChild(e('div', 'thumb', null, { background: `linear-gradient(135deg, ${base}, #8a5cff)` }));
+    row.appendChild(e('div', 'rank', String(v.rank), { color: rankColor[v.rank - 1] || 'var(--label)' }));
+    const base = colors.get(v.channel) || 'var(--cyan)';
+    row.appendChild(e('div', 'thumb', null, { background: `linear-gradient(135deg, ${base}, var(--violet))` }));
     const info = e('div', 'info');
     info.appendChild(e('div', 't', v.title));
     info.appendChild(e('div', 'c', v.channel));

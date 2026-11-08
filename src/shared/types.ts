@@ -5,6 +5,16 @@ export type { Platform, ValidationWarning, VideoMeta }
 export type SchedulingMode = 'slots' | 'manual' | 'both'
 export type MissedBehavior = 'post_if_recent' | 'hold'
 export type ThemeChoice = 'dark' | 'light' | 'system'
+/** The look of the main area. All of them are the same glass design in different colors. */
+export type ColorTheme = 'midnight' | 'ocean' | 'aurora' | 'sunset' | 'graphite' | 'daylight'
+export const COLOR_THEMES: ReadonlyArray<{ id: ColorTheme; name: string; note: string }> = [
+  { id: 'midnight', name: 'Midnight', note: 'Deep navy with cyan, violet and magenta. The Home look.' },
+  { id: 'ocean', name: 'Ocean', note: 'Deep blue with sky blue.' },
+  { id: 'aurora', name: 'Aurora', note: 'Dark green with mint and lime.' },
+  { id: 'sunset', name: 'Sunset', note: 'Dark plum with orange and pink.' },
+  { id: 'graphite', name: 'Graphite', note: 'Neutral charcoal with silver.' },
+  { id: 'daylight', name: 'Daylight', note: 'Light frosted blue and white.' },
+]
 
 export interface Settings {
   mediaRoot: string
@@ -15,7 +25,9 @@ export interface Settings {
   missedGraceMinutes: number
   launchAtLogin: boolean
   schedulerPaused: boolean
+  /** Old light and dark setting. No longer used; the color theme replaced it. */
   theme: ThemeChoice
+  colorTheme: ColorTheme
   dryRunFailPlatform: Platform | null
   dryRunFailKind: 'transient' | 'permanent'
   fastBackoff: boolean

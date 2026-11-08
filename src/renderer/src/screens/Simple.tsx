@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { PLATFORMS, PLATFORM_LABELS } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
 import { formatEastern } from '@shared/time'
-import type { LogFilter, Settings } from '@shared/types'
+import { COLOR_THEMES, type LogFilter, type Settings } from '@shared/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { Button, Card, Check, Empty, Field, Input, PageHeader, Select } from '../ui'
@@ -329,16 +329,23 @@ export function SettingsScreen({ initialTab = 'general' }: { initialTab?: Settin
                   Closing the window keeps the scheduler running from the menu bar. Use Quit in the
                   menu bar menu to stop it.
                 </div>
-                <Field label="Theme (light, dark or match the Mac)">
-                  <Select
-                    className="w-56"
-                    value={s.theme}
-                    onChange={(e) => save({ theme: e.target.value as Settings['theme'] })}
-                  >
-                    <option value="dark">Dark</option>
-                    <option value="light">Light</option>
-                    <option value="system">Match macOS</option>
-                  </Select>
+                <Field label="Color theme" hint="The same glass look in different colors. It changes everything except the left menu.">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Color theme">
+                    {COLOR_THEMES.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={s.colorTheme === t.id}
+                        title={t.note}
+                        onClick={() => save({ colorTheme: t.id })}
+                        className={`rounded-lg border p-2 text-left ${s.colorTheme === t.id ? 'border-accent' : 'border-line hover:bg-surface2'}`}
+                      >
+                        <span className="swatch block h-10 rounded-md" data-look={t.id} />
+                        <span className="mt-1 block text-[12px] font-semibold">{t.name}</span>
+                      </button>
+                    ))}
+                  </div>
                 </Field>
               </div>
             </Card>

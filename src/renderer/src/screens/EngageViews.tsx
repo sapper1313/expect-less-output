@@ -8,8 +8,8 @@ import { ThemedHost } from '../components/ThemedHost'
 import pageCss from '../dashboard/dashboard.css?inline'
 import postedCss from '../dashboard/posted.css?inline'
 
-// Inside the Inbox the Home look sits in its own rounded panel.
-const CSS = pageCss + postedCss + ':host{border-radius:22px;padding:20px;min-height:360px}'
+// Inside a screen the page has no background of its own, so it sits flush with the app.
+const CSS = pageCss + postedCss + ':host{background:transparent!important;min-height:0}'
 const label = (p: string) => PLATFORM_LABELS[p as Platform] ?? p
 const plain = (e: unknown) =>
   String((e as Error)?.message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
