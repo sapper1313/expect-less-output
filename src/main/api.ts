@@ -21,6 +21,7 @@ import type { SecretStore } from './services/secrets'
 import type { UploadPostService } from './services/uploadPost'
 import type { FirstCommentService } from './services/firstComments'
 import type { EngageService } from './services/engage'
+import type { AccountStatsService } from './services/accountStats'
 import type { SettingsService } from './services/settings'
 import { channelOverrides, setBrandOverrides } from './services/channelSettings'
 import type { Scheduler } from './scheduler/scheduler'
@@ -80,6 +81,7 @@ export interface ApiDeps {
   uploadPost: UploadPostService
   firstComments: FirstCommentService
   engage: EngageService
+  accountStats: AccountStatsService
   library: Library
   youtube: YoutubeService
   meta: MetaService
@@ -182,6 +184,12 @@ export function buildApi(d: ApiDeps): Api {
         return d.uploadPost.state()
       },
       test: async () => d.uploadPost.test(),
+      accountStats: async () => d.accountStats.view(),
+      refreshAccountStats: async () => {
+        const r = await d.accountStats.sync({ force: true })
+        d.emit()
+        return r
+      },
       commentNow: async (postId, text) => {
         await d.firstComments.commentNow(postId, text)
         return d.posts.get(postId) as import('@shared/types').Post

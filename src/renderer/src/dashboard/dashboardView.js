@@ -135,6 +135,43 @@ function renderStrip(t, s) {
   }
 }
 
+// Each channel's platforms added together, as Upload-Post reports them. Followers, views, likes, shares, watch time, impressions.
+function renderAccounts(s) {
+  const card = $('acct-card');
+  const a = s.accounts;
+  if (!a || !a.channels || a.channels.length === 0) { card.hidden = true; return; }
+  card.hidden = false;
+  const cols = [['followers', 'Followers'], ['views', 'Views'], ['likes', 'Likes'], ['shares', 'Shares'], ['watchHours', 'Watch hours'], ['impressions', 'Impressions']];
+  const val = (v, k) => v === null || v === undefined ? '-' : (k === 'watchHours' ? String(Math.round(v * 10) / 10) : fmtNum(v));
+  const tot = clear($('acct-total'));
+  tot.className = 'totals5 acct-total';
+  for (const [k, label] of cols) {
+    const d = e('div');
+    d.appendChild(e('div', 'big', val(a.total[k], k)));
+    d.appendChild(e('div', 'cap', 'All channels: ' + label.toLowerCase()));
+    tot.appendChild(d);
+  }
+  const grid = clear($('acct-grid'));
+  for (const c of a.channels) {
+    const row = e('div', 'acct-row');
+    const who = e('div', 'acct-who');
+    const dot = e('span', 'dot');
+    dot.style.background = c.color;
+    who.appendChild(dot);
+    who.appendChild(e('span', 'nm', c.name));
+    who.appendChild(e('span', 'fr', c.platforms.length + ' platform' + (c.platforms.length === 1 ? '' : 's')));
+    row.appendChild(who);
+    for (const [k, label] of cols) {
+      const cell = e('div', 'acct-cell');
+      cell.appendChild(e('div', 'v', val(c[k], k)));
+      cell.appendChild(e('div', 'k', label));
+      row.appendChild(cell);
+    }
+    grid.appendChild(row);
+  }
+  $('acct-note').textContent = 'Numbers are what each platform reports through Upload-Post, added together. Some platforms report all time, others the last 28 or 30 days. Details by platform are on Analytics. ' + (a.updatedAt ? 'Read ' + new Date(a.updatedAt).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' ET.' : '');
+}
+
 let weekOffset = 0;
 let weekData = null;
 function renderBest2(s) {
@@ -273,6 +310,7 @@ function renderSnapshot(s) {
   renderStrip(tiles, s);
   renderTotals(s);
   renderBest2(s);
+  renderAccounts(s);
   if (weekOffset > 0 && loadWeek) {
     loadWeek(weekOffset).then((w) => { weekData = w; showWeek(s); }).catch(() => showWeek(s));
   } else showWeek(s);

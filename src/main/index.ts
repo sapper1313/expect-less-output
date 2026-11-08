@@ -81,6 +81,7 @@ import { UploadPostClient } from './uploadpost/client'
 import { UploadPostService } from './services/uploadPost'
 import { FirstCommentService } from './services/firstComments'
 import { EngageService } from './services/engage'
+import { AccountStatsService } from './services/accountStats'
 import { tiktokUrls } from './tiktok/config'
 import { TikTokClient } from './tiktok/client'
 import { TikTokService } from './tiktok/service'
@@ -518,6 +519,9 @@ async function boot(): Promise<void> {
       return (await llmProvider(settings.get(), studio)).suggestReply(ctx)
     },
   })
+  const accountStats = new AccountStatsService({ db, uploadPost, client: new UploadPostClient(), log, emit })
+  setTimeout(() => void accountStats.sync().catch(() => {}), 90_000)
+  setInterval(() => void accountStats.sync().catch(() => {}), 60 * 60_000)
   setTimeout(() => void engage.sync().catch(() => {}), 60_000)
   setInterval(() => void engage.sync().catch(() => {}), 5 * 60_000)
   const adapterFor = (
@@ -929,6 +933,7 @@ async function boot(): Promise<void> {
     settings,
     refreshWatchTime: () => studio.refreshRecentWatchTime(),
     studioOn: () => !studio.isOff(),
+    accountTotals: () => accountStats.homeTotals(),
   })
   const inbox = new InboxWatcher({
     s: {
@@ -1137,6 +1142,7 @@ async function boot(): Promise<void> {
     uploadPost,
     firstComments,
     engage,
+    accountStats,
     growth,
     storage,
     website,

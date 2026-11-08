@@ -71,7 +71,11 @@ export interface WeekMap {
   channels: SnapshotChannel[]
 }
 
+import type { HomeAccountTotals } from './engage'
+
 export interface Snapshot {
+  /** Each channel's platforms added together (followers, views, likes, shares, watch time, impressions). Null until read. */
+  accounts?: HomeAccountTotals | null
   generatedAt: string
   status: {
     elo: 'ok' | 'stale' | 'unauthorized'

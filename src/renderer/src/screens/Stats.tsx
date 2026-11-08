@@ -8,6 +8,7 @@ import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { fmt } from '../components/StatsPanel'
 import { useSort } from '../components/useSort'
+import { AccountStats } from './AccountStats'
 import { BestTimes } from '../components/BestTimes'
 import { StudioInsights } from './StudioOperations'
 import { Button, Card, Empty, PageHeader, Select, useBusy } from '../ui'
@@ -233,13 +234,14 @@ function StatsNumbers() {
   )
 }
 
-export type AnalyticsTab = 'numbers' | 'working'
+export type AnalyticsTab = 'numbers' | 'accounts' | 'working'
 
 /** Results: the numbers for every video, and what is working (the Studio's insights). */
 export function Stats({ initialTab = 'numbers' }: { initialTab?: AnalyticsTab }) {
   const [tab, setTab] = useState<AnalyticsTab>(initialTab)
   const tabs: Array<[AnalyticsTab, string]> = [
     ['numbers', 'Numbers'],
+    ['accounts', 'By channel and platform'],
     ['working', "What's working"],
   ]
   return (
@@ -259,6 +261,10 @@ export function Stats({ initialTab = 'numbers' }: { initialTab?: AnalyticsTab })
       <div className="min-h-0 flex-1">
         {tab === 'numbers' ? (
           <StatsNumbers />
+        ) : tab === 'accounts' ? (
+          <div className="h-full overflow-auto px-8 pb-10 pt-4">
+            <AccountStats />
+          </div>
         ) : (
           <div className="h-full overflow-auto px-8 pb-10 pt-4">
             <StudioInsights />

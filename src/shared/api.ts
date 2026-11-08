@@ -57,7 +57,7 @@ import type { HomeSummary } from './home'
 import type { DashboardSnapshot } from './dashboard'
 import type { SendSchedule } from './sendSchedule'
 import type { UploadPostState, UploadPostTest } from './uploadPost'
-import type { CommentFilter, CommentSyncResult, DmChannel, InboxComment } from './engage'
+import type { AccountStatsView, AccountSyncResult, CommentFilter, CommentSyncResult, DmChannel, InboxComment } from './engage'
 import type { SearchHit } from './search'
 import type { EditPatch } from './platformEdit'
 import type { StudioApi } from './studio/api'
@@ -107,6 +107,10 @@ export interface Api {
     retryFirstComment(targetId: number): Promise<void>
     /** Adds a first comment to a post that is already live and sends it now. */
     commentNow(postId: number, text: string): Promise<Post>
+    /** Account numbers for every ticked channel and platform, and the TikTok audience. */
+    accountStats(): Promise<AccountStatsView>
+    /** Reads the numbers from Upload-Post now. */
+    refreshAccountStats(): Promise<AccountSyncResult>
   }
   secrets: {
     status(keys: string[]): Promise<SecretStatus[]>

@@ -179,3 +179,17 @@ p{margin:6px 0 0}
 .weeknav .btn{cursor:pointer;min-width:34px;text-align:center}
 .weeknav .btn[disabled]{opacity:.35;cursor:default}
 .week-range{font-size:12px;color:var(--label);min-width:150px;text-align:center}
+
+/* Channel totals from Upload-Post */
+.acct-card{margin-bottom:18px}
+.acct-total{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(160,190,255,.16)}
+.acct-grid{display:flex;flex-direction:column;gap:10px}
+.acct-row{display:grid;grid-template-columns:minmax(150px,1.3fr) repeat(6,minmax(70px,1fr));gap:10px;align-items:center;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}
+.acct-who{display:flex;flex-direction:column;gap:2px;min-width:0}
+.acct-who .dot{display:none}
+.acct-who .nm{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acct-who .fr{font-family:var(--mono);font-size:11px;color:var(--label)}
+.acct-cell .v{font-family:var(--mono);font-size:17px;font-weight:700}
+.acct-cell .k{font-size:11px;color:var(--label)}
+.acct-note{margin-top:12px}
+@media (max-width:900px){.acct-row{grid-template-columns:repeat(3,1fr)}.acct-who{grid-column:1/-1}}

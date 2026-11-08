@@ -62,6 +62,8 @@ export class DashboardService {
     refreshWatchTime?: () => Promise<unknown>
     /** False while the AI Studio is off. Clip slots are then left off the week map. */
     studioOn?: () => boolean
+    /** Each channel's platform numbers added together, read through Upload-Post. */
+    accountTotals?: () => import('@shared/engage').HomeAccountTotals | null
     now?: () => Date
   }) {
     const now = deps.now ?? (() => new Date())
@@ -113,7 +115,13 @@ export class DashboardService {
       const top = this.bestVideos(1, h * 3_600_000)?.[0]
       return top ? { title: top.title, channel: top.channel, views: top.views } : null
     }
-    s = { ...s, topVideos: this.bestVideos() ?? s.topVideos, best24h: one(24), best48h: one(48) }
+    s = {
+      ...s,
+      topVideos: this.bestVideos() ?? s.topVideos,
+      best24h: one(24),
+      best48h: one(48),
+      accounts: this.deps.accountTotals?.() ?? null,
+    }
     if (!s.stats) return s
     let hours: number | null = null
     try {

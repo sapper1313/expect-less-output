@@ -125,6 +125,19 @@ export class UploadPostClient {
     return { id: r?.id ?? null, warnings: Array.isArray(r?.warnings) ? r.warnings : [] }
   }
 
+  /** Account numbers for one profile on several platforms. The answer is keyed by platform name. */
+  async analytics(key: string, user: string, platforms: string[], extra: { pageId?: string } = {}): Promise<Record<string, any>> {
+    const q = new URLSearchParams({ platforms: platforms.join(',') })
+    if (extra.pageId) q.set('page_id', extra.pageId)
+    const r = await this.call(key, `/analytics/${encodeURIComponent(user)}?${q.toString()}`)
+    return r && typeof r === 'object' ? r : {}
+  }
+
+  /** Who follows a TikTok account and when they are online. */
+  async audience(key: string, user: string, platform: string): Promise<any> {
+    return this.call(key, `/uploadposts/audience?platform=${encodeURIComponent(platform)}&user=${encodeURIComponent(user)}`)
+  }
+
   /** Top-level comments on one post, newest first. Only the first page is read. */
   async listComments(
     key: string,
