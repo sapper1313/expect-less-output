@@ -589,3 +589,34 @@ h2,
 .glass-app ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* Bars that stay at the top while you scroll (the Settings tabs): frosted glass like the cards, not a flat block. */
+.glass-app .sticky.bg-bg {
+  background: linear-gradient(145deg, var(--g-card-top), var(--g-card-bot)), color-mix(in srgb, var(--g-bg) 70%, transparent);
+  border: 1px solid rgba(var(--g-edge), 0.22);
+  border-radius: 16px;
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: var(--g-shadow);
+  margin-bottom: 8px;
+}
+
+/* Every row of tabs is a glass pill, so no tab row is a flat block. */
+.glass-app div:has(> button.rounded-md.px-3.font-semibold) {
+  width: fit-content;
+  max-width: 100%;
+  padding: 5px !important;
+  background: linear-gradient(145deg, var(--g-card-top), var(--g-card-bot));
+  border: 1px solid rgba(var(--g-edge), 0.22);
+  border-radius: 16px;
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: var(--g-shadow);
+}
+/* Rows that carried their own side padding keep their place on the page. */
+.glass-app div.px-8:has(> button.rounded-md.px-3.font-semibold) {
+  margin: 24px 0 0 32px;
+}
+.glass-app div:has(> button.rounded-md.px-3.font-semibold) > button.rounded-md {
+  border-radius: 12px;
+}

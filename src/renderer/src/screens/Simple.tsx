@@ -255,7 +255,7 @@ export function SettingsScreen({ initialTab = 'general' }: { initialTab?: Settin
           Only things that are the same for the whole app live here. Anything that belongs to one
           channel is on Setup Channels. AI is under AI Settings. Money is under Financial.
         </p>
-        <div className="sticky top-0 z-10 flex flex-wrap gap-1 bg-bg py-2">
+        <div className="sticky top-0 z-10 flex flex-wrap gap-1 bg-bg px-2 py-1.5">
           {SECTIONS.map(([id, label]) => (
             <button
               key={id}
