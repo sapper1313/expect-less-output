@@ -2,7 +2,7 @@
 
 This guide is for you, the owner. Every step is meant to be followed exactly, one at a time.
 
-**Where everything is (version 0.18.0).** The left menu is one list, in this order: Search, **Home**, **Manual Schedule**, **Inbox**, **Queue**, **Analytics**, **Setup Channels**, **Settings**, **Financial**, **AI Settings**, **AI Studio**, and **About** (with the Activity Log at the bottom of About).
+**Where everything is (version 0.19.0).** The left menu is one list, in this order: Search, **Home**, **Manual Schedule**, **Inbox**, **Queue**, **Analytics**, **Setup Channels**, **Settings**, **Financial**, **AI Settings**, **AI Studio**, and **About** (with the Activity Log at the bottom of About).
 
 - **Home**: every number in one place. The top strip shows Being written, Ready for video, Video in progress, Open slots, Scheduled, Posted this week and Needs a look. Click a tile to jump to where you fix it. Below it are the last 7 days, the best videos, a card for each channel, and the week map.
 - **Manual Schedule**: New Post and Bulk Upload. A post goes to the next open slot for its channel. Tick **Pick my own date and time** to choose your own. ELO warns if it breaks a rule, and you can still go ahead.
@@ -11,7 +11,7 @@ This guide is for you, the owner. Every step is meant to be followed exactly, on
 - **Setup Channels**: pick a channel on the left, or add a new one. Tabs: **Channel Setup** (name, color, pause, archive, pipeline rules, posting slots for Shorts and Long form), **Connections** (every login in one place: Facebook, YouTube, Instagram, TikTok, Bluesky, and the platform keys at the bottom), **Other settings by channel**, and **Website**.
 - **Settings**: only things that are the same for every channel. One long page with a list at the top to jump to a part.
 - **Financial**: spend caps, generate settings and the spend table.
-- **AI Settings**: AI models, local AI, the Agent API and the AI keys.
+- **AI Settings**: AI models, local AI, the Agent API, the AI keys and **Upload-Post** (the paid service that posts to TikTok). To set it up: paste the API key, press Test, type each channel's profile name exactly as it is on Upload-Post, tick the platforms you logged in there, and press Save on that channel. TikTok ticked means ELO posts to TikTok through Upload-Post. TikTok not ticked means TikTok drafts like before.
 - **AI Studio**: the studio's Overview, Research, Bible, Library, Flagged, Publishing and Director's Log.
 
 Older sections below use the old names. Translate them like this: **Schedule** is now **Manual Schedule**. **Channels** is now **Setup Channels**. **Calendar**, **Upcoming**, **Dashboard**, **TikTok demo** and **Testing tools** are gone (Home replaces Dashboard and Calendar). **Studio** is now **AI Studio**. Studio keys are in **AI Settings**. Anything about the Studio tab in Settings is now in **AI Settings**, **Financial** or **Settings**. Times are chosen with hour, minute and AM or PM drop-downs, not typed.

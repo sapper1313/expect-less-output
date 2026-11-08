@@ -7,6 +7,7 @@ import { AdapterError, type AdapterContext, type PlatformAdapter } from '../adap
 import { backoffMs, decideMissed, handoffDueMs } from '@shared/scheduling'
 import { effectiveBrandSettings } from '../services/channelSettings'
 import { COPY } from '@shared/copy'
+import { formatEastern } from '@shared/time'
 import { parseVideoId } from '../stats/ids'
 import type { AlertItem } from '../alerts/format'
 import { PLATFORM_LABELS } from '@shared/platformLimits'
@@ -626,6 +627,13 @@ export class Scheduler {
         `${label} attempt ${t.attempts} failed for "${row.title}": ${reason.replace(/\.$/, '')}. Retrying at ${next}.`,
         { postId: row.post_id, platform: row.platform, detail: { kind, attempt: t.attempts } },
       )
+      // TikTok failed twice in a row: say why now, while there is still time to fix it before the next try.
+      if (row.platform === 'tiktok' && t.attempts === 2)
+        this.d.notifier.failure(
+          'TikTok failed twice.',
+          `${row.brand_name}, "${row.title}": ${reason.replace(/\.$/, '')}. The app tries a third time at ${formatEastern(next)}. Fix it before then if you can.`,
+          { kind: 'failure', platform: row.platform, brand: row.brand_name, title: row.title, reason },
+        )
     } else {
       this.failTarget(row, reason, { kind, attempts: t.attempts })
       return

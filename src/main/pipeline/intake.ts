@@ -28,6 +28,7 @@ import type { DropInput, DropLog } from './dropLog'
 import type { AuditEvents } from './auditEvents'
 import { channelState } from './state'
 import { realPlatforms, sha256File, verifyPipelinePost } from './verify'
+import { uploadPostOn } from '../services/uploadPost'
 
 export interface ProbeResult {
   durationSeconds: number
@@ -763,11 +764,14 @@ export class PipelineIntake {
       return { ok: false, message: `Held: ${why}`, held: true }
     }
     // TikTok is always Drafts mode in the pipeline. A channel set to Direct post leaves TikTok out, with a note.
-    const tiktokDirect = !!this.d.db
-      .prepare(
-        "SELECT 1 FROM accounts WHERE brand_id = ? AND platform = 'tiktok' AND mode = 'direct'",
-      )
-      .get(post.brandId)
+    // A channel posting to TikTok through Upload-Post is not left out: it posts to the feed.
+    const tiktokDirect =
+      !uploadPostOn(this.d.db, post.brandId, 'tiktok') &&
+      !!this.d.db
+        .prepare(
+          "SELECT 1 FROM accounts WHERE brand_id = ? AND platform = 'tiktok' AND mode = 'direct'",
+        )
+        .get(post.brandId)
     const real = realPlatforms(this.d.db, post.brandId).filter(
       (p) => !(p === 'tiktok' && tiktokDirect),
     )

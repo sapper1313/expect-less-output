@@ -206,7 +206,10 @@ function connectedPlatforms(
 ): Map<Platform, { needsReauth: boolean; name: string }> {
   const m = new Map<Platform, { needsReauth: boolean; name: string }>()
   for (const a of s.brands.listAccounts(brandId))
-    m.set(a.platform, { needsReauth: a.status === 'needs_reauth', name: a.displayName ?? '' })
+    m.set(a.platform, {
+      needsReauth: a.status === 'needs_reauth' && !s.brands.uploadPostOn(brandId, a.platform),
+      name: a.displayName ?? '',
+    })
   return m
 }
 

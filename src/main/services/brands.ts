@@ -2,6 +2,7 @@ import type { Db } from '../db'
 import { DEFAULT_CAPTION_TEMPLATE, ensureSlugs, initBrandRows } from '../db/seed'
 import { canonicalSlug } from '@shared/pipeline'
 import { slotKinds } from './channelSettings'
+import { uploadPostOn } from './uploadPost'
 import type { Account, Brand, BrandDefaults, BrandSlot, HashtagSet, Platform } from '@shared/types'
 
 const mapBrand = (r: any): Brand => ({
@@ -240,6 +241,11 @@ export class BrandService {
 
   removeHashtags(id: number): void {
     this.db.prepare('DELETE FROM hashtag_sets WHERE id = ?').run(id)
+  }
+
+  /** True when the channel posts to this platform through Upload-Post, so its own login's state does not matter. */
+  uploadPostOn(brandId: number, platform: string): boolean {
+    return uploadPostOn(this.db, brandId, platform)
   }
 
   listAccounts(brandId?: number): Account[] {

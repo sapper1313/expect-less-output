@@ -6,6 +6,7 @@ import { WhoWritesCard } from './PipelineSettings'
 import { StudioAiKeys } from './StudioSettings'
 import { StudioLocalAi } from './StudioLocalAi'
 import { AgentModelsCard, ModelGuideCard } from './StudioModels'
+import { UploadPostCard } from './UploadPostCard'
 import { useSettings } from './settingsKit'
 
 /** Everything AI: models, local AI, who writes, AI keys, mock mode and the Agent API. */
@@ -14,6 +15,7 @@ export function AiSettings() {
   const refs = {
     models: useRef<HTMLElement>(null),
     keys: useRef<HTMLElement>(null),
+    upload: useRef<HTMLElement>(null),
     api: useRef<HTMLElement>(null),
   }
   if (!s) return null
@@ -27,6 +29,7 @@ export function AiSettings() {
             [
               ['models', 'Models and local AI'],
               ['keys', 'Keys and mock mode'],
+              ['upload', 'Upload-Post'],
               ['api', 'Agent API'],
             ] as const
           ).map(([id, label]) => (
@@ -48,6 +51,9 @@ export function AiSettings() {
         </section>
         <section ref={refs.keys} className="space-y-4">
           <StudioAiKeys />
+        </section>
+        <section ref={refs.upload} className="space-y-4">
+          <UploadPostCard />
         </section>
         <section ref={refs.api} className="space-y-4">
           <AgentsCard s={s} save={save} />

@@ -56,6 +56,7 @@ import type {
 import type { HomeSummary } from './home'
 import type { DashboardSnapshot } from './dashboard'
 import type { SendSchedule } from './sendSchedule'
+import type { UploadPostState, UploadPostTest } from './uploadPost'
 import type { SearchHit } from './search'
 import type { EditPatch } from './platformEdit'
 import type { StudioApi } from './studio/api'
@@ -94,6 +95,13 @@ export interface Api {
     get(): Promise<Settings>
     set(patch: Partial<Settings>): Promise<Settings>
     pickMediaRoot(): Promise<string | null>
+  }
+  uploadPost: {
+    get(): Promise<UploadPostState>
+    setKey(key: string): Promise<UploadPostState>
+    removeKey(): Promise<UploadPostState>
+    setLink(brandId: number, profile: string, platforms: Record<string, boolean>): Promise<UploadPostState>
+    test(): Promise<UploadPostTest>
   }
   secrets: {
     status(keys: string[]): Promise<SecretStatus[]>

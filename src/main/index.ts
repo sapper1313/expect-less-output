@@ -76,6 +76,9 @@ import { metaUrls } from './meta/config'
 import { GraphClient } from './meta/graph'
 import { MetaService } from './meta/metaService'
 import { TikTokAdapter } from './adapters/tiktok'
+import { UploadPostTikTokAdapter } from './adapters/uploadPostTikTok'
+import { UploadPostClient } from './uploadpost/client'
+import { UploadPostService } from './services/uploadPost'
 import { tiktokUrls } from './tiktok/config'
 import { TikTokClient } from './tiktok/client'
 import { TikTokService } from './tiktok/service'
@@ -481,18 +484,34 @@ async function boot(): Promise<void> {
       log: extraLog('pinterest'),
     }),
   } as unknown as Record<Platform, PlatformAdapter>
+  // Upload-Post: a channel with TikTok ticked on the AI Settings page posts to TikTok through them. Unticked, it uses
+  // the ELO TikTok login (Drafts). A post already started one way is finished the same way.
+  const uploadPost = new UploadPostService(db, secrets, new UploadPostClient())
+  const uploadPostTikTok = new UploadPostTikTokAdapter({
+    client: new UploadPostClient(),
+    apiKey: () => uploadPost.apiKey(),
+    profileFor: (brandId) => uploadPost.profileFor(brandId),
+    host: {
+      log: (level, message, ctx) => log.log(level, message, { postId: ctx.postId, platform: 'tiktok' }),
+    },
+  })
   const adapterFor = (
     platform: Platform,
     account: Account | null,
     targetSettings?: Record<string, unknown>,
-  ): PlatformAdapter =>
-    pickAdapter(
+  ): PlatformAdapter => {
+    const base = pickAdapter(
       platform,
       account,
       targetSettings,
       { dry: dryRuns, real: realAdapters },
       settings.get().globalDryRun,
     )
+    if (platform !== 'tiktok' || !account || base === dryRuns.tiktok) return base
+    if (typeof targetSettings?.upRequestId === 'string') return uploadPostTikTok
+    if (typeof targetSettings?.ttPublishId === 'string') return base
+    return uploadPost.active(account.brandId, 'tiktok') ? uploadPostTikTok : base
+  }
 
   const scheduler = new Scheduler({
     db,
@@ -1090,6 +1109,7 @@ async function boot(): Promise<void> {
   telegramRef = telegram
 
   const api = buildApi({
+    uploadPost,
     growth,
     storage,
     website,

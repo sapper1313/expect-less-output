@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.19.0 Upload-Post for TikTok
+
+- **AI Settings, Upload-Post card:** paste the Upload-Post API key (kept in the Keychain, never shown again) and press Test. Below it, each channel has a profile name box and a tick for every platform. A tick means that platform is active on Upload-Post for that channel.
+- **TikTok ticked:** ELO posts that channel's TikTok videos through Upload-Post straight to the feed (public). **TikTok not ticked:** it works like before and puts the video in your TikTok drafts. A post that already started one way finishes the same way.
+- **Other ticked platforms** are saved now and used in the next versions for comments, first comments and numbers. Upload-Post never posts to them.
+- **Retries:** a TikTok failure is tried again on its own (5, 15 and 60 minutes). If it fails the second time, you get a message with the reason right then, so you can fix it before the third try. Wrong key, missing TikTok login and similar problems stop at once with a plain message.
+- Bots and the pipeline treat a channel with TikTok ticked as able to post to TikTok, even when the channel's own TikTok login needs signing in again.
+- Upload-Post's API description is saved in `docs/upload-post-openapi.json` for the next phases.
+
 ## 0.18.0 One place for everything
 
 The whole menu was reorganized from Josh's sketch. Nothing was deleted from the database. Settings that were only moved still hold the same values.

@@ -4,6 +4,7 @@ import { basename } from 'path'
 import type { Db } from '../db'
 import type { Library } from '../services/library'
 import { readSetting } from '../services/settings'
+import { uploadPostOn } from '../services/uploadPost'
 
 /** SHA-256 of a file, read as a stream so a big video does not fill memory. */
 export function sha256File(path: string): Promise<string> {
@@ -25,13 +26,16 @@ export function realPlatforms(db: Db, brandId: number): string[] {
       }>
     ).map((r) => r.platform)
   }
-  return (
+  const real = (
     db
       .prepare(
         "SELECT platform FROM accounts WHERE brand_id = ? AND mode != 'dry_run' AND status = 'connected'",
       )
       .all(brandId) as Array<{ platform: string }>
   ).map((r) => r.platform)
+  // TikTok through Upload-Post counts even when the channel's own TikTok login is missing or needs signing in again.
+  if (!real.includes('tiktok') && uploadPostOn(db, brandId, 'tiktok')) real.push('tiktok')
+  return real
 }
 
 interface PipelineRow {

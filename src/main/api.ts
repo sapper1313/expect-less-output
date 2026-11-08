@@ -18,6 +18,7 @@ import type { BrandService } from './services/brands'
 import type { MediaService } from './services/media'
 import type { PostService } from './services/posts'
 import type { SecretStore } from './services/secrets'
+import type { UploadPostService } from './services/uploadPost'
 import type { SettingsService } from './services/settings'
 import { channelOverrides, setBrandOverrides } from './services/channelSettings'
 import type { Scheduler } from './scheduler/scheduler'
@@ -74,6 +75,7 @@ export interface ApiDeps {
   log: ActivityLog
   scheduler: Scheduler
   secrets: SecretStore
+  uploadPost: UploadPostService
   library: Library
   youtube: YoutubeService
   meta: MetaService
@@ -157,6 +159,25 @@ export function buildApi(d: ApiDeps): Api {
         return next
       },
       pickMediaRoot: async () => d.host.pickFolder(d.settings.get().mediaRoot),
+    },
+    uploadPost: {
+      get: async () => d.uploadPost.state(),
+      setKey: async (key) => {
+        d.uploadPost.setKey(key)
+        d.emit()
+        return d.uploadPost.state()
+      },
+      removeKey: async () => {
+        d.uploadPost.removeKey()
+        d.emit()
+        return d.uploadPost.state()
+      },
+      setLink: async (brandId, profile, platforms) => {
+        d.uploadPost.setLink(brandId, profile, platforms)
+        d.emit()
+        return d.uploadPost.state()
+      },
+      test: async () => d.uploadPost.test(),
     },
     secrets: {
       status: async (keys) => d.secrets.status(keys),
