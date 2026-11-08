@@ -317,6 +317,8 @@ export class PostService {
       if (st === 'upcoming')
         where.push("p.status IN ('scheduled','in_progress','partial','missed','draft')")
       else if (st === 'recent') where.push("p.status IN ('posted','failed','canceled')")
+      else if (st === 'live')
+        where.push("EXISTS (SELECT 1 FROM post_targets lt WHERE lt.post_id = p.id AND lt.status = 'posted')")
       else {
         where.push('p.status = ?')
         args.push(st)

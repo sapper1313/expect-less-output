@@ -5,6 +5,7 @@ export interface SearchTarget {
     | 'home'
     | 'calendar'
     | 'queue'
+    | 'posted'
     | 'studio'
     | 'channels'
     | 'newPost'
@@ -38,6 +39,11 @@ export const PAGES: Array<{ title: string; words: string; target: SearchTarget }
   },
 
   { title: 'Queue', words: 'queue waiting failed missed posts', target: { screen: 'queue' } },
+  {
+    title: 'Posted Videos',
+    words: 'posted videos published live history sort platform channel views',
+    target: { screen: 'posted' },
+  },
   {
     title: 'Studio: Library',
     words: 'library episodes scripts videos',

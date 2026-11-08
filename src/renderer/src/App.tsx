@@ -4,6 +4,7 @@ import { api } from './api'
 import { AppProvider, useLoad } from './hooks'
 import { Toasts } from './ui'
 import { Queue } from './screens/Queue'
+import { PostedVideos } from './screens/PostedVideos'
 import { Stats, type AnalyticsTab } from './screens/Stats'
 import { Studio, type Tab as StudioTab } from './screens/Studio'
 import { Home, type GoTarget } from './screens/Home'
@@ -25,6 +26,7 @@ type Screen =
   | 'schedule'
   | 'inbox'
   | 'queue'
+  | 'posted'
   | 'stats'
   | 'channels'
   | 'settings'
@@ -46,6 +48,7 @@ const NAV_GROUPS: Array<{ label: string; items: Screen[] }> = [
       'schedule',
       'inbox',
       'queue',
+      'posted',
       'stats',
       'channels',
       'settings',
@@ -293,6 +296,7 @@ function Shell() {
         )}
         {screen === 'home' && <Home go={go} />}
         {screen === 'queue' && <Queue />}
+        {screen === 'posted' && <PostedVideos />}
         {screen === 'inbox' && <Inbox />}
         {screen === 'stats' && <Stats key={statsTab} initialTab={statsTab} />}
         {screen === 'aiStudio' && <Studio key={studioKey} initialTab={studioTab} />}

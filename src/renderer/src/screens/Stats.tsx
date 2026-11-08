@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { PLATFORM_LABELS } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
 import { toCsv } from '@shared/csv'
@@ -7,47 +7,10 @@ import type { StatsRange } from '@shared/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { fmt } from '../components/StatsPanel'
+import { useSort } from '../components/useSort'
 import { BestTimes } from '../components/BestTimes'
 import { StudioInsights } from './StudioOperations'
 import { Button, Card, Empty, PageHeader, Select, useBusy } from '../ui'
-
-type SortDir = 'asc' | 'desc'
-/** Click a heading to sort by it. Click again to flip. */
-function useSort<T>(rows: T[] | null | undefined, pick: Record<string, (r: T) => number | string>, first: string) {
-  const [key, setKey] = useState(first)
-  const [dir, setDir] = useState<SortDir>('desc')
-  const sorted = useMemo(() => {
-    const f = pick[key]
-    if (!rows || !f) return rows
-    return [...rows].sort((a, b) => {
-      const x = f(a)
-      const y = f(b)
-      const c = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))
-      return dir === 'asc' ? c : -c
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, key, dir])
-  const th = (k: string, label: string) => (
-    <th className="p-2">
-      <button
-        type="button"
-        className="font-bold uppercase tracking-wider hover:text-ink"
-        aria-label={`Sort by ${label}`}
-        onClick={() => {
-          if (k === key) setDir(dir === 'asc' ? 'desc' : 'asc')
-          else {
-            setKey(k)
-            setDir(k === 'title' || k === 'platform' ? 'asc' : 'desc')
-          }
-        }}
-      >
-        {label}
-        {k === key ? (dir === 'asc' ? ' ▲' : ' ▼') : ''}
-      </button>
-    </th>
-  )
-  return { sorted, th }
-}
 
 function StatsNumbers() {
   const { toast } = useApp()

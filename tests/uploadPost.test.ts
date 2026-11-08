@@ -319,3 +319,23 @@ describe('First comment from a bot drop', () => {
     expect(post.targets.find((t) => t.platform === 'youtube')!.settings.firstComment).toBeUndefined()
   })
 })
+
+describe('Posted Videos list', () => {
+  it('the live filter finds posts that are live on at least one platform, even when another platform failed', async () => {
+    const { env } = setup()
+    const mk = (title: string, statuses: string[]) => {
+      const id = Number(
+        env.db
+          .prepare("INSERT INTO posts (brand_id, video_path, title, caption, status) VALUES (1, 'x.mp4', ?, 'c', 'partial')")
+          .run(title).lastInsertRowid,
+      )
+      for (const [i, st] of statuses.entries())
+        env.db.prepare('INSERT INTO post_targets (post_id, platform, status) VALUES (?, ?, ?)').run(id, ['youtube', 'facebook', 'instagram'][i], st)
+      return id
+    }
+    const live = mk('Live on one', ['posted', 'failed'])
+    mk('Nothing live', ['failed', 'pending'])
+    const got = env.posts.list({ status: 'live' }).map((p) => p.id)
+    expect(got).toEqual([live])
+  })
+})

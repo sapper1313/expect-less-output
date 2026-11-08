@@ -1,0 +1,39 @@
+/* Posted Videos: the same glass look as Home. These are the extras it needs on top of dashboard.css. */
+.filters{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:16px 20px;margin-bottom:18px}
+.f{font-family:var(--sans);font-size:13px;color:var(--text);background:rgba(255,255,255,.06);border:1px solid rgba(160,190,255,.25);border-radius:12px;padding:9px 12px;min-height:40px}
+.f:hover{border-color:var(--cyan)}
+.f:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.f::placeholder{color:#6b75a8}
+select.f option{background:#0d1130;color:var(--text)}
+input[type=date].f{color-scheme:dark}
+.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--soft);cursor:pointer}
+.check input{accent-color:var(--cyan);width:16px;height:16px}
+.tile-btn.static{cursor:default}
+.tile-btn.static:hover{border-color:rgba(160,190,255,.20)}
+.tbl-card{padding:8px 12px 12px}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;min-width:860px}
+.tbl th{text-align:left;padding:12px 10px;border-bottom:1px solid rgba(160,190,255,.18);white-space:nowrap}
+.tbl th.r,.tbl td.r{text-align:right}
+.thbtn{all:unset;cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--label)}
+.thbtn:hover,.thbtn:focus-visible{color:var(--cyan)}
+.tbl td{padding:10px;border-top:1px solid rgba(160,190,255,.12);vertical-align:middle}
+.tbl tbody tr:first-child td{border-top:0}
+.vrow.click{cursor:pointer}
+.vrow:hover td{background:rgba(255,255,255,.04)}
+.vid{display:flex;align-items:center;gap:12px;min-width:240px}
+.vid .thumb{flex:none;width:30px;height:52px;border-radius:8px;border:1px solid rgba(255,255,255,.18);object-fit:cover;background:rgba(255,255,255,.06)}
+.vid .vt{font-weight:600;font-size:14px;overflow-wrap:anywhere}
+.vid .vf{font-size:11px;color:var(--label)}
+.tag{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;border:1px solid rgba(160,190,255,.3);color:var(--soft)}
+.tag.clip{border-color:var(--violet);color:#c9b3ff}
+.tag.ok{border-color:rgba(45,255,168,.5);color:#9dffd6}
+.who2{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.who2 .dot{width:10px;height:10px;border-radius:50%;flex:none}
+.pchips{display:flex;flex-wrap:wrap;gap:6px}
+.pchip{padding:3px 10px;border-radius:999px;font-family:var(--mono);font-size:11px;text-decoration:none;border:1px solid rgba(34,229,255,.5);background:rgba(34,229,255,.10);color:#9af0ff}
+a.pchip:hover{background:rgba(34,229,255,.22)}
+span.pchip{border-color:rgba(160,190,255,.25);background:transparent;color:var(--label)}
+.num{font-family:var(--mono);font-weight:700;text-align:right;white-space:nowrap}
+.whenc{white-space:nowrap;font-family:var(--mono);font-size:12px;color:#9af0ff}
+.btn.glass{padding:10px 16px;border-radius:999px;font-size:13px;color:var(--text);background:linear-gradient(145deg,rgba(255,255,255,.09),rgba(255,255,255,.03))}
+.btn[disabled]{opacity:.4;cursor:default}

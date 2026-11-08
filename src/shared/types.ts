@@ -415,7 +415,8 @@ export interface PostFilter {
   /** Matches title, caption or file name. */
   search?: string
   brandId?: number | null
-  status?: PostStatus | 'all' | 'upcoming' | 'recent'
+  /** live: posts that are live on at least one platform. */
+  status?: PostStatus | 'all' | 'upcoming' | 'recent' | 'live'
   platform?: Platform | null
   fromUtc?: string
   toUtc?: string
