@@ -273,6 +273,21 @@ describe('First comments', () => {
     expect(job(s, ids.tiktok).status).toBe('waiting')
   })
 
+  it('adds a comment to a post that is already live and sends it now, without repeating one that already went out', async () => {
+    const { s, fc, sent } = await withComments()
+    s.svc.setLink(2, 'Clock_Out_Early', { youtube: true, facebook: true })
+    const { id, ids } = posted(s, { first: null as any, platforms: [['youtube', 'vid1', null], ['facebook', '55', 'https://facebook.com/v/55']] })
+    s.env.db.prepare('UPDATE posts SET first_comment = NULL WHERE id = ?').run(id)
+    await expect(fc.commentNow(id, '  ')).rejects.toThrow(/Type the comment/)
+    await fc.commentNow(id, 'Better late than never')
+    expect(sent.map((x) => x.message)).toEqual(['Better late than never', 'Better late than never'])
+    expect(job(s, ids.youtube).status).toBe('done')
+    // A second press does not post it again on the platforms that already have it.
+    await fc.commentNow(id, 'Another one')
+    expect(sent).toHaveLength(2)
+    await expect(fc.commentNow(99999, 'x')).rejects.toThrow(/not live/)
+  })
+
   it('finds the TikTok video id from Upload-Post before commenting', async () => {
     const { s, fc, sent } = await withComments({
       tiktokStatus: { status: 'completed', results: [{ platform: 'tiktok', success: true, postId: '7123', postUrl: 'https://www.tiktok.com/@a/video/7123' }] },

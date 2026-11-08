@@ -64,6 +64,7 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
 
   if (!draft) return null
   const locked = ['posted', 'in_progress'].includes(draft.status)
+  const canCommentNow = draft.targets.some((t) => t.status === 'posted')
   const counters = captionCounters(draft.title, draft.caption)
   const failed = draft.targets.filter((t) => t.status === 'failed')
   const waiting = draft.targets.filter((t) => t.status === 'needs_action')
@@ -293,10 +294,34 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
             <Textarea
               rows={2}
               value={draft.firstComment ?? ''}
-              disabled={locked}
+              disabled={locked && !canCommentNow}
               onChange={(e) => set('firstComment', e.target.value)}
               placeholder="Which one would you try first?"
             />
+            {locked && canCommentNow && (
+              <div className="mt-2 flex items-center gap-3">
+                <Button
+                  variant="primary"
+                  disabled={busy || !(draft.firstComment ?? '').trim()}
+                  onClick={async () => {
+                    const p = await run(() => api.uploadPost.commentNow(draft.id, draft.firstComment ?? ''))
+                    if (p) {
+                      setDraft((d) => (d ? { ...d, targets: p.targets, firstComment: p.firstComment } : d))
+                      toast({
+                        kind: 'success',
+                        headline: 'Comment sent for posting.',
+                        detail: 'See each platform below for how it went.',
+                      })
+                    }
+                  }}
+                >
+                  Post comment now
+                </Button>
+                <span className="text-[12px] text-muted">
+                  This post is live, so the comment goes out now on the platforms ticked for this channel.
+                </span>
+              </div>
+            )}
           </Field>
           <div className="flex flex-wrap gap-x-4">
             {draft.targets.flatMap((t) =>

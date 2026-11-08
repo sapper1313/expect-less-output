@@ -104,6 +104,8 @@ export interface Api {
     test(): Promise<UploadPostTest>
     /** The Try again button on a first comment that failed or was skipped. */
     retryFirstComment(targetId: number): Promise<void>
+    /** Adds a first comment to a post that is already live and sends it now. */
+    commentNow(postId: number, text: string): Promise<Post>
   }
   secrets: {
     status(keys: string[]): Promise<SecretStatus[]>

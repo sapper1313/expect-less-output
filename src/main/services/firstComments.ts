@@ -236,6 +236,36 @@ export class FirstCommentService {
     )
   }
 
+  /**
+   * Adds a first comment to a post that is already live, and sends it now. Platforms that already got a comment keep it.
+   * Platforms that were waiting, failed or skipped get the new text.
+   */
+  async commentNow(postId: number, text: string): Promise<void> {
+    const t = text.trim()
+    if (!t) throw new Error('Type the comment first.')
+    const live = this.d.db
+      .prepare("SELECT 1 FROM post_targets WHERE post_id = ? AND status = 'posted'")
+      .get(postId)
+    if (!live) throw new Error('This post is not live on any platform yet. Save the comment on the post instead.')
+    this.d.db.prepare('UPDATE posts SET first_comment = ? WHERE id = ?').run(t, postId)
+    this.d.db
+      .prepare("DELETE FROM first_comment_jobs WHERE post_id = ? AND status IN ('waiting','failed','skipped')")
+      .run(postId)
+    while (this.running) await new Promise((r) => setTimeout(r, 100))
+    this.running = true
+    try {
+      this.plan()
+      // The owner pressed the button, so there is no minute of waiting.
+      this.d.db
+        .prepare("UPDATE first_comment_jobs SET next_at_utc = ? WHERE post_id = ? AND status = 'waiting'")
+        .run(new Date(this.now()).toISOString(), postId)
+      await this.sendDue()
+    } finally {
+      this.running = false
+    }
+    this.d.emit?.()
+  }
+
   /** The Try again button: put a failed or skipped comment back in line. */
   retry(targetId: number): void {
     this.d.db

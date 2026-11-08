@@ -180,6 +180,10 @@ export function buildApi(d: ApiDeps): Api {
         return d.uploadPost.state()
       },
       test: async () => d.uploadPost.test(),
+      commentNow: async (postId, text) => {
+        await d.firstComments.commentNow(postId, text)
+        return d.posts.get(postId) as import('@shared/types').Post
+      },
       retryFirstComment: async (targetId) => {
         d.firstComments.retry(targetId)
         void d.firstComments.sweep().catch(() => {})
