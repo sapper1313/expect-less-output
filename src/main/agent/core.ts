@@ -291,6 +291,7 @@ export async function agentCreatePost(
         ? { thumbOffsetMs: body.thumb_offset_ms }
         : {}),
       ...(p === 'tiktok' && body.tiktok ? { tiktok: mapTikTok(body.tiktok) } : {}),
+      ...(body.first_comments?.[p] ? { firstComment: body.first_comments[p] } : {}),
     },
   }))
 
@@ -314,6 +315,7 @@ export async function agentCreatePost(
       scheduledAtUtc,
       status: body.status,
       targets,
+      firstComment: body.first_comment ?? null,
     }),
   )
   s.log.log(
@@ -353,6 +355,7 @@ export async function agentUpdatePost(
   const patch: PostUpdate = {}
   if (body.title !== undefined) patch.title = body.title
   if (body.caption !== undefined) patch.caption = body.caption
+  if (body.first_comment !== undefined) patch.firstComment = body.first_comment
   if (body.scheduled_at !== undefined)
     patch.scheduledAtUtc = body.scheduled_at === null ? null : toUtc(body.scheduled_at)
   if (body.status) patch.status = body.status
@@ -369,6 +372,7 @@ export async function agentUpdatePost(
   if (
     body.platforms ||
     body.caption_overrides ||
+    body.first_comments ||
     body.ai_flags ||
     body.tiktok ||
     body.thumb_offset_ms !== undefined
@@ -397,6 +401,7 @@ export async function agentUpdatePost(
             p === 'tiktok' && body.tiktok
               ? mapTikTok(body.tiktok, e?.settings.tiktok)
               : e?.settings.tiktok,
+          firstComment: body.first_comments?.[p] ?? e?.settings.firstComment,
         },
       }
     })

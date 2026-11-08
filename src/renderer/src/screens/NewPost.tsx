@@ -42,6 +42,7 @@ export function NewPost({
   const [brandId, setBrandId] = useState<number | null>(null)
   const [title, setTitle] = useState('')
   const [caption, setCaption] = useState('')
+  const [firstComment, setFirstComment] = useState('')
   const [captionTouched, setCaptionTouched] = useState(false)
   const [setId, setSetId] = useState<number | null>(null)
   const [platforms, setPlatforms] = useState<Platform[]>([])
@@ -169,6 +170,7 @@ export function NewPost({
         sourcePath: source.sourcePath,
         title: title.trim(),
         caption,
+        firstComment: firstComment.trim() || null,
         scheduledAtUtc: when,
         status,
         targets: platforms.map((p) => ({
@@ -314,6 +316,16 @@ export function NewPost({
                   )),
                 )}
               </div>
+            </div>
+            <div className="mt-4">
+              <Field label="First comment" hint="Optional. A question or call to action that ELO posts as the first comment as soon as the video is live. It goes through Upload-Post, on the platforms ticked for this channel in AI Settings. Instagram cannot take one.">
+                <Textarea
+                  value={firstComment}
+                  onChange={(e) => setFirstComment(e.target.value)}
+                  rows={2}
+                  placeholder="Which one would you try first?"
+                />
+              </Field>
             </div>
             <button
               className="mt-3 text-[12px] font-semibold text-accent"

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.20.0 First comments
+
+- **First comments:** a post can have a first comment (a question or call to action). Bots send `first_comment` (and optionally `first_comments` per platform) in the drop file or the API. You can type one in New Post and in the post editor, and the Queue shows what each platform will get and how it went (Waiting, Posted, Failed with the reason and a **Try again** button). About a minute after the video is live, ELO posts it through Upload-Post on every platform ticked for the channel. Instagram cannot take one (Upload-Post only allows replies there). YouTube keeps using `pinned_comment` when a drop has one. A failed comment sends you an alert with the text, so you can paste it by hand.
+
 ## 0.19.0 Upload-Post for TikTok
 
 - **AI Settings, Upload-Post card:** paste the Upload-Post API key (kept in the Keychain, never shown again) and press Test. Below it, each channel has a profile name box and a tick for every platform. A tick means that platform is active on Upload-Post for that channel.

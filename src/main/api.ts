@@ -19,6 +19,7 @@ import type { MediaService } from './services/media'
 import type { PostService } from './services/posts'
 import type { SecretStore } from './services/secrets'
 import type { UploadPostService } from './services/uploadPost'
+import type { FirstCommentService } from './services/firstComments'
 import type { SettingsService } from './services/settings'
 import { channelOverrides, setBrandOverrides } from './services/channelSettings'
 import type { Scheduler } from './scheduler/scheduler'
@@ -76,6 +77,7 @@ export interface ApiDeps {
   scheduler: Scheduler
   secrets: SecretStore
   uploadPost: UploadPostService
+  firstComments: FirstCommentService
   library: Library
   youtube: YoutubeService
   meta: MetaService
@@ -178,6 +180,10 @@ export function buildApi(d: ApiDeps): Api {
         return d.uploadPost.state()
       },
       test: async () => d.uploadPost.test(),
+      retryFirstComment: async (targetId) => {
+        d.firstComments.retry(targetId)
+        void d.firstComments.sweep().catch(() => {})
+      },
     },
     secrets: {
       status: async (keys) => d.secrets.status(keys),

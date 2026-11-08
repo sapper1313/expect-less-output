@@ -79,6 +79,7 @@ import { TikTokAdapter } from './adapters/tiktok'
 import { UploadPostTikTokAdapter } from './adapters/uploadPostTikTok'
 import { UploadPostClient } from './uploadpost/client'
 import { UploadPostService } from './services/uploadPost'
+import { FirstCommentService } from './services/firstComments'
 import { tiktokUrls } from './tiktok/config'
 import { TikTokClient } from './tiktok/client'
 import { TikTokService } from './tiktok/service'
@@ -495,6 +496,15 @@ async function boot(): Promise<void> {
       log: (level, message, ctx) => log.log(level, message, { postId: ctx.postId, platform: 'tiktok' }),
     },
   })
+  const firstComments = new FirstCommentService({
+    db,
+    uploadPost,
+    client: new UploadPostClient(),
+    log,
+    alert: (headline, detail) => notifier.failure(headline, detail, { kind: 'other' }),
+    emit,
+  })
+  setInterval(() => void firstComments.sweep().catch(() => {}), 30_000)
   const adapterFor = (
     platform: Platform,
     account: Account | null,
@@ -1110,6 +1120,7 @@ async function boot(): Promise<void> {
 
   const api = buildApi({
     uploadPost,
+    firstComments,
     growth,
     storage,
     website,

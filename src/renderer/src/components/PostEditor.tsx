@@ -79,6 +79,7 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
       api.posts.update(draft!.id, {
         title: draft!.title,
         caption: draft!.caption,
+        firstComment: draft!.firstComment ?? '',
         scheduledAtUtc: draft!.scheduledAtUtc,
         status,
         targets: platforms.map((p) => ({
@@ -288,6 +289,15 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
               onChange={(e) => set('caption', e.target.value)}
             />
           </Field>
+          <Field label="First comment" hint="Optional. A question or call to action that ELO posts as the first comment as soon as the video is live. It goes through Upload-Post, on the platforms ticked for this channel in AI Settings. Instagram cannot take one.">
+            <Textarea
+              rows={2}
+              value={draft.firstComment ?? ''}
+              disabled={locked}
+              onChange={(e) => set('firstComment', e.target.value)}
+              placeholder="Which one would you try first?"
+            />
+          </Field>
           <div className="flex flex-wrap gap-x-4">
             {draft.targets.flatMap((t) =>
               counters[t.platform].map((c) => (
@@ -387,6 +397,13 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
                     <div className="whitespace-pre-wrap text-muted">
                       {pv.body || '(empty caption)'}
                     </div>
+                    <FirstCommentLine
+                      target={t}
+                      fallback={draft.firstComment}
+                      onRetry={async () => {
+                        await run(() => api.uploadPost.retryFirstComment(t.id))
+                      }}
+                    />
                   </div>
                 )
               })}
@@ -517,5 +534,44 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
         />
       )}
     </Dialog>
+  )
+}
+
+const FC_LABEL: Record<string, string> = {
+  waiting: 'Waiting to be posted',
+  done: 'Posted',
+  failed: 'Failed',
+  skipped: 'Not sent',
+}
+
+/** One line under a platform: its first comment and how it went. */
+function FirstCommentLine({
+  target,
+  fallback,
+  onRetry,
+}: {
+  target: Post['targets'][number]
+  fallback: string | null
+  onRetry: () => void
+}) {
+  const fc = target.firstComment
+  const planned = (target.settings.firstComment ?? fallback ?? '').trim()
+  if (!fc && !planned) return null
+  const text = fc?.text ?? planned
+  return (
+    <div className="mt-1 rounded bg-surface2 px-2 py-1.5">
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+        First comment{fc ? `: ${FC_LABEL[fc.status]}` : ''}
+      </div>
+      <div className="whitespace-pre-wrap text-ink">{text}</div>
+      {fc?.error && (
+        <div className={fc.status === 'failed' ? 'text-bad' : 'text-muted'}>{fc.error}</div>
+      )}
+      {fc && (fc.status === 'failed' || fc.status === 'skipped') && (
+        <button className="mt-1 text-[12px] font-semibold text-accent" onClick={onRetry}>
+          Try again
+        </button>
+      )}
+    </div>
   )
 }

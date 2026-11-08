@@ -272,6 +272,8 @@ These fields only add features. None of them can set or promise a posting time, 
 | --- | --- |
 | `topic` | A short tag such as `browser` or `finance_debt`. ELO warns the owner when two scheduled posts on one channel in a row have the same topic. Vary the topics. |
 | `pinned_comment` | Up to 500 characters: a question for viewers, or a link. ELO posts it on YouTube as the channel when the video goes live and tells the owner to pin it (YouTube does not let apps pin). Paste it by hand on the other apps. |
+| `first_comment` | Up to 2000 characters (TikTok allows about 150): a question or call to action ELO posts as the first comment about a minute after the video goes live, on every platform that is ticked for the channel on the owner's Upload-Post card. It goes through Upload-Post. Instagram cannot take one. Different for every video. |
+| `first_comments` | Optional. A first comment for one platform, like `{"tiktok": "..."}`. It replaces `first_comment` for that platform. |
 | `community_poll` | Up to 1000 characters: a companion poll. ELO reminds the owner 30 minutes after the video goes live (apps cannot post to the YouTube Community tab). |
 | `thumbnail_variants` | Up to 3 JPG or PNG files in the Inbox next to the video, best first. If the owner turned on thumbnail rescue and the click rate is low after 24 hours, ELO puts on the second one. |
 | `search_phrases` | Up to 10 phrases people type into search. Added to the YouTube tags. If you leave it out, ELO asks YouTube autocomplete itself. |

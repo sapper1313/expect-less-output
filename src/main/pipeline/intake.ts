@@ -334,6 +334,7 @@ export class PipelineIntake {
           ? { thumbOffsetMs: sc.thumb_offset_ms }
           : {}),
         ...(postType === 'clip' && p === 'youtube' ? { shorts: true } : {}),
+        ...(sc.first_comments?.[p] ? { firstComment: sc.first_comments[p] } : {}),
       },
     }))
     let post: Post
@@ -347,6 +348,7 @@ export class PipelineIntake {
         scheduledAtUtc: null,
         status: 'draft',
         targets,
+        firstComment: sc.first_comment ?? null,
         origin: 'inbox',
         pipeline: {
           episodeRef: sc.episode_id,

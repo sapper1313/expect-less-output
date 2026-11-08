@@ -102,6 +102,8 @@ export interface Api {
     removeKey(): Promise<UploadPostState>
     setLink(brandId: number, profile: string, platforms: Record<string, boolean>): Promise<UploadPostState>
     test(): Promise<UploadPostTest>
+    /** The Try again button on a first comment that failed or was skipped. */
+    retryFirstComment(targetId: number): Promise<void>
   }
   secrets: {
     status(keys: string[]): Promise<SecretStatus[]>

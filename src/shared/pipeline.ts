@@ -101,6 +101,13 @@ export const PipelineSidecar = z
       .meta({ description: 'Stored in the drop log only.' }),
     // Extra fields ELO already understands.
     caption_overrides: z.record(z.string(), z.string()).optional(),
+    first_comment: z.string().max(2000).optional().meta({
+      description:
+        'A question or call to action posted as the first comment once the video is live. Uses Upload-Post, so the platform must be ticked on the Upload-Post card for the channel. Instagram cannot take one. YouTube already posts pinned_comment itself, so it skips this one when both are sent.',
+    }),
+    first_comments: z.record(z.string(), z.string().max(2000)).optional().meta({
+      description: 'A first comment for one platform. It replaces first_comment for that platform.',
+    }),
     ai_flags: z.record(z.string(), z.boolean()).optional(),
     tiktok: z.record(z.string(), z.unknown()).optional(),
     topic: z.string().max(60).optional().meta({

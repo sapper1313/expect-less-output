@@ -85,7 +85,6 @@ export class UploadPostTikTokAdapter implements PlatformAdapter {
         aiGenerated: ctx.aiFlag,
         coverTimestampMs:
           typeof ctx.settings.coverTimestampMs === 'number' ? ctx.settings.coverTimestampMs : undefined,
-        firstComment: typeof ctx.settings.firstComment === 'string' ? ctx.settings.firstComment : undefined,
       })
     } catch (err) {
       ctx.setState({ upRequestId: null })

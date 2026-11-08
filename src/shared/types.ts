@@ -259,6 +259,16 @@ export interface PostTarget {
   /** A to-do the owner must finish by hand, for example adding an AI label in the app. */
   checklist: string | null
   settings: TargetSettings
+  /** The first comment for this platform and how it went. Null when there is none. */
+  firstComment: FirstCommentState | null
+}
+
+export interface FirstCommentState {
+  text: string
+  /** waiting: not sent yet. done: it is on the post. failed: see error. skipped: this platform cannot take one. */
+  status: 'waiting' | 'done' | 'failed' | 'skipped'
+  error: string | null
+  doneAtUtc: string | null
 }
 
 export interface Post {
@@ -297,6 +307,8 @@ export interface Post {
    * ELO reminds the owner to set it by hand. url is the episode's YouTube link, or null until the episode is live.
    */
   relatedVideo: { episodeId: string; url: string | null; done: boolean } | null
+  /** A question or call to action posted as the first comment once the video is live. Null means none. */
+  firstComment: string | null
 }
 
 export type TikTokMode = 'drafts' | 'direct'
@@ -337,6 +349,8 @@ export interface TikTokCredentialsStatus {
 
 /** Optional per-target settings. */
 export interface TargetSettings {
+  /** This platform's own first comment. Empty means use the post's first comment. */
+  firstComment?: string
   /** Instagram cover frame, in milliseconds from the start. */
   thumbOffsetMs?: number
   /** YouTube long form: a custom thumbnail file (1280x720). Never set for Shorts, which cannot take one through the API. */
@@ -371,6 +385,8 @@ export interface PostInput {
   scheduledAtUtc: string | null
   targets: PostTargetInput[]
   status: 'draft' | 'scheduled'
+  /** The first comment for every platform that does not have its own. */
+  firstComment?: string | null
   /** Set for posts that arrive through the Inbox. */
   origin?: 'manual' | 'inbox' | 'api'
   pipeline?: {
@@ -392,6 +408,7 @@ export interface PostUpdate {
   scheduledAtUtc?: string | null
   targets?: PostTargetInput[]
   status?: 'draft' | 'scheduled'
+  firstComment?: string | null
 }
 
 export interface PostFilter {

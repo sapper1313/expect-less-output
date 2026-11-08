@@ -41,8 +41,6 @@ export interface UploadTikTokInput {
   privacy: string
   aiGenerated: boolean
   coverTimestampMs?: number
-  /** Posted as the first comment after the video is live. Added in a later version. */
-  firstComment?: string
 }
 
 type Fetch = typeof fetch
@@ -106,9 +104,25 @@ export class UploadPostClient {
     form.set('privacy_level', i.privacy)
     form.set('is_aigc', i.aiGenerated ? 'true' : 'false')
     if (typeof i.coverTimestampMs === 'number') form.set('cover_timestamp', String(i.coverTimestampMs))
-    if (i.firstComment?.trim()) form.set('tiktok_first_comment', i.firstComment.trim())
     form.set('video', await openAsBlob(i.filePath), basename(i.filePath))
     await this.call(key, '/upload', { method: 'POST', body: form })
+  }
+
+  /** A top-level comment on one of your posts (or a reply, when commentId is given). */
+  async createComment(
+    key: string,
+    i: { platform: string; user: string; message: string; postId?: string; postUrl?: string; commentId?: string },
+  ): Promise<{ id: string | null; warnings: string[] }> {
+    const body: Record<string, string> = { platform: i.platform, user: i.user, message: i.message }
+    if (i.commentId) body.comment_id = i.commentId
+    else if (i.postId) body.post_id = i.postId
+    else if (i.postUrl) body.post_url = i.postUrl
+    const r = await this.call(key, '/uploadposts/comments/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    return { id: r?.id ?? null, warnings: Array.isArray(r?.warnings) ? r.warnings : [] }
   }
 
   async status(key: string, requestId: string): Promise<UploadPostStatus> {

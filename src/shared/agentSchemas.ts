@@ -96,6 +96,13 @@ export const CreatePostBody = z
     ai_flags: platformMap(z.boolean()).optional().meta({
       description: "AI-generated disclosure per platform. Defaults to the brand's defaults.",
     }),
+    first_comment: z.string().max(2000).optional().meta({
+      description:
+        'A question or call to action posted as the first comment once the video is live. Uses Upload-Post, so the platform must be ticked on the Upload-Post card for the channel. Instagram cannot take one. YouTube already posts pinned_comment itself, so it skips this one when both are sent.',
+    }),
+    first_comments: platformMap(z.string().max(2000)).optional().meta({
+      description: 'A first comment for one platform. It replaces first_comment for that platform.',
+    }),
     tiktok: TikTokInput.optional(),
     thumb_offset_ms: z
       .number()
@@ -129,6 +136,8 @@ export const UpdatePostBody = z
     caption: z.string().max(5000).optional(),
     platforms: z.array(PlatformEnum).min(1).optional(),
     caption_overrides: platformMap(z.string()).optional(),
+    first_comment: z.string().max(2000).nullable().optional(),
+    first_comments: platformMap(z.string().max(2000)).optional(),
     ai_flags: platformMap(z.boolean()).optional(),
     tiktok: TikTokInput.optional(),
     thumb_offset_ms: z.number().int().min(0).optional(),

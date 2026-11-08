@@ -164,3 +164,143 @@ describe('TikTok through Upload-Post', () => {
     expect(t.lastError).toMatch(/does not accept the key/)
   })
 })
+
+describe('First comments', () => {
+  const MINUTE = 60_000
+  async function withComments(opts: { fail?: UploadPostError; tiktokStatus?: UploadPostStatus } = {}) {
+    const s = setup()
+    s.svc.setKey('k')
+    s.svc.setLink(1, 'clock_out_early', { tiktok: true, youtube: true, instagram: true, facebook: true })
+    const sent: any[] = []
+    const { FirstCommentService } = await import('../src/main/services/firstComments')
+    const alerts: string[][] = []
+    const fc = new FirstCommentService({
+      db: s.env.db,
+      uploadPost: s.svc,
+      client: {
+        async createComment(_k: string, i: any) {
+          if (opts.fail) throw opts.fail
+          sent.push(i)
+          return { id: 'c1', warnings: [] }
+        },
+        async status() {
+          return opts.tiktokStatus ?? { status: 'in_progress', results: [] }
+        },
+      } as any,
+      log: s.env.log,
+      alert: (h, d) => alerts.push([h, d]),
+      now: () => s.env.clock.ms,
+    })
+    return { s, fc, sent, alerts }
+  }
+
+  // A posted post with targets, made directly in the database so the test does not depend on adapters.
+  function posted(s: ReturnType<typeof setup>, over: { platforms: Array<[string, string | null, string | null]>; pinned?: string | null; first?: string | null; perPlatform?: Record<string, string> }) {
+    const id = Number(
+      s.env.db
+        .prepare(
+          "INSERT INTO posts (brand_id, video_path, title, caption, status, scheduled_at_utc, first_comment, pinned_comment) VALUES (2, 'x.mp4', 'A video', 'c', 'posted', ?, ?, ?)",
+        )
+        .run(new Date(s.env.clock.ms).toISOString(), over.first ?? 'Which one first?', over.pinned ?? null).lastInsertRowid,
+    )
+    const ids: Record<string, number> = {}
+    for (const [platform, extId, url] of over.platforms) {
+      const settings = over.perPlatform?.[platform] ? JSON.stringify({ firstComment: over.perPlatform[platform] }) : '{}'
+      ids[platform] = Number(
+        s.env.db
+          .prepare(
+            "INSERT INTO post_targets (post_id, platform, status, external_id, external_url, posted_at_utc, settings_json) VALUES (?, ?, 'posted', ?, ?, ?, ?)",
+          )
+          .run(id, platform, extId, url, new Date(s.env.clock.ms).toISOString(), settings).lastInsertRowid,
+      )
+    }
+    return { id, ids }
+  }
+  const job = (s: ReturnType<typeof setup>, target: number) =>
+    s.env.db.prepare('SELECT * FROM first_comment_jobs WHERE target_id = ?').get(target) as any
+
+  it('waits a minute, then comments on YouTube by video id and Facebook by link, and skips Instagram with a reason', async () => {
+    const { s, fc, sent } = await withComments()
+    s.svc.setLink(2, 'Clock_Out_Early', { tiktok: true, youtube: true, instagram: true, facebook: true })
+    const { ids } = posted(s, {
+      platforms: [
+        ['youtube', 'vid123', null],
+        ['facebook', '555', 'https://facebook.com/x/videos/555'],
+        ['instagram', '999', 'https://instagram.com/reel/abc'],
+      ],
+    })
+    await fc.sweep()
+    expect(sent).toHaveLength(0)
+    expect(job(s, ids.instagram).status).toBe('skipped')
+    expect(job(s, ids.instagram).last_error).toMatch(/only reply/)
+    s.env.clock.ms += 2 * MINUTE
+    await fc.sweep()
+    expect(sent.map((x) => x.platform).sort()).toEqual(['facebook', 'youtube'])
+    expect(sent.find((x) => x.platform === 'youtube')).toMatchObject({ postId: 'vid123', user: 'Clock_Out_Early', message: 'Which one first?' })
+    expect(sent.find((x) => x.platform === 'facebook')).toMatchObject({ postUrl: 'https://facebook.com/x/videos/555' })
+    expect(job(s, ids.youtube).status).toBe('done')
+    await fc.sweep()
+    expect(sent).toHaveLength(2)
+  })
+
+  it('uses a platform text when there is one, skips unticked platforms and YouTube when pinned_comment covers it', async () => {
+    const { s, fc, sent } = await withComments()
+    s.svc.setLink(2, 'Clock_Out_Early', { facebook: true, youtube: true })
+    const a = posted(s, { platforms: [['facebook', '5', null]], perPlatform: { facebook: 'Facebook only text' } })
+    const b = posted(s, { platforms: [['youtube', 'v', null], ['bluesky', 'b', null]], pinned: 'pin me' })
+    s.env.clock.ms += 2 * MINUTE
+    await fc.sweep()
+    expect(sent).toHaveLength(1)
+    expect(sent[0].message).toBe('Facebook only text')
+    expect(job(s, a.ids.facebook).status).toBe('done')
+    expect(job(s, b.ids.youtube).status).toBe('skipped')
+    expect(job(s, b.ids.bluesky).status).toBe('skipped')
+    expect(job(s, b.ids.bluesky).last_error).toMatch(/not ticked/)
+  })
+
+  it('stops with a plain message and an alert when TikTok needs reconnecting, then Try again puts it back in line', async () => {
+    const { s, fc, alerts } = await withComments({ fail: new UploadPostError('reconnect', 400, 'tiktok_reconnect_required') })
+    s.svc.setLink(2, 'Clock_Out_Early', { tiktok: true })
+    const { ids } = posted(s, { platforms: [['tiktok', '7000000000', null]] })
+    s.env.clock.ms += 2 * MINUTE
+    await fc.sweep()
+    const j = job(s, ids.tiktok)
+    expect(j.status).toBe('failed')
+    expect(j.last_error).toMatch(/connect it again/i)
+    expect(alerts[0]![0]).toMatch(/First comment failed on TikTok/)
+    expect(alerts[0]![1]).toContain('Which one first?')
+    fc.retry(ids.tiktok)
+    expect(job(s, ids.tiktok).status).toBe('waiting')
+  })
+
+  it('finds the TikTok video id from Upload-Post before commenting', async () => {
+    const { s, fc, sent } = await withComments({
+      tiktokStatus: { status: 'completed', results: [{ platform: 'tiktok', success: true, postId: '7123', postUrl: 'https://www.tiktok.com/@a/video/7123' }] },
+    })
+    s.svc.setLink(2, 'Clock_Out_Early', { tiktok: true })
+    const { ids } = posted(s, { platforms: [['tiktok', 'elo-5-1-999', null]] })
+    s.env.clock.ms += 2 * MINUTE
+    await fc.sweep()
+    expect(sent[0]).toMatchObject({ platform: 'tiktok', postId: '7123' })
+    const t = s.env.db.prepare('SELECT external_id FROM post_targets WHERE id = ?').get(ids.tiktok) as any
+    expect(t.external_id).toBe('7123')
+  })
+})
+
+describe('First comment from a bot drop', () => {
+  it('keeps first_comment on the post and first_comments on the platform', async () => {
+    const { pipelineSetup } = await import('./pipelineHelpers')
+    const p = pipelineSetup({ live: [[1, 'youtube'], [1, 'facebook']] })
+    const brand = p.env.brands.list().find((b) => b.id === 1)!
+    p.drop(brand.name, brand.slug ?? 'clock-out-early', 1, {
+      platforms: ['youtube', 'facebook'],
+      first_comment: 'Which one first?',
+      first_comments: { facebook: 'Tell us on Facebook' },
+    })
+    await p.settle()
+    const post = p.env.posts.list({ status: 'all' } as any)[0]!
+    expect(post.firstComment).toBe('Which one first?')
+    expect(post.targets.find((t) => t.platform === 'facebook')!.settings.firstComment).toBe('Tell us on Facebook')
+    expect(post.targets.find((t) => t.platform === 'youtube')!.settings.firstComment).toBeUndefined()
+  })
+})

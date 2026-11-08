@@ -51,6 +51,7 @@ interface PostRow {
   source_episode_ref: string | null
   channel_link: number
   related_done: number
+  first_comment: string | null
 }
 
 const POST_SELECT = `SELECT p.*, b.name AS brand_name, b.color AS brand_color
@@ -97,7 +98,9 @@ export class PostService {
         coverTimestampMs: stateOf(r.settings_json).coverTimestampMs,
         coverUrl: stateOf(r.settings_json).coverUrl,
         mock: stateOf(r.settings_json).mock,
+        firstComment: stateOf(r.settings_json).firstComment,
       },
+      firstComment: null,
     }
   }
 
@@ -128,6 +131,7 @@ export class PostService {
       postType: r.post_type ?? 'episode',
       sourceEpisodeRef: r.source_episode_ref,
       relatedVideo: this.relatedFor(r),
+      firstComment: r.first_comment ?? null,
     }
   }
 
@@ -248,9 +252,27 @@ export class PostService {
       )
       .all(...ids) as any[]
     const byPost = new Map<number, PostTarget[]>()
+    const jobs = new Map(
+      (
+        this.db
+          .prepare(
+            `SELECT * FROM first_comment_jobs WHERE post_id IN (${ids.map(() => '?').join(',')})`,
+          )
+          .all(...ids) as any[]
+      ).map((j) => [j.target_id as number, j]),
+    )
     for (const t of targets) {
       const list = byPost.get(t.post_id) ?? []
-      list.push(this.mapTarget(t))
+      const mapped = this.mapTarget(t)
+      const j = jobs.get(t.id)
+      if (j)
+        mapped.firstComment = {
+          text: j.text,
+          status: j.status,
+          error: j.last_error,
+          doneAtUtc: j.done_at_utc,
+        }
+      list.push(mapped)
       byPost.set(t.post_id, list)
     }
     return rows.map((r) => this.mapPost(r, byPost.get(r.id) ?? []))
@@ -769,8 +791,8 @@ export class PostService {
         const out: number[] = []
         const ins = this.db.prepare(
           `INSERT INTO posts (brand_id, video_path, video_meta_json, poster_path, title, caption, scheduled_at_utc, status,
-             origin, episode_ref, checksum, sidecar_title, source_bot, video_basename, hold_reason, post_type, source_episode_ref, channel_link)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             origin, episode_ref, checksum, sidecar_title, source_bot, video_basename, hold_reason, post_type, source_episode_ref, channel_link, first_comment)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         for (const p of prepared) {
           const id = Number(
@@ -793,6 +815,7 @@ export class PostService {
               p.input.pipeline?.postType ?? 'episode',
               p.input.pipeline?.sourceEpisodeRef ?? null,
               p.input.pipeline?.channelLink ? 1 : 0,
+              p.input.firstComment?.trim() ? p.input.firstComment.trim() : null,
             ).lastInsertRowid,
           )
           this.insertTargets(id, p.input.brandId, p.input.targets)
@@ -873,11 +896,13 @@ export class PostService {
         status = 'scheduled'
       if (status === 'scheduled' && !when)
         throw new Error('Pick a date and time before scheduling.')
+      const first =
+        patch.firstComment !== undefined ? patch.firstComment?.trim() || null : cur.firstComment
       this.db
         .prepare(
-          'UPDATE posts SET title = ?, caption = ?, scheduled_at_utc = ?, status = ?, updated_at = ? WHERE id = ?',
+          'UPDATE posts SET title = ?, caption = ?, scheduled_at_utc = ?, status = ?, first_comment = ?, updated_at = ? WHERE id = ?',
         )
-        .run(title, caption, when, status, new Date().toISOString(), id)
+        .run(title, caption, when, status, first, new Date().toISOString(), id)
       // The owner or an agent changed the title on purpose, so the text kept with a bot's drop moves with it.
       if (cur.episodeRef && patch.title !== undefined)
         this.db.prepare('UPDATE posts SET sidecar_title = ? WHERE id = ?').run(title, id)
@@ -1270,6 +1295,7 @@ function cleanSettings(s: TargetSettings | undefined): Record<string, unknown> {
   if (s && typeof s.coverUrl === 'string' && /^https:\/\//.test(s.coverUrl))
     out.coverUrl = s.coverUrl
   if (s?.shorts === true) out.shorts = true
+  if (s && typeof s.firstComment === 'string' && s.firstComment.trim()) out.firstComment = s.firstComment.trim()
   if (s?.mock === true) out.mock = true
   return out
 }
