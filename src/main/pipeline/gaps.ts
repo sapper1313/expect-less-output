@@ -9,12 +9,14 @@ import { channelState } from './state'
 
 /** The slots in a window that have nothing in them, for every channel (or one), from each channel's settings. */
 export function openSlotsFor(
-  d: { db: Db; brands: BrandService; posts: PostService },
+  d: { db: Db; brands: BrandService; posts: PostService; clipsOn?: () => boolean },
   fromUtc: string,
   toUtc: string,
   brandId: number | null,
 ): OpenSlot[] {
   const out: OpenSlot[] = []
+  // Clips come from the AI Studio. While it is off nothing makes them, so their slots are not "empty", they do not exist.
+  const clips = d.clipsOn ? d.clipsOn() : true
   for (const b of d.brands.list(false)) {
     if (brandId && b.id !== brandId) continue
     const state = channelState(d.db, b.id)
@@ -28,7 +30,8 @@ export function openSlotsFor(
           )
           .get(b.id, type) as { n: number }
       ).n
-    for (const s of d.posts.openSlotsInRange(b.id, fromUtc, toUtc))
+    for (const s of d.posts.openSlotsInRange(b.id, fromUtc, toUtc)) {
+      if (s.kind === 'clip' && !clips) continue
       out.push({
         brandId: b.id,
         brandName: b.name,
@@ -39,6 +42,7 @@ export function openSlotsFor(
         waiting: waiting(s.kind),
         ...(s.blockedBy ? { blockedBy: s.blockedBy } : {}),
       })
+    }
   }
   return out.sort((a, c) => a.whenUtc.localeCompare(c.whenUtc))
 }
@@ -50,6 +54,8 @@ export interface GapDeps {
   settings: SettingsService
   /** Sends the warning to the owner (iMessage, email and Telegram). */
   send: (text: string) => Promise<void>
+  /** False while the AI Studio is off: clip slots are then left out of the warning. */
+  clipsOn?: () => boolean
   now?: () => number
 }
 

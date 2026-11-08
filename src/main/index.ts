@@ -798,7 +798,7 @@ async function boot(): Promise<void> {
     emptySlotCount: (days) => {
       const from = new Date()
       return openSlotsFor(
-        { db, brands, posts },
+        { db, brands, posts, clipsOn: () => !studio.isOff() },
         from.toISOString(),
         new Date(from.getTime() + days * 86_400_000).toISOString(),
         null,
@@ -1231,6 +1231,7 @@ async function boot(): Promise<void> {
     brands,
     posts,
     settings,
+    clipsOn: () => !studio.isOff(),
     send: async (text) => {
       await alerts.broadcast(text)
       await telegramRef?.notify(text).catch(() => undefined)

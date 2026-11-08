@@ -221,7 +221,12 @@ export function buildApi(d: ApiDeps): Api {
       countOnDay: async (brandId, dayIso) => d.posts.countOnDay(brandId, dayIso),
       checkTime: async (brandId, whenUtc) => d.posts.checkCustomTime(brandId, whenUtc),
       open: async (fromUtc, toUtc, brandId) =>
-        openSlotsFor({ db: d.db, brands: d.brands, posts: d.posts }, fromUtc, toUtc, brandId),
+        openSlotsFor(
+          { db: d.db, brands: d.brands, posts: d.posts, clipsOn: () => !d.studio.isOff() },
+          fromUtc,
+          toUtc,
+          brandId,
+        ),
     },
     posts: {
       list: async (filter) => d.posts.list(filter),

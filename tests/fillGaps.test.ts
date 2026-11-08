@@ -156,6 +156,27 @@ describe('gap warnings', () => {
     expect(w.message()).toBeNull()
   })
 
+  it('leaves clip slots out while the AI Studio is off, but keeps episode slots', async () => {
+    const { t } = setup()
+    t.env.db
+      .prepare('INSERT OR REPLACE INTO studio_brands (brand_id, config_json) VALUES (1, ?)')
+      .run(JSON.stringify({ clipPostDays: [1, 2, 3, 4, 5, 6, 7], clipTime: '12:00' }))
+    const make = (on: boolean) =>
+      new GapWarner({
+        db: t.env.db,
+        brands: t.env.brands,
+        posts: t.env.posts,
+        settings: t.env.settings,
+        send: async () => {},
+        clipsOn: () => on,
+        now: () => t.env.clock.ms,
+      })
+    expect(make(true).message()).toMatch(/\(clip\)/)
+    const off = make(false).message()!
+    expect(off).toContain('Trash Panda')
+    expect(off).not.toMatch(/\(clip\)/)
+  })
+
   it('sends once a day, after the set time, and only when something is empty', async () => {
     const { t, w, sent } = setup()
     t.env.settings.set({ gapWarnTime: '18:00' })
