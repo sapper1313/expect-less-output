@@ -80,6 +80,7 @@ import { UploadPostTikTokAdapter } from './adapters/uploadPostTikTok'
 import { UploadPostClient } from './uploadpost/client'
 import { UploadPostService } from './services/uploadPost'
 import { FirstCommentService } from './services/firstComments'
+import { EngageService } from './services/engage'
 import { tiktokUrls } from './tiktok/config'
 import { TikTokClient } from './tiktok/client'
 import { TikTokService } from './tiktok/service'
@@ -505,6 +506,20 @@ async function boot(): Promise<void> {
     emit,
   })
   setInterval(() => void firstComments.sweep().catch(() => {}), 30_000)
+  // Comments and Instagram messages through Upload-Post. The local AI only suggests replies, and only when asked.
+  const engage = new EngageService({
+    db,
+    uploadPost,
+    client: new UploadPostClient(),
+    log,
+    emit,
+    suggest: async (ctx) => {
+      const { llmProvider } = await import('./api')
+      return (await llmProvider(settings.get(), studio)).suggestReply(ctx)
+    },
+  })
+  setTimeout(() => void engage.sync().catch(() => {}), 60_000)
+  setInterval(() => void engage.sync().catch(() => {}), 5 * 60_000)
   const adapterFor = (
     platform: Platform,
     account: Account | null,
@@ -1121,6 +1136,7 @@ async function boot(): Promise<void> {
   const api = buildApi({
     uploadPost,
     firstComments,
+    engage,
     growth,
     storage,
     website,

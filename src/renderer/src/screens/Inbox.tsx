@@ -4,6 +4,7 @@ import { formatEastern } from '@shared/time'
 import type { DropRow, InboxItem } from '@shared/pipeline'
 import { api } from '../api'
 import { StudioComments } from './StudioOperations'
+import { CommentsInbox, MessagesInbox } from './EngageViews'
 import { useApp, useLoad } from '../hooks'
 import {
   Button,
@@ -17,7 +18,7 @@ import {
   useBusy,
 } from '../ui'
 
-type Tab = 'waiting' | 'held' | 'rejected' | 'log' | 'issues' | 'comments'
+type Tab = 'waiting' | 'held' | 'rejected' | 'log' | 'issues' | 'comments' | 'messages' | 'studioComments'
 const TABS: Array<[Tab, string]> = [
   ['waiting', 'Waiting'],
   ['held', 'Held'],
@@ -25,6 +26,8 @@ const TABS: Array<[Tab, string]> = [
   ['log', 'Log'],
   ['issues', 'Issues'],
   ['comments', 'Comments'],
+  ['messages', 'Messages'],
+  ['studioComments', 'Studio replies'],
 ]
 
 const mins = (s: number | null) =>
@@ -38,6 +41,7 @@ export function Inbox() {
   const [bot, setBot] = useState('')
   const [status, setStatus] = useState('')
   const { data: counts, reload: reloadCounts } = useLoad(() => api.pipeline.counts())
+  const { data: newComments } = useLoad(() => api.engage.newCount())
   const { data: waiting, reload: reloadWaiting } = useLoad(() => api.pipeline.waiting())
   const { data: held, reload: reloadHeld } = useLoad(() => api.pipeline.held())
   const { data: rejected } = useLoad(() => api.pipeline.rejected())
@@ -89,7 +93,9 @@ export function Inbox() {
           ? counts?.held
           : id === 'issues'
             ? counts?.issues
-            : 0
+            : id === 'comments'
+              ? newComments
+              : 0
     return (
       <>
         {label}
@@ -360,7 +366,9 @@ export function Inbox() {
           ))}
         {tab === 'log' &&
           (log?.length ? <DropTable rows={log} showResult /> : <Empty>No drops yet.</Empty>)}
-        {tab === 'comments' && <StudioComments />}
+        {tab === 'comments' && <CommentsInbox />}
+        {tab === 'messages' && <MessagesInbox />}
+        {tab === 'studioComments' && <StudioComments />}
         {tab === 'issues' && (
           <p className="max-w-3xl text-[12px] text-muted">
             Dismiss hides a message. It comes back only if the problem goes away and then happens

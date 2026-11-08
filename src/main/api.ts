@@ -20,6 +20,7 @@ import type { PostService } from './services/posts'
 import type { SecretStore } from './services/secrets'
 import type { UploadPostService } from './services/uploadPost'
 import type { FirstCommentService } from './services/firstComments'
+import type { EngageService } from './services/engage'
 import type { SettingsService } from './services/settings'
 import { channelOverrides, setBrandOverrides } from './services/channelSettings'
 import type { Scheduler } from './scheduler/scheduler'
@@ -78,6 +79,7 @@ export interface ApiDeps {
   secrets: SecretStore
   uploadPost: UploadPostService
   firstComments: FirstCommentService
+  engage: EngageService
   library: Library
   youtube: YoutubeService
   meta: MetaService
@@ -112,7 +114,7 @@ export interface ApiDeps {
   afterResume: (brandId: number) => void
 }
 
-async function llmProvider(c: Settings, studio: Studio): Promise<OpenAICompatibleProvider> {
+export async function llmProvider(c: Settings, studio: Studio): Promise<OpenAICompatibleProvider> {
   if (c.llmProvider === 'none')
     throw new Error('Text assist is turned off. Turn it on in Settings, under Text assist.')
   if (c.llmProvider === 'studio-local') {
@@ -627,6 +629,21 @@ export function buildApi(d: ApiDeps): Api {
       moveStudioIdeas: async () => d.upcoming.moveStudioIdeas(),
       openScript: async (path) => d.host.openPath(path),
       reload: async () => void d.upcoming.load(),
+    },
+    engage: {
+      comments: async (filter) => d.engage.list(filter),
+      refresh: async () => {
+        const r = await d.engage.sync({ force: true })
+        d.emit()
+        return r
+      },
+      reply: async (id, text) => d.engage.reply(id, text),
+      setStatus: async (id, status) => d.engage.setStatus(id, status),
+      draft: async (id) => d.engage.draft(id),
+      newCount: async () => d.engage.newCount(),
+      dms: async (force) => d.engage.dms(force),
+      dmSend: async (brandId, recipientId, text) => d.engage.dmSend(brandId, recipientId, text),
+      dmDraft: async (brandId, recipientId) => d.engage.dmDraft(brandId, recipientId),
     },
     textAssist: {
       available: async () => d.settings.get().llmProvider !== 'none',

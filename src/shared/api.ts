@@ -57,6 +57,7 @@ import type { HomeSummary } from './home'
 import type { DashboardSnapshot } from './dashboard'
 import type { SendSchedule } from './sendSchedule'
 import type { UploadPostState, UploadPostTest } from './uploadPost'
+import type { CommentFilter, CommentSyncResult, DmChannel, InboxComment } from './engage'
 import type { SearchHit } from './search'
 import type { EditPatch } from './platformEdit'
 import type { StudioApi } from './studio/api'
@@ -435,6 +436,20 @@ export interface Api {
   platform: {
     /** Changes the text of a video that is already live. */
     edit(postId: number, platform: string, patch: EditPatch): Promise<string>
+  }
+  /** Comments and Instagram messages read through Upload-Post. Nothing is sent without a click. */
+  engage: {
+    comments(filter: CommentFilter): Promise<InboxComment[]>
+    /** Checks the posted videos for new comments right now. */
+    refresh(): Promise<CommentSyncResult>
+    reply(id: number, text: string): Promise<void>
+    setStatus(id: number, status: 'new' | 'done'): Promise<void>
+    /** Reply ideas from the local AI. */
+    draft(id: number): Promise<string[]>
+    newCount(): Promise<number>
+    dms(force?: boolean): Promise<DmChannel[]>
+    dmSend(brandId: number, recipientId: string, text: string): Promise<void>
+    dmDraft(brandId: number, recipientId: string): Promise<string[]>
   }
   textAssist: {
     available(): Promise<boolean>

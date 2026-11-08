@@ -125,6 +125,38 @@ export class UploadPostClient {
     return { id: r?.id ?? null, warnings: Array.isArray(r?.warnings) ? r.warnings : [] }
   }
 
+  /** Top-level comments on one post, newest first. Only the first page is read. */
+  async listComments(
+    key: string,
+    i: { platform: string; user: string; postId?: string; postUrl?: string; limit?: number },
+  ): Promise<Array<{ id: string; text: string; at: string | null; userId: string; username: string }>> {
+    const q = new URLSearchParams({ platform: i.platform, user: i.user, limit: String(i.limit ?? 50) })
+    if (i.postId) q.set('post_id', i.postId)
+    else if (i.postUrl) q.set('post_url', i.postUrl)
+    const r = await this.call(key, `/uploadposts/comments?${q.toString()}`)
+    return (Array.isArray(r?.comments) ? r.comments : []).map((c: any) => ({
+      id: String(c.id),
+      text: String(c.text ?? c.message ?? ''),
+      at: c.timestamp ?? c.created_time ?? null,
+      userId: String(c.user?.id ?? c.from?.id ?? ''),
+      username: String(c.user?.username ?? c.from?.username ?? c.author ?? ''),
+    }))
+  }
+
+  /** Instagram DM conversations with their recent messages. */
+  async dmConversations(key: string, user: string): Promise<any[]> {
+    const r = await this.call(key, `/uploadposts/dms/conversations?platform=instagram&user=${encodeURIComponent(user)}`)
+    return Array.isArray(r?.conversations) ? r.conversations : []
+  }
+
+  async sendDm(key: string, i: { user: string; recipientId: string; message: string }): Promise<void> {
+    await this.call(key, '/uploadposts/dms/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platform: 'instagram', user: i.user, recipient_id: i.recipientId, message: i.message }),
+    })
+  }
+
   async status(key: string, requestId: string): Promise<UploadPostStatus> {
     try {
       const b = await this.call(key, `/uploadposts/status?request_id=${encodeURIComponent(requestId)}`)

@@ -175,6 +175,12 @@ export class OpenAICompatibleProvider implements TextAssistProvider {
       `Brand: ${i.brand}\nTitle: ${i.title || '(none)'}\nCurrent caption: ${i.caption || '(none)'}\nWrite 3 caption options, each under 200 characters, with no hashtags.`,
     ).then(parseSuggestions)
   }
+  /** Reply ideas for a viewer's comment or message. The owner reads and edits one before anything is sent. */
+  suggestReply(i: { kind: 'comment' | 'dm'; brand: string; video: string; text: string }): Promise<string[]> {
+    return this.ask(
+      `Channel: ${i.brand}\n${i.video ? `Video: ${i.video}\n` : ''}A viewer wrote this ${i.kind === 'dm' ? 'message' : 'comment'}: "${i.text.slice(0, 500)}"\nWrite 3 short, friendly reply options, each under 150 characters. Do not make promises, do not share links, and do not use em dashes.`,
+    ).then(parseSuggestions)
+  }
   suggestHashtags(i: { brand: string; title: string; caption: string }): Promise<string[]> {
     return this.ask(
       `Brand: ${i.brand}\nTitle: ${i.title || '(none)'}\nCaption: ${i.caption || '(none)'}\nWrite 3 options. Each option is one string of 5 to 8 hashtags separated by spaces, like "#one #two #three".`,
