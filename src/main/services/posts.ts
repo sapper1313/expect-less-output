@@ -889,12 +889,11 @@ export class PostService {
       const title = patch.title ?? cur.title
       const caption = patch.caption ?? cur.caption
       const when = patch.scheduledAtUtc !== undefined ? patch.scheduledAtUtc : cur.scheduledAtUtc
+      // Saving the editor sends the time back unchanged. Only a different time counts as a reschedule.
+      const moved = !!patch.scheduledAtUtc && patch.scheduledAtUtc !== cur.scheduledAtUtc
       let status: PostStatus = cur.status
       if (patch.status) status = patch.status
-      else if (
-        ['missed', 'failed', 'partial', 'canceled'].includes(cur.status) &&
-        patch.scheduledAtUtc
-      )
+      else if (['missed', 'failed', 'partial', 'canceled'].includes(cur.status) && moved)
         status = 'scheduled'
       if (status === 'scheduled' && !when)
         throw new Error('Pick a date and time before scheduling.')
@@ -938,14 +937,12 @@ export class PostService {
         }
       }
       // A reschedule of a missed or failed post starts it fresh.
-      if (
-        patch.scheduledAtUtc &&
-        ['missed', 'failed', 'partial', 'canceled'].includes(cur.status)
-      ) {
+      // A target waiting for you to finish it in an app (a TikTok draft) is left alone, so it is never sent twice.
+      if (moved && ['missed', 'failed', 'partial', 'canceled'].includes(cur.status)) {
         this.db
           .prepare(
             `UPDATE post_targets SET status = 'pending', attempts = 0, next_attempt_at_utc = NULL, last_error = NULL,
-             lock_token = NULL, locked_at_utc = NULL WHERE post_id = ? AND status IN ('failed','needs_action','pending')`,
+             lock_token = NULL, locked_at_utc = NULL WHERE post_id = ? AND status IN ('failed','pending')`,
           )
           .run(id)
       }

@@ -339,3 +339,39 @@ describe('Posted Videos list', () => {
     expect(got).toEqual([live])
   })
 })
+
+describe('Saving a partly posted post', () => {
+  it('does not reset a finished TikTok draft or mark the post missed when the time did not change', async () => {
+    const { env } = setup()
+    const when = new Date(env.clock.ms - 3_600_000).toISOString()
+    const id = Number(
+      env.db
+        .prepare("INSERT INTO posts (brand_id, video_path, title, caption, status, scheduled_at_utc) VALUES (1, 'x.mp4', 'Half done', 'c', 'partial', ?)")
+        .run(when).lastInsertRowid,
+    )
+    env.db.prepare("INSERT INTO post_targets (post_id, platform, status, external_id, attempts) VALUES (?, 'youtube', 'posted', 'v', 1)").run(id)
+    env.db.prepare("INSERT INTO post_targets (post_id, platform, status, external_id, attempts) VALUES (?, 'tiktok', 'needs_action', 'v_inbox', 1)").run(id)
+    const saved = env.posts.update(id, { title: 'Half done', caption: 'c', scheduledAtUtc: when, firstComment: 'Hi' })
+    expect(saved.status).toBe('partial')
+    expect(saved.targets.find((t) => t.platform === 'tiktok')!.status).toBe('needs_action')
+    expect(saved.firstComment).toBe('Hi')
+    await env.scheduler.tick()
+    expect(env.posts.get(id)!.status).toBe('partial')
+  })
+
+  it('the repair migration puts a damaged post back', async () => {
+    const { env } = setup()
+    const id = Number(
+      env.db
+        .prepare("INSERT INTO posts (brand_id, video_path, title, caption, status, scheduled_at_utc) VALUES (1, 'x.mp4', 'Damaged', 'c', 'missed', '2026-11-08T00:00:00.000Z')")
+        .run().lastInsertRowid,
+    )
+    env.db.prepare("INSERT INTO post_targets (post_id, platform, status, external_id, attempts) VALUES (?, 'youtube', 'posted', 'v', 1)").run(id)
+    env.db.prepare("INSERT INTO post_targets (post_id, platform, status, external_id, attempts) VALUES (?, 'tiktok', 'pending', 'v_inbox', 0)").run(id)
+    const { readFileSync } = await import('fs')
+    env.db.exec(readFileSync('src/main/db/migrations/040_repair_saved_partial.sql', 'utf8'))
+    const p = env.posts.get(id)!
+    expect(p.status).toBe('partial')
+    expect(p.targets.find((t) => t.platform === 'tiktok')!.status).toBe('needs_action')
+  })
+})
