@@ -307,6 +307,8 @@ export function PipelineSettings({ s, save }: { s: Settings; save: Save }) {
   const minutes = [0, 1, 2].map((i) => s.retryMinutes[i] ?? [5, 15, 60][i])
   return (
     <>
+      <ScheduleRulesCard s={s} save={save} />
+      <EmptySlotWarningsCard s={s} save={save} />
       <Card title="Drop intake">
         <div className="space-y-3">
           <Switch
