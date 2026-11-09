@@ -74,6 +74,7 @@ export const COPY = {
     reschedule: (when: string) => `Move this post to ${when} Eastern?`,
     quitPending: (n: number) =>
       `${n} post${n === 1 ? ' is' : 's are'} still scheduled. If you quit, nothing will be posted until you open the app again. Quit anyway?`,
-    archiveBrand: 'Archive this brand? Its posts stay, but it disappears from the pickers.',
+    archiveBrand:
+      'Archive this channel? Anything it has not posted yet is canceled, what already went live stays, and it disappears from the pickers, Home and the numbers. Un-archiving does not bring canceled posts back.',
   },
 }

@@ -218,6 +218,11 @@ export function buildApi(d: ApiDeps): Api {
       },
       archive: async (id, archived) => {
         d.brands.archive(id, archived)
+        // An archived channel posts nothing more. What it had waiting is canceled, and what already went live is left alone.
+        if (archived) {
+          const n = d.posts.cancelUnposted(id)
+          if (n) d.log.log('info', `Archived the channel and canceled ${n} post(s) that had not gone out.`)
+        }
         d.website.requestSync()
         d.emit()
       },

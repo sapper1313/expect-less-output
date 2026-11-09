@@ -153,6 +153,7 @@ export class Scheduler {
          JOIN posts p ON p.id = t.post_id
          JOIN brands b ON b.id = p.brand_id
          WHERE p.status IN ('scheduled','in_progress','partial')
+           AND b.archived = 0
            AND p.hold_reason IS NULL
            AND p.scheduled_at_utc IS NOT NULL
            AND t.status = 'pending' AND t.lock_token IS NULL
@@ -860,7 +861,7 @@ export class Scheduler {
     const next = this.d.db
       .prepare(
         `SELECT p.id, p.title, p.scheduled_at_utc, b.name AS brand_name FROM posts p JOIN brands b ON b.id = p.brand_id
-         WHERE p.status IN ('scheduled','in_progress','partial') AND p.scheduled_at_utc IS NOT NULL
+         WHERE p.status IN ('scheduled','in_progress','partial') AND p.scheduled_at_utc IS NOT NULL AND b.archived = 0
            AND p.brand_id NOT IN (SELECT value FROM json_each(?))
          ORDER BY p.scheduled_at_utc LIMIT 1`,
       )

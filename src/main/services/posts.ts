@@ -369,6 +369,7 @@ export class PostService {
           this.db
             .prepare(
               `SELECT scheduled_at_utc AS t FROM posts WHERE brand_id != ? AND scheduled_at_utc IS NOT NULL
+               AND brand_id IN (SELECT id FROM brands WHERE archived = 0)
                AND status IN (${RESERVING.map(() => '?').join(',')})`,
             )
             .all(brandId, ...RESERVING) as Array<{ t: string }>
@@ -433,7 +434,7 @@ export class PostService {
       ? (this.db
           .prepare(
             `SELECT p.scheduled_at_utc AS t, b.name AS name FROM posts p JOIN brands b ON b.id = p.brand_id
-             WHERE p.brand_id != ? AND p.scheduled_at_utc IS NOT NULL AND p.scheduled_at_utc >= ? AND p.scheduled_at_utc < ?
+             WHERE p.brand_id != ? AND b.archived = 0 AND p.scheduled_at_utc IS NOT NULL AND p.scheduled_at_utc >= ? AND p.scheduled_at_utc < ?
              AND p.status IN (${RESERVING.map(() => '?').join(',')})`,
           )
           .all(
@@ -1007,6 +1008,22 @@ export class PostService {
       }
     })()
     this.emit()
+  }
+
+  /**
+   * Cancels everything a channel has not posted yet (scheduled, in progress, partly posted, held, draft or missed).
+   * Used when the channel is archived. What already went live stays as it is. Returns how many posts were canceled.
+   */
+  cancelUnposted(brandId: number): number {
+    const ids = (
+      this.db
+        .prepare(
+          "SELECT id FROM posts WHERE brand_id = ? AND status IN ('scheduled','in_progress','partial','draft','missed')",
+        )
+        .all(brandId) as Array<{ id: number }>
+    ).map((r) => r.id)
+    if (ids.length) this.cancel(ids)
+    return ids.length
   }
 
   remove(ids: number[], alsoDeleteFile: boolean): void {
