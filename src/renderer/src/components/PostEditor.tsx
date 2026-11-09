@@ -2,7 +2,7 @@ import { friendlyError } from '@shared/friendlyError'
 import { useEffect, useState } from 'react'
 import { PLATFORM_LABELS, captionCounters } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
-import { formatEastern, isoToLocalInput, localInputToIso } from '@shared/time'
+import { formatEastern } from '@shared/time'
 import type { Post } from '@shared/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
@@ -19,9 +19,8 @@ import {
   TargetChip,
   Textarea,
   useBusy,
-  DateTimeSelect,
 } from '../ui'
-import { PlatformPicker } from './pickers'
+import { PlatformPicker, WhenPicker } from './pickers'
 import { PostStatsPanel } from './StatsPanel'
 import { PostingAs, TikTokSection, useCreator } from './TikTokSection'
 import { previewFor } from '@shared/preview'
@@ -334,12 +333,12 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
             )}
           </div>
           <Field label="When (Eastern time)">
-            <DateTimeSelect
-              step={1}
+            <WhenPicker
+              brandId={draft.brandId}
               disabled={locked}
-              value={isoToLocalInput(draft.scheduledAtUtc)}
-              onChange={(v) => set('scheduledAtUtc', localInputToIso(v))}
-              label="When"
+              value={draft.scheduledAtUtc}
+              onChange={(v) => set('scheduledAtUtc', v)}
+              slotsToo={draft.postType !== 'clip'}
             />
           </Field>
           {draft.scheduledAtUtc && (

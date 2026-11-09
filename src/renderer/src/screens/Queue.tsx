@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import { EXTRA_PLATFORMS, PLATFORMS, PLATFORM_LABELS } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
 import { toCsv } from '@shared/csv'
-import { formatEastern, localInputToIso } from '@shared/time'
+import { formatEastern, isoToLocalInput, localInputToIso } from '@shared/time'
+import { WhenPicker } from '../components/pickers'
 import type { PostFilter } from '@shared/types'
 import { api } from '../api'
 import { SendOlder } from '../components/SendOlder'
@@ -159,7 +160,16 @@ export function Queue() {
         {ids.length > 0 && (
           <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface p-3">
             <b>{ids.length} selected</b>
-            <DateTimeSelect value={when} onChange={setWhen} label="New time in Eastern" />
+            {ids.length === 1 && (posts ?? []).find((p) => p.id === ids[0])?.postType !== 'clip' ? (
+              <WhenPicker
+                key={ids[0]}
+                brandId={(posts ?? []).find((p) => p.id === ids[0])?.brandId ?? null}
+                value={localInputToIso(when)}
+                onChange={(iso) => setWhen(iso ? isoToLocalInput(iso) : '')}
+              />
+            ) : (
+              <DateTimeSelect value={when} onChange={setWhen} label="New time in Eastern" />
+            )}
             <Button
               disabled={!when || busy}
               onClick={async () => {

@@ -55,6 +55,70 @@ export function PlatformPicker({
   )
 }
 
+/**
+ * For changing the time of a post that already exists: pick one of the channel's open slots, or pick any other time.
+ * The post's own time is always in the list, so nothing changes unless you choose something else.
+ */
+export function WhenPicker({
+  brandId,
+  value,
+  onChange,
+  disabled,
+  slotsToo = true,
+}: {
+  brandId: number | null
+  value: string | null
+  onChange: (iso: string | null) => void
+  disabled?: boolean
+  /** false: only the free time box (for clips, which have no episode slots). */
+  slotsToo?: boolean
+}) {
+  const { data: slots } = useLoad(
+    () => (brandId && slotsToo ? api.slots.next(brandId, 40) : Promise.resolve([] as string[])),
+    [brandId, slotsToo],
+  )
+  const [custom, setCustom] = useState(false)
+  const list = slots ?? []
+  const own = !!value && !list.includes(value)
+  const ready = slots !== undefined
+  const showCustom = !slotsToo || custom
+  return (
+    <div className="space-y-2">
+      {slotsToo && (
+        <Select
+          disabled={disabled || !ready}
+          value={showCustom ? '__custom' : (value ?? '')}
+          onChange={(e) => {
+            if (e.target.value === '__custom') setCustom(true)
+            else {
+              setCustom(false)
+              onChange(e.target.value || null)
+            }
+          }}
+        >
+          {own && value && <option value={value}>Now: {formatEastern(value)}</option>}
+          {!value && <option value="">Pick a slot</option>}
+          {list.map((s) => (
+            <option key={s} value={s}>
+              {formatEastern(s)} (open slot)
+            </option>
+          ))}
+          <option value="__custom">Pick a different time...</option>
+        </Select>
+      )}
+      {showCustom && (
+        <DateTimeSelect
+          step={1}
+          disabled={disabled}
+          value={isoToLocalInput(value)}
+          onChange={(v) => onChange(localInputToIso(v))}
+          label="When"
+        />
+      )}
+    </div>
+  )
+}
+
 export function SchedulePicker({
   brandId,
   value,
