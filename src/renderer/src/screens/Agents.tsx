@@ -40,6 +40,7 @@ export function AgentsCard({
   const { data: st, reload } = useLoad(() => api.agent.status())
   const [mcp, setMcp] = useState<McpConfig | null>(null)
   const [token, setToken] = useState<string | null>(null)
+  const { data: phone, reload: reloadPhone } = useLoad(() => api.agent.phoneLink(), [s.agentApiEnabled, s.agentApiTailscale, s.agentApiPort, st?.tailscaleListening])
   const [port, setPort] = useState(String(s.agentApiPort))
   useEffect(() => setPort(String(s.agentApiPort)), [s.agentApiPort])
   useEffect(() => {
@@ -98,6 +99,34 @@ export function AgentsCard({
             token. The Mac must be awake. When it sleeps, the bot computer sees the app as
             unreachable.
           </div>
+        </div>
+        <div className="space-y-2 rounded-md border border-line p-3">
+          <div className="text-[13px] font-semibold">Phone and iPad page (read only)</div>
+          <div className="text-[12px] text-muted">
+            The Home screen on your iPhone or iPad, over Tailscale only. Install Tailscale on the
+            device, sign in with the same account as this Mac, then open the private link below in
+            Safari and tap Share, then Add to Home Screen. It shows numbers only and cannot change
+            anything. Anyone with the link can see it, so keep it private. The Mac must be awake.
+          </div>
+          {phone?.url ? (
+            <>
+              <CopyBox label="Private link" text={phone.url} />
+              <Button
+                disabled={busy}
+                onClick={() =>
+                  run(async () => {
+                    await api.agent.newPhoneLink()
+                    reloadPhone()
+                    toast({ kind: 'success', headline: 'New link made', detail: 'The old link no longer works.' })
+                  })
+                }
+              >
+                Make a new link (the old one stops working)
+              </Button>
+            </>
+          ) : (
+            <div className="text-[12px] font-semibold text-warn">{phone?.reason ?? 'Checking.'}</div>
+          )}
         </div>
         <Check checked={!s.agentMaySchedule} onChange={(v) => save({ agentMaySchedule: !v })}>
           <b>Agents may create drafts only</b>

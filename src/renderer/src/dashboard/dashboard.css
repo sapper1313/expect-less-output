@@ -192,3 +192,11 @@ p{margin:6px 0 0}
 .acct-cell .k{font-size:11px;color:var(--label)}
 .acct-note{margin-top:12px}
 @media (max-width:900px){.acct-row{grid-template-columns:repeat(3,1fr)}.acct-who{grid-column:1/-1}}
+@media (max-width:560px){
+  .page{padding:14px;padding-top:max(14px,env(safe-area-inset-top))}
+  .card{padding:16px}
+  .hero,.cards,.two,.best2{grid-template-columns:minmax(0,1fr)}
+  .strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .acct-row{grid-template-columns:repeat(2,1fr)}
+  .week-range{min-width:0}
+}

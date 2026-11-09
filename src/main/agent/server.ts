@@ -6,6 +6,7 @@ import { buildOpenApi } from '@shared/openapi'
 import { AgentError, type AgentServices } from './core'
 import { HANDLERS } from './handlers'
 import { OWNER, type Caller } from './bots'
+import { handlePhoneRequest, type PhoneProvider } from './phone'
 
 export interface AgentRequest {
   method: string
@@ -162,6 +163,8 @@ export class AgentServer {
   private servers: Server[] = []
   private lastDeniedLog = 0
   private tailscale: string | null = null
+  /** The read only phone page. Set once the dashboard exists. */
+  phone: PhoneProvider | null = null
   constructor(
     private s: AgentServices,
     private getToken: () => string | null,
@@ -198,6 +201,28 @@ export class AgentServer {
           else chunks.push(c)
         })
         req.on('end', async () => {
+          if (this.phone && (req.url ?? '').startsWith('/m/')) {
+            const ph = await handlePhoneRequest(
+              this.phone,
+              {
+                method: req.method ?? 'GET',
+                url: req.url ?? '/',
+                headers: req.headers,
+                port: (server.address() as { port: number }).port,
+              },
+              this.hostOk,
+            )
+            if (ph) {
+              res.writeHead(ph.status, {
+                'Content-Type': ph.type,
+                'Cache-Control': 'no-store',
+                'Referrer-Policy': 'no-referrer',
+                'X-Robots-Tag': 'noindex',
+              })
+              res.end(ph.body)
+              return
+            }
+          }
           const out = tooBig
             ? err(400, 'bad_request', 'Request body is too large.')
             : await handleAgentRequest(

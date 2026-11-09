@@ -21,6 +21,7 @@ export function tailscaleAddress(interfaces = networkInterfaces()): string | nul
 }
 
 export const AGENT_TOKEN_KEY = 'agent.token'
+export const PHONE_TOKEN_KEY = 'agent.phoneToken'
 
 export interface RuntimePaths {
   /** The built MCP script that ships with the app. */
@@ -48,6 +49,33 @@ export class AgentRuntime {
 
   token(): string | null {
     return this.secrets.get(AGENT_TOKEN_KEY)
+  }
+
+  /** The secret in the phone page link. It is made the first time it is needed. */
+  phoneToken(): string {
+    let t = this.secrets.get(PHONE_TOKEN_KEY)
+    if (!t) {
+      t = randomBytes(24).toString('base64url')
+      this.secrets.set(PHONE_TOKEN_KEY, t)
+    }
+    return t
+  }
+
+  /** A new link replaces the old one at once. */
+  newPhoneToken(): void {
+    this.secrets.set(PHONE_TOKEN_KEY, randomBytes(24).toString('base64url'))
+    this.s.log.log('info', 'A new phone page link was made. The old link no longer works.')
+  }
+
+  /** The private link for the phone page, or why there is none yet. */
+  phoneLink(): { url: string | null; reason: string | null } {
+    const cfg = this.settings.get()
+    const ts = tailscaleAddress()
+    if (!cfg.agentApiEnabled) return { url: null, reason: 'Turn on the local API first.' }
+    if (!cfg.agentApiTailscale) return { url: null, reason: 'Tick "Also listen on Tailscale" first.' }
+    if (!ts) return { url: null, reason: 'Tailscale does not seem to be running on this Mac.' }
+    if (!this.server.tailscaleListening) return { url: null, reason: 'Waiting for the Tailscale listener to start.' }
+    return { url: `http://${ts}:${cfg.agentApiPort}/m/${this.phoneToken()}/`, reason: null }
   }
 
   /** A new token replaces the old one at once. The caller shows it one time. */

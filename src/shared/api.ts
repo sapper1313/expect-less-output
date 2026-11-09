@@ -269,6 +269,10 @@ export interface Api {
     status(): Promise<AgentStatus>
     /** Makes a new token and returns it. This is the only time it is shown. */
     generateToken(): Promise<{ token: string }>
+    /** The private link to the read only phone page, or the reason there is none yet. */
+    phoneLink(): Promise<{ url: string | null; reason: string | null }>
+    /** Makes a new phone link. The old one stops working. */
+    newPhoneLink(): Promise<{ url: string | null; reason: string | null }>
     mcpConfig(): Promise<McpConfig>
     bots(): Promise<BotInfo[]>
     /** Makes a bot with its own token. The token is shown only in this answer. */

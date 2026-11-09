@@ -473,6 +473,12 @@ export function buildApi(d: ApiDeps): Api {
     agent: {
       status: async () => d.agent.status(),
       generateToken: async () => ({ token: d.agent.generateToken() }),
+      phoneLink: async () => d.agent.phoneLink(),
+      newPhoneLink: async () => {
+        d.agent.newPhoneToken()
+        d.audit.write({ actor: 'josh', action: 'phone.newLink' })
+        return d.agent.phoneLink()
+      },
       mcpConfig: async () => d.agent.mcpConfig(),
       bots: async () => d.bots.list(),
       createBot: async (name, channels, role) => {

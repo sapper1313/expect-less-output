@@ -945,6 +945,14 @@ async function boot(): Promise<void> {
     studioOn: () => !studio.isOff(),
     accountTotals: () => accountStats.homeTotals(),
   })
+  agent.server.phone = {
+    token: () => agent.phoneToken(),
+    look: () => settings.get().colorTheme,
+    snapshot: async () => dashboard.snapshot(),
+    refresh: async () => dashboard.refresh(),
+    week: async (offset) => dashboard.weekMap(offset),
+    tiles: async () => apiRef!.home.summary(),
+  }
   const inbox = new InboxWatcher({
     s: {
       settings,
