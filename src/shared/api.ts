@@ -65,6 +65,7 @@ import type { UpcomingEntryT, UpcomingView } from './upcoming'
 import type {
   GrowthRetract,
   StorageReport,
+  ArchivedChannelFiles,
   ArchiveResult,
   ExtraAccountView,
   ExtraCredentialsStatus,
@@ -380,6 +381,10 @@ export interface Api {
     normalizeAudio(postId: number): Promise<string>
     /** Where the disk space goes, per channel. */
     storageReport(): Promise<StorageReport>
+    /** Archived channels that still have video files, with their size. */
+    archivedChannelFiles(): Promise<ArchivedChannelFiles[]>
+    /** Permanently deletes the video files of archived channels. */
+    deleteArchivedFiles(brandIds: number[]): Promise<{ deleted: number; freedBytes: number }>
     /** Makes smaller H.265 copies of posted videos older than `days`. Removes the big original only when asked. */
     archiveOld(days: number, removeOriginals: boolean): Promise<ArchiveResult>
   }

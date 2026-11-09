@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readdirSync, statSync, statfsSync } from 'fs'
-import { basename, join } from 'path'
+import { existsSync, mkdirSync, readdirSync, rmSync, statSync, statfsSync } from 'fs'
+import { basename, join, relative, isAbsolute } from 'path'
+import type { ArchivedChannelFiles } from '@shared/types'
 import type { Db } from '../db'
 import type { Library } from '../services/library'
 import { uniquePath } from '../services/library'
@@ -34,6 +35,7 @@ export interface StorageDeps {
   /** The length of a video in seconds. */
   duration: (path: string) => Promise<number>
   brandNames: () => string[]
+  log?: { log: (level: 'info' | 'warn' | 'error', message: string) => void }
   now?: () => number
 }
 
@@ -61,7 +63,10 @@ export class StorageService {
 
   report(): StorageReport {
     const rows: StorageRow[] = []
-    for (const name of this.d.brandNames()) {
+    const active = new Set(
+      (this.d.db.prepare('SELECT name FROM brands WHERE archived = 0').all() as Array<{ name: string }>).map((r) => r.name),
+    )
+    for (const name of this.d.brandNames().filter((n) => active.has(n))) {
       const dir = this.d.library.brandDir(name)
       const part = (sub: string) => folderBytes(join(dir, sub))
       const queue = part('Queue')
@@ -93,6 +98,37 @@ export class StorageService {
       ),
       freeBytes: free,
     }
+  }
+
+  /** Archived channels that still have video files on disk. */
+  archivedChannels(): ArchivedChannelFiles[] {
+    const rows = this.d.db.prepare('SELECT id, name FROM brands WHERE archived = 1 ORDER BY id').all() as Array<{ id: number; name: string }>
+    return rows
+      .map((r) => ({ brandId: r.id, name: r.name, bytes: folderBytes(this.d.library.brandDir(r.name)) }))
+      .filter((r) => r.bytes > 0)
+  }
+
+  /**
+   * Deletes a channel's whole folder in the Media Root (Queue, Posted, Replaced, Archive). Only for an archived channel.
+   * Its posts keep their history, but their files are gone, so they are marked as such.
+   */
+  deleteChannelFiles(brandId: number): { name: string; freedBytes: number } {
+    const b = this.d.db.prepare('SELECT id, name, archived FROM brands WHERE id = ?').get(brandId) as
+      | { id: number; name: string; archived: number }
+      | undefined
+    if (!b) throw new Error('That channel was not found.')
+    if (!b.archived) throw new Error('Only an archived channel has its files deleted.')
+    const dir = this.d.library.brandDir(b.name)
+    const back = relative(this.d.library.root, dir)
+    if (!back || back.startsWith('..') || isAbsolute(back) || back.includes('/'))
+      throw new Error('That folder is not a channel folder inside the Media Root, so it was left alone.')
+    const freedBytes = folderBytes(dir)
+    rmSync(dir, { recursive: true, force: true })
+    this.d.db
+      .prepare('UPDATE posts SET media_purged_at = ? WHERE brand_id = ? AND media_purged_at IS NULL')
+      .run(new Date(this.now()).toISOString(), brandId)
+    this.d.log?.log('info', `Deleted the video files of the archived channel ${b.name} (${Math.round(freedBytes / 1e6)} MB).`)
+    return { name: b.name, freedBytes }
   }
 
   /** Posted videos older than `days` that can be shrunk. */

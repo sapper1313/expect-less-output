@@ -75,6 +75,6 @@ export const COPY = {
     quitPending: (n: number) =>
       `${n} post${n === 1 ? ' is' : 's are'} still scheduled. If you quit, nothing will be posted until you open the app again. Quit anyway?`,
     archiveBrand:
-      'Archive this channel? Anything it has not posted yet is canceled, what already went live stays, and it disappears from the pickers, Home and the numbers. Un-archiving does not bring canceled posts back.',
+      'Archive this channel? Anything it has not posted yet is canceled, ALL of its video files are deleted for good (this cannot be undone), and it disappears from the pickers, Home and the numbers. The posts stay in the history. Un-archiving does not bring back canceled posts or deleted videos.',
   },
 }

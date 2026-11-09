@@ -50,6 +50,23 @@ describe('storage', () => {
     expect(r.freeBytes).toBeGreaterThan(0)
   })
 
+  it('deletes an archived channel folder for good, refuses an active one, and hides it from the table', () => {
+    const { svc, env, file, postId } = rig()
+    expect(() => svc.deleteChannelFiles(1)).toThrow(/archived/)
+    expect(existsSync(file)).toBe(true)
+    env.brands.archive(1, true)
+    expect(svc.report().rows.find((x) => x.channel === 'Trash Panda')).toBeUndefined()
+    expect(svc.archivedChannels()).toEqual([{ brandId: 1, name: 'Trash Panda', bytes: 10_000 }])
+    const r = svc.deleteChannelFiles(1)
+    expect(r.freedBytes).toBe(10_000)
+    expect(existsSync(file)).toBe(false)
+    expect(existsSync(join(env.root, 'Trash Panda'))).toBe(false)
+    expect(svc.archivedChannels()).toEqual([])
+    const p = env.db.prepare('SELECT media_purged_at AS m, status FROM posts WHERE id = ?').get(postId) as { m: string | null; status: string }
+    expect(p.m).toBeTruthy()
+    expect(p.status).toBe('posted')
+  })
+
   it('keeps the original unless told to remove it', async () => {
     const { svc, file, env, brand } = rig()
     const r = await svc.archiveOld(30, false)

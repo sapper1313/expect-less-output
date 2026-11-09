@@ -222,6 +222,16 @@ export function buildApi(d: ApiDeps): Api {
         if (archived) {
           const n = d.posts.cancelUnposted(id)
           if (n) d.log.log('info', `Archived the channel and canceled ${n} post(s) that had not gone out.`)
+          // Its video files go too. The channel is archived for good, so nothing keeps them.
+          try {
+            const r = d.storage.deleteChannelFiles(id)
+            d.audit.write({ actor: 'josh', action: 'storage.deleteChannelFiles', target: r.name, after: { freedBytes: r.freedBytes } })
+          } catch (e) {
+            d.log.log('warn', `The channel was archived, but its video files could not be deleted: ${(e as Error).message}`)
+          }
+        } else {
+          const b = d.brands.get(id)
+          if (b) d.library.ensureBrandFolders(b.name)
         }
         d.website.requestSync()
         d.emit()
@@ -575,6 +585,19 @@ export function buildApi(d: ApiDeps): Api {
     },
     growth: {
       storageReport: async () => d.storage.report(),
+      archivedChannelFiles: async () => d.storage.archivedChannels(),
+      deleteArchivedFiles: async (brandIds) => {
+        let freedBytes = 0
+        let deleted = 0
+        for (const id of brandIds) {
+          const r = d.storage.deleteChannelFiles(id)
+          freedBytes += r.freedBytes
+          deleted++
+          d.audit.write({ actor: 'josh', action: 'storage.deleteChannelFiles', target: r.name, after: { freedBytes: r.freedBytes } })
+        }
+        d.emit()
+        return { deleted, freedBytes }
+      },
       archiveOld: async (days, removeOriginals) => {
         const r = await d.storage.archiveOld(days, removeOriginals)
         d.audit.write({

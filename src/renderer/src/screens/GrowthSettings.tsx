@@ -93,6 +93,10 @@ function StorageCard() {
   const [days, setDays] = useState('30')
   const [remove, setRemove] = useState(false)
   const [res, setRes] = useState<ArchiveResult | null>(null)
+  const { data: gone, reload: reloadGone } = useLoad(() => api.growth.archivedChannelFiles(), [])
+  const [pick, setPick] = useState<number[]>([])
+  const [askDelete, setAskDelete] = useState(false)
+  const pickedBytes = (gone ?? []).filter((g) => pick.includes(g.brandId)).reduce((a, g) => a + g.bytes, 0)
   return (
     <Card title="Disk space">
       {data && (
@@ -124,6 +128,49 @@ function StorageCard() {
             </tbody>
           </table>
         </>
+      )}
+      {gone && gone.length > 0 && (
+        <div className="mb-4 rounded-md border border-line p-3">
+          <div className="text-[13px] font-semibold">Archived channels that still have video files</div>
+          <div className="mb-2 text-[12px] text-muted">
+            Archiving a channel now deletes its videos. These were archived before that, so their files are still here.
+          </div>
+          <div className="space-y-1">
+            {gone.map((g) => (
+              <Check
+                key={g.brandId}
+                checked={pick.includes(g.brandId)}
+                onChange={(on) => setPick(on ? [...pick, g.brandId] : pick.filter((x) => x !== g.brandId))}
+              >
+                {g.name} ({mb(g.bytes)})
+              </Check>
+            ))}
+          </div>
+          <div className="mt-2">
+            <Button variant="danger" disabled={busy || pick.length === 0} onClick={() => setAskDelete(true)}>
+              Delete the ticked files
+            </Button>
+          </div>
+        </div>
+      )}
+      {askDelete && (
+        <Confirm
+          title="Delete these video files for good?"
+          message={`This permanently deletes ${mb(pickedBytes)} of videos for ${(gone ?? []).filter((g) => pick.includes(g.brandId)).map((g) => g.name).join(', ')}. It cannot be undone. The posts stay in the history, but the videos are gone.`}
+          confirmLabel="Yes, delete them"
+          danger
+          onCancel={() => setAskDelete(false)}
+          onConfirm={async () => {
+            setAskDelete(false)
+            const r = await run(() => api.growth.deleteArchivedFiles(pick))
+            if (r) {
+              setPick([])
+              reloadGone()
+              reload()
+              toast({ kind: 'success', headline: `Deleted ${mb(r.freedBytes)} of videos.`, detail: `${r.deleted} channel(s).` })
+            }
+          }}
+        />
       )}
       <p className="mb-2 text-[13px] text-muted">
         Shrink old posted videos: ELO makes a smaller H.265 copy in the channel's Archive folder and

@@ -726,6 +726,13 @@ export interface StorageReport {
   freeBytes: number | null
 }
 
+/** An archived channel that still has video files on disk. */
+export interface ArchivedChannelFiles {
+  brandId: number
+  name: string
+  bytes: number
+}
+
 export interface ArchiveResult {
   compressed: number
   savedBytes: number

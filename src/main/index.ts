@@ -225,7 +225,7 @@ async function boot(): Promise<void> {
 
   const ensureAllFolders = () => {
     mkdirSync(settings.get().mediaRoot, { recursive: true })
-    for (const b of brands.list(true)) library.ensureBrandFolders(b.name)
+    for (const b of brands.list(false)) library.ensureBrandFolders(b.name)
   }
   ensureAllFolders()
 
@@ -871,6 +871,7 @@ async function boot(): Promise<void> {
     compress: (a, b) => media.archiveH265(a, b),
     duration: async (p) => (await media.probe(p)).durationSeconds,
     brandNames: () => brands.list(true).map((b) => b.name),
+    log,
   })
   const website = new WebsiteService({
     db,
