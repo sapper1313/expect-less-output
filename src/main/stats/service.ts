@@ -68,13 +68,13 @@ export class StatsService {
 
   // ---------- which targets can have stats ----------
 
-  private rows(where = '', args: unknown[] = []): Row[] {
+  private rows(where = '', args: unknown[] = [], hideArchived = false): Row[] {
     return this.d.db
       .prepare(
         `SELECT t.id AS target_id, t.post_id, t.platform, t.account_id, t.external_id, t.posted_at_utc, t.status,
                 p.brand_id, b.name AS brand_name, a.mode AS a_mode
          FROM post_targets t JOIN posts p ON p.id = t.post_id JOIN brands b ON b.id = p.brand_id
-         LEFT JOIN accounts a ON a.id = t.account_id ${where} ORDER BY t.id`,
+         LEFT JOIN accounts a ON a.id = t.account_id ${hideArchived ? (where ? where + ' AND b.archived = 0' : 'WHERE b.archived = 0') : where} ORDER BY t.id`,
       )
       .all(...args) as Row[]
   }
@@ -129,7 +129,7 @@ export class StatsService {
       const nowMs = this.now()
       const all = opts.postId
         ? this.rows('WHERE t.post_id = ?', [opts.postId])
-        : this.rows("WHERE t.status = 'posted'")
+        : this.rows("WHERE t.status = 'posted'", [], true)
       // TikTok targets without a real video id still get an "unavailable" explanation, so they are not filtered out for that.
       const candidates = all.filter(
         (r) =>
@@ -338,6 +338,7 @@ export class StatsService {
     const rows = this.rows(
       `WHERE t.status = 'posted' AND t.posted_at_utc >= ? ${brandId ? 'AND p.brand_id = ?' : ''}`,
       brandId ? [since, brandId] : [since],
+      true,
     )
     const posts = new Set(rows.map((r) => r.post_id))
     const old = this.d.imported ? this.d.imported.list(brandId, range) : []
@@ -394,7 +395,7 @@ export class StatsService {
            (SELECT shares FROM post_stats WHERE post_target_id = t.id ORDER BY id DESC LIMIT 1) AS shares
          FROM post_targets t JOIN posts p ON p.id = t.post_id JOIN brands b ON b.id = p.brand_id
          LEFT JOIN accounts a ON a.id = t.account_id
-         WHERE t.status = 'posted' AND t.posted_at_utc >= ? AND (a.mode IS NULL OR a.mode != 'dry_run')
+         WHERE t.status = 'posted' AND t.posted_at_utc >= ? AND (a.mode IS NULL OR a.mode != 'dry_run') AND b.archived = 0
            ${brandId ? 'AND p.brand_id = ?' : ''}`,
       )
       .all(...(brandId ? [since, brandId] : [since])) as any[]
@@ -406,7 +407,7 @@ export class StatsService {
            (SELECT comments FROM imported_stats WHERE imported_id = v.id ORDER BY id DESC LIMIT 1) AS comments,
            (SELECT shares FROM imported_stats WHERE imported_id = v.id ORDER BY id DESC LIMIT 1) AS shares
          FROM imported_videos v JOIN brands b ON b.id = v.brand_id
-         WHERE (v.published_at_utc IS NULL OR v.published_at_utc >= ?) ${brandId ? 'AND v.brand_id = ?' : ''}`,
+         WHERE b.archived = 0 AND (v.published_at_utc IS NULL OR v.published_at_utc >= ?) ${brandId ? 'AND v.brand_id = ?' : ''}`,
       )
       .all(...(brandId ? [since, brandId] : [since])) as any[]
     const out = [
@@ -436,7 +437,7 @@ export class StatsService {
         `SELECT at, views, brand_id, platform FROM (
            SELECT COALESCE(p.scheduled_at_utc, t.posted_at_utc) AS at, p.brand_id AS brand_id, t.platform AS platform,
              (SELECT views FROM post_stats WHERE post_target_id = t.id ORDER BY id DESC LIMIT 1) AS views
-           FROM post_targets t JOIN posts p ON p.id = t.post_id WHERE t.status = 'posted')
+           FROM post_targets t JOIN posts p ON p.id = t.post_id JOIN brands b ON b.id = p.brand_id WHERE t.status = 'posted' AND b.archived = 0)
          WHERE views IS NOT NULL AND at IS NOT NULL`,
       )
       .all() as Array<{ at: string; views: number; brand_id: number; platform: Platform }>
@@ -445,7 +446,7 @@ export class StatsService {
         `SELECT at, views, brand_id, platform FROM (
            SELECT v.published_at_utc AS at, v.brand_id AS brand_id, v.platform AS platform,
              (SELECT views FROM imported_stats WHERE imported_id = v.id ORDER BY id DESC LIMIT 1) AS views
-           FROM imported_videos v)
+           FROM imported_videos v JOIN brands b ON b.id = v.brand_id WHERE b.archived = 0)
          WHERE views IS NOT NULL AND at IS NOT NULL`,
       )
       .all() as Array<{ at: string; views: number; brand_id: number; platform: Platform }>

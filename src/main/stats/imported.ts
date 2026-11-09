@@ -403,7 +403,7 @@ export class ImportService {
   list(brandId: number | null, range: StatsRange): ImportedVideo[] {
     const days = range === '7d' ? 7 : range === '30d' ? 30 : null
     const since = days ? new Date(this.now() - days * DAY).toISOString() : null
-    const where: string[] = []
+    const where: string[] = ['b.archived = 0']
     const args: unknown[] = []
     if (brandId) {
       where.push('v.brand_id = ?')

@@ -298,7 +298,7 @@ export async function operatorRetract(
   results: import('../growth/service').RetractOutcome[]
 }> {
   if (!s.growth) throw new AgentError(400, 'bad_request', 'Retract is not available in this build.')
-  const post = s.posts.list().find((p) => p.episodeRef === episodeId && p.status !== 'canceled')
+  const post = s.posts.list({ includeArchived: true }).find((p) => p.episodeRef === episodeId && p.status !== 'canceled')
   if (!post) throw new AgentError(404, 'not_found', `No post for episode ${episodeId}.`)
   requireOperator(s, caller, post, 'retract an episode')
   let r

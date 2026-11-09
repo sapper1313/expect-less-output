@@ -30,7 +30,7 @@ export function buildDigest(d: DigestDeps): string {
   const n = (sql: string, ...a: unknown[]) => (d.db.prepare(sql).get(...a) as { n: number }).n
 
   const posted = q<{ name: string; n: number }>(
-    "SELECT b.name, COUNT(*) AS n FROM posts p JOIN brands b ON b.id = p.brand_id WHERE p.status = 'posted' AND p.scheduled_at_utc >= ? AND p.scheduled_at_utc <= ? GROUP BY b.id",
+    "SELECT b.name, COUNT(*) AS n FROM posts p JOIN brands b ON b.id = p.brand_id WHERE b.archived = 0 AND p.status = 'posted' AND p.scheduled_at_utc >= ? AND p.scheduled_at_utc <= ? GROUP BY b.id",
     since,
     nowIso,
   )

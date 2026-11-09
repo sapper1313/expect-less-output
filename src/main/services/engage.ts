@@ -183,6 +183,7 @@ export class EngageService {
       where.push('c.platform = ?')
       args.push(filter.platform)
     }
+    where.push('b.archived = 0')
     if ((filter.show ?? 'open') === 'open') where.push("c.status = 'new'")
     else where.push("c.status != 'mine'")
     const rows = this.d.db
@@ -213,7 +214,7 @@ export class EngageService {
 
   /** How many comments are waiting for a reply. */
   newCount(): number {
-    return (this.d.db.prepare("SELECT COUNT(*) AS n FROM inbox_comments WHERE status = 'new'").get() as { n: number }).n
+    return (this.d.db.prepare("SELECT COUNT(*) AS n FROM inbox_comments c JOIN brands b ON b.id = c.brand_id WHERE c.status = 'new' AND b.archived = 0").get() as { n: number }).n
   }
 
   setStatus(id: number, status: 'new' | 'done'): void {

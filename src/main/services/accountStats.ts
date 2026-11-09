@@ -141,7 +141,7 @@ export class AccountStatsService {
 
   rows(): AccountStatRow[] {
     const brands = new Map(
-      (this.d.db.prepare('SELECT id, name, color FROM brands').all() as Array<{ id: number; name: string; color: string }>).map((b) => [b.id, b]),
+      (this.d.db.prepare('SELECT id, name, color FROM brands WHERE archived = 0').all() as Array<{ id: number; name: string; color: string }>).map((b) => [b.id, b]),
     )
     const all = this.d.db
       .prepare('SELECT * FROM up_account_stats ORDER BY brand_id, platform, day DESC')
@@ -185,7 +185,7 @@ export class AccountStatsService {
 
   audience(): AccountAudience[] {
     const rows = this.d.db
-      .prepare('SELECT a.*, b.name FROM up_audience a JOIN brands b ON b.id = a.brand_id ORDER BY b.id')
+      .prepare('SELECT a.*, b.name FROM up_audience a JOIN brands b ON b.id = a.brand_id WHERE b.archived = 0 ORDER BY b.id')
       .all() as Array<{ brand_id: number; platform: string; fetched_at_utc: string; json: string; name: string }>
     return rows.flatMap((r) => {
       try {

@@ -54,14 +54,14 @@ export class CalendarFeed {
     const out: CalendarItem[] = []
     const brands = new Map(
       (
-        this.db.prepare('SELECT id, name, color FROM brands').all() as Array<{
+        this.db.prepare('SELECT id, name, color FROM brands WHERE archived = 0').all() as Array<{
           id: number
           name: string
           color: string
         }>
       ).map((b) => [b.id, b]),
     )
-    const brandOk = (id: number) => !f.brandId || f.brandId === id
+    const brandOk = (id: number) => brands.has(id) && (!f.brandId || f.brandId === id)
     const cutoff = new Date(this.now() - this.cfg.get().retentionDays * 86_400_000).toISOString()
 
     // 1. posts the scheduler owns. Posted items older than the retention period are gone from the calendar.

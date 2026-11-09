@@ -438,6 +438,8 @@ export interface PostFilter {
   postType?: 'episode' | 'clip'
   /** Scheduled posts whose time has passed and that have not posted. */
   pastDue?: boolean
+  /** Archived channels are left out unless this is true (or one channel is asked for by id). */
+  includeArchived?: boolean
 }
 
 export interface MediaInspection {

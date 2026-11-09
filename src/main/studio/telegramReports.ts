@@ -54,9 +54,9 @@ export class TelegramReports {
     const rows = this.d.db
       .prepare(
         `SELECT p.brand_id AS brand_id, t.platform AS platform, t.posted_at_utc AS at, p.title AS title
-         FROM post_targets t JOIN posts p ON p.id = t.post_id
+         FROM post_targets t JOIN posts p ON p.id = t.post_id JOIN brands b ON b.id = p.brand_id
          LEFT JOIN accounts a ON a.id = t.account_id
-         WHERE t.status = 'posted' AND t.posted_at_utc IS NOT NULL AND (a.mode IS NULL OR a.mode != 'dry_run')
+         WHERE b.archived = 0 AND t.status = 'posted' AND t.posted_at_utc IS NOT NULL AND (a.mode IS NULL OR a.mode != 'dry_run')
          ORDER BY t.posted_at_utc DESC`,
       )
       .all() as PostedRow[]
@@ -134,7 +134,7 @@ export class TelegramReports {
         `SELECT p.title AS title, b.name AS brand, t.platform AS platform,
            (SELECT views FROM post_stats WHERE post_target_id = t.id ORDER BY id DESC LIMIT 1) AS views
          FROM post_targets t JOIN posts p ON p.id = t.post_id JOIN brands b ON b.id = p.brand_id
-         WHERE t.status = 'posted' AND t.posted_at_utc >= ?`,
+         WHERE t.status = 'posted' AND b.archived = 0 AND t.posted_at_utc >= ?`,
       )
       .all(since) as Array<{
       title: string
@@ -146,7 +146,7 @@ export class TelegramReports {
       .prepare(
         `SELECT v.title AS title, b.name AS brand, v.platform AS platform,
            (SELECT views FROM imported_stats WHERE imported_id = v.id ORDER BY id DESC LIMIT 1) AS views
-         FROM imported_videos v JOIN brands b ON b.id = v.brand_id WHERE v.published_at_utc >= ?`,
+         FROM imported_videos v JOIN brands b ON b.id = v.brand_id WHERE b.archived = 0 AND v.published_at_utc >= ?`,
       )
       .all(since) as Array<{
       title: string

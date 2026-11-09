@@ -158,7 +158,7 @@ export class DashboardService {
            FROM post_targets t
            JOIN posts p ON p.id = t.post_id
            JOIN brands b ON b.id = p.brand_id
-           WHERE t.status = 'posted' AND t.posted_at_utc >= ?
+           WHERE t.status = 'posted' AND b.archived = 0 AND t.posted_at_utc >= ?
            GROUP BY p.id`,
         )
         .all(since) as { title: string; channel: string; views: number }[]
@@ -168,7 +168,7 @@ export class DashboardService {
                   ${latest('imported_stats s', 's.imported_id = iv.id')} AS views
            FROM imported_videos iv
            JOIN brands b ON b.id = iv.brand_id
-           WHERE iv.published_at_utc >= ?`,
+           WHERE b.archived = 0 AND iv.published_at_utc >= ?`,
         )
         .all(since) as { title: string; channel: string; views: number }[]
       return [...mine, ...old]

@@ -75,6 +75,18 @@ describe('Account numbers through Upload-Post', () => {
     expect(t.svc.audience()[0]!.data.audience!.countries![0]!.country).toBe('US')
   })
 
+  it('drops an archived channel from every number and brings it back when restored', async () => {
+    const t = setup(answer)
+    await t.svc.sync()
+    t.env.brands.archive(2, true)
+    expect(t.svc.rows()).toHaveLength(0)
+    expect(t.svc.audience()).toHaveLength(0)
+    expect(t.svc.homeTotals()?.channels ?? []).toHaveLength(0)
+    expect(t.env.posts.list({ status: 'all' }).every((p) => p.brandId !== 2)).toBe(true)
+    t.env.brands.archive(2, false)
+    expect(t.svc.rows()).toHaveLength(3)
+  })
+
   it('reads a channel at most once an hour unless forced, and shows the change since a week ago', async () => {
     const t = setup(answer)
     await t.svc.sync()

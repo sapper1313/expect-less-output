@@ -298,6 +298,7 @@ export class PostService {
       where.push('p.brand_id = ?')
       args.push(filter.brandId)
     }
+    if (!filter.brandId && !filter.includeArchived) where.push('b.archived = 0')
     if (filter.postType) {
       where.push('p.post_type = ?')
       args.push(filter.postType)
