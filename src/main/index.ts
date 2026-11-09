@@ -261,6 +261,16 @@ async function boot(): Promise<void> {
       const a = db.prepare('SELECT brand_id FROM accounts WHERE id = ?').get(accountId) as
         { brand_id: number } | undefined
       const name = a ? brandName(a.brand_id) : 'A brand'
+      // An archived channel never alerts anyone. The account is still marked, so un-archiving shows the problem.
+      const archived = a
+        ? ((db.prepare('SELECT archived FROM brands WHERE id = ?').get(a.brand_id) as { archived: number } | undefined)
+            ?.archived ?? 0) === 1
+        : false
+      if (archived) {
+        log.log('warn', `YouTube sign-in expired for archived channel ${name}: ${reason}`, { platform: 'youtube' })
+        emit()
+        return
+      }
       log.log('error', `YouTube sign-in expired for ${name}: ${reason}`, { platform: 'youtube' })
       notifier.failure(
         COPY.reauthHeadline,

@@ -463,7 +463,7 @@ export class YoutubeService {
   async checkHealth(force = true): Promise<void> {
     const rows = this.d.db
       .prepare(
-        "SELECT a.id, a.last_checked_at, b.name FROM accounts a JOIN brands b ON b.id = a.brand_id WHERE a.platform = 'youtube' AND a.mode != 'dry_run' AND a.status = 'connected'",
+        "SELECT a.id, a.last_checked_at, b.name FROM accounts a JOIN brands b ON b.id = a.brand_id WHERE a.platform = 'youtube' AND a.mode != 'dry_run' AND a.status = 'connected' AND b.archived = 0",
       )
       .all() as Array<{ id: number; last_checked_at: string | null; name: string }>
     for (const r of rows) {

@@ -328,7 +328,7 @@ export class ImportService {
     const rows = this.d.db
       .prepare(
         `SELECT id, brand_id, platform, account_id, external_id, published_at_utc FROM imported_videos
-         ${opts.brandId ? 'WHERE brand_id = ?' : ''} ORDER BY id`,
+         WHERE brand_id IN (SELECT id FROM brands WHERE archived = 0) ${opts.brandId ? 'AND brand_id = ?' : ''} ORDER BY id`,
       )
       .all(...(opts.brandId ? [opts.brandId] : [])) as Row[]
     const due = rows.filter((r) => {

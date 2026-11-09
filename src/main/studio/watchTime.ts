@@ -111,7 +111,7 @@ export class RetentionService {
   async refreshRecent(limit = 12): Promise<number> {
     const rows = this.d.db
       .prepare(
-        "SELECT DISTINCT t.post_id FROM post_targets t JOIN posts p ON p.id = t.post_id WHERE t.platform = 'youtube' AND t.status = 'posted' AND t.external_id IS NOT NULL ORDER BY t.post_id DESC LIMIT ?",
+        "SELECT DISTINCT t.post_id FROM post_targets t JOIN posts p ON p.id = t.post_id JOIN brands b ON b.id = p.brand_id WHERE b.archived = 0 AND t.platform = 'youtube' AND t.status = 'posted' AND t.external_id IS NOT NULL ORDER BY t.post_id DESC LIMIT ?",
       )
       .all(limit) as Array<{ post_id: number }>
     let n = 0
