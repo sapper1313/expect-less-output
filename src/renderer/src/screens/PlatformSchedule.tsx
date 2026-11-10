@@ -188,7 +188,7 @@ export function PlatformSchedule({ brandId }: { brandId: number }) {
         </div>
 
         <div className="overflow-x-auto">
-          <div className="grid min-w-[720px] grid-cols-[170px_minmax(0,1fr)_minmax(0,1fr)] text-[13px]">
+          <div className="grid min-w-[780px] grid-cols-[150px_minmax(290px,1fr)_minmax(290px,1fr)] text-[13px]">
             <div className="p-2 text-[11px] font-semibold uppercase tracking-wider text-muted">Platform</div>
             <div className="p-2 text-[11px] font-semibold uppercase tracking-wider text-muted">Weekdays (Mon to Fri)</div>
             <div className="p-2 text-[11px] font-semibold uppercase tracking-wider text-muted">Weekends (Sat and Sun)</div>
