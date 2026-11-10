@@ -11,7 +11,7 @@ import { formatEastern, isoToLocalInput, localInputToIso } from '@shared/time'
 import type { SchedulingMode } from '@shared/types'
 import { api } from '../api'
 import { useLoad } from '../hooks'
-import { Check, DateTimeSelect, Select } from '../ui'
+import { Button, Check, DateTimeSelect, Select } from '../ui'
 
 export function PlatformPicker({
   brandId,
@@ -65,6 +65,8 @@ export function WhenPicker({
   onChange,
   disabled,
   slotsToo = true,
+  platform,
+  kind,
 }: {
   brandId: number | null
   value: string | null
@@ -72,10 +74,13 @@ export function WhenPicker({
   disabled?: boolean
   /** false: only the free time box (for clips, which have no episode slots). */
   slotsToo?: boolean
+  /** Only this platform's own open times. Left out, any time one of the channel's platforms can use. */
+  platform?: Platform
+  kind?: 'short' | 'long'
 }) {
   const { data: slots } = useLoad(
-    () => (brandId && slotsToo ? api.slots.next(brandId, 40) : Promise.resolve([] as string[])),
-    [brandId, slotsToo],
+    () => (brandId && slotsToo ? api.slots.next(brandId, 40, undefined, platform, kind) : Promise.resolve([] as string[])),
+    [brandId, slotsToo, platform, kind],
   )
   const [custom, setCustom] = useState(false)
   const list = slots ?? []
@@ -190,6 +195,89 @@ export function SchedulePicker({
           Heads up: this brand already has {dayCount} posts that day.
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * One time for each platform of a post. Each platform starts on its own next open slot and can be changed to another
+ * open slot of its own, or to any date and time at all. "Same time for all" puts every platform on one time.
+ */
+export function PlatformTimes({
+  brandId,
+  platforms,
+  kind,
+  value,
+  onChange,
+  initialAll = null,
+  disabled,
+}: {
+  brandId: number | null
+  platforms: Platform[]
+  kind?: 'short' | 'long'
+  value: Partial<Record<Platform, string | null>>
+  onChange: (v: Partial<Record<Platform, string | null>>) => void
+  /** A time to start every platform on, for example the slot that was clicked on the Calendar. */
+  initialAll?: string | null
+  disabled?: boolean
+}) {
+  const key = `${brandId ?? 0}|${kind ?? ''}|${platforms.join(',')}`
+  // Give every platform without a time its next open slot, and drop the ones that are no longer picked.
+  useEffect(() => {
+    if (!brandId || platforms.length === 0) return
+    const missing = platforms.filter((p) => !value[p])
+    const extra = Object.keys(value).filter((p) => !platforms.includes(p as Platform))
+    if (missing.length === 0 && extra.length === 0) return
+    let live = true
+    void (async () => {
+      const plan = initialAll ? {} : ((await api.slots.plan(brandId, 1, kind, missing))[0] ?? {})
+      if (!live) return
+      const next: Partial<Record<Platform, string | null>> = {}
+      for (const p of platforms) next[p] = value[p] ?? (initialAll ?? plan[p] ?? null)
+      onChange(next)
+    })()
+    return () => {
+      live = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key])
+
+  if (platforms.length === 0) return <div className="text-[13px] text-muted">Pick a platform first.</div>
+  const first = platforms.map((p) => value[p]).find((x) => !!x) ?? null
+  return (
+    <div className="space-y-3">
+      {platforms.map((p) => (
+        <div key={p} className="grid items-start gap-2 md:grid-cols-[110px_1fr]">
+          <div className="pt-2 text-[13px] font-semibold">{PLATFORM_LABELS[p]}</div>
+          <div className="space-y-1">
+            <WhenPicker
+              brandId={brandId}
+              platform={p}
+              kind={kind}
+              disabled={disabled}
+              value={value[p] ?? null}
+              onChange={(iso) => onChange({ ...value, [p]: iso })}
+            />
+          </div>
+        </div>
+      ))}
+      <div className="flex flex-wrap gap-2">
+        {platforms.length > 1 && (
+          <Button disabled={disabled || !first} onClick={() => onChange(Object.fromEntries(platforms.map((p) => [p, first])))}>
+            Same time for all platforms
+          </Button>
+        )}
+        <Button
+          disabled={disabled || !brandId}
+          onClick={async () => {
+            if (!brandId) return
+            const plan = (await api.slots.plan(brandId, 1, kind, platforms))[0] ?? {}
+            onChange(Object.fromEntries(platforms.map((p) => [p, plan[p] ?? value[p] ?? null])))
+          }}
+        >
+          Use each platform's next open slot
+        </Button>
+      </div>
     </div>
   )
 }

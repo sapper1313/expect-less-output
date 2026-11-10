@@ -113,17 +113,16 @@ describe('open slots for the Calendar', () => {
     )
   })
 
-  it('marks a slot another channel already uses as blocked when the minimum gap is on, instead of leaving it looking empty', async () => {
+  it('never blocks a slot because another channel uses the same time (the minimum gap is gone)', async () => {
     const e = makeEnv(MON)
     const tue = e.posts.nextSlots(1, 2)[1]
     await e.makePost({ brandId: 2, whenMs: new Date(tue).getTime(), title: 'Other channel' })
     const slot = () =>
       e.posts.openSlotsInRange(1, from, to).find((s) => s.kind === 'episode' && s.whenUtc === tue)
     expect(slot()).toBeDefined()
-    expect(slot()?.blockedBy).toBeUndefined() // the gap is off
+    expect(slot()?.blockedBy).toBeUndefined()
     e.settings.set({ minGapMinutes: 1 })
-    expect(slot()?.blockedBy).toBe('Clock Out Early')
-    // the scheduler agrees: it does not offer that slot by itself
-    expect(e.posts.nextSlots(1, 6)).not.toContain(tue)
+    expect(slot()?.blockedBy).toBeUndefined()
+    expect(e.posts.nextSlots(1, 6)).toContain(tue)
   })
 })

@@ -165,6 +165,15 @@ export interface BrandSlot {
   kind: 'short' | 'long'
 }
 
+/** One posting time of a channel for one platform. Shorts and Long form each have their own. */
+export interface PlatformSlot {
+  platform: Platform
+  kind: 'short' | 'long'
+  dayType: 'weekday' | 'weekend'
+  timeLocal: string
+  enabled: boolean
+}
+
 export interface HashtagSet {
   id: number
   brandId: number | null
@@ -273,6 +282,8 @@ export interface PostTarget {
   settings: TargetSettings
   /** The first comment for this platform and how it went. Null when there is none. */
   firstComment: FirstCommentState | null
+  /** When this platform posts: its own time, or the post's time plus its small stagger. */
+  scheduledAtUtc: string | null
 }
 
 export interface FirstCommentState {
@@ -381,6 +392,8 @@ export interface TargetSettings {
 
 export interface PostTargetInput {
   platform: Platform
+  /** This platform's own time. Left out, it follows the post's time. */
+  scheduledAtUtc?: string | null
   captionOverride?: string | null
   aiFlag: boolean
   settings?: TargetSettings

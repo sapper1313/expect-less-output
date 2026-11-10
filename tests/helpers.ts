@@ -85,6 +85,8 @@ export function makeEnv(
     platforms?: Platform[]
     title?: string
     bytes?: number
+    /** Each platform's own time (ms). A platform left out follows whenMs. */
+    times?: Partial<Record<Platform, number>>
   }) {
     const brandId = opts.brandId ?? 1
     const src = join(root, `src-${Math.random().toString(36).slice(2)}.mp4`)
@@ -96,7 +98,11 @@ export function makeEnv(
       caption: 'caption',
       scheduledAtUtc: new Date(opts.whenMs).toISOString(),
       status: 'scheduled',
-      targets: (opts.platforms ?? PLATFORMS).map((platform) => ({ platform, aiFlag: false })),
+      targets: (opts.platforms ?? PLATFORMS).map((platform) => ({
+        platform,
+        aiFlag: false,
+        ...(opts.times?.[platform] ? { scheduledAtUtc: new Date(opts.times[platform]!).toISOString() } : {}),
+      })),
     })
   }
   const brandsSvc = new BrandService(db, (name) => library.ensureBrandFolders(name))

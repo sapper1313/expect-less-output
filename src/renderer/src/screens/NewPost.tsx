@@ -6,7 +6,8 @@ import { formatEastern } from '@shared/time'
 import type { MediaInspection } from '@shared/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
-import { PlatformPicker, SchedulePicker } from '../components/pickers'
+import { PlatformPicker, PlatformTimes } from '../components/pickers'
+import { slotKindFor } from '@shared/slots'
 import { PostingAs, TikTokSection, useCreator } from '../components/TikTokSection'
 import { Suggest } from '../components/Suggest'
 import { emptyTikTokSettings, tiktokSettingsProblem } from '@shared/tiktok'
@@ -60,9 +61,11 @@ export function NewPost({
     linkedin: false,
     pinterest: false,
   })
-  const [when, setWhen] = useState<string | null>(initialWhen)
-  /** Josh's override: pick any date and time instead of the channel's next open slot. */
-  const [own, setOwn] = useState(initialWhen !== null)
+  /** One time for each platform. Each starts on its own next open slot, and any of them can be any time at all. */
+  const [times, setTimes] = useState<Partial<Record<Platform, string | null>>>({})
+  const timeList = platforms.map((p) => times[p]).filter((x): x is string => !!x)
+  const when = timeList.length ? timeList.reduce((a, b) => (a < b ? a : b)) : null
+  const allTimed = platforms.length > 0 && timeList.length === platforms.length
   const [heads, setHeads] = useState<string[] | null>(null)
   const { data: defaults } = useLoad(
     () => (brandId ? api.brands.getDefaults(brandId) : Promise.resolve(null)),
@@ -150,15 +153,18 @@ export function NewPost({
     ? tiktokSettingsProblem(tt, creator.info, source?.meta.durationSeconds ?? 0)
     : null
   const canSchedule =
-    !!source && !!brandId && platforms.length > 0 && !!when && title.trim().length > 0 && !ttProblem
+    !!source && !!brandId && platforms.length > 0 && allTimed && title.trim().length > 0 && !ttProblem
 
   /** A hand picked time that breaks a rule shows a plain warning first. Josh can still go ahead. */
   async function trySchedule() {
     if (!brandId || !when) return
-    if (own) {
-      const warnings = await run(() => api.slots.checkTime(brandId, when))
-      if (warnings && warnings.length) return setHeads(warnings)
+    // Every distinct time is checked. Slots pass quietly, a time that breaks a rule gets a plain warning first.
+    const heads: string[] = []
+    for (const t of [...new Set(timeList)]) {
+      const warnings = await run(() => api.slots.checkTime(brandId, t))
+      for (const w of warnings ?? []) if (!heads.includes(w)) heads.push(w)
     }
+    if (heads.length) return setHeads(heads)
     await save('scheduled')
   }
 
@@ -175,6 +181,7 @@ export function NewPost({
         status,
         targets: platforms.map((p) => ({
           platform: p,
+          scheduledAtUtc: times[p] ?? null,
           aiFlag: ai[p],
           captionOverride: overrides[p] ?? null,
           settings:
@@ -260,7 +267,7 @@ export function NewPost({
                   value={brandId ?? ''}
                   onChange={(e) => {
                     setBrandId(Number(e.target.value))
-                    setWhen(null)
+                    setTimes({})
                   }}
                 >
                   {brands?.map((b) => (
@@ -437,29 +444,18 @@ export function NewPost({
 
           <Card>
             <Field label="When (Eastern time)">
-              <div className="mb-2">
-                <Check
-                  checked={own}
-                  onChange={(v) => {
-                    setOwn(v)
-                    // Back to the default: the next open slot for this channel.
-                    if (!v) setWhen(null)
-                  }}
-                >
-                  Pick my own date and time
-                </Check>
-                {!own && (
-                  <div className="ml-6 text-[12px] text-muted">
-                    Off means the next open slot for this channel.
-                  </div>
-                )}
+              <div className="mb-2 text-[12px] text-muted">
+                Each platform has its own time. It starts on that platform's next open slot. Change any of them to
+                another open slot, or choose Pick a different time to use any date and time you like.
               </div>
-              <SchedulePicker
-                key={`${brandId ?? 0}-${own ? 'own' : 'slot'}`}
+              <PlatformTimes
+                key={brandId ?? 0}
                 brandId={brandId}
-                value={when}
-                onChange={setWhen}
-                mode={own ? 'manual' : 'slots'}
+                platforms={platforms}
+                kind={slotKindFor(source?.meta)}
+                value={times}
+                onChange={setTimes}
+                initialAll={initialWhen}
               />
             </Field>
           </Card>

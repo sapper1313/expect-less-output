@@ -3,7 +3,7 @@ import { DateTime } from 'luxon'
 import { formatEastern } from '@shared/time'
 import type { PostOut } from '@shared/agentSchemas'
 import type { Brand, Post } from '@shared/types'
-import { PLATFORMS } from '@shared/platformLimits'
+import { PLATFORMS, type Platform } from '@shared/platformLimits'
 import { SLUG_ALIASES, canonicalSlug, channelAllowed, type DropRow } from '@shared/pipeline'
 import { channelState } from '../pipeline/state'
 import type { Caller } from './bots'
@@ -60,6 +60,7 @@ export function postOut(p: Post, warnings?: string[]): PostJson {
       last_error: t.lastError,
       external_url: t.externalUrl,
       progress: t.progress,
+      scheduled_at: t.scheduledAtUtc,
     })),
     ...(warnings && warnings.length ? { warnings } : {}),
     created_at: p.createdAt,
@@ -122,6 +123,9 @@ function brandOut(s: AgentServices, b: Brand) {
       .map((x) => ({ day_type: x.dayType, time_local: x.timeLocal, enabled: x.enabled }))
       // The same time can sit in both Shorts and Long form. A bot sees it once.
       .filter((x, i, all) => all.findIndex((y) => y.day_type === x.day_type && y.time_local === x.time_local) === i),
+    platform_slots: s.brands
+      .getPlatformSlots(b.id)
+      .map((x) => ({ platform: x.platform, kind: x.kind, day_type: x.dayType, time_local: x.timeLocal, enabled: x.enabled })),
     defaults: {
       caption_template: d.captionTemplate,
       default_hashtags: sets.find((h) => h.id === d.defaultHashtagSetId)?.tagsText ?? '',
@@ -257,7 +261,9 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
       }
     }
     const fromUtc = query.from ? toUtc(query.from) : undefined
-    let slots = s.posts.nextSlots(brand.id, query.count, fromUtc)
+    let slots = query.platform
+      ? s.posts.nextSlotsFor(brand.id, query.platform as Platform, query.count, fromUtc)
+      : s.posts.nextSlots(brand.id, query.count, fromUtc)
     if (query.days) {
       const end = new Date(
         (fromUtc ? new Date(fromUtc).getTime() : s.now ? s.now() : Date.now()) +

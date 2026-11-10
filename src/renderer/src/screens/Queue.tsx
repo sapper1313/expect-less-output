@@ -301,7 +301,25 @@ export function Queue() {
                     <td className="p-3">
                       <BrandDot color={p.brandColor} name={p.brandName} />
                     </td>
-                    <td className="p-3">{formatEastern(p.scheduledAtUtc)}</td>
+                    <td className="p-3">
+                      {formatEastern(p.scheduledAtUtc)}
+                      {(() => {
+                        // Platforms on their own times show each one. Platforms a few minutes apart on one slot do not.
+                        const base = p.scheduledAtUtc ? new Date(p.scheduledAtUtc).getTime() : 0
+                        const own = p.targets.filter((t) => t.status !== 'skipped' && t.scheduledAtUtc)
+                        if (!base || !own.some((t) => Math.abs(new Date(t.scheduledAtUtc!).getTime() - base) >= 15 * 60_000))
+                          return null
+                        return (
+                          <div className="mt-1 space-y-0.5 text-[11px] text-muted">
+                            {own.map((t) => (
+                              <div key={t.id}>
+                                {PLATFORM_LABELS[t.platform]} {formatEastern(t.scheduledAtUtc)}
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      })()}
+                    </td>
                     <td className="p-3">
                       <div className="flex gap-1">
                         {p.targets.map((t) => (

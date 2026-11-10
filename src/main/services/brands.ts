@@ -1,9 +1,9 @@
 import type { Db } from '../db'
 import { DEFAULT_CAPTION_TEMPLATE, ensureSlugs, initBrandRows } from '../db/seed'
 import { canonicalSlug } from '@shared/pipeline'
-import { slotKinds } from './channelSettings'
+import { platformSlotRows, primarySlots, slotKinds } from './channelSettings'
 import { uploadPostOn } from './uploadPost'
-import type { Account, Brand, BrandDefaults, BrandSlot, HashtagSet, Platform } from '@shared/types'
+import type { Account, Brand, BrandDefaults, BrandSlot, HashtagSet, Platform, PlatformSlot } from '@shared/types'
 
 const mapBrand = (r: any): Brand => ({
   id: r.id,
@@ -94,6 +94,53 @@ export class BrandService {
     }))
   }
 
+  /** The channel's posting times, one set for each platform and kind. */
+  getPlatformSlots(brandId: number): PlatformSlot[] {
+    const rows = platformSlotRows(this.db, brandId)
+    if (rows.length) return rows
+    // A channel not set up per platform yet: show its one list on every platform its kind posts to.
+    const kinds = slotKinds(this.db, brandId)
+    const out: PlatformSlot[] = []
+    for (const s of this.getSlots(brandId)) {
+      const ticks = kinds.find((k) => k.kind === s.kind)?.platforms
+      for (const platform of ['youtube', 'instagram', 'facebook', 'tiktok', 'bluesky'] as const)
+        if (!ticks || ticks[platform] !== false)
+          out.push({ platform, kind: s.kind, dayType: s.dayType, timeLocal: s.timeLocal, enabled: s.enabled })
+    }
+    return out
+  }
+
+  /**
+   * Saves the per-platform posting times. The channel's combined list (brand_slots) is rebuilt from them, so the Home
+   * week map and the bots keep working.
+   */
+  setPlatformSlots(brandId: number, slots: PlatformSlot[]): PlatformSlot[] {
+    for (const s of slots) {
+      if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(s.timeLocal))
+        throw new Error(`"${s.timeLocal}" is not a valid time. Use HH:MM, for example 17:00.`)
+      if (s.kind !== 'short' && s.kind !== 'long') throw new Error('Kind must be short or long.')
+      if (s.dayType !== 'weekday' && s.dayType !== 'weekend') throw new Error('Day type must be weekday or weekend.')
+    }
+    this.db.transaction(() => {
+      this.db.prepare('DELETE FROM brand_platform_slots WHERE brand_id = ?').run(brandId)
+      const ins = this.db.prepare(
+        'INSERT OR IGNORE INTO brand_platform_slots (brand_id, platform, kind, day_type, time_local, enabled) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      for (const s of slots) ins.run(brandId, s.platform, s.kind, s.dayType, pad(s.timeLocal), s.enabled ? 1 : 0)
+      this.rebuildCombined(brandId)
+    })()
+    return this.getPlatformSlots(brandId)
+  }
+
+  /** brand_slots, the channel's combined list, from its per-platform times. */
+  private rebuildCombined(brandId: number): void {
+    this.db.prepare('DELETE FROM brand_slots WHERE brand_id = ?').run(brandId)
+    const ins = this.db.prepare(
+      'INSERT INTO brand_slots (brand_id, day_type, time_local, enabled, kind) VALUES (?, ?, ?, 1, ?)',
+    )
+    for (const s of primarySlots(platformSlotRows(this.db, brandId))) ins.run(brandId, s.dayType, s.timeLocal, s.kind)
+  }
+
   getSlotKinds(brandId: number) {
     return slotKinds(this.db, brandId)
   }
@@ -141,6 +188,19 @@ export class BrandService {
       for (const s of slots)
         for (const kind of s.kind ? [s.kind] : (['short', 'long'] as const))
           ins.run(brandId, s.dayType, pad(s.timeLocal), s.enabled ? 1 : 0, kind)
+      // The same times go to every platform the kind posts to, so the per-platform times never disagree with this list.
+      this.db.prepare('DELETE FROM brand_platform_slots WHERE brand_id = ?').run(brandId)
+      this.db
+        .prepare(
+          `INSERT OR IGNORE INTO brand_platform_slots (brand_id, platform, kind, day_type, time_local, enabled)
+           SELECT s.brand_id, p.platform, s.kind, s.day_type, s.time_local, s.enabled
+           FROM brand_slots s
+           CROSS JOIN (SELECT 'youtube' AS platform UNION ALL SELECT 'instagram' UNION ALL SELECT 'facebook'
+                       UNION ALL SELECT 'tiktok' UNION ALL SELECT 'bluesky') p
+           LEFT JOIN brand_slot_kinds k ON k.brand_id = s.brand_id AND k.kind = s.kind
+           WHERE s.brand_id = ? AND (k.platforms IS NULL OR COALESCE(json_extract(k.platforms, '$.' || p.platform), 1) != 0)`,
+        )
+        .run(brandId)
     })()
     return this.getSlots(brandId)
   }

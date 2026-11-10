@@ -1,5 +1,5 @@
 import type { Db } from '../db'
-import type { ChannelOverrides, Settings } from '@shared/types'
+import type { ChannelOverrides, PlatformSlot, Settings } from '@shared/types'
 import type { SlotDef, SlotKind } from '@shared/slots'
 
 export interface SlotKindRow {
@@ -63,6 +63,68 @@ export function slotsForKind(
     enabled: !!r.enabled,
   }))
   return { slots, days: use ? (rows.find((r) => r.kind === use)?.days ?? null) : null }
+}
+
+/** All of a channel's per-platform posting times. Empty when the channel has not been set up per platform yet. */
+export function platformSlotRows(db: Db, brandId: number): PlatformSlot[] {
+  return (
+    db
+      .prepare(
+        'SELECT platform, kind, day_type, time_local, enabled FROM brand_platform_slots WHERE brand_id = ? ORDER BY platform, kind, day_type DESC, time_local',
+      )
+      .all(brandId) as any[]
+  ).map((r) => ({
+    platform: r.platform,
+    kind: r.kind,
+    dayType: r.day_type,
+    timeLocal: r.time_local,
+    enabled: !!r.enabled,
+  }))
+}
+
+/**
+ * The times one platform uses for a video of this kind, and the days that kind posts on.
+ * Returns null when the channel has no per-platform times at all (an older channel): the caller then uses the channel's
+ * one list for every platform, as before.
+ */
+export function platformSlotsFor(
+  db: Db,
+  brandId: number,
+  platform: string,
+  want?: SlotKind,
+): { slots: SlotDef[]; days: number[] | null } | null {
+  const rows = platformSlotRows(db, brandId)
+  if (rows.length === 0) return null
+  const kinds = slotKinds(db, brandId)
+  const use = kindToUse(kinds, want)
+  const picked = rows.filter((r) => r.platform === platform && (!use || r.kind === use))
+  return {
+    slots: picked.map<SlotDef>((r) => ({ dayType: r.dayType, timeLocal: r.timeLocal, enabled: r.enabled })),
+    days: use ? (kinds.find((k) => k.kind === use)?.days ?? null) : null,
+  }
+}
+
+/**
+ * The channel's combined list: for each kind and day type, position 1 is the earliest first time of any platform,
+ * position 2 the earliest second time, and so on. A video's first platform time lines up with these, so the Home week
+ * map and the bots see one slot per video instead of one per platform.
+ */
+export function primarySlots(rows: PlatformSlot[]): Array<{ kind: SlotKind; dayType: 'weekday' | 'weekend'; timeLocal: string; enabled: boolean }> {
+  const out: Array<{ kind: SlotKind; dayType: 'weekday' | 'weekend'; timeLocal: string; enabled: boolean }> = []
+  for (const kind of ['short', 'long'] as const)
+    for (const dayType of ['weekday', 'weekend'] as const) {
+      const byPlatform = new Map<string, string[]>()
+      for (const r of rows)
+        if (r.kind === kind && r.dayType === dayType && r.enabled)
+          byPlatform.set(r.platform, [...(byPlatform.get(r.platform) ?? []), r.timeLocal.padStart(5, '0')])
+      const lists = [...byPlatform.values()].map((l) => l.sort())
+      const most = Math.max(0, ...lists.map((l) => l.length))
+      for (let i = 0; i < most; i++) {
+        const t = lists.filter((l) => l.length > i).map((l) => l[i]!).sort()[0]!
+        out.push({ kind, dayType, timeLocal: t, enabled: true })
+      }
+    }
+  return out
 }
 
 /** Settings a channel may set for itself. No row means it follows the app wide setting. */

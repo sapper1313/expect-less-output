@@ -96,6 +96,9 @@ export function withHashtags(text: string, tags: string[] | undefined): string {
  * and (when the rules allow) gives it the next open slot. The schedule is whatever the owner set in the app. Nothing the
  * sidecar says can pick or promise a time.
  */
+/** Said by scheduleDrop when the next open time is not inside the window it was asked to fill. */
+export const OUTSIDE_WINDOW = 'No open slot inside that window.'
+
 export class PipelineIntake {
   constructor(private d: IntakeDeps) {}
 
@@ -787,7 +790,10 @@ export class PipelineIntake {
    * Gives a waiting drop the next open slot, using the channel's own slots, days, cap and blackout dates.
    * Platforms with no real account are dropped from the post first. Nothing here picks a time of its own.
    */
-  async scheduleDrop(postId: number, opts: { slot?: string } = {}): Promise<ScheduleOutcome> {
+  async scheduleDrop(
+    postId: number,
+    opts: { slot?: string; within?: { fromUtc: string; toUtc: string } } = {},
+  ): Promise<ScheduleOutcome> {
     const post = this.d.posts.get(postId)
     if (!post) return { ok: false, message: 'That post was not found.' }
     if (post.status !== 'draft')
@@ -831,7 +837,13 @@ export class PipelineIntake {
       isClip
         ? this.d.posts.nextClipSlots(post.brandId, n)
         : this.d.posts.nextSlots(post.brandId, n, undefined, [], slotKindFor(post.videoMeta))
-    const slot = opts.slot ?? open(1)[0]
+    // Every platform takes its own next open time. A time picked by hand (opts.slot) is used for all of them.
+    let plan: Partial<Record<Platform, string>> | null = null
+    if (!isClip && !opts.slot) {
+      plan =
+        this.d.posts.slotPlans(post.brandId, 1, slotKindFor(post.videoMeta), keep.map((t) => t.platform))[0] ?? null
+    }
+    const slot = opts.slot ?? (plan ? Object.values(plan).reduce((a, b) => (a! < b! ? a : b)) : open(1)[0])
     if (!slot)
       return {
         ok: false,
@@ -848,9 +860,12 @@ export class PipelineIntake {
           new Date(new Date(s).getTime() + 60_000).toISOString(),
         )
         .some((o) => o.whenUtc === s && o.kind === (isClip ? 'clip' : 'episode'))
+    if (opts.within && !isClip && (slot < opts.within.fromUtc || slot >= opts.within.toUtc))
+      return { ok: false, message: OUTSIDE_WINDOW }
     if (opts.slot && !slotOk(opts.slot))
       return { ok: false, message: 'That time is not one of the open slots for this channel.' }
-    this.d.posts.update(postId, { scheduledAtUtc: slot, status: 'scheduled' })
+    if (plan) this.d.posts.schedulePlan(postId, plan)
+    else this.d.posts.update(postId, { scheduledAtUtc: slot, status: 'scheduled' })
     const drop = this.d.drops.forPost(postId)
     if (drop)
       this.d.drops.update(drop.dropId, {
@@ -871,7 +886,7 @@ export class PipelineIntake {
       actor: 'system',
       action: 'post.schedule',
       target: `${post.brandName}/${post.episodeRef ?? post.id}`,
-      after: { slot, skipped },
+      after: { slot, skipped, ...(plan ? { perPlatform: plan } : {}) },
     })
     this.d.notify(
       'scheduled',

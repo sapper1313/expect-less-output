@@ -237,6 +237,12 @@ export function buildApi(d: ApiDeps): Api {
         d.emit()
       },
       getSlots: async (id) => d.brands.getSlots(id),
+      getPlatformSlots: async (id) => d.brands.getPlatformSlots(id),
+      setPlatformSlots: async (id, slots) => {
+        const out = d.brands.setPlatformSlots(id, slots)
+        d.emit()
+        return out
+      },
       setSlots: async (id, slots) => d.brands.setSlots(id, slots),
       getSlotKinds: async (id) => d.brands.getSlotKinds(id),
       setSlotKinds: async (id, kinds) => {
@@ -273,7 +279,11 @@ export function buildApi(d: ApiDeps): Api {
       inspect: async (path) => d.media.inspect(path),
     },
     slots: {
-      next: async (brandId, count, fromUtc) => d.posts.nextSlots(brandId, count, fromUtc),
+      next: async (brandId, count, fromUtc, platform, kind) =>
+        platform
+          ? d.posts.nextSlotsFor(brandId, platform, count, fromUtc, [], kind)
+          : d.posts.nextSlots(brandId, count, fromUtc, [], kind),
+      plan: async (brandId, count, kind, platforms) => d.posts.slotPlans(brandId, count, kind, platforms),
       countOnDay: async (brandId, dayIso) => d.posts.countOnDay(brandId, dayIso),
       checkTime: async (brandId, whenUtc) => d.posts.checkCustomTime(brandId, whenUtc),
       open: async (fromUtc, toUtc, brandId) =>

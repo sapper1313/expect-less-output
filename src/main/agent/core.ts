@@ -259,15 +259,17 @@ export async function agentCreatePost(
     })
 
   let scheduledAtUtc: string | null = null
+  let planTimes: Partial<Record<Platform, string>> | null = null
   if (body.next_slot) {
-    const slot = s.posts.nextSlots(brand.id, 1)[0]
-    if (!slot)
+    // Every platform takes its own next open time.
+    planTimes = s.posts.slotPlans(brand.id, 1, undefined, platforms)[0] ?? null
+    if (!planTimes)
       throw new AgentError(
         409,
         'conflict',
         `${brand.name} has no open slots. The owner needs to add slot times first.`,
       )
-    scheduledAtUtc = slot
+    scheduledAtUtc = Object.values(planTimes).reduce((a, b) => (a! < b! ? a : b))!
   } else if (body.scheduled_at) {
     scheduledAtUtc = toUtc(body.scheduled_at)
   }
@@ -284,6 +286,7 @@ export async function agentCreatePost(
 
   const targets: PostTargetInput[] = platforms.map((p) => ({
     platform: p,
+    ...(planTimes?.[p] ? { scheduledAtUtc: planTimes[p] } : {}),
     aiFlag: body.ai_flags?.[p] ?? defaults.aiFlag[p],
     captionOverride: body.caption_overrides?.[p] ?? null,
     settings: {

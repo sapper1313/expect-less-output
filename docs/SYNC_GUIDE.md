@@ -19,7 +19,7 @@ The agent API listens on the Mac at `127.0.0.1:47821`. When the owner turns on *
 | What changed since last time? | `GET /v1/changes?since_id=N` (keep the `cursor` it returns) |
 | Upcoming list | `GET /v1/upcoming` (add `updated_after=<time with zone>` to get only what changed) |
 | Channel states and rules | `GET /v1/brands` (`state`, `post_days`, `daily_cap`, `blackout_dates`, `slots`, `aliases`) |
-| Open slots (read only) | `GET /v1/slots/next-open?channel=<slug>&days=14` |
+| Open slots (read only) | `GET /v1/slots/next-open?channel=<slug>&days=14` (add `&platform=youtube` for one platform's own times; each platform has its own weekday and weekend times, see `platform_slots` on `GET /v1/brands`) |
 | Posts | `GET /v1/posts` (`origin=inbox`, `held=true`, `past_due=true` for missed slots) |
 | Drops | `GET /v1/drops`, `GET /v1/drops/{id}`, `POST /v1/drops` |
 | Things that do not add up | `GET /v1/reconcile` (includes `missed_slot`, `double_booking`, `file_drift`, `channel_state`, `upcoming`) |

@@ -33,6 +33,8 @@ interface Row {
   title: string
   caption: string
   when: string | null
+  /** Each platform's own next open time. Cleared when you type a time by hand, which then applies to every platform. */
+  times?: Partial<Record<Platform, string>>
   platforms: Platform[]
   ai: Record<Platform, boolean>
 }
@@ -118,7 +120,8 @@ export function Bulk({ onDone }: { onDone: () => void }) {
       )
       const infos: MediaInspection[] = []
       for (const p of sorted) infos.push(await api.media.inspect(p))
-      const slots = await api.slots.next(brandId, infos.length)
+      const plans = await api.slots.plan(brandId, infos.length, undefined, platforms)
+      const slots = plans.map((pl) => Object.values(pl).reduce((a, b) => (a! < b! ? a : b)) as string)
       setRows(
         infos.map((info, i) => {
           const title = titleFromFilename(info.fileName)
@@ -128,6 +131,7 @@ export function Bulk({ onDone }: { onDone: () => void }) {
             title,
             caption: fill(defaults.captionTemplate, title),
             when: slots[i] ?? null,
+            times: plans[i],
             platforms,
             ai: { ...defaults.aiFlag },
           }
@@ -148,8 +152,15 @@ export function Bulk({ onDone }: { onDone: () => void }) {
   /** Back to the default: each row takes the next open slot for this channel, in order. */
   async function resetToSlots() {
     if (!brandId) return
-    const slots = await run(() => api.slots.next(brandId, rows.length))
-    if (slots) setRows((r) => r.map((x, i) => ({ ...x, when: slots[i] ?? null })))
+    const plans = await run(() => api.slots.plan(brandId, rows.length, undefined, platforms))
+    if (plans)
+      setRows((r) =>
+        r.map((x, i) => ({
+          ...x,
+          when: plans[i] ? (Object.values(plans[i]).reduce((a, b) => (a! < b! ? a : b)) as string) : null,
+          times: plans[i],
+        })),
+      )
   }
 
   /** Hand picked times that break a rule show a plain warning first. Josh can still go ahead. */
@@ -185,6 +196,7 @@ export function Bulk({ onDone }: { onDone: () => void }) {
           status: 'scheduled' as const,
           targets: r.platforms.map((p) => ({
             platform: p,
+            ...(r.times?.[p] ? { scheduledAtUtc: r.times[p] } : {}),
             aiFlag: r.ai[p],
             settings: p === 'tiktok' && ttDirect ? { tiktok: tt } : undefined,
           })),
@@ -445,7 +457,7 @@ export function Bulk({ onDone }: { onDone: () => void }) {
                           {own && (
                             <DateTimeSelect
                               value={isoToLocalInput(r.when)}
-                              onChange={(v) => patch(i, { when: localInputToIso(v) })}
+                              onChange={(v) => patch(i, { when: localInputToIso(v), times: undefined })}
                               label={`Row ${i + 1} time`}
                             />
                           )}

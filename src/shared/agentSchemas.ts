@@ -184,6 +184,10 @@ export const NextOpenQuery = z
     from: ZonedTime.optional().meta({
       description: 'Start looking after this time. Defaults to now.',
     }),
+    platform: PlatformEnum.optional().meta({
+      description:
+        'Only that platform\'s own open times. Each platform of a channel has its own weekday and weekend times. Left out, any time one of the channel\'s platforms can use.',
+    }),
   })
   .refine((q) => q.brand_id !== undefined || q.channel !== undefined, {
     message: 'Give brand_id or channel.',
@@ -260,7 +264,21 @@ export const BrandOut = z.object({
     .meta({ description: 'Dates (Eastern) this channel never posts, plus the global ones.' }),
   aliases: z.array(z.string()).meta({ description: 'Old names that map to this slug.' }),
   inbox_enabled: z.boolean(),
-  slots: z.array(SlotOut).meta({ description: 'Posting times, in Eastern time.' }),
+  slots: z.array(SlotOut).meta({
+    description:
+      'The channel combined posting times, in Eastern time (the earliest time of each position across platforms). Use platform_slots for each platform.',
+  }),
+  platform_slots: z
+    .array(
+      z.object({
+        platform: PlatformEnum,
+        kind: z.enum(['short', 'long']),
+        day_type: z.enum(['weekday', 'weekend']),
+        time_local: z.string().meta({ description: 'HH:MM Eastern.' }),
+        enabled: z.boolean(),
+      }),
+    )
+    .meta({ description: 'Posting times for each platform and kind. Each platform has its own.' }),
   defaults: z.object({
     caption_template: z.string(),
     default_hashtags: z.string(),
@@ -294,6 +312,7 @@ const TargetOut = z.object({
   last_error: z.string().nullable(),
   external_url: z.string().nullable(),
   progress: z.number().nullable(),
+  scheduled_at: z.string().nullable().meta({ description: 'When this platform posts (UTC). Each platform has its own time.' }),
 })
 
 export const PostOut = z.object({

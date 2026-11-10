@@ -6,7 +6,7 @@ import type { PostService } from '../services/posts'
 import type { SettingsService } from '../services/settings'
 import type { AuditEvents } from './auditEvents'
 import type { DropLog } from './dropLog'
-import type { PipelineIntake } from './intake'
+import { OUTSIDE_WINDOW, type PipelineIntake } from './intake'
 import type { Reconciler } from './reconcile'
 import type { FreshStart } from './freshStart'
 import type { BrandService } from '../services/brands'
@@ -145,10 +145,14 @@ export class InboxService {
           .openSlotsInRange(b.id, fromUtc, toUtc)
           .filter((s) => s.kind === kind && !s.blockedBy)
         let i = 0
-        for (; i < waiting.length && i < slots.length; i++) {
-          const r = await this.d.intake.scheduleDrop(waiting[i].id, { slot: slots[i].whenUtc })
+        for (; i < waiting.length && (kind === 'episode' || i < slots.length); i++) {
+          // Episodes take each platform's own next open time, as long as the first of them is inside the window.
+          const r = await this.d.intake.scheduleDrop(
+            waiting[i].id,
+            kind === 'episode' ? { within: { fromUtc, toUtc } } : { slot: slots[i].whenUtc },
+          )
           if (!r.ok) {
-            out.skipped.push({ brandName: b.name, reason: r.message })
+            if (r.message !== OUTSIDE_WINDOW) out.skipped.push({ brandName: b.name, reason: r.message })
             break
           }
           const p = this.d.posts.get(waiting[i].id)
@@ -156,7 +160,7 @@ export class InboxService {
             postId: waiting[i].id,
             title: p?.title ?? '',
             brandName: b.name,
-            whenUtc: slots[i].whenUtc,
+            whenUtc: r.scheduledAtUtc ?? slots[i]?.whenUtc ?? '',
             kind,
           })
         }

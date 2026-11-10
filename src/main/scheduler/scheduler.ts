@@ -69,8 +69,8 @@ interface DueRow {
   video_meta_json: string | null
 }
 
-/** The slot time plus the few minutes this platform waits behind the one before it. */
-const EFFECTIVE_TIME = `strftime('%Y-%m-%dT%H:%M:%fZ', p.scheduled_at_utc, '+' || t.stagger_offset_min || ' minutes')`
+/** This platform's own time, or the post's time plus the few minutes this platform waits behind the one before it. */
+const EFFECTIVE_TIME = `strftime('%Y-%m-%dT%H:%M:%fZ', COALESCE(t.target_at_utc, p.scheduled_at_utc), '+' || t.stagger_offset_min || ' minutes')`
 const STALE_LOCK_MS = 10 * 60_000
 /** How many times a daily cap may push a post an hour later before it fails. */
 const MAX_DEFERRALS = 24

@@ -30,6 +30,7 @@ import type {
   Brand,
   BrandDefaults,
   BrandSlot,
+  PlatformSlot,
   ConnectResult,
   GoogleCredentialsStatus,
   MetaCredentialsStatus,
@@ -124,6 +125,9 @@ export interface Api {
     update(id: number, patch: { name?: string; color?: string; slug?: string }): Promise<Brand>
     archive(id: number, archived: boolean): Promise<void>
     getSlots(brandId: number): Promise<BrandSlot[]>
+    /** The channel's posting times for each platform and kind. */
+    getPlatformSlots(brandId: number): Promise<PlatformSlot[]>
+    setPlatformSlots(brandId: number, slots: PlatformSlot[]): Promise<PlatformSlot[]>
     /** Which kinds (Shorts, Long form) the channel makes, and the days each posts on. */
     getSlotKinds(brandId: number): Promise<Array<{ kind: 'short' | 'long'; enabled: boolean; days: number[] | null; platforms?: Record<string, boolean> | null }>>
     setSlotKinds(
@@ -155,7 +159,10 @@ export interface Api {
     inspect(path: string): Promise<MediaInspection>
   }
   slots: {
-    next(brandId: number, count: number, fromUtc?: string): Promise<string[]>
+    /** Open times. With a platform: only that platform's own times. Without: any time one of the channel's platforms can use. */
+    next(brandId: number, count: number, fromUtc?: string, platform?: Platform, kind?: 'short' | 'long'): Promise<string[]>
+    /** One time for every platform of each of the next videos. */
+    plan(brandId: number, count: number, kind: 'short' | 'long' | undefined, platforms: Platform[]): Promise<Array<Partial<Record<Platform, string>>>>
     countOnDay(brandId: number, dayIso: string): Promise<number>
     /** Heads ups for a hand picked time (not a slot, daily limit, minimum gap). Empty means it fits. */
     checkTime(brandId: number, whenUtc: string): Promise<string[]>

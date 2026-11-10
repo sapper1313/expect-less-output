@@ -4,7 +4,7 @@ import type { Library } from './library'
 import type { ActivityLog } from './activity'
 import type { MediaService } from './media'
 import { getNextOpenSlots, getSlotTimes, type SlotDef, type SlotKind } from '@shared/slots'
-import { slotsForKind } from './channelSettings'
+import { kindToUse, platformSlotRows, platformSlotsFor, slotKinds, slotsForKind } from './channelSettings'
 import { derivePostStatus } from '@shared/scheduling'
 import { readSetting } from './settings'
 import { PLATFORM_LIMITS, durationProblem } from '@shared/platformLimits'
@@ -54,6 +54,19 @@ interface PostRow {
   first_comment: string | null
 }
 
+/** When a platform posts: its own time (or the post's time) plus its small stagger, so platforms on one slot go a few minutes apart. */
+export function targetTime(own: string | null, base: string | null, staggerMin: number | null): string | null {
+  const at = own ?? base
+  if (!at) return null
+  return new Date(new Date(at).getTime() + (staggerMin ?? 0) * 60_000).toISOString()
+}
+
+/** The post's own time: the earliest of its time and every platform time it was given. */
+export function baseTime(post: string | null, targets: Array<{ scheduledAtUtc?: string | null }>): string | null {
+  const all = [post, ...targets.map((t) => t.scheduledAtUtc ?? null)].filter((x): x is string => !!x)
+  return all.length ? all.reduce((a, b) => (a < b ? a : b)) : null
+}
+
 const POST_SELECT = `SELECT p.*, b.name AS brand_name, b.color AS brand_color
   FROM posts p JOIN brands b ON b.id = p.brand_id`
 
@@ -72,7 +85,7 @@ export class PostService {
 
   // ---------- reading ----------
 
-  private mapTarget(r: any): PostTarget {
+  private mapTarget(r: any, base: string | null = null): PostTarget {
     return {
       id: r.id,
       postId: r.post_id,
@@ -101,6 +114,7 @@ export class PostService {
         firstComment: stateOf(r.settings_json).firstComment,
       },
       firstComment: null,
+      scheduledAtUtc: targetTime(r.target_at_utc, base, r.stagger_offset_min),
     }
   }
 
@@ -263,7 +277,7 @@ export class PostService {
     )
     for (const t of targets) {
       const list = byPost.get(t.post_id) ?? []
-      const mapped = this.mapTarget(t)
+      const mapped = this.mapTarget(t, rows.find((r) => r.id === t.post_id)?.scheduled_at_utc ?? null)
       const j = jobs.get(t.id)
       if (j)
         mapped.firstComment = {
@@ -344,8 +358,106 @@ export class PostService {
 
   // ---------- slots ----------
 
-  /** `kind` is the kind of the video (Shorts or Long form). Left out, every time the channel has is used. */
+  /** Times a platform already uses for this channel: its own times, or the post's time for older posts. */
+  private platformTimes(brandId: number, platform: string, postStatuses: readonly string[]): string[] {
+    return (
+      this.db
+        .prepare(
+          `SELECT COALESCE(t.target_at_utc, p.scheduled_at_utc) AS t
+           FROM post_targets t JOIN posts p ON p.id = t.post_id
+           WHERE p.brand_id = ? AND t.platform = ? AND p.post_type = 'episode' AND p.scheduled_at_utc IS NOT NULL
+             AND p.status IN (${postStatuses.map(() => '?').join(',')}) AND t.status != 'skipped'`,
+        )
+        .all(brandId, platform, ...postStatuses) as Array<{ t: string }>
+    ).map((r) => r.t)
+  }
+
+  /** The platforms a channel posts to for a kind (ticked on Setup Channels) that have posting times of their own. */
+  private slotPlatforms(brandId: number, kind?: SlotKind): string[] | null {
+    const rows = platformSlotRows(this.db, brandId)
+    if (rows.length === 0) return null
+    const kinds = slotKinds(this.db, brandId)
+    const use = kindToUse(kinds, kind)
+    const ticks = use ? kinds.find((k) => k.kind === use)?.platforms : null
+    return [...new Set(rows.filter((r) => r.enabled && (!use || r.kind === use)).map((r) => r.platform as string))].filter(
+      (p) => ticks?.[p] !== false,
+    )
+  }
+
+  /**
+   * The next open times for ONE platform of a channel. Each platform has its own weekday and weekend times, and a time
+   * another platform uses does not count against it. `kind` is the kind of the video (Shorts or Long form).
+   */
+  nextSlotsFor(
+    brandId: number,
+    platform: Platform,
+    count: number,
+    fromUtc?: string,
+    extraTaken: string[] = [],
+    kind?: SlotKind,
+  ): string[] {
+    const ps = platformSlotsFor(this.db, brandId, platform, kind)
+    if (!ps) return this.legacyNextSlots(brandId, count, fromUtc, extraTaken, kind)
+    const rules = this.channelRules(brandId)
+    return getNextOpenSlots({
+      slots: ps.slots,
+      taken: [...this.platformTimes(brandId, platform, RESERVING), ...extraTaken],
+      count,
+      from: fromUtc ?? new Date(this.now()).toISOString(),
+      weekdays: ps.days ?? this.postDays(brandId),
+      blackoutDates: [...new Set([...readSetting(this.db, 'blackoutDates'), ...rules.blackoutDates])],
+      maxPerDay: rules.maxPerDay,
+      alsoCounted: this.platformTimes(brandId, platform, ['posted']),
+    })
+  }
+
+  /**
+   * The next open times for a channel when no platform is named: any time that at least one of its platforms can use,
+   * soonest first. Used by lists that just need "a time" (the Bulk screen, Home, bots).
+   */
   nextSlots(brandId: number, count: number, fromUtc?: string, extraTaken: string[] = [], kind?: SlotKind): string[] {
+    const platforms = this.slotPlatforms(brandId, kind)
+    if (platforms === null) return this.legacyNextSlots(brandId, count, fromUtc, extraTaken, kind)
+    const all = new Set<string>()
+    for (const p of platforms)
+      for (const s of this.nextSlotsFor(brandId, p as Platform, count, fromUtc, extraTaken, kind)) all.add(s)
+    return [...all].sort().slice(0, count)
+  }
+
+  /**
+   * One time for every platform of each of the next `count` videos. Every platform takes its own next open time, so
+   * two platforms of one video can sit at different times, and a platform whose time is taken moves only itself.
+   * A platform with no times of its own follows the channel's combined list.
+   */
+  slotPlans(
+    brandId: number,
+    count: number,
+    kind: SlotKind | undefined,
+    platforms: Platform[],
+    fromUtc?: string,
+  ): Array<Partial<Record<Platform, string>>> {
+    let combined: string[] | null = null
+    const lists = new Map<Platform, string[]>()
+    for (const p of platforms) {
+      const own = platformSlotsFor(this.db, brandId, p, kind)
+      if (own && own.slots.some((x) => x.enabled)) lists.set(p, this.nextSlotsFor(brandId, p, count, fromUtc, [], kind))
+      else lists.set(p, (combined ??= this.nextSlots(brandId, count, fromUtc, [], kind)))
+    }
+    const out: Array<Partial<Record<Platform, string>>> = []
+    for (let i = 0; i < count; i++) {
+      const plan: Partial<Record<Platform, string>> = {}
+      for (const p of platforms) {
+        const t = lists.get(p)?.[i]
+        if (t) plan[p] = t
+      }
+      if (Object.keys(plan).length === 0) break
+      out.push(plan)
+    }
+    return out
+  }
+
+  /** The channel's one list of times, for a channel that has no per-platform times. */
+  private legacyNextSlots(brandId: number, count: number, fromUtc?: string, extraTaken: string[] = [], kind?: SlotKind): string[] {
     const { slots, days: kindDays } = slotsForKind(this.db, brandId, kind)
     const taken = (
       this.db
@@ -363,30 +475,14 @@ export class PostService {
         )
         .all(brandId) as Array<{ t: string }>
     ).map((r) => r.t)
-    const minGap = readSetting(this.db, 'minGapMinutes')
-    const others = minGap
-      ? (
-          this.db
-            .prepare(
-              `SELECT scheduled_at_utc AS t FROM posts WHERE brand_id != ? AND scheduled_at_utc IS NOT NULL
-               AND brand_id IN (SELECT id FROM brands WHERE archived = 0)
-               AND status IN (${RESERVING.map(() => '?').join(',')})`,
-            )
-            .all(brandId, ...RESERVING) as Array<{ t: string }>
-        ).map((r) => r.t)
-      : []
     return getNextOpenSlots({
       slots,
       taken: [...taken, ...extraTaken],
       count,
       from: fromUtc ?? new Date(this.now()).toISOString(),
       weekdays: kindDays ?? this.postDays(brandId),
-      blackoutDates: [
-        ...new Set([...readSetting(this.db, 'blackoutDates'), ...rules.blackoutDates]),
-      ],
+      blackoutDates: [...new Set([...readSetting(this.db, 'blackoutDates'), ...rules.blackoutDates])],
       maxPerDay: rules.maxPerDay,
-      minGapMinutes: minGap,
-      gapWith: others,
       alsoCounted: sent,
     })
   }
@@ -428,26 +524,8 @@ export class PostService {
         }>
       ).map((r) => r.t)
     const out: Array<{ whenUtc: string; kind: 'episode' | 'clip'; blockedBy?: string }> = []
-    // The minimum gap keeps the scheduler out of a slot another channel already uses, so such a slot is marked, not left looking empty.
-    const gapMs = Number(readSetting(this.db, 'minGapMinutes') || 0) * 60_000
-    const others = gapMs
-      ? (this.db
-          .prepare(
-            `SELECT p.scheduled_at_utc AS t, b.name AS name FROM posts p JOIN brands b ON b.id = p.brand_id
-             WHERE p.brand_id != ? AND b.archived = 0 AND p.scheduled_at_utc IS NOT NULL AND p.scheduled_at_utc >= ? AND p.scheduled_at_utc < ?
-             AND p.status IN (${RESERVING.map(() => '?').join(',')})`,
-          )
-          .all(
-            brandId,
-            new Date(new Date(fromUtc).getTime() - gapMs).toISOString(),
-            new Date(new Date(toUtc).getTime() + gapMs).toISOString(),
-            ...RESERVING,
-          ) as Array<{ t: string; name: string }>)
-      : []
-    const blockerOf = (iso: string) => {
-      const ms = new Date(iso).getTime()
-      return others.find((o) => Math.abs(new Date(o.t).getTime() - ms) < gapMs)?.name
-    }
+    const gapMs = 0
+    const blockerOf = (_iso: string): string | undefined => undefined
     const dayOf = (iso: string) =>
       DateTime.fromISO(iso, { zone: 'utc' }).setZone(ZONE).toFormat('yyyy-MM-dd')
     const collect = (kind: 'episode' | 'clip', all: string[], cap: number) => {
@@ -656,23 +734,6 @@ export class PostService {
         )
       }
     }
-    const gap = Number(readSetting(this.db, 'minGapMinutes') || 0)
-    if (gap > 0) {
-      const near = this.db
-        .prepare(
-          `SELECT p.scheduled_at_utc AS t, b.name AS name FROM posts p JOIN brands b ON b.id = p.brand_id
-           WHERE p.scheduled_at_utc >= ? AND p.scheduled_at_utc <= ? AND p.status IN (${RESERVING.map(() => '?').join(',')})`,
-        )
-        .all(
-          new Date(whenMs - gap * 60_000).toISOString(),
-          new Date(whenMs + gap * 60_000).toISOString(),
-          ...RESERVING,
-        ) as Array<{ t: string; name: string }>
-      const hit = near[0]
-      if (hit) {
-        out.push(`That is less than ${gap} minutes from a post on ${hit.name}. The minimum gap is ${gap} minutes.`)
-      }
-    }
     return out
   }
 
@@ -694,17 +755,17 @@ export class PostService {
 
   private insertTargets(postId: number, brandId: number, targets: PostTargetInput[]): void {
     const ins = this.db.prepare(
-      `INSERT INTO post_targets (post_id, platform, account_id, caption_override, ai_flag, settings_json, stagger_offset_min)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO post_targets (post_id, platform, account_id, caption_override, ai_flag, settings_json, stagger_offset_min, target_at_utc)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    const stagger = readSetting(this.db, 'staggerEnabled')
-      ? staggerOffsets(
-          targets.map((t) => t.platform),
-          postId,
-          readSetting(this.db, 'staggerGapMin'),
-          readSetting(this.db, 'staggerGapMax'),
-        )
-      : {}
+    // Platforms on the same slot go a few minutes apart. Platforms with their own times do not need it.
+    const stagger: Partial<Record<Platform, number>> = {}
+    if (readSetting(this.db, 'staggerEnabled')) {
+      const groups = new Map<string, Platform[]>()
+      for (const t of targets) groups.set(t.scheduledAtUtc ?? '', [...(groups.get(t.scheduledAtUtc ?? '') ?? []), t.platform])
+      for (const list of groups.values())
+        Object.assign(stagger, staggerOffsets(list, postId, readSetting(this.db, 'staggerGapMin'), readSetting(this.db, 'staggerGapMax')))
+    }
     const seen = new Set<Platform>()
     for (const t of targets) {
       if (seen.has(t.platform)) continue
@@ -717,6 +778,7 @@ export class PostService {
         t.aiFlag ? 1 : 0,
         JSON.stringify(cleanSettings(t.settings)),
         stagger[t.platform] ?? 0,
+        t.scheduledAtUtc ?? null,
       )
     }
   }
@@ -760,7 +822,7 @@ export class PostService {
     if (input.targets.length === 0 && input.status === 'scheduled') {
       throw new Error('Pick at least one platform before scheduling.')
     }
-    if (input.status === 'scheduled' && !input.scheduledAtUtc) {
+    if (input.status === 'scheduled' && !input.scheduledAtUtc && !input.targets.some((t) => t.scheduledAtUtc)) {
       throw new Error('Pick a date and time before scheduling.')
     }
   }
@@ -807,7 +869,7 @@ export class PostService {
               p.poster,
               p.input.title,
               p.input.caption,
-              p.input.scheduledAtUtc,
+              baseTime(p.input.scheduledAtUtc, p.input.targets),
               p.input.status,
               p.input.origin ?? 'manual',
               p.input.pipeline?.episodeRef ?? null,
@@ -875,10 +937,15 @@ export class PostService {
   update(id: number, patch: PostUpdate): Post {
     const cur = this.get(id)
     if (!cur) throw new Error('Post not found.')
+    // A platform whose time the patch really changes (a save that sends the same time back changes nothing).
+    const retimed = (patch.targets ?? []).filter((t) => {
+      const e = cur.targets.find((x) => x.platform === t.platform)
+      return !!e && t.scheduledAtUtc !== undefined && (t.scheduledAtUtc ?? null) !== e.scheduledAtUtc && e.status !== 'posted'
+    })
+    const handed = this.realHandedOff(id).map((h) => h.platform)
     if (
-      patch.scheduledAtUtc &&
-      patch.scheduledAtUtc !== cur.scheduledAtUtc &&
-      this.realHandedOff(id).length
+      (patch.scheduledAtUtc && patch.scheduledAtUtc !== cur.scheduledAtUtc && handed.length) ||
+      retimed.some((t) => handed.includes(t.platform))
     ) {
       throw new Error(
         'This post is already scheduled inside YouTube. Cancel it and delete the scheduled video in YouTube Studio first, then schedule it again.',
@@ -890,9 +957,15 @@ export class PostService {
     this.db.transaction(() => {
       const title = patch.title ?? cur.title
       const caption = patch.caption ?? cur.caption
-      const when = patch.scheduledAtUtc !== undefined ? patch.scheduledAtUtc : cur.scheduledAtUtc
+      let when = patch.scheduledAtUtc !== undefined ? patch.scheduledAtUtc : cur.scheduledAtUtc
+      // A draft that is given platform times has no post time yet: it starts at the earliest of them.
+      if (!when && retimed.some((t) => t.scheduledAtUtc))
+        when = retimed.map((t) => t.scheduledAtUtc as string).filter(Boolean).reduce((a, b) => (a < b ? a : b))
       // Saving the editor sends the time back unchanged. Only a different time counts as a reschedule.
-      const moved = !!patch.scheduledAtUtc && patch.scheduledAtUtc !== cur.scheduledAtUtc
+      const baseMoved = !!patch.scheduledAtUtc && patch.scheduledAtUtc !== cur.scheduledAtUtc
+      // Taking a post off the schedule (no time at all) clears every platform time too.
+      const cleared = patch.scheduledAtUtc === null && cur.scheduledAtUtc !== null
+      const moved = baseMoved || retimed.length > 0
       let status: PostStatus = cur.status
       if (patch.status) status = patch.status
       else if (['missed', 'failed', 'partial', 'canceled'].includes(cur.status) && moved)
@@ -938,6 +1011,16 @@ export class PostService {
           }
         }
       }
+      // Moving the whole post puts every platform that was not given its own new time back on the post's time.
+      if (baseMoved || cleared)
+        this.db
+          .prepare("UPDATE post_targets SET target_at_utc = NULL WHERE post_id = ? AND status != 'posted'")
+          .run(id)
+      for (const t of retimed)
+        this.db
+          .prepare('UPDATE post_targets SET target_at_utc = ?, stagger_offset_min = 0 WHERE post_id = ? AND platform = ?')
+          .run(t.scheduledAtUtc ?? null, id, t.platform)
+      if (!cleared) this.normalizeTimes(id, when)
       // A reschedule of a missed or failed post starts it fresh.
       // A target waiting for you to finish it in an app (a TikTok draft) is left alone, so it is never sent twice.
       if (moved && ['missed', 'failed', 'partial', 'canceled'].includes(cur.status)) {
@@ -948,10 +1031,64 @@ export class PostService {
           )
           .run(id)
       }
+
     })()
     this.log.log('info', 'Post edited.', { postId: id })
     this.emit()
     return this.get(id) as Post
+  }
+
+  /**
+   * Keeps the post's time and its platform times in step. When any platform has its own time, every platform that
+   * is still to go out gets one (the post's time plus its stagger), and the post's time becomes the earliest of them.
+   */
+  private normalizeTimes(postId: number, base: string | null): void {
+    const rows = this.db
+      .prepare('SELECT id, status, target_at_utc, stagger_offset_min FROM post_targets WHERE post_id = ?')
+      .all(postId) as Array<{ id: number; status: string; target_at_utc: string | null; stagger_offset_min: number }>
+    const live = rows.filter((r) => r.status !== 'skipped')
+    if (!live.some((r) => r.target_at_utc)) return
+    const set = this.db.prepare('UPDATE post_targets SET target_at_utc = ? WHERE id = ?')
+    for (const r of live) if (!r.target_at_utc && r.status !== 'posted' && base) set.run(base, r.id)
+    const times = (this.db.prepare('SELECT status, target_at_utc FROM post_targets WHERE post_id = ? AND status != ?').all(postId, 'skipped') as Array<{ status: string; target_at_utc: string | null }>)
+    const open = times.filter((t) => t.status !== 'posted' && t.target_at_utc).map((t) => t.target_at_utc as string)
+    const pool = open.length ? open : times.map((t) => t.target_at_utc).filter((x): x is string => !!x)
+    if (pool.length)
+      this.db
+        .prepare('UPDATE posts SET scheduled_at_utc = ? WHERE id = ?')
+        .run(pool.reduce((a, b) => (a < b ? a : b)), postId)
+  }
+
+  /**
+   * Schedules a post with a time for each platform. The post's own time becomes the earliest of them. A platform with no
+   * time in the plan follows the post's time.
+   */
+  schedulePlan(id: number, plan: Partial<Record<Platform, string>>): void {
+    const cur = this.get(id)
+    if (!cur) throw new Error('Post not found.')
+    const times = Object.values(plan).filter((x): x is string => !!x)
+    if (times.length === 0) throw new Error('Pick a date and time before scheduling.')
+    const base = times.reduce((a, b) => (a < b ? a : b))
+    this.db.transaction(() => {
+      this.db
+        .prepare("UPDATE posts SET scheduled_at_utc = ?, status = 'scheduled', updated_at = ? WHERE id = ?")
+        .run(base, new Date().toISOString(), id)
+      const set = this.db.prepare('UPDATE post_targets SET target_at_utc = ?, stagger_offset_min = ? WHERE id = ?')
+      const groups = new Map<string, Platform[]>()
+      for (const t of cur.targets) groups.set(plan[t.platform] ?? '', [...(groups.get(plan[t.platform] ?? '') ?? []), t.platform])
+      const stagger: Partial<Record<Platform, number>> = {}
+      if (readSetting(this.db, 'staggerEnabled'))
+        for (const list of groups.values())
+          Object.assign(stagger, staggerOffsets(list, id, readSetting(this.db, 'staggerGapMin'), readSetting(this.db, 'staggerGapMax')))
+      for (const t of cur.targets) set.run(plan[t.platform] ?? null, stagger[t.platform] ?? 0, t.id)
+      this.normalizeTimes(id, base)
+    })()
+    this.log.log('info', 'Post scheduled.', { postId: id })
+    this.emit()
+  }
+
+  private hasOwnTime(targetId: number): boolean {
+    return !!(this.db.prepare('SELECT target_at_utc AS t FROM post_targets WHERE id = ?').get(targetId) as { t: string | null } | undefined)?.t
   }
 
   /** Two scheduled posts trade times. Both must still be waiting to go out. */
@@ -974,6 +1111,13 @@ export class PostService {
       const stamp = new Date().toISOString()
       upd.run(pb.scheduledAtUtc, stamp, a)
       upd.run(pa.scheduledAtUtc, stamp, b)
+      // Platform times keep their distance from the post's time, so they move with it.
+      const delta = new Date(pb.scheduledAtUtc!).getTime() - new Date(pa.scheduledAtUtc!).getTime()
+      const shift = this.db.prepare('UPDATE post_targets SET target_at_utc = ? WHERE id = ?')
+      for (const [post, d] of [[pa, delta], [pb, -delta]] as const)
+        for (const t of post.targets)
+          if (t.status !== 'posted' && t.scheduledAtUtc && this.hasOwnTime(t.id))
+            shift.run(new Date(new Date(t.scheduledAtUtc).getTime() + d).toISOString(), t.id)
     })()
     this.log.log('info', `Swapped the times of "${pa.title}" and "${pb.title}".`)
     this.emit()
@@ -1161,10 +1305,14 @@ export class PostService {
   /** The channel's own posting times from a moment on, whether or not a post sits in them. */
   channelPostingTimes(brandId: number, count: number, fromMs: number): string[] {
     const rules = this.channelRules(brandId)
-    const slots = (this.db.prepare('SELECT * FROM brand_slots WHERE brand_id = ?').all(brandId) as any[]).map<SlotDef>((r) => ({ dayType: r.day_type, timeLocal: r.time_local, enabled: !!r.enabled }))
+const perPlatform = platformSlotRows(this.db, brandId)
+    const slots = (perPlatform.length
+      ? perPlatform.map((r) => ({ dayType: r.dayType, timeLocal: r.timeLocal, enabled: r.enabled }))
+      : (this.db.prepare('SELECT * FROM brand_slots WHERE brand_id = ?').all(brandId) as any[]).map((r) => ({ dayType: r.day_type, timeLocal: r.time_local, enabled: !!r.enabled }))
+    ).map<SlotDef>((x) => x)
     const blackoutDates = [...new Set([...readSetting(this.db, 'blackoutDates'), ...rules.blackoutDates])]
     const from = new Date(fromMs).toISOString()
-    return getSlotTimes({ slots, from, to: new Date(fromMs + 300 * 86_400_000).toISOString(), weekdays: this.postDays(brandId), blackoutDates, maxPerDay: rules.maxPerDay })
+    return getSlotTimes({ slots, from, to: new Date(fromMs + 300 * 86_400_000).toISOString(), weekdays: this.postDays(brandId), blackoutDates, maxPerDay: 0 })
       .filter((t) => t >= from)
       .slice(0, count)
   }

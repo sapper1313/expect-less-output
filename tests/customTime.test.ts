@@ -34,7 +34,7 @@ describe('checkCustomTime (Manual Schedule override warnings)', () => {
     expect(w.join(' ')).toMatch(/in the past/)
   })
 
-  it('warns when the daily limit is already used, and when another channel is inside the minimum gap', async () => {
+  it('warns when the daily limit is already used, and never about another channel being close', async () => {
     const env = setup()
     env.settings.set({ minGapMinutes: 30 } as never)
     await env.makePost({ brandId: 1, whenMs: TUE_NOON })
@@ -42,7 +42,7 @@ describe('checkCustomTime (Manual Schedule override warnings)', () => {
     expect(w.join(' ')).toMatch(/already has 1 post/)
     await env.makePost({ brandId: 2, whenMs: TUE_NOON + 10 * 60_000 })
     const w2 = env.posts.checkCustomTime(1, new Date(TUE_NOON).toISOString())
-    expect(w2.join(' ')).toMatch(/minimum gap is 30 minutes/)
+    expect(w2.join(' ')).not.toMatch(/minimum gap/)
   })
 
   it('never blocks: posts.create accepts a hand picked off-slot time', async () => {

@@ -109,7 +109,7 @@ describe('fill all, and undo', () => {
     const t = await waitingRig(3)
     const s = service(t)
     const [from] = window(t)
-    const oneDay = new Date(t.env.clock.ms + 2 * 86_400_000).toISOString()
+    const oneDay = new Date(t.env.clock.ms + 1 * 86_400_000).toISOString()
     const few = await s.fillAll(from, oneDay)
     expect(few.filled.length).toBeLessThan(3)
     expect(few.leftWaiting).toBe(3 - few.filled.length)

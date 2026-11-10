@@ -8,7 +8,7 @@ This guide is for you, the owner. Every step is meant to be followed exactly, on
 - **Manual Schedule**: New Post and Bulk Upload. A post goes to the next open slot for its channel. Tick **Pick my own date and time** to choose your own. ELO warns if it breaks a rule, and you can still go ahead.
 - **Inbox**: the videos waiting for you, plus a **Comments** tab where you can read comments (read only for now).
 - **Queue** and **Analytics**: the same as before.
-- **Setup Channels**: pick a channel on the left, or add a new one. Tabs: **Channel Setup** (name, color, pause, archive, pipeline rules, posting slots for Shorts and Long form), **Connections** (every login in one place: Facebook, YouTube, Instagram, TikTok, Bluesky, and the platform keys at the bottom), **Other settings by channel**, and **Website**.
+- **Setup Channels**: pick a channel on the left, or add a new one. Tabs: **Channel Setup** (name, color, pause, archive, pipeline rules, the **Posting schedule**: times for each platform, weekdays and weekends, for Shorts and Long form), **Connections** (every login in one place: Facebook, YouTube, Instagram, TikTok, Bluesky, and the platform keys at the bottom), **Other settings by channel**, and **Website**.
 - **Settings**: only things that are the same for every channel. One long page with a list at the top to jump to a part.
 - **Financial**: spend caps, generate settings and the spend table.
 - **AI Settings**: AI models, local AI, the Agent API, the AI keys and **Upload-Post** (the paid service that posts to TikTok). To set it up: paste the API key, press Test, type each channel's profile name exactly as it is on Upload-Post, tick the platforms you logged in there, and press Save on that channel. TikTok ticked means ELO posts to TikTok through Upload-Post. TikTok not ticked means TikTok drafts like before.
@@ -554,11 +554,32 @@ Your logins stay as they are. YouTube already has the permission it needs, so yo
 3. Pick a platform in the box on that card. With one brand and one platform it shows real views. With more it shows "times your typical video", so a big channel and a small one can be compared fairly.
 4. Only videos at least 7 days old are used, so a new video does not look worse than it is. It needs at least 10 such videos, and an hour needs 2 videos to be ranked. Click **Import existing videos** first to give it more to work with.
 
+### The posting schedule, per platform
+
+Every channel has its own times for every platform. Setup Channels, pick a channel, **Posting schedule (Eastern time)**:
+
+1. Pick **Shorts** or **Long form** at the top. Each has its own grid.
+2. Each row is a platform (YouTube, Instagram, Facebook, TikTok, Bluesky). The left box ticks whether that kind posts there. The two columns are **Weekdays (Mon to Fri)** and **Weekends (Sat and Sun)**.
+3. Click **+ time** in a cell to add a time. Pick the hour, minute and AM or PM. Click the **x** next to a time to remove it. A cell can have several times.
+4. **copy to all** copies a platform's row to every other platform. **weekdays to weekends** copies its weekday times to the weekend column.
+5. Tick the days the kind posts on (Mon to Sun) above the grid.
+6. Click **Save schedule**. Nothing changes until you do.
+
+How it is used:
+
+- A new video takes the **next open time of every platform on its own**. A time that one platform already uses never blocks another platform, and one channel's times never block another channel (the old minimum gap setting is gone).
+- This works the same for bot drops, **Manual Schedule**, **Bulk**, the Inbox and the Queue. In Manual Schedule and the Edit post window each platform has its own list of open slots, plus **Pick a different time...**, which lets you pick any date and time you like, on or off a slot.
+- **Same time for all platforms** puts every platform of a post on one time. **Use each platform's next open slot** goes back to the default.
+- In the Queue, one ticked post can be moved to a single time with the new-time box. That puts every platform on that time. Use **Edit post** to change one platform alone.
+- A post's own time is its earliest platform time. The Queue shows each platform's time when they differ.
+- The daily limit of a channel is counted for each platform.
+- Channels from before this version got their old times copied to every platform, so nothing moved.
+
 ### Recommended slot times
 
-1. Open **Brands**, pick a brand, and look at **Posting slots**.
-2. Under Weekdays and Weekends a **Recommended** box lists up to three times with how much better than typical they did.
-3. Click **Add** to put a time in the list, then click **Save slots**. Nothing changes until you do.
+1. Open **Setup Channels**, pick a channel, and look at **Posting schedule**.
+2. At the bottom a **Recommended** box lists up to three times with how much better than typical they did.
+3. Click **Add to every Shorts platform** (or Long form) to put a time on every ticked platform, change any platform's time if you like, then click **Save schedule**. Nothing changes until you do.
 
 These are only patterns in your own results. A few videos can mislead, and the best hour can change as your audience grows.
 

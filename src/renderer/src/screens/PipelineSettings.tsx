@@ -247,17 +247,11 @@ export function ScheduleRulesCard({ s, save }: { s: Settings; save: Save }) {
     <Card title="Schedule rules">
       <p className="mb-3 text-[13px] text-muted">
         These apply to every next open slot. Each channel also has its own daily limit and blackout
-        dates on Channel setup. A daily limit of 1 means only the first slot of each day is used.
+        dates on Channel setup. A daily limit of 1 means only the first slot of each day is used, for
+        each platform. Channels no longer keep a gap between each other, because every platform has its
+        own times.
       </p>
       <div className="grid gap-4 md:grid-cols-2">
-        <NumberSetting
-          label="Minimum gap between any two posts (minutes)"
-          hint="0 turns it off."
-          value={s.minGapMinutes}
-          min={0}
-          max={1440}
-          onSave={(v) => save({ minGapMinutes: v })}
-        />
         <NumberSetting
           label="Low queue alert (days of posts scheduled ahead)"
           hint="One alert when a channel has fewer days than this. 0 turns it off."

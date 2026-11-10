@@ -24,6 +24,7 @@ import { PlatformPicker, WhenPicker } from './pickers'
 import { PostStatsPanel } from './StatsPanel'
 import { PostingAs, TikTokSection, useCreator } from './TikTokSection'
 import { previewFor } from '@shared/preview'
+import { slotKindFor } from '@shared/slots'
 import { Suggest } from './Suggest'
 import { emptyTikTokSettings } from '@shared/tiktok'
 
@@ -49,11 +50,14 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
   const [confirm, setConfirm] = useState<'cancel' | 'delete' | null>(null)
   const [alsoFile, setAlsoFile] = useState(false)
   const [urls, setUrls] = useState<Record<number, string>>({})
+  /** Each platform's own time. A platform left out follows the post's time. */
+  const [times, setTimes] = useState<Partial<Record<Post['targets'][number]['platform'], string | null>>>({})
 
   useEffect(() => {
     if (post && (!draft || draft.id !== post.id)) {
       setDraft(post)
       setPlatforms(post.targets.filter((t) => t.status !== 'skipped').map((t) => t.platform))
+      setTimes(Object.fromEntries(post.targets.filter((t) => t.status !== 'skipped').map((t) => [t.platform, t.scheduledAtUtc])))
     } else if (post && draft) {
       // keep local edits, but follow status and target changes coming from the scheduler
       setDraft((d) => (d ? { ...d, status: post.status, targets: post.targets } : d))
@@ -80,10 +84,14 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
         title: draft!.title,
         caption: draft!.caption,
         firstComment: draft!.firstComment ?? '',
-        scheduledAtUtc: draft!.scheduledAtUtc,
+        // The post's own time stays as it was. The platform times below move it, so one platform can change alone.
+        scheduledAtUtc: post?.scheduledAtUtc ?? draft!.scheduledAtUtc,
         status,
         targets: platforms.map((p) => ({
           platform: p,
+          ...(draft!.postType !== 'clip' && existing.get(p)?.status !== 'posted' && times[p] !== undefined
+            ? { scheduledAtUtc: times[p] }
+            : {}),
           aiFlag: existing.get(p)?.aiFlag ?? false,
           captionOverride: existing.get(p)?.captionOverride ?? null,
           settings: existing.get(p)?.settings,
@@ -333,19 +341,57 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
             )}
           </div>
           <Field label="When (Eastern time)">
-            <WhenPicker
-              brandId={draft.brandId}
-              disabled={locked}
-              value={draft.scheduledAtUtc}
-              onChange={(v) => set('scheduledAtUtc', v)}
-              slotsToo={draft.postType !== 'clip'}
-            />
+            {draft.postType === 'clip' ? (
+              <WhenPicker
+                brandId={draft.brandId}
+                disabled={locked}
+                value={draft.scheduledAtUtc}
+                onChange={(v) => set('scheduledAtUtc', v)}
+                slotsToo={false}
+              />
+            ) : (
+              <div className="space-y-3">
+                <div className="text-[12px] text-muted">
+                  Each platform has its own time. Pick one of its open slots, or Pick a different time to use any date
+                  and time.
+                </div>
+                {platforms.map((p) => {
+                  const t = draft.targets.find((x) => x.platform === p)
+                  const done = t?.status === 'posted'
+                  return (
+                    <div key={p} className="grid items-start gap-2 md:grid-cols-[110px_1fr]">
+                      <div className="pt-2 text-[13px] font-semibold">{PLATFORM_LABELS[p]}</div>
+                      {done ? (
+                        <div className="pt-2 text-[13px] text-muted">
+                          Posted {t?.postedAtUtc ? formatEastern(t.postedAtUtc) : ''}
+                        </div>
+                      ) : (
+                        <WhenPicker
+                          brandId={draft.brandId}
+                          platform={p}
+                          kind={slotKindFor(draft.videoMeta)}
+                          disabled={locked}
+                          value={times[p] ?? draft.scheduledAtUtc}
+                          onChange={(v) => setTimes({ ...times, [p]: v })}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
+                {platforms.length > 1 && !locked && (
+                  <Button
+                    onClick={() => {
+                      const open = platforms.filter((p) => draft.targets.find((x) => x.platform === p)?.status !== 'posted')
+                      const first = open.map((p) => times[p] ?? draft.scheduledAtUtc).find((x) => !!x) ?? null
+                      setTimes({ ...times, ...Object.fromEntries(open.map((p) => [p, first])) })
+                    }}
+                  >
+                    Same time for all platforms
+                  </Button>
+                )}
+              </div>
+            )}
           </Field>
-          {draft.scheduledAtUtc && (
-            <div className="-mt-3 text-[12px] text-muted">
-              {formatEastern(draft.scheduledAtUtc)}
-            </div>
-          )}
           {ttTarget && ttLive && !locked && (
             <div className="space-y-2 rounded-md border border-line p-3">
               <div className="display text-xl">TikTok</div>

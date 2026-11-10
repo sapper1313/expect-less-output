@@ -155,7 +155,58 @@
                               ],
                               "additionalProperties": false
                             },
-                            "description": "Posting times, in Eastern time."
+                            "description": "The channel combined posting times, in Eastern time (the earliest time of each position across platforms). Use platform_slots for each platform."
+                          },
+                          "platform_slots": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "platform": {
+                                  "type": "string",
+                                  "enum": [
+                                    "youtube",
+                                    "facebook",
+                                    "instagram",
+                                    "tiktok",
+                                    "bluesky",
+                                    "x",
+                                    "linkedin",
+                                    "pinterest"
+                                  ]
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "short",
+                                    "long"
+                                  ]
+                                },
+                                "day_type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "weekday",
+                                    "weekend"
+                                  ]
+                                },
+                                "time_local": {
+                                  "type": "string",
+                                  "description": "HH:MM Eastern."
+                                },
+                                "enabled": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "platform",
+                                "kind",
+                                "day_type",
+                                "time_local",
+                                "enabled"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "Posting times for each platform and kind. Each platform has its own."
                           },
                           "defaults": {
                             "type": "object",
@@ -283,6 +334,7 @@
                           "aliases",
                           "inbox_enabled",
                           "slots",
+                          "platform_slots",
                           "defaults",
                           "hashtag_sets",
                           "platforms"
@@ -385,6 +437,25 @@
               "type": "string",
               "pattern": "(Z|[+-]\\d{2}:\\d{2})$",
               "example": "2026-06-02T17:00:00-04:00"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Only that platform's own open times. Each platform of a channel has its own weekday and weekend times. Left out, any time one of the channel's platforms can use.",
+              "type": "string",
+              "enum": [
+                "youtube",
+                "facebook",
+                "instagram",
+                "tiktok",
+                "bluesky",
+                "x",
+                "linkedin",
+                "pinterest"
+              ]
             }
           }
         ],
@@ -2744,6 +2815,11 @@
                           "progress": {
                             "nullable": true,
                             "type": "number"
+                          },
+                          "scheduled_at": {
+                            "nullable": true,
+                            "description": "When this platform posts (UTC). Each platform has its own time.",
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -2755,7 +2831,8 @@
                           "attempts",
                           "last_error",
                           "external_url",
-                          "progress"
+                          "progress",
+                          "scheduled_at"
                         ],
                         "additionalProperties": false
                       }
@@ -3134,6 +3211,11 @@
                                 "progress": {
                                   "nullable": true,
                                   "type": "number"
+                                },
+                                "scheduled_at": {
+                                  "nullable": true,
+                                  "description": "When this platform posts (UTC). Each platform has its own time.",
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -3145,7 +3227,8 @@
                                 "attempts",
                                 "last_error",
                                 "external_url",
-                                "progress"
+                                "progress",
+                                "scheduled_at"
                               ],
                               "additionalProperties": false
                             }
@@ -3416,6 +3499,11 @@
                           "progress": {
                             "nullable": true,
                             "type": "number"
+                          },
+                          "scheduled_at": {
+                            "nullable": true,
+                            "description": "When this platform posts (UTC). Each platform has its own time.",
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -3427,7 +3515,8 @@
                           "attempts",
                           "last_error",
                           "external_url",
-                          "progress"
+                          "progress",
+                          "scheduled_at"
                         ],
                         "additionalProperties": false
                       }
@@ -3818,6 +3907,11 @@
                           "progress": {
                             "nullable": true,
                             "type": "number"
+                          },
+                          "scheduled_at": {
+                            "nullable": true,
+                            "description": "When this platform posts (UTC). Each platform has its own time.",
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -3829,7 +3923,8 @@
                           "attempts",
                           "last_error",
                           "external_url",
-                          "progress"
+                          "progress",
+                          "scheduled_at"
                         ],
                         "additionalProperties": false
                       }
@@ -4433,6 +4528,11 @@
                           "progress": {
                             "nullable": true,
                             "type": "number"
+                          },
+                          "scheduled_at": {
+                            "nullable": true,
+                            "description": "When this platform posts (UTC). Each platform has its own time.",
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -4444,7 +4544,8 @@
                           "attempts",
                           "last_error",
                           "external_url",
-                          "progress"
+                          "progress",
+                          "scheduled_at"
                         ],
                         "additionalProperties": false
                       }
@@ -4731,6 +4832,11 @@
                               "progress": {
                                 "nullable": true,
                                 "type": "number"
+                              },
+                              "scheduled_at": {
+                                "nullable": true,
+                                "description": "When this platform posts (UTC). Each platform has its own time.",
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -4742,7 +4848,8 @@
                               "attempts",
                               "last_error",
                               "external_url",
-                              "progress"
+                              "progress",
+                              "scheduled_at"
                             ],
                             "additionalProperties": false
                           }
