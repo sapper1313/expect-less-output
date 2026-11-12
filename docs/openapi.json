@@ -2500,7 +2500,7 @@
       "post": {
         "operationId": "createPost",
         "summary": "Create a post from a video file. Creates a draft unless agents are allowed to schedule.",
-        "description": "The video is copied into the brand Queue folder. While the app setting \"Agents may create drafts only\" is on, asking for status scheduled or next_slot true is refused with HTTP 403 and code drafts_only. Nothing is silently downgraded.",
+        "description": "The video is copied into the brand Queue folder. Owner token, or an orchestrator bot (such as beth) on a channel it may work on. Status scheduled with no time goes to the first open slot of every platform. Give scheduled_at (every platform) or platform_times (one platform) for an exact time, which is used as it is, on or off a slot. While the app setting \"Agents may create drafts only\" is on, asking for status scheduled or next_slot true is refused with HTTP 403 and code drafts_only. Nothing is silently downgraded.",
         "x-mcp-tool": "create_post",
         "security": [
           {
@@ -2624,18 +2624,28 @@
                     "maximum": 9007199254740991
                   },
                   "scheduled_at": {
+                    "description": "An exact date and time for every platform, with a UTC offset. It is used as it is, on or off a posting slot, and must be in the future.",
                     "type": "string",
                     "pattern": "(Z|[+-]\\d{2}:\\d{2})$",
-                    "description": "ISO 8601 date and time WITH a zone offset or Z.",
                     "example": "2026-06-02T17:00:00-04:00"
                   },
+                  "platform_times": {
+                    "description": "An exact time for one platform. A platform left out uses scheduled_at, or (with neither) its own first open slot.",
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "pattern": "(Z|[+-]\\d{2}:\\d{2})$",
+                      "description": "ISO 8601 date and time WITH a zone offset or Z.",
+                      "example": "2026-06-02T17:00:00-04:00"
+                    }
+                  },
                   "next_slot": {
-                    "description": "Use the brand's next open slot. Not allowed while agents are limited to drafts.",
+                    "description": "Every platform takes its own next open slot. This is also what status scheduled does when no time is given. Not allowed while agents are limited to drafts.",
                     "type": "boolean"
                   },
                   "status": {
                     "default": "draft",
-                    "description": "draft (default) or scheduled. Scheduled is refused with 403 while agents are limited to drafts.",
+                    "description": "draft (default) or scheduled. Scheduled with no scheduled_at or platform_times goes to the first open slot of every platform. Scheduled is refused with 403 while agents are limited to drafts.",
                     "type": "string",
                     "enum": [
                       "draft",
@@ -3606,7 +3616,7 @@
       "patch": {
         "operationId": "updatePost",
         "summary": "Change a post.",
-        "description": "While agents are limited to drafts, only drafts can be changed and status scheduled is refused with 403 drafts_only. Posts that are posting or posted cannot be changed.",
+        "description": "Owner token, or an orchestrator bot on a channel it may work on. Change the title, caption, platforms, scheduled_at (every platform still waiting) or platform_times (one platform), and status. A platform that a service already has cannot be moved. While agents are limited to drafts, only drafts can be changed and status scheduled is refused with 403 drafts_only. Posts that are posting or posted cannot be changed.",
         "x-mcp-tool": "update_post",
         "security": [
           {
@@ -3724,11 +3734,21 @@
                     "maximum": 9007199254740991
                   },
                   "scheduled_at": {
-                    "description": "New time, or null to clear it.",
+                    "description": "New time for every platform that is still waiting, or null to clear it. Used as it is, on or off a slot.",
                     "nullable": true,
                     "type": "string",
                     "pattern": "(Z|[+-]\\d{2}:\\d{2})$",
                     "example": "2026-06-02T17:00:00-04:00"
+                  },
+                  "platform_times": {
+                    "description": "A new exact time for one platform. The others keep their own times.",
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "pattern": "(Z|[+-]\\d{2}:\\d{2})$",
+                      "description": "ISO 8601 date and time WITH a zone offset or Z.",
+                      "example": "2026-06-02T17:00:00-04:00"
+                    }
                   },
                   "status": {
                     "description": "Changing to scheduled is refused with 403 while agents are limited to drafts.",

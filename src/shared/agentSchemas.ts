@@ -110,14 +110,21 @@ export const CreatePostBody = z
       .min(0)
       .optional()
       .meta({ description: 'Instagram cover frame, milliseconds from the start.' }),
-    scheduled_at: ZonedTime.optional(),
+    scheduled_at: ZonedTime.optional().meta({
+      description:
+        'An exact date and time for every platform, with a UTC offset. It is used as it is, on or off a posting slot, and must be in the future.',
+    }),
+    platform_times: platformMap(ZonedTime).optional().meta({
+      description:
+        'An exact time for one platform. A platform left out uses scheduled_at, or (with neither) its own first open slot.',
+    }),
     next_slot: z.boolean().optional().meta({
       description:
-        "Use the brand's next open slot. Not allowed while agents are limited to drafts.",
+        "Every platform takes its own next open slot. This is also what status scheduled does when no time is given. Not allowed while agents are limited to drafts.",
     }),
     status: z.enum(['draft', 'scheduled']).default('draft').meta({
       description:
-        'draft (default) or scheduled. Scheduled is refused with 403 while agents are limited to drafts.',
+        'draft (default) or scheduled. Scheduled with no scheduled_at or platform_times goes to the first open slot of every platform. Scheduled is refused with 403 while agents are limited to drafts.',
     }),
   })
   .strict()
@@ -125,9 +132,9 @@ export const CreatePostBody = z
     message: 'Use scheduled_at or next_slot, not both.',
     path: ['next_slot'],
   })
-  .refine((b) => b.status !== 'scheduled' || !!b.scheduled_at || !!b.next_slot, {
-    message: 'A scheduled post needs scheduled_at or next_slot: true.',
-    path: ['status'],
+  .refine((b) => !(b.next_slot && b.platform_times), {
+    message: 'Use platform_times or next_slot, not both.',
+    path: ['next_slot'],
   })
 
 export const UpdatePostBody = z
@@ -143,7 +150,13 @@ export const UpdatePostBody = z
     thumb_offset_ms: z.number().int().min(0).optional(),
     scheduled_at: ZonedTime.nullable()
       .optional()
-      .meta({ description: 'New time, or null to clear it.' }),
+      .meta({
+        description:
+          'New time for every platform that is still waiting, or null to clear it. Used as it is, on or off a slot.',
+      }),
+    platform_times: platformMap(ZonedTime).optional().meta({
+      description: 'A new exact time for one platform. The others keep their own times.',
+    }),
     status: z.enum(['draft', 'scheduled']).optional().meta({
       description: 'Changing to scheduled is refused with 403 while agents are limited to drafts.',
     }),

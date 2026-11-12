@@ -136,7 +136,7 @@ describe('beth: remove a post before it posts, then drop the fixed video', () =>
 })
 
 describe('beth: edit', () => {
-  it('edits words but never a time or the schedule status', async () => {
+  it('edits words, and a writer bot may not edit at all', async () => {
     const r = await rig()
     const ok = await r.call(r.beth.token, 'PATCH', `/v1/posts/${r.post.id}`, {
       title: 'Fixed title',
@@ -149,15 +149,8 @@ describe('beth: edit', () => {
       scheduledAtUtc: r.post.scheduledAtUtc,
     })
     expect(r.notices.some((n) => /beth edited a post/.test(n[0]))).toBe(true)
-    const time = await r.call(r.beth.token, 'PATCH', `/v1/posts/${r.post.id}`, {
-      scheduled_at: '2031-01-01T10:00:00-05:00',
-    })
-    expect(time.status).toBe(403)
-    const status = await r.call(r.beth.token, 'PATCH', `/v1/posts/${r.post.id}`, {
-      status: 'draft',
-    })
-    expect(status.status).toBe(403)
     expect(
+
       (await r.call(r.grok.token, 'PATCH', `/v1/posts/${r.post.id}`, { title: 'x' })).status,
     ).toBe(403)
   })
@@ -288,5 +281,55 @@ describe('who counts as the operator', () => {
       (await r.call(writer.token, 'POST', `/v1/posts/${r.post.id}/media`, { title: 'Nope' }))
         .status,
     ).toBe(403)
+  })
+})
+
+describe('beth: change times, stop, create and replace', () => {
+  it('moves a post to an exact time or one platform alone, and sends it back to draft', async () => {
+    const r = await rig({ patch: { agentMaySchedule: true } })
+    const when = '2026-10-21T21:17:00-04:00'
+    const moved = await r.call(r.beth.token, 'PATCH', `/v1/posts/${r.post.id}`, { scheduled_at: when })
+    expect(moved.status).toBe(200)
+    expect((moved.body as any).scheduled_at).toBe('2026-10-22T01:17:00.000Z')
+    const one = await r.call(r.beth.token, 'PATCH', `/v1/posts/${r.post.id}`, { platform_times: { youtube: '2026-10-22T08:00:00-04:00' } })
+    expect(one.status).toBe(200)
+    expect((one.body as any).targets.find((t: any) => t.platform === 'youtube').scheduled_at).toBe('2026-10-22T12:00:00.000Z')
+    const draft = await r.call(r.beth.token, 'PATCH', `/v1/posts/${r.post.id}`, { status: 'draft', scheduled_at: null })
+    expect(draft.status).toBe(200)
+    expect((draft.body as any).status).toBe('draft')
+    // a writer bot still cannot
+    expect((await r.call(r.grok.token, 'PATCH', `/v1/posts/${r.post.id}`, { scheduled_at: when })).status).toBe(403)
+  })
+
+  it('refuses a time in the past and keeps the drafts only switch', async () => {
+    const r = await rig({ patch: { agentMaySchedule: true } })
+    const late = await r.call(r.beth.token, 'PATCH', `/v1/posts/${r.post.id}`, { platform_times: { youtube: '2020-01-01T08:00:00-04:00' } })
+    expect(late.status).toBe(400)
+    r.t.env.settings.set({ agentMaySchedule: false })
+    const blocked = await r.call(r.beth.token, 'PATCH', `/v1/posts/${r.post.id}`, { scheduled_at: '2026-10-23T08:00:00-04:00' })
+    expect(blocked.status).toBe(403)
+  })
+
+  it('creates a post: first open slot when no time is given, the exact time when one is, and only for orchestrators', async () => {
+    const r = await rig({ patch: { agentMaySchedule: true } })
+    const file = r.newVideo('new.mp4', 'brand new video bytes')
+    const first = await r.call(r.beth.token, 'POST', '/v1/posts', { brand_id: 1, file_path: file, platforms: ['youtube'], status: 'scheduled' })
+    expect(first.status).toBe(201)
+    expect((first.body as any).scheduled_at).toBe(r.t.env.posts.list().find((p) => p.id === (first.body as any).id)!.scheduledAtUtc)
+    const file2 = r.newVideo('new2.mp4', 'another new video')
+    const exact = await r.call(r.beth.token, 'POST', '/v1/posts', { brand_id: 1, file_path: file2, platforms: ['youtube'], status: 'scheduled', scheduled_at: '2026-10-25T21:17:00-04:00' })
+    expect(exact.status).toBe(201)
+    expect((exact.body as any).scheduled_at).toBe('2026-10-26T01:17:00.000Z')
+    expect(r.notices.some((n) => /beth created a post/.test(n[0]))).toBe(true)
+    const file3 = r.newVideo('new3.mp4', 'third new video')
+    expect((await r.call(r.grok.token, 'POST', '/v1/posts', { brand_id: 1, file_path: file3, platforms: ['youtube'], status: 'draft' })).status).toBe(403)
+  })
+
+  it('stops a post that has not gone out and frees its slot for a replacement', async () => {
+    const r = await rig({ patch: { agentMaySchedule: true } })
+    const slot = r.post.scheduledAtUtc
+    const stop = await r.call(r.beth.token, 'POST', `/v1/posts/${r.post.id}/cancel`)
+    expect(stop.status).toBe(200)
+    expect(r.t.env.posts.nextSlotsFor(1, 'youtube', 20, undefined, [], 'short')).toContain(slot)
   })
 })

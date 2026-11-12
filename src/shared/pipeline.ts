@@ -73,9 +73,12 @@ export const PipelineSidecar = z
       description:
         'Required for an episode. A clip may leave it out and then goes to every platform the show has switched on for clips.',
     }),
-    preferred_slot: z.string().optional().meta({
+    scheduled_at: zoned.optional().meta({
       description:
-        'Accepted and ignored. The schedule is set in ELO. A bot never sets, requests or promises a posting time.',
+        'An exact date and time to post, with a UTC offset (for example 2026-11-14T19:30:00-05:00). Left out, the video takes the first open slot of every platform. A time you give is used as it is for every platform, on or off a slot, and is never moved. It must be in the future.',
+    }),
+    preferred_slot: z.string().optional().meta({
+      description: 'Accepted and ignored. Use scheduled_at to ask for an exact time.',
     }),
     approval: z.object({ approved_by: z.string().min(1), approved_at: zoned }).meta({
       description: 'Josh approves outside ELO before the drop. A sidecar without it is rejected.',
@@ -324,7 +327,7 @@ export function validatePipelineSidecar(raw: unknown, o: ValidateOptions): Valid
       message:
         'This channel needs a passing QC result (qc.status "pass") and a beth_signoff block before a drop is taken.',
     })
-  if (d.preferred_slot !== undefined) notes.push('Ignored: the schedule is set in ELO.')
+  if (d.preferred_slot !== undefined) notes.push('Ignored: preferred_slot. Use scheduled_at for an exact time.')
   return { ok: errors.length === 0, errors, notes, data: errors.length ? null : d }
 }
 
@@ -349,6 +352,8 @@ export interface DropRow {
   result: DropResult
   reason: string | null
   scheduledSlot: string | null
+  /** An exact time a bot asked for in the sidecar (UTC). Null when it asked for none. */
+  requestedAt: string | null
   postId: number | null
   approvedBy: string | null
   approvedAt: string | null

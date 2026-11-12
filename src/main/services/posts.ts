@@ -366,7 +366,7 @@ export class PostService {
           `SELECT COALESCE(t.target_at_utc, p.scheduled_at_utc) AS t
            FROM post_targets t JOIN posts p ON p.id = t.post_id
            WHERE p.brand_id = ? AND t.platform = ? AND p.post_type = 'episode' AND p.scheduled_at_utc IS NOT NULL
-             AND p.status IN (${postStatuses.map(() => '?').join(',')}) AND t.status != 'skipped'`,
+             AND (p.status IN (${postStatuses.map(() => '?').join(',')}) OR t.status = 'posted') AND t.status != 'skipped'`,
         )
         .all(brandId, platform, ...postStatuses) as Array<{ t: string }>
     ).map((r) => r.t)

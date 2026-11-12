@@ -166,3 +166,18 @@ describe('a dropped video takes each platform its own time', () => {
     expect(after.status).toBe('scheduled')
   })
 })
+
+describe('canceled posts and their slots', () => {
+  it('a canceled post frees its slot, unless a platform already posted there', async () => {
+    const env = rig()
+    const post = await env.makePost({ brandId: 1, whenMs: H(0, 30), platforms: ['youtube', 'tiktok'], times: { youtube: H(0, 30), tiktok: H(1, 0) } })
+    expect(env.posts.nextSlotsFor(1, 'youtube', 1, undefined, [], 'short')[0]).not.toBe(iso(H(0, 30)))
+    env.posts.cancel([post.id])
+    expect(env.posts.nextSlotsFor(1, 'youtube', 1, undefined, [], 'short')[0]).toBe(iso(H(0, 30)))
+    // YouTube already posted before the post was canceled: that time stays used
+    const live = await env.makePost({ brandId: 1, whenMs: H(0, 30), platforms: ['youtube'], times: { youtube: H(0, 30) } })
+    env.db.prepare("UPDATE post_targets SET status = 'posted' WHERE post_id = ?").run(live.id)
+    env.posts.cancel([live.id])
+    expect(env.posts.nextSlotsFor(1, 'youtube', 1, undefined, [], 'short')[0]).not.toBe(iso(H(0, 30)))
+  })
+})

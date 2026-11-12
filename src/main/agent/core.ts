@@ -219,6 +219,8 @@ export async function agentCreatePost(
   body: CreatePostInput,
   opts: { source: 'api' | 'inbox'; moveSource?: boolean },
 ): Promise<Post & { warnings: string[] }> {
+  // Scheduled with no time given means the first open slot of every platform.
+  const wantsSlot = !!body.next_slot || (body.status === 'scheduled' && !body.scheduled_at && !body.platform_times)
   if (draftsOnly(s) && (body.status === 'scheduled' || body.next_slot)) {
     throw new AgentError(403, 'drafts_only', DRAFTS_ONLY_MESSAGE, {
       requested: body.status === 'scheduled' ? 'status: scheduled' : 'next_slot: true',
@@ -260,7 +262,7 @@ export async function agentCreatePost(
 
   let scheduledAtUtc: string | null = null
   let planTimes: Partial<Record<Platform, string>> | null = null
-  if (body.next_slot) {
+  if (wantsSlot) {
     // Every platform takes its own next open time.
     planTimes = s.posts.slotPlans(brand.id, 1, undefined, platforms)[0] ?? null
     if (!planTimes)
@@ -270,18 +272,25 @@ export async function agentCreatePost(
         `${brand.name} has no open slots. The owner needs to add slot times first.`,
       )
     scheduledAtUtc = Object.values(planTimes).reduce((a, b) => (a! < b! ? a : b))!
-  } else if (body.scheduled_at) {
-    scheduledAtUtc = toUtc(body.scheduled_at)
+  } else {
+    if (body.scheduled_at) scheduledAtUtc = toUtc(body.scheduled_at)
+    if (body.platform_times) {
+      planTimes = {}
+      for (const [p, t] of Object.entries(body.platform_times))
+        if (t) {
+          if (!platforms.includes(p as Platform))
+            throw new AgentError(400, 'bad_request', `platform_times has ${p}, which is not one of the platforms.`, { field: 'platform_times' })
+          planTimes[p as Platform] = toUtc(t)
+        }
+      const own = Object.values(planTimes)
+      if (own.length) scheduledAtUtc = [scheduledAtUtc, ...own].filter((x): x is string => !!x).reduce((a, b) => (a < b ? a : b))
+    }
   }
   const nowMs = s.now ? s.now() : Date.now()
-  if (
-    body.status === 'scheduled' &&
-    scheduledAtUtc &&
-    new Date(scheduledAtUtc).getTime() < nowMs - 60_000
-  ) {
-    throw new AgentError(400, 'bad_request', 'scheduled_at is in the past.', {
-      field: 'scheduled_at',
-    })
+  if (body.status === 'scheduled') {
+    for (const t of [scheduledAtUtc, ...Object.values(planTimes ?? {})])
+      if (t && new Date(t).getTime() < nowMs - 60_000)
+        throw new AgentError(400, 'bad_request', 'A time is in the past.', { field: 'scheduled_at' })
   }
 
   const targets: PostTargetInput[] = platforms.map((p) => ({
@@ -374,6 +383,7 @@ export async function agentUpdatePost(
   }
   if (
     body.platforms ||
+    body.platform_times ||
     body.caption_overrides ||
     body.first_comments ||
     body.ai_flags ||
@@ -391,8 +401,12 @@ export async function agentUpdatePost(
           field: 'platforms',
         })
       const e = existing.get(p)
+      const own = body.platform_times?.[p]
+      if (own && new Date(toUtc(own)).getTime() < (s.now ? s.now() : Date.now()) - 60_000)
+        throw new AgentError(400, 'bad_request', `The time for ${p} is in the past.`, { field: 'platform_times' })
       return {
         platform: p,
+        ...(own ? { scheduledAtUtc: toUtc(own) } : {}),
         aiFlag: body.ai_flags?.[p] ?? e?.aiFlag ?? defaults.aiFlag[p],
         captionOverride: body.caption_overrides?.[p] ?? e?.captionOverride ?? null,
         settings: {

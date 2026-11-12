@@ -76,8 +76,13 @@
         ]
       }
     },
+    "scheduled_at": {
+      "description": "An exact date and time to post, with a UTC offset (for example 2026-11-14T19:30:00-05:00). Left out, the video takes the first open slot of every platform. A time you give is used as it is for every platform, on or off a slot, and is never moved. It must be in the future.",
+      "type": "string",
+      "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+    },
     "preferred_slot": {
-      "description": "Accepted and ignored. The schedule is set in ELO. A bot never sets, requests or promises a posting time.",
+      "description": "Accepted and ignored. Use scheduled_at to ask for an exact time.",
       "type": "string"
     },
     "approval": {

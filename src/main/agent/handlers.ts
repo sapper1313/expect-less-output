@@ -10,6 +10,7 @@ import type { Caller } from './bots'
 import { agentSetThumbnail } from './thumbnail'
 import {
   operatorCancel,
+  operatorCreate,
   operatorReplaceMedia,
   operatorRetract,
   operatorUpdate,
@@ -18,7 +19,6 @@ import { UpcomingError } from '../pipeline/upcoming'
 import type { Actor } from '@shared/upcoming'
 import {
   AgentError,
-  agentCreatePost,
   agentRetryPost,
   requireStudioWrite,
   listFilter,
@@ -442,8 +442,8 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
       .filter((i) => botMaySee(caller, i.channel)),
   }),
 
-  createPost: async ({ s, body }) => {
-    const post = await agentCreatePost(s, body, { source: 'api' })
+  createPost: async ({ s, body, caller }) => {
+    const post = await operatorCreate(s, body, caller)
     return postOut(post, post.warnings)
   },
 

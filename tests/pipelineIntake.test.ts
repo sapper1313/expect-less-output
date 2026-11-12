@@ -55,7 +55,26 @@ describe('pipeline drop: accept and schedule (tests 2, 4)', () => {
     await t.settle()
     const post = t.env.posts.list()[0]
     expect(post.scheduledAtUtc).toBe(expected)
-    expect(t.drops.list()[0].notes).toMatch(/Ignored: the schedule is set in ELO/)
+    expect(t.drops.list()[0].notes).toMatch(/Ignored: preferred_slot/)
+  })
+
+  it('uses an exact scheduled_at from the sidecar for every platform, on or off a slot', async () => {
+    const t = pipelineSetup()
+    t.drop(TP, 'trash-panda', 9, { scheduled_at: '2026-11-03T21:17:00-05:00' })
+    await t.settle()
+    const post = t.env.posts.list()[0]
+    expect(post.status).toBe('scheduled')
+    expect(post.scheduledAtUtc).toBe('2026-11-04T02:17:00.000Z')
+    expect(t.drops.list()[0].requestedAt).toBe('2026-11-04T02:17:00.000Z')
+  })
+
+  it('falls back to the next open slot when the asked time already passed, and says so', async () => {
+    const t = pipelineSetup()
+    const expected = t.env.posts.nextSlots(1, 1)[0]
+    t.drop(TP, 'trash-panda', 10, { scheduled_at: '2020-01-01T12:00:00-05:00' })
+    await t.settle()
+    expect(t.env.posts.list()[0].scheduledAtUtc).toBe(expected)
+    expect(t.drops.list()[0].notes).toMatch(/already passed/)
   })
 })
 

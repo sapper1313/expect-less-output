@@ -263,12 +263,13 @@ export const ROUTES: RouteDef[] = [
     summary:
       'Create a post from a video file. Creates a draft unless agents are allowed to schedule.',
     description:
-      'The video is copied into the brand Queue folder. While the app setting "Agents may create drafts only" is on, asking for status scheduled or next_slot true is refused with HTTP 403 and code drafts_only. Nothing is silently downgraded.',
+      'The video is copied into the brand Queue folder. Owner token, or an orchestrator bot (such as beth) on a channel it may work on. Status scheduled with no time goes to the first open slot of every platform. Give scheduled_at (every platform) or platform_times (one platform) for an exact time, which is used as it is, on or off a slot. While the app setting "Agents may create drafts only" is on, asking for status scheduled or next_slot true is refused with HTTP 403 and code drafts_only. Nothing is silently downgraded.',
     body: CreatePostBody,
     response: PostOut,
     success: 201,
     tool: 'create_post',
     schedules: true,
+    bot: true,
   },
   {
     id: 'listPosts',
@@ -296,7 +297,7 @@ export const ROUTES: RouteDef[] = [
     path: '/v1/posts/{id}',
     summary: 'Change a post.',
     description:
-      'While agents are limited to drafts, only drafts can be changed and status scheduled is refused with 403 drafts_only. Posts that are posting or posted cannot be changed.',
+      'Owner token, or an orchestrator bot on a channel it may work on. Change the title, caption, platforms, scheduled_at (every platform still waiting) or platform_times (one platform), and status. A platform that a service already has cannot be moved. While agents are limited to drafts, only drafts can be changed and status scheduled is refused with 403 drafts_only. Posts that are posting or posted cannot be changed.',
     params: IdParams,
     body: UpdatePostBody,
     response: PostOut,

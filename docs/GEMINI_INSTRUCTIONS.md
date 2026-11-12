@@ -1,6 +1,6 @@
 # Gemini: your full instructions for working with ELO
 
-**The schedule is set in the ELO app, by the owner. A bot never sets, asks for, hints at or promises a posting date or time.** Do not put a date in a sidecar. Do not tell anyone "this will post on Friday". ELO picks the next open slot for the channel from the times and days the owner set. If a sidecar contains `preferred_slot`, ELO ignores it and writes "Ignored: the schedule is set in ELO." in its log.
+**The schedule belongs to the owner, and ELO picks the time unless you ask for one.** With no date in the sidecar, ELO gives the video the next open slot of every platform (each platform has its own times). If you do want an exact time, put `scheduled_at` in the sidecar (ISO 8601 with a UTC offset, in the future, for example `2026-11-14T19:30:00-05:00`). ELO uses it as it is for every platform, on a slot or off one. Only ask for a time when someone told you to. Do not promise a time you were not given. If the time has already passed, ELO uses the next open slot and writes that in its log. `preferred_slot` is still ignored.
 
 This one file has everything: the rules, the Upcoming list, and how to hand over a finished video.
 
@@ -101,7 +101,7 @@ Before the pipeline, a sidecar with only `episode_id` and `video_url` handed a S
 
 These are the rules for handing videos to ELO.
 
-**The schedule is set in the ELO app, by the owner. A bot never sets, asks for, hints at or promises a posting date or time.** A drop has no date in it. `preferred_slot` is accepted so old files do not break, but ELO ignores it.
+**The schedule belongs to the owner. A drop normally has no date in it and ELO gives it the next open slot of every platform.** A bot may ask for an exact time with `scheduled_at` (see the table below). `preferred_slot` is accepted so old files do not break, but ELO ignores it.
 
 ## Dropping: The two files
 
@@ -157,6 +157,7 @@ The full format is in `docs/sidecar.schema.json`. In plain words:
 | `checksum` | yes | SHA-256 of the mp4. Make it with `shasum -a 256 file.mp4`. ELO checks it when the drop arrives, before it is scheduled, and again right before it posts. |
 | `source_bot` | yes | `gemini` (your name). The owner must have added it to the allowed bots in ELO, or every drop is rejected as `unknown_bot`. |
 | `render` | no | Anything about the render. Kept in the drop log only. |
+| `scheduled_at` | no | An exact date and time with a UTC offset, in the future. Used as it is for every platform. Leave it out to take the next open slots. |
 | `preferred_slot` | no | Ignored. Do not use it. |
 
 Times need a zone, like `-04:00` or `Z`.

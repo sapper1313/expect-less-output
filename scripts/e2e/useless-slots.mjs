@@ -1,0 +1,11 @@
+import { launch, shot, nav, invoke, sleep } from './lib.mjs'
+const { app, page } = await launch({ dataDir: '/private/tmp/claude-501/-Users-jeverett-Projects-expect-less-output/22ac1e39-9bff-4437-8be3-5bc8d371d781/scratchpad/livedata' })
+await sleep(2500)
+await nav(page, 'Queue')
+await sleep(1500)
+await page.click('text=Your Childhood Dough').catch((e) => console.log('click failed', e.message))
+await sleep(2500)
+const opts = await page.evaluate(() => [...document.querySelectorAll('[role=dialog] select, .fixed select')].map((s) => [...s.options].map((o) => o.text).slice(0, 8)))
+console.log(JSON.stringify(opts))
+await shot(page, 'useless-edit')
+await app.close()

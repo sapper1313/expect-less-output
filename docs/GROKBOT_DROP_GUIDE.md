@@ -2,7 +2,7 @@
 
 Give this whole file to every bot that hands videos to ELO. Read `docs/GROKBOT_GUIDE.md` first.
 
-**The schedule is set in the ELO app, by the owner. A bot never sets, asks for, hints at or promises a posting date or time.** A drop has no date in it. `preferred_slot` is accepted so old files do not break, but ELO ignores it.
+**The schedule belongs to the owner. A drop normally has no date in it and ELO gives it the next open slot of every platform.** A bot may ask for an exact time with `scheduled_at` (see the table below). `preferred_slot` is accepted so old files do not break, but ELO ignores it.
 
 ## The two files
 
@@ -58,6 +58,7 @@ The full format is in `docs/sidecar.schema.json`. In plain words:
 | `checksum` | yes | SHA-256 of the mp4. Make it with `shasum -a 256 file.mp4`. ELO checks it when the drop arrives, before it is scheduled, and again right before it posts. |
 | `source_bot` | yes | `grok-bot`, `kids-comedy` or `beth`. |
 | `render` | no | Anything about the render. Kept in the drop log only. |
+| `scheduled_at` | no | An exact date and time with a UTC offset, in the future. Used as it is for every platform. Leave it out to take the next open slots. |
 | `preferred_slot` | no | Ignored. Do not use it. |
 
 Times need a zone, like `-04:00` or `Z`.
@@ -131,7 +132,7 @@ If the video is on the internet, drop only the `.json`, with an extra `"video_ur
 
 ## Fixing a post before it posts (beth only)
 
-The beth token (any bot token with the orchestrator role works the same) works on **every channel, the ones that exist now and any made later**, and may edit, remove or fix a post that has not posted yet. No other bot token may; a try by another bot is refused (403) and written to the audit log. The owner's own token works too. **A bot still never sets or changes a posting time.** Every change is audited, and the owner gets a Telegram message and a message on screen each time beth changes, removes or fixes a post.
+The beth token (any bot token with the orchestrator role works the same) works on **every channel, the ones that exist now and any made later**, and may **create, edit, stop (cancel) and replace** a post that has not gone out yet, including its time. No other bot token may; a try by another bot is refused (403) and written to the audit log. The owner's own token works too. To create a post: `POST /v1/posts` with `brand_id` and `file_path`; `status: scheduled` with no time goes to the first open slot of every platform, `scheduled_at` gives every platform one exact time, and `platform_times` gives one platform its own time. To move one: `PATCH /v1/posts/{id}` with `scheduled_at` or `platform_times`. To stop one: `POST /v1/posts/{id}/cancel` (its slot opens again). To swap the video and keep the slot: `POST /v1/posts/{id}/media`. A time you give is used exactly, on or off a posting slot. A platform that already has the video cannot be moved. The owner's switch **Agents may create drafts only** still applies. Every change is audited, and the owner gets a Telegram message and a message on screen each time beth creates, changes, removes or fixes a post.
 
 | What | Call |
 | --- | --- |

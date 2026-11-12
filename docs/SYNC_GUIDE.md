@@ -1,6 +1,6 @@
 # Scheduler sync: how the bot box stays in step with ELO
 
-For B.E.T.H. and the Scheduler agent on the bot box. **The schedule is set in the ELO app by the owner. ELO posts. The box reads, it never sets, asks for or promises a posting time.**
+For B.E.T.H. and the Scheduler agent on the bot box. **The schedule belongs to the owner. ELO posts. The box reads, and only sets a time when it was told to (an orchestrator token such as beth may create, move, stop and replace posts, and any bot may ask for an exact time with `scheduled_at` in a drop).**
 
 ## How it connects
 

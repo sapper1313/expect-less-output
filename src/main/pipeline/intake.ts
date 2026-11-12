@@ -8,6 +8,7 @@ import { moveFile, uniquePath } from '../services/library'
 import type { PostService } from '../services/posts'
 import type { SettingsService } from '../services/settings'
 import type { AlertKind } from '../alerts/format'
+import { DateTime } from 'luxon'
 import { formatEastern } from '@shared/time'
 import { slotKindFor } from '@shared/slots'
 import { slotKinds } from '../services/channelSettings'
@@ -435,7 +436,9 @@ export class PipelineIntake {
       stem,
       notes,
     )
-    if (sc.preferred_slot !== undefined) notes.push('Ignored: the schedule is set in ELO.')
+    if (sc.preferred_slot !== undefined) notes.push('Ignored: preferred_slot. Use scheduled_at for an exact time.')
+    const requestedAt = sc.scheduled_at ? (DateTime.fromISO(sc.scheduled_at, { setZone: true }).toUTC().toISO() ?? null) : null
+    if (requestedAt) notes.push(`Asked for an exact time: ${formatEastern(requestedAt)}.`)
 
     const result: DropResult = hold ? 'held' : 'accepted'
     const row = this.d.drops.record({
@@ -445,6 +448,7 @@ export class PipelineIntake {
       reason: hold,
       postId: post.id,
       notes: notes.join(' ') || null,
+      requestedAt,
     })
     this.d.log.log(
       hold ? 'warn' : 'info',
@@ -837,6 +841,19 @@ export class PipelineIntake {
       isClip
         ? this.d.posts.nextClipSlots(post.brandId, n)
         : this.d.posts.nextSlots(post.brandId, n, undefined, [], slotKindFor(post.videoMeta))
+    // A time a bot asked for in the sidecar is used exactly as it is for every platform, on a slot or off one.
+    const dropRow = this.d.drops.forPost(postId)
+    let asked: string | null = null
+    if (!opts.slot && dropRow?.requestedAt) {
+      if (dropRow.requestedAt > new Date(this.now() + 60_000).toISOString()) asked = dropRow.requestedAt
+      else
+        this.d.drops.update(dropRow.dropId, {
+          notes: [dropRow.notes, 'The time it asked for had already passed, so the next open slot was used.']
+            .filter(Boolean)
+            .join(' '),
+        })
+    }
+    if (asked) opts = { ...opts, slot: asked }
     // Every platform takes its own next open time. A time picked by hand (opts.slot) is used for all of them.
     let plan: Partial<Record<Platform, string>> | null = null
     if (!isClip && !opts.slot) {
@@ -862,7 +879,7 @@ export class PipelineIntake {
         .some((o) => o.whenUtc === s && o.kind === (isClip ? 'clip' : 'episode'))
     if (opts.within && !isClip && (slot < opts.within.fromUtc || slot >= opts.within.toUtc))
       return { ok: false, message: OUTSIDE_WINDOW }
-    if (opts.slot && !slotOk(opts.slot))
+    if (opts.slot && !asked && !slotOk(opts.slot))
       return { ok: false, message: 'That time is not one of the open slots for this channel.' }
     if (plan) this.d.posts.schedulePlan(postId, plan)
     else this.d.posts.update(postId, { scheduledAtUtc: slot, status: 'scheduled' })

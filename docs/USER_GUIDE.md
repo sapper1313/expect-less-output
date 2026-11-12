@@ -725,7 +725,7 @@ The Calendar is one list, day by day. Posts show with the channel colour, the pl
 - **Calendar:** an open slot with finished videos waiting has **Fill with a waiting video** (you pick which). **Fill all open slots** puts the oldest waiting video of each running channel into the next open slot of the month, one per slot. A bar then offers **Undo**. **Episodes only** and **Clips only** show the gaps of one kind.
 - **Warnings:** Settings, Pipeline, **Empty slot warnings**. Once a day you get a message listing the empty slots until the end of tomorrow.
 - **Inbox, Issues:** **Dismiss** hides one message and **Clear all** hides them all. They come back only if the problem goes away and returns. **Check again** runs the checks once more.
-- **Beth:** Settings, Agent API, Bots, **Edit channels**. Beth works on all channels, including new ones. When beth removes, edits or fixes a post, you get a Telegram message. Nothing she does deletes a file, and she never changes a posting time.
+- **Beth:** Settings, Agent API, Bots, **Edit channels**. Beth works on all channels, including new ones. When beth removes, edits or fixes a post, you get a Telegram message. Nothing she does deletes a file. She can now create posts, change a post's time (or one platform's time), stop a post and replace its video. With no time she uses the first open slot of every platform, with a time she uses exactly that time. Your switch **Agents may create drafts only** still decides whether bots may schedule. Any bot can also put `scheduled_at` in a drop's sidecar to ask for an exact time.
 
 ## 25. Growth tools (0.13.0)
 

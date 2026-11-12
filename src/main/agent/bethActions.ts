@@ -2,10 +2,11 @@ import { lstatSync } from 'fs'
 import { basename } from 'path'
 import { channelAllowed } from '@shared/pipeline'
 import type { Post } from '@shared/types'
-import type { UpdatePostInput } from '@shared/agentSchemas'
+import type { CreatePostInput, UpdatePostInput } from '@shared/agentSchemas'
 import {
   AgentError,
   agentCancelPost,
+  agentCreatePost,
   agentUpdatePost,
   draftsOnly,
   validateVideoFile,
@@ -48,6 +49,42 @@ export function requireOperator(
     deny(`${caller.actor} may not work on ${slug}. Add the channel to its list on the Bots card.`)
 }
 
+/** Owner, or an orchestrator bot on a channel it may work on, may create a post. */
+export function requireOperatorForBrand(s: AgentServices, caller: Caller, brandId: number, action: string): void {
+  if (caller.kind === 'owner') return
+  const slug = s.brands.get(brandId).slug ?? ''
+  const deny = (m: string): never => {
+    s.audit?.write({ actor: who(caller), action: 'api.denied', target: `${slug} ${action}`, after: { reason: m } })
+    throw new AgentError(403, 'forbidden', m)
+  }
+  if (!isOperator(caller.bot)) deny(`Only the orchestrator token (beth) or the owner's token may ${action}.`)
+  if (!channelAllowed(caller.bot.channels, slug))
+    deny(`${caller.actor} may not work on ${slug}. Add the channel to its list on the Bots card.`)
+}
+
+/** Creates a post from a video file, with the same rules as the owner: first open slots by default, or an exact time. */
+export async function operatorCreate(
+  s: AgentServices,
+  body: CreatePostInput,
+  caller: Caller,
+): Promise<Post & { warnings: string[] }> {
+  requireOperatorForBrand(s, caller, body.brand_id, 'create a post')
+  const post = await agentCreatePost(s, body, { source: 'api' })
+  s.audit?.write({
+    actor: who(caller),
+    action: 'post.created',
+    target: `${post.brandName}/${post.id}`,
+    after: { status: post.status, slot: post.scheduledAtUtc },
+  })
+  tell(
+    s,
+    caller,
+    `${who(caller)} created a post`,
+    `"${post.title}" (${post.brandName}) is ${post.status}${post.scheduledAtUtc ? `, set for ${post.scheduledAtUtc}` : ''}.`,
+  )
+  return post
+}
+
 function tell(s: AgentServices, caller: Caller, headline: string, detail: string): void {
   if (caller.kind === 'bot') s.notifyOwner?.(headline, detail)
 }
@@ -88,7 +125,7 @@ export function operatorCancel(s: AgentServices, id: number, caller: Caller): Po
   return out
 }
 
-/** Edits title, description and platforms. Times and scheduling stay with the owner. */
+/** Edits title, description, platforms, times and the schedule status (draft or scheduled). Owner or an orchestrator bot. */
 export async function operatorUpdate(
   s: AgentServices,
   id: number,
@@ -98,19 +135,6 @@ export async function operatorUpdate(
   const post = s.posts.get(id)
   if (!post) throw new AgentError(404, 'not_found', `No post with id ${id}.`)
   requireOperator(s, caller, post, 'edit a post')
-  if (caller.kind === 'bot' && (body.scheduled_at !== undefined || body.status !== undefined)) {
-    s.audit?.write({
-      actor: who(caller),
-      action: 'api.denied',
-      target: `post ${id} edit`,
-      after: { reason: 'bots never set or change a posting time' },
-    })
-    throw new AgentError(
-      403,
-      'forbidden',
-      'A bot never sets or changes a posting time or the schedule status. That is set in the ELO app.',
-    )
-  }
   const out = await agentUpdatePost(s, id, body)
   s.audit?.write({
     actor: who(caller),

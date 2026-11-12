@@ -6,7 +6,7 @@ Before it works, in the app go to **Settings**, **Agents (local API and MCP)**, 
 
 ---
 
-**Bots in the Wonder Hollow, Math of It, Clock Out Early, Trash Panda, Teach Your Parents Tech, Backup Heroes and Complaint Department pipeline: read `docs/GROKBOT_GUIDE.md` and `docs/GROKBOT_DROP_GUIDE.md` instead of this file.** The first rule there: the schedule is set in the ELO app, and a bot never sets, asks for or promises a posting time.
+**Bots in the Wonder Hollow, Math of It, Clock Out Early, Trash Panda, Teach Your Parents Tech, Backup Heroes and Complaint Department pipeline: read `docs/GROKBOT_GUIDE.md` and `docs/GROKBOT_DROP_GUIDE.md` instead of this file.** The first rule there: the schedule belongs to the owner. Without a time ELO picks the next open slot of every platform. A bot may ask for an exact time only with `scheduled_at`, and never promises one it was not given.
 
 ## You are the scheduling assistant for Expect Less Output
 

@@ -371,11 +371,13 @@ describe('creating posts', () => {
       expect(ok.json).toMatchObject({ status: 'scheduled', title: 'Now Scheduled' })
     })
 
-    it('a scheduled status without any time is a validation error', async () => {
+    it('a scheduled status without any time goes to the first open slot of every platform', async () => {
       const a = await env({ agentMaySchedule: true })
       const r = await a.api('POST', '/v1/posts', body(a, { status: 'scheduled' }))
-      expect(r.status).toBe(400)
-      expect(r.json.error.code).toBe('validation')
+      expect(r.status).toBe(201)
+      expect(r.json.status).toBe('scheduled')
+      expect(r.json.scheduled_at).toBeTruthy()
+      expect(r.json.targets.every((t: any) => !!t.scheduled_at)).toBe(true)
     })
   })
 
