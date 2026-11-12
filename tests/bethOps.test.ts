@@ -239,11 +239,47 @@ describe('beth: replace the media and keep the slot', () => {
       .prepare('UPDATE posts SET scheduled_at_utc = ? WHERE id = ?')
       .run(new Date(r.t.env.clock.ms + 3_600_000).toISOString(), r.post.id)
     r.t.env.db
-      .prepare(
-        "UPDATE post_targets SET status = 'handed_off', external_id = 'zzz' WHERE post_id = ?",
-      )
+      .prepare("UPDATE post_targets SET status = 'uploading' WHERE post_id = ?")
       .run(r.post.id)
     expect((await r.call(r.beth.token, 'POST', url, { file_path: file })).status).toBe(409)
+  })
+
+  it('swaps the video on a partial post: posted platforms stay, failed ones start fresh', async () => {
+    const r = await rig()
+    const url = `/v1/posts/${r.post.id}/media`
+    const ids = (
+      r.t.env.db.prepare('SELECT id FROM post_targets WHERE post_id = ? ORDER BY id').all(r.post.id) as {
+        id: number
+      }[]
+    ).map((x) => x.id)
+    r.t.env.db
+      .prepare(
+        "INSERT INTO post_targets (post_id, platform, account_id, status) SELECT post_id, 'bluesky', account_id, 'pending' FROM post_targets WHERE post_id = ? LIMIT 1",
+      )
+      .run(r.post.id)
+    ids.push(
+      (r.t.env.db.prepare('SELECT MAX(id) m FROM post_targets').get() as { m: number }).m,
+    )
+    r.t.env.db
+      .prepare("UPDATE post_targets SET status = 'posted', external_id = 'yt1' WHERE id = ?")
+      .run(ids[0])
+    r.t.env.db
+      .prepare(
+        "UPDATE post_targets SET status = 'failed', settings_json = ? WHERE id = ?",
+      )
+      .run(JSON.stringify({ igContainerId: 'c1', igUploaded: false }), ids[1])
+    r.t.env.posts.recomputeStatus(r.post.id)
+    const res = await r.call(r.beth.token, 'POST', url, {
+      file_path: r.newVideo('fixed.mp4', 'fixed encode'),
+      checksum: sha('fixed encode'),
+    })
+    expect(res.status).toBe(200)
+    const rows = r.t.env.db
+      .prepare('SELECT id, status, external_id, settings_json FROM post_targets WHERE id IN (?, ?)')
+      .all(ids[0], ids[1]) as any[]
+    expect(rows.find((x) => x.id === ids[0])).toMatchObject({ status: 'posted', external_id: 'yt1' })
+    expect(JSON.parse(rows.find((x) => x.id === ids[1]).settings_json)).toEqual({})
+    expect(r.t.env.posts.get(r.post.id)!.checksum).toBe(sha('fixed encode'))
   })
 
   it('a words-only change keeps the file and the slot', async () => {

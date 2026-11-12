@@ -4204,7 +4204,7 @@
       "post": {
         "operationId": "replacePostMedia",
         "summary": "Replace the video (and title or description) of a post that has not gone out. The post keeps its slot.",
-        "description": "Only the beth token and the owner token. For a draft or scheduled post that no platform has yet. The new video is checked against the channel rules, the old file is moved to the Replaced folder, and the owner is told on Telegram. A bot never changes a posting time.",
+        "description": "Only the beth token and the owner token. For a draft, a scheduled post, or a partial post: platforms that already have the video keep it, failed or waiting ones restart with the new file. The new video is checked against the channel rules, the old file is moved to the Replaced folder, and the owner is told on Telegram. A bot never changes a posting time.",
         "x-mcp-tool": "replace_post_media",
         "security": [
           {

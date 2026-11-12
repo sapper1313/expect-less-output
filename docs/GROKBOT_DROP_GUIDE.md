@@ -152,7 +152,7 @@ The beth token (any bot token with the orchestrator role works the same) works o
 - The post keeps its slot (`scheduled_at` does not change).
 - The new video is checked against the channel rules like a drop (a clip is 9:16 and 5 to 90 seconds; an episode follows the show's rules), must differ from the video already on the post, and must not be a video already on another post of the channel.
 - The new file is saved in the channel Queue under the episode id. The old file is moved to the channel's `Replaced` folder, never deleted. The answer gives `old_sha256` and `old_file_moved_to`.
-- It only works on a draft or scheduled post that no platform has yet, and not within 2 minutes of its slot. A held post stays held until the owner releases it.
+- It works on a draft, a scheduled post, or a post with a platform still failed or waiting (a partial post). Platforms that already have the video keep it and are not touched; failed or waiting platforms start over with the new file. Not while a platform is sending it right now, and not within 2 minutes of its slot. A held post stays held until the owner releases it.
 - While **Agents may create drafts only** is on, only a draft can be changed.
 
 **To fix a video that is already scheduled:** either replace the media (the slot is kept), or remove the post and drop the fixed video again (it takes the next open slot, which is the same slot if nothing else moved).

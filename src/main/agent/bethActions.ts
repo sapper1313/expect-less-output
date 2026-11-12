@@ -179,11 +179,11 @@ export async function operatorReplaceMedia(
   requireOperator(s, caller, post, 'replace the media of a post')
   if (!body.file_path && body.title === undefined && body.description === undefined)
     throw new AgentError(400, 'validation', 'Send file_path, title, description, or a mix.')
-  if (!['draft', 'scheduled'].includes(post.status))
+  if (!['draft', 'scheduled', 'partial', 'in_progress', 'failed'].includes(post.status))
     throw new AgentError(
       409,
       'conflict',
-      `This post is ${post.status.replace('_', ' ')}. Only a draft or a scheduled post can be changed here.`,
+      `This post is ${post.status.replace('_', ' ')}. Only a draft, a scheduled post, or a post with a platform still waiting or failed can be changed here.`,
     )
   if (post.status !== 'draft' && caller.kind === 'bot' && draftsOnly(s))
     throw new AgentError(
@@ -191,12 +191,13 @@ export async function operatorReplaceMedia(
       'drafts_only',
       'Agents are limited to drafts right now, and this post is not a draft. The owner can turn on "Agents may schedule" in Settings.',
     )
-  const inside = post.targets.find((t) => WITH_PLATFORM.includes(t.status))
+  // A platform that already has the video keeps it. Only one that is sending it right now blocks the swap.
+  const inside = post.targets.find((t) => ['processing', 'uploading'].includes(t.status))
   if (inside)
     throw new AgentError(
       409,
       'conflict',
-      `The ${inside.platform} target already has the video (${inside.status.replace('_', ' ')}). It cannot be replaced from here.`,
+      `The ${inside.platform} target is sending the video right now (${inside.status.replace('_', ' ')}). Try again in a minute.`,
     )
   if (
     post.scheduledAtUtc &&

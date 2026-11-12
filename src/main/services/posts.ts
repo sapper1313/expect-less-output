@@ -212,6 +212,24 @@ export class PostService {
             new Date().toISOString(),
             id,
           )
+        // Platforms that have not got the video yet start fresh: drop old upload sessions and containers.
+        const stale = this.db
+          .prepare(
+            "SELECT id, settings_json FROM post_targets WHERE post_id = ? AND status IN ('pending','failed','needs_action')",
+          )
+          .all(id) as { id: number; settings_json: string | null }[]
+        for (const t of stale) {
+          let keep: Record<string, unknown> = {}
+          try {
+            const cur = JSON.parse(t.settings_json || '{}') as Record<string, unknown>
+            if (cur.checklist !== undefined) keep = { checklist: cur.checklist }
+          } catch {
+            // unreadable state is dropped
+          }
+          this.db
+            .prepare('UPDATE post_targets SET settings_json = ? WHERE id = ?')
+            .run(JSON.stringify(keep), t.id)
+        }
         if (o.description !== undefined)
           this.db
             .prepare(
