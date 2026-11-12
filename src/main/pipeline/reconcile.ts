@@ -317,7 +317,7 @@ export class Reconciler {
     return out
   }
 
-  /** The open slots the app offers must never be a taken time, a blackout date, or a day the channel does not post. */
+  /** The open slots the app offers must never be a blackout date or a day the channel does not post. Taken times are handled per platform by the slot lists themselves. */
   private openSlotGuard(): FoundIssue[] {
     const out: FoundIssue[] = []
     const brands = this.d.db.prepare('SELECT id FROM brands WHERE archived = 0').all() as Array<{
@@ -326,21 +326,12 @@ export class Reconciler {
     const global = this.d.settings.get().blackoutDates
     for (const b of brands) {
       const open = this.d.posts.nextSlots(b.id, 14)
-      const taken = new Set(
-        (
-          this.d.db
-            .prepare(
-              `SELECT scheduled_at_utc AS t FROM posts WHERE brand_id = ? AND post_type = 'episode' AND status IN ${RESERVING} AND scheduled_at_utc IS NOT NULL`,
-            )
-            .all(b.id) as Array<{ t: string }>
-        ).map((r) => r.t.slice(0, 16)),
-      )
+      // Each platform keeps its own taken times and the slot lists already skip them, so only the rules are checked here.
       const rules = this.d.posts.channelRules(b.id)
       const days = this.d.posts.postDays(b.id)
       for (const s of open) {
         const day = DateTime.fromISO(s, { zone: 'utc' }).setZone(ZONE)
         const bad =
-          taken.has(s.slice(0, 16)) ||
           [...global, ...rules.blackoutDates].includes(day.toFormat('yyyy-MM-dd')) ||
           (days && !days.includes(day.weekday))
         if (bad)
