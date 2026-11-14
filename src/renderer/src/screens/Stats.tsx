@@ -11,7 +11,7 @@ import { useSort } from '../components/useSort'
 import { AccountStats } from './AccountStats'
 import { BestTimes } from '../components/BestTimes'
 import { StudioInsights } from './StudioOperations'
-import { Button, Card, Empty, PageHeader, Select, useBusy } from '../ui'
+import { Button, Card, Empty, Select, useBusy, PlatformName, PlatformLogo } from '../ui'
 
 function StatsNumbers() {
   const { toast } = useApp()
@@ -49,7 +49,34 @@ function StatsNumbers() {
 
   return (
     <div className="h-full overflow-auto pb-10">
-      <PageHeader title={COPY.nav.stats}>
+      <div className="space-y-4 px-8">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-wrap items-end gap-3">
+          <Select
+            className="w-52"
+            aria-label="Brand"
+            value={brandId ?? ''}
+            onChange={(e) => setBrandId(e.target.value ? Number(e.target.value) : null)}
+          >
+            <option value="">All brands</option>
+            {brands?.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </Select>
+          <Select
+            className="w-44"
+            aria-label="Range"
+            value={range}
+            onChange={(e) => setRange(e.target.value as StatsRange)}
+          >
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="all">All time</option>
+          </Select>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
         <Button
           disabled={busy}
           onClick={async () => {
@@ -106,81 +133,65 @@ function StatsNumbers() {
         >
           Import existing videos
         </Button>
-      </PageHeader>
-      <div className="space-y-4 px-8">
-        <div className="flex flex-wrap items-end gap-3">
-          <Select
-            className="w-52"
-            aria-label="Brand"
-            value={brandId ?? ''}
-            onChange={(e) => setBrandId(e.target.value ? Number(e.target.value) : null)}
-          >
-            <option value="">All brands</option>
-            {brands?.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </Select>
-          <Select
-            className="w-44"
-            aria-label="Range"
-            value={range}
-            onChange={(e) => setRange(e.target.value as StatsRange)}
-          >
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="all">All time</option>
-          </Select>
+          </div>
         </div>
         <div className="text-[12px] text-muted">{COPY.stats.summaryNote}</div>
         {data && data.posts === 0 ? (
           <Empty>{COPY.stats.empty}</Empty>
         ) : (
-          <Card title={`${data?.posts ?? 0} posts published`}>
-            <table className="w-full text-left text-[13px]">
-              <thead className="text-[11px] uppercase tracking-wider text-muted">
-                <tr>
-                  {platSort.th('platform', 'Platform')}
-                  {platSort.th('videos', 'Videos')}
-                  {platSort.th('views', 'Views')}
-                  {platSort.th('likes', 'Likes')}
-                  {platSort.th('comments', 'Comments')}
-                  {platSort.th('shares', 'Shares')}
-                </tr>
-              </thead>
-              <tbody>
-                {platSort.sorted?.map((p) => (
-                  <tr key={p.platform} className="border-t border-line">
-                    <td className="p-2 font-semibold">{PLATFORM_LABELS[p.platform]}</td>
-                    <td className="p-2">{p.videos}</td>
-                    {p.videos > 0 && p.unavailable >= p.videos ? (
-                      <td className="p-2 text-muted" colSpan={4}>
-                        {COPY.stats.notAvailable}. {p.reason ?? ''}
-                      </td>
-                    ) : (
-                      <>
-                        <td className="p-2">{fmt(p.views)}</td>
-                        <td className="p-2">{fmt(p.likes)}</td>
-                        <td className="p-2">{fmt(p.comments)}</td>
-                        <td className="p-2">{fmt(p.shares)}</td>
-                      </>
-                    )}
-                  </tr>
-                ))}
-                {data && (
-                  <tr className="border-t border-line font-bold">
-                    <td className="p-2">All</td>
-                    <td className="p-2" />
-                    <td className="p-2">{fmt(data.totals.views)}</td>
-                    <td className="p-2">{fmt(data.totals.likes)}</td>
-                    <td className="p-2">{fmt(data.totals.comments)}</td>
-                    <td className="p-2">{fmt(data.totals.shares)}</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </Card>
+          <>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+              {(
+                [
+                  ['Posts published', data?.posts ?? 0],
+                  ['Total views', data ? fmt(data.totals.views) : '-'],
+                  ['Likes', data ? fmt(data.totals.likes) : '-'],
+                  ['Comments', data ? fmt(data.totals.comments) : '-'],
+                  ['Shares', data ? fmt(data.totals.shares) : '-'],
+                ] as Array<[string, string | number]>
+              ).map(([label, v]) => (
+                <div key={label} className="rounded-lg border border-line bg-surface p-4">
+                  <div className="text-[34px] font-bold leading-none">{v}</div>
+                  <div className="mt-2 text-[13px] text-muted">{label}</div>
+                </div>
+              ))}
+            </div>
+            <section className="rounded-lg border border-line bg-surface p-5">
+              <h2 className="mb-3 text-xl">Platform performance</h2>
+              <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+                {platSort.sorted?.map((p) => {
+                  const dead = p.videos > 0 && p.unavailable >= p.videos
+                  const top = Math.max(...(data?.platforms ?? []).map((x) => x.views ?? 0), 1)
+                  return (
+                    <div key={p.platform} className="flex items-start gap-3">
+                      <PlatformLogo platform={p.platform} size={44} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[16px] font-bold">{PLATFORM_LABELS[p.platform]}</div>
+                        {dead ? (
+                          <div className="text-[13px] text-muted">
+                            {p.videos} videos. {COPY.stats.notAvailable}. {p.reason ?? ''}
+                          </div>
+                        ) : (
+                          <>
+                            <div className="text-[13px] text-muted">
+                              {p.videos} videos · {fmt(p.views)} views · {fmt(p.likes)} likes ·{' '}
+                              {fmt(p.comments)} comments · {fmt(p.shares)} shares
+                            </div>
+                            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface2">
+                              <div
+                                className="h-full rounded-full bg-accent"
+                                style={{ width: `${((p.views ?? 0) / top) * 100}%` }}
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          </>
         )}
         <BestTimes brandId={brandId} />
         {old && old.length > 0 && (
@@ -207,7 +218,7 @@ function StatsNumbers() {
                       </div>
                       <div className="text-[11px] text-muted">{v.brandName}</div>
                     </td>
-                    <td className="p-2">{PLATFORM_LABELS[v.platform]}</td>
+                    <td className="p-2"><PlatformName platform={v.platform} /></td>
                     <td className="p-2">{v.publishedAt ? formatEastern(v.publishedAt) : '-'}</td>
                     {v.state === 'ok' ? (
                       (['views', 'likes', 'comments', 'shares'] as const).map((k) => (
@@ -246,17 +257,20 @@ export function Stats({ initialTab = 'numbers' }: { initialTab?: AnalyticsTab })
   ]
   return (
     <div className="flex h-full flex-col">
-      <div className="no-drag flex gap-1 px-8 pt-7">
-        {tabs.map(([id, label]) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            aria-pressed={tab === id}
-            className={`rounded-md px-3 py-1.5 text-[13px] font-semibold ${tab === id ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="drag flex flex-wrap items-center gap-x-6 gap-y-3 px-8 pb-2 pt-7">
+        <h1 className="text-4xl">{COPY.nav.stats}</h1>
+        <div className="no-drag flex gap-1">
+          {tabs.map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              aria-pressed={tab === id}
+              className={`rounded-md px-3 py-1.5 text-[13px] font-semibold ${tab === id ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="min-h-0 flex-1">
         {tab === 'numbers' ? (

@@ -23,8 +23,7 @@ import {
   PageHeader,
   Select,
   Textarea,
-  useBusy,
-} from '../ui'
+  useBusy, PlatformName } from '../ui'
 
 export const isVideo = (p: string) => /\.(mp4|mov)$/i.test(p)
 
@@ -251,7 +250,7 @@ export function NewPost({
             <div className="mt-3 rounded-md border border-warn p-3 text-[12px] text-warn">
               {source.warnings.map((w, i) => (
                 <div key={i}>
-                  {w.platform !== 'all' && <b>{PLATFORM_LABELS[w.platform]}: </b>}
+                  {w.platform !== 'all' && <b><PlatformName platform={w.platform} />: </b>}
                   {w.message}
                 </div>
               ))}
@@ -408,7 +407,7 @@ export function NewPost({
               <div className="flex flex-wrap gap-x-5 gap-y-2">
                 {platforms.map((p) => (
                   <Check key={p} checked={ai[p]} onChange={(v) => setAi({ ...ai, [p]: v })}>
-                    {PLATFORM_LABELS[p]}
+                    <PlatformName platform={p} />
                   </Check>
                 ))}
                 {platforms.length === 0 && (

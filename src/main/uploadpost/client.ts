@@ -43,6 +43,15 @@ export interface UploadTikTokInput {
   coverTimestampMs?: number
 }
 
+export interface UploadInstagramInput {
+  user: string
+  /** The caption Instagram shows. */
+  caption: string
+  filePath: string
+  requestId: string
+  coverTimestampMs?: number
+}
+
 type Fetch = typeof fetch
 
 /** Plain fetch calls to Upload-Post. The key is passed in for each call and never stored here. */
@@ -104,6 +113,22 @@ export class UploadPostClient {
     form.set('privacy_level', i.privacy)
     form.set('is_aigc', i.aiGenerated ? 'true' : 'false')
     if (typeof i.coverTimestampMs === 'number') form.set('cover_timestamp', String(i.coverTimestampMs))
+    form.set('video', await openAsBlob(i.filePath), basename(i.filePath))
+    await this.call(key, '/upload', { method: 'POST', body: form })
+  }
+
+  /** Starts an Instagram Reel. Returns at once; the video keeps uploading on Upload-Post's side. */
+  async uploadInstagram(key: string, i: UploadInstagramInput): Promise<void> {
+    const form = new FormData()
+    form.set('user', i.user)
+    form.append('platform[]', 'instagram')
+    form.set('title', i.caption)
+    form.set('instagram_title', i.caption)
+    form.set('media_type', 'REELS')
+    form.set('share_to_feed', 'true')
+    form.set('async_upload', 'true')
+    form.set('request_id', i.requestId)
+    if (typeof i.coverTimestampMs === 'number') form.set('thumb_offset', String(i.coverTimestampMs))
     form.set('video', await openAsBlob(i.filePath), basename(i.filePath))
     await this.call(key, '/upload', { method: 'POST', body: form })
   }

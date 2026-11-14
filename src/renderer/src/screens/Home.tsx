@@ -20,6 +20,7 @@ const TILE_TARGET: Record<string, GoTarget> = {
   queue: { screen: 'queue' },
   stats: { screen: 'stats' },
   flagged: { screen: 'aiStudio', studioTab: 'flagged' },
+  spend: { screen: 'financial' },
 }
 
 /** Home: every number in one colorful place. Pipeline strip, last 7 days, best videos, channels, week map. Read only. */

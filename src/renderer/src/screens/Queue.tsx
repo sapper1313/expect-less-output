@@ -11,6 +11,8 @@ import { SendOlder } from '../components/SendOlder'
 import { useApp, useLoad } from '../hooks'
 import { fmt } from '../components/StatsPanel'
 import { PostEditor } from '../components/PostEditor'
+import { VisualTimeline, WeekCalendar } from '../components/QueueViews'
+import { VideoPlayer } from '../components/VideoPlayer'
 import {
   BrandDot,
   ClipBadge,
@@ -24,10 +26,11 @@ import {
   StatusBadge,
   TargetChip,
   useBusy,
-  DateTimeSelect,
-} from '../ui'
+  DateTimeSelect, PlatformName } from '../ui'
 
-export function Queue() {
+export function Queue({ onSchedule }: { onSchedule?: () => void }) {
+  const [view, setView] = useState<'timeline' | 'week' | 'table'>('timeline')
+  const [previewing, setPreviewing] = useState<import('@shared/types').Post | null>(null)
   const [sendOlder, setSendOlder] = useState(false)
   const { toast } = useApp()
   const { data: views } = useLoad(() => api.platforms.views(), [])
@@ -91,6 +94,24 @@ export function Queue() {
         </Button>
       </PageHeader>
       <div className="space-y-4 px-8">
+        <div className="no-drag flex flex-wrap items-center gap-1">
+          {(
+            [
+              ['timeline', 'Visual timeline'],
+              ['week', 'Week calendar'],
+              ['table', 'Compact table'],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setView(id)}
+              aria-pressed={view === id}
+              className={`rounded-md px-3 py-1.5 text-[13px] font-semibold ${view === id ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-wrap items-end gap-3">
           <Input
             className="w-64"
@@ -156,6 +177,19 @@ export function Queue() {
             ))}
           </Select>
         </div>
+        <div className="flex flex-wrap gap-2">
+          {brands?.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => setFilter({ ...filter, brandId: filter.brandId === b.id ? null : b.id })}
+              aria-pressed={filter.brandId === b.id}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] font-semibold ${filter.brandId === b.id ? 'border-accent bg-accent text-[#111]' : 'border-line hover:bg-surface2'}`}
+            >
+              <span className="h-2 w-2 rounded-full" style={{ background: b.color }} />
+              {b.name}
+            </button>
+          ))}
+        </div>
 
         {ids.length > 0 && (
           <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface p-3">
@@ -214,7 +248,27 @@ export function Queue() {
           </div>
         )}
 
-        {posts && posts.length === 0 ? (
+        {view !== 'table' && posts && posts.length > 0 ? (
+          view === 'timeline' ? (
+            <VisualTimeline
+              posts={posts}
+              selected={sel}
+              onToggle={toggle}
+              onOpen={setEditing}
+              onPreview={setPreviewing}
+              onSchedule={() => onSchedule?.()}
+            />
+          ) : (
+            <WeekCalendar
+              posts={posts}
+              selected={sel}
+              onToggle={toggle}
+              onOpen={setEditing}
+              onPreview={setPreviewing}
+              onSchedule={() => onSchedule?.()}
+            />
+          )
+        ) : posts && posts.length === 0 ? (
           <Empty>{COPY.emptyQueue}</Empty>
         ) : (
           <div className="overflow-hidden rounded-lg border border-line">
@@ -313,7 +367,7 @@ export function Queue() {
                           <div className="mt-1 space-y-0.5 text-[11px] text-muted">
                             {own.map((t) => (
                               <div key={t.id}>
-                                {PLATFORM_LABELS[t.platform]} {formatEastern(t.scheduledAtUtc)}
+                                <PlatformName platform={t.platform} /> {formatEastern(t.scheduledAtUtc)}
                               </div>
                             ))}
                           </div>
@@ -360,6 +414,20 @@ export function Queue() {
           </div>
         )}
       </div>
+      {previewing && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+          onClick={() => setPreviewing(null)}
+        >
+          <div className="w-[360px] max-w-full rounded-2xl border border-line bg-bg p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <b className="truncate">{previewing.title || previewing.fileName}</b>
+              <Button onClick={() => setPreviewing(null)}>Close</Button>
+            </div>
+            <VideoPlayer path={previewing.videoPath} poster={previewing.posterUrl} />
+          </div>
+        </div>
+      )}
       {editing !== null && <PostEditor postId={editing} onClose={() => setEditing(null)} />}
       {confirm === 'cancel' && (
         <Confirm

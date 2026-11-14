@@ -6,7 +6,7 @@ import { formatEastern } from '@shared/time'
 import type { CalendarItem, CalendarKind } from '@shared/studio/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
-import { Button, Dialog, Field, Input, StatusBadge, TargetChip, Textarea, useBusy } from '../ui'
+import { Button, Dialog, Field, Input, StatusBadge, TargetChip, Textarea, useBusy, PlatformName } from '../ui'
 import { PostStatsPanel } from './StatsPanel'
 import { VideoPlayer } from './VideoPlayer'
 import { RetentionPanel } from './RetentionPanel'
@@ -45,7 +45,7 @@ function Big({
       <div
         role="dialog"
         className="glass max-h-[92vh] w-full max-w-3xl overflow-auto p-8"
-        style={{ boxShadow: `var(--glass-shadow), 0 0 60px ${color ?? '#ff6a13'}44` }}
+        style={{ boxShadow: `var(--glass-shadow), 0 0 60px ${color ?? '#8fa3c7'}44` }}
         onMouseDown={(e) => e.stopPropagation()}
       >
         {children}
@@ -180,7 +180,7 @@ export function PostDetail({
             <div key={t.id} className="flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3">
               <TargetChip platform={t.platform} status={t.status} />
               <div className="min-w-0 flex-1">
-                <div className="text-[15px] font-bold">{PLATFORM_LABELS[t.platform]}</div>
+                <div className="text-[15px] font-bold"><PlatformName platform={t.platform} /></div>
                 <div className="text-[12px] glass-dim">
                   {t.status.replace('_', ' ')}
                   {t.postedAtUtc ? ` · ${formatEastern(t.postedAtUtc, false)}` : ''}
@@ -225,7 +225,7 @@ export function PostDetail({
               key={t.id}
               className="mt-3 rounded-2xl border border-red-400/60 bg-red-500/15 p-3 text-[13px]"
             >
-              <b>{PLATFORM_LABELS[t.platform]}:</b> {friendlyError(t.lastError)}
+              <b><PlatformName platform={t.platform} />:</b> {friendlyError(t.lastError)}
             </div>
           ),
       )}

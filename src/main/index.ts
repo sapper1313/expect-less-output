@@ -77,6 +77,7 @@ import { GraphClient } from './meta/graph'
 import { MetaService } from './meta/metaService'
 import { TikTokAdapter } from './adapters/tiktok'
 import { UploadPostTikTokAdapter } from './adapters/uploadPostTikTok'
+import { UploadPostInstagramAdapter } from './adapters/uploadPostInstagram'
 import { UploadPostClient } from './uploadpost/client'
 import { UploadPostService } from './services/uploadPost'
 import { FirstCommentService } from './services/firstComments'
@@ -508,6 +509,14 @@ async function boot(): Promise<void> {
       log: (level, message, ctx) => log.log(level, message, { postId: ctx.postId, platform: 'tiktok' }),
     },
   })
+  const uploadPostInstagram = new UploadPostInstagramAdapter({
+    client: new UploadPostClient(),
+    apiKey: () => uploadPost.apiKey(),
+    profileFor: (brandId) => uploadPost.profileFor(brandId),
+    host: {
+      log: (level, message, ctx) => log.log(level, message, { postId: ctx.postId, platform: 'instagram' }),
+    },
+  })
   const firstComments = new FirstCommentService({
     db,
     uploadPost,
@@ -546,6 +555,14 @@ async function boot(): Promise<void> {
       { dry: dryRuns, real: realAdapters },
       settings.get().globalDryRun,
     )
+    // Instagram: a channel with Instagram ticked on the Upload-Post page posts through them. Meta's own upload kept
+    // failing the first time and working on a retry. A post already published, or one already started through
+    // Upload-Post, is finished the same way; a half started Meta upload is simply dropped.
+    if (platform === 'instagram' && account && base !== dryRuns.instagram) {
+      if (typeof targetSettings?.upRequestId === 'string') return uploadPostInstagram
+      if (typeof targetSettings?.igMediaId === 'string') return base
+      return uploadPost.active(account.brandId, 'instagram') ? uploadPostInstagram : base
+    }
     if (platform !== 'tiktok' || !account || base === dryRuns.tiktok) return base
     if (typeof targetSettings?.upRequestId === 'string') return uploadPostTikTok
     if (typeof targetSettings?.ttPublishId === 'string') return base

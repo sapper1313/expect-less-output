@@ -176,22 +176,19 @@ function Shell() {
   }, [])
 
   return (
-    <div className="flex h-full">
-      <aside className="drag flex w-[228px] shrink-0 flex-col border-r border-line bg-surface pt-9">
+    <div className="glass-app glass-bg flex h-full" data-look={look}>
+      <aside className="side-glass drag flex w-[228px] shrink-0 flex-col pt-9">
         <div className="no-drag px-4 pb-4">
           <img src={logoWide} alt="Expect Less Output" className="w-full" />
-          <div className="mt-2 text-center text-[11px] font-semibold tracking-wide text-muted">
-            {COPY.tagline}
-          </div>
         </div>
         <button
           onClick={() => setSearching(true)}
-          className="no-drag mx-3 mb-2 flex items-center justify-between rounded-md border border-line px-3 py-1.5 text-left text-[12px] text-muted hover:bg-surface2"
+          className="no-drag pill mx-3 mb-2 flex items-center justify-between px-4 py-2 text-left text-[12px] text-muted"
         >
           <span>Search everything</span>
           <span className="text-[11px] opacity-70">⌘K</span>
         </button>
-        <nav className="no-drag flex-1 space-y-0.5 overflow-y-auto px-3" aria-label="Main">
+        <nav className="no-drag flex-1 space-y-1.5 overflow-y-auto px-3" aria-label="Main">
           {NAV_GROUPS.flatMap((g) => [
               g.label ? (
                 <div
@@ -206,7 +203,7 @@ function Shell() {
                   key={s}
                   onClick={() => setScreen(s)}
                   aria-current={screen === s ? 'page' : undefined}
-                  className={`w-full rounded-md px-3 py-2 text-left text-[13px] font-semibold ${screen === s ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}
+                  className={`pill w-full px-4 py-2 text-left text-[13px] font-semibold ${screen === s ? 'bg-accent' : 'text-ink'}`}
                 >
                   <span className="flex items-center justify-between">
                     {COPY.nav[s]}
@@ -231,7 +228,7 @@ function Shell() {
         {meta?.connected && meta.expiringSoon && (
           <button
             onClick={() => setScreen('connections')}
-            className="no-drag mx-3 mb-2 rounded-md border border-warn p-2 text-left text-[11px] font-semibold text-warn"
+            className="no-drag mx-3 mb-2 rounded-2xl border border-warn p-2 text-left text-[11px] font-semibold text-warn"
           >
             {meta.status === 'needs_reauth' || (meta.daysLeft !== null && meta.daysLeft < 0)
               ? 'Meta needs you to sign in again. Click to fix.'
@@ -241,7 +238,7 @@ function Shell() {
         <div className="no-drag border-t border-line p-3 text-[11px] text-muted">
           {studio && (
             <button
-              className={`mb-1 block w-full rounded-md border px-2 py-1 text-left text-[11px] font-semibold ${studio.paused ? 'border-warn text-warn' : 'border-line text-muted'}`}
+              className={`pill mb-1 block w-full px-3 py-1.5 text-left text-[11px] font-semibold ${studio.paused ? 'border-warn text-warn' : 'border-line text-muted'}`}
               onClick={async () => {
                 await api.studio.pauseAll(!studio.paused)
               }}
@@ -261,8 +258,7 @@ function Shell() {
           </button>
         </div>
       </aside>
-      <div className="glass-app contents" data-look={look}>
-      <main className="glass-bg min-w-0 flex-1">
+      <main className="min-w-0 flex-1 overflow-y-auto">
         {report && (
           <div className="mx-8 mt-3 flex items-center justify-between gap-4 rounded-md border border-warn p-3 text-[13px]">
             <div>
@@ -285,7 +281,7 @@ function Shell() {
           </div>
         )}
         {screen === 'home' && <Home go={go} />}
-        {screen === 'queue' && <Queue />}
+        {screen === 'queue' && <Queue onSchedule={() => openSchedule('one')} />}
         {screen === 'posted' && <PostedVideos />}
         {screen === 'inbox' && <Inbox />}
         {screen === 'stats' && <Stats key={statsTab} initialTab={statsTab} />}
@@ -318,7 +314,6 @@ function Shell() {
       {searching && <SearchPalette onPick={pick} onClose={() => setSearching(false)} />}
       {peekEpisode && <EpisodePeek id={peekEpisode} onClose={() => setPeekEpisode(null)} />}
       <Toasts />
-      </div>
     </div>
   )
 }

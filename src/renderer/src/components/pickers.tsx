@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import {
   ALL_PLATFORMS,
   isExtraPlatform,
-  PLATFORM_LABELS,
   SOFT_WARN_POSTS_PER_BRAND_PER_DAY,
   type Platform,
 } from '@shared/platformLimits'
@@ -11,7 +10,7 @@ import { formatEastern, isoToLocalInput, localInputToIso } from '@shared/time'
 import type { SchedulingMode } from '@shared/types'
 import { api } from '../api'
 import { useLoad } from '../hooks'
-import { Button, Check, DateTimeSelect, Select } from '../ui'
+import { Button, Check, DateTimeSelect, Select, PlatformName } from '../ui'
 
 export function PlatformPicker({
   brandId,
@@ -41,7 +40,7 @@ export function PlatformPicker({
             disabled={!ok}
             onChange={(on) => onChange(on ? [...value, p] : value.filter((x) => x !== p))}
           >
-            {PLATFORM_LABELS[p]}
+            <PlatformName platform={p} />
             {acct?.mode === 'dry_run' && (
               <span className="rounded bg-surface2 px-1.5 text-[10px] uppercase text-muted">
                 {COPY.dryRunBadge}
@@ -248,7 +247,7 @@ export function PlatformTimes({
     <div className="space-y-3">
       {platforms.map((p) => (
         <div key={p} className="grid items-start gap-2 md:grid-cols-[110px_1fr]">
-          <div className="pt-2 text-[13px] font-semibold">{PLATFORM_LABELS[p]}</div>
+          <div className="pt-2 text-[13px] font-semibold"><PlatformName platform={p} /></div>
           <div className="space-y-1">
             <WhenPicker
               brandId={brandId}

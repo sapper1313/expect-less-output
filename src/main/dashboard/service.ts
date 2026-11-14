@@ -8,6 +8,7 @@ import { History } from './history'
 import { Poller } from './poller'
 import { StatsService } from './stats'
 import type { Snapshot } from './types'
+import type { BestVideo } from '../../shared/dashboard'
 
 const TZ = 'America/New_York'
 
@@ -100,8 +101,39 @@ export class DashboardService {
     this.poller.stop()
   }
 
-  weekMap(offset: number) {
-    return this.poller.weekMap(Math.max(0, Math.floor(Number(offset) || 0)))
+  async weekMap(offset: number) {
+    const w = await this.poller.weekMap(Math.max(0, Math.floor(Number(offset) || 0)))
+    return w ? { ...w, channels: this.withPosters(w.channels) } : w
+  }
+
+  /** Adds each filled slot's video title and preview picture, read from ELO's own posts. */
+  private withPosters<T extends { days: { slots: { postId?: number | null; title?: string | null; posterUrl?: string | null; platforms?: { platform: string; status: string }[] }[] }[] }>(channels: T[]): T[] {
+    try {
+      const ids = new Set<number>()
+      for (const c of channels) for (const d of c.days) for (const sl of d.slots) if (sl.postId) ids.add(sl.postId)
+      if (!ids.size) return channels
+      const rows = this.deps.db
+        .prepare(`SELECT id, title, poster_path FROM posts WHERE id IN (${[...ids].map(() => '?').join(',')})`)
+        .all(...ids) as { id: number; title: string; poster_path: string | null }[]
+      const by = new Map(rows.map((r) => [r.id, r]))
+      const tg = this.deps.db
+        .prepare(`SELECT post_id, platform, status FROM post_targets WHERE post_id IN (${[...ids].map(() => '?').join(',')}) AND status != 'skipped'`)
+        .all(...ids) as { post_id: number; platform: string; status: string }[]
+      const targets = new Map<number, { platform: string; status: string }[]>()
+      for (const t of tg) targets.set(t.post_id, [...(targets.get(t.post_id) ?? []), { platform: t.platform, status: t.status }])
+      return channels.map((c) => ({
+        ...c,
+        days: c.days.map((d) => ({
+          ...d,
+          slots: d.slots.map((sl) => {
+            const r = sl.postId ? by.get(sl.postId) : undefined
+            return r ? { ...sl, title: r.title, posterUrl: r.poster_path ? `elo-media://poster/${r.poster_path}` : null, platforms: targets.get(r.id) ?? [] } : sl
+          }),
+        })),
+      }))
+    } catch {
+      return channels
+    }
   }
 
   snapshot(): Snapshot | null {
@@ -113,10 +145,11 @@ export class DashboardService {
     if (!s) return s
     const one = (h: number) => {
       const top = this.bestVideos(1, h * 3_600_000)?.[0]
-      return top ? { title: top.title, channel: top.channel, views: top.views } : null
+      return top ? { title: top.title, channel: top.channel, views: top.views, postedAt: top.postedAt, platforms: top.platforms, posterUrl: top.posterUrl } : null
     }
     s = {
       ...s,
+      channels: this.withPosters(s.channels),
       topVideos: this.bestVideos() ?? s.topVideos,
       best24h: one(24),
       best48h: one(48),
@@ -149,29 +182,56 @@ export class DashboardService {
   private bestVideos(limit = 5, windowMs = 7 * 86_400_000): Snapshot['topVideos'] | null {
     try {
       const since = new Date(Date.now() - windowMs).toISOString()
-      const latest = (col: string, id: string) =>
-        `COALESCE((SELECT views FROM ${col} WHERE ${id} ORDER BY id DESC LIMIT 1), 0)`
-      const mine = this.deps.db
+      const col = (c: string, id: string, f: string) =>
+        `COALESCE((SELECT ${f} FROM ${c} WHERE ${id} ORDER BY id DESC LIMIT 1), 0)`
+      type Row = {
+        key: string
+        title: string
+        channel: string
+        platform: string
+        views: number
+        likes: number
+        comments: number
+        shares: number
+        postedAt: string | null
+        poster?: string | null
+      }
+      const mineRows = this.deps.db
         .prepare(
-          `SELECT p.title AS title, b.name AS channel,
-                  SUM(${latest('post_stats ps', 'ps.post_target_id = t.id')}) AS views
+          `SELECT 'p' || p.id AS key, p.title AS title, b.name AS channel, t.platform AS platform,
+                  ${col('post_stats ps', 'ps.post_target_id = t.id', 'views')} AS views,
+                  ${col('post_stats ps', 'ps.post_target_id = t.id', 'likes')} AS likes,
+                  ${col('post_stats ps', 'ps.post_target_id = t.id', 'comments')} AS comments,
+                  ${col('post_stats ps', 'ps.post_target_id = t.id', 'shares')} AS shares,
+                  t.posted_at_utc AS postedAt, p.poster_path AS poster
            FROM post_targets t
            JOIN posts p ON p.id = t.post_id
            JOIN brands b ON b.id = p.brand_id
-           WHERE t.status = 'posted' AND b.archived = 0 AND t.posted_at_utc >= ?
-           GROUP BY p.id`,
+           WHERE t.status = 'posted' AND b.archived = 0 AND t.posted_at_utc >= ?`,
         )
-        .all(since) as { title: string; channel: string; views: number }[]
-      const old = this.deps.db
+        .all(since) as Row[]
+      const oldRows = this.deps.db
         .prepare(
-          `SELECT iv.title AS title, b.name AS channel,
-                  ${latest('imported_stats s', 's.imported_id = iv.id')} AS views
+          `SELECT 'i' || iv.id AS key, iv.title AS title, b.name AS channel, iv.platform AS platform,
+                  ${col('imported_stats s', 's.imported_id = iv.id', 'views')} AS views,
+                  ${col('imported_stats s', 's.imported_id = iv.id', 'likes')} AS likes,
+                  ${col('imported_stats s', 's.imported_id = iv.id', 'comments')} AS comments,
+                  ${col('imported_stats s', 's.imported_id = iv.id', 'shares')} AS shares,
+                  iv.published_at_utc AS postedAt
            FROM imported_videos iv
            JOIN brands b ON b.id = iv.brand_id
            WHERE b.archived = 0 AND iv.published_at_utc >= ?`,
         )
-        .all(since) as { title: string; channel: string; views: number }[]
-      return [...mine, ...old]
+        .all(since) as Row[]
+      const groups = new Map<string, { title: string; channel: string; views: number; postedAt: string | null; poster: string | null; platforms: NonNullable<BestVideo['platforms']> }>()
+      for (const r of [...mineRows, ...oldRows]) {
+        const g = groups.get(r.key) ?? { title: r.title, channel: r.channel, views: 0, postedAt: r.postedAt, poster: r.poster ?? null, platforms: [] }
+        g.views += r.views
+        if (r.postedAt && (!g.postedAt || r.postedAt < g.postedAt)) g.postedAt = r.postedAt
+        g.platforms.push({ platform: r.platform, views: r.views, likes: r.likes, comments: r.comments, shares: r.shares })
+        groups.set(r.key, g)
+      }
+      return [...groups.values()]
         .filter((r) => r.views > 0)
         .sort((a, b) => b.views - a.views)
         .slice(0, limit)
@@ -181,6 +241,9 @@ export class DashboardService {
           channel: r.channel,
           views: r.views,
           approximate: false,
+          postedAt: r.postedAt,
+          posterUrl: r.poster ? `elo-media://poster/${r.poster}` : null,
+          platforms: r.platforms.sort((a, b) => b.views - a.views),
         }))
     } catch {
       return null

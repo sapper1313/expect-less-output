@@ -18,8 +18,7 @@ import {
   StatusBadge,
   TargetChip,
   Textarea,
-  useBusy,
-} from '../ui'
+  useBusy, PlatformName } from '../ui'
 import { PlatformPicker, WhenPicker } from './pickers'
 import { PostStatsPanel } from './StatsPanel'
 import { PostingAs, TikTokSection, useCreator } from './TikTokSection'
@@ -106,14 +105,14 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
 
   return (
     <Dialog title="Edit post" onClose={onClose} wide>
-      <div className="grid gap-5 md:grid-cols-[200px_1fr]">
+      <div className="grid gap-5 md:grid-cols-[200px_minmax(0,1fr)]">
         <div>
           {draft.posterUrl ? (
             <img src={draft.posterUrl} alt="Poster frame" className="w-full rounded-md" />
           ) : (
             <div className="h-48 rounded-md bg-surface2" />
           )}
-          <div className="mt-2 text-[12px] text-muted">{draft.fileName}</div>
+          <div className="mt-2 break-all text-[12px] text-muted">{draft.fileName}</div>
           <div className="mt-2 flex items-center gap-2">
             <StatusBadge status={draft.status} />
           </div>
@@ -193,7 +192,7 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
               {waiting.map((t) => (
                 <div key={t.id} className="mt-2 space-y-2 text-[13px]">
                   <div>
-                    {PLATFORM_LABELS[t.platform]}, {draft.brandName}, "{draft.title}": the title and
+                    <PlatformName platform={t.platform} />, {draft.brandName}, "{draft.title}": the title and
                     description were copied. Upload the video by hand, then mark it done. If the account is set to upload for you, use Try the upload again.
                   </div>
                   <div className="flex gap-2">
@@ -223,7 +222,7 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
               className="flex items-center justify-between gap-3 rounded-md border border-warn p-3 text-[13px]"
             >
               <span>
-                <b className="text-warn">{t.checklist}</b>: {PLATFORM_LABELS[t.platform]} has no way
+                <b className="text-warn">{t.checklist}</b>: <PlatformName platform={t.platform} /> has no way
                 to set the AI label from here.{' '}
                 {t.externalUrl && (
                   <a
@@ -244,7 +243,7 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
           {uploading.map((t) => (
             <div key={t.id}>
               <div className="mb-1 text-[12px] text-muted">
-                Uploading to {PLATFORM_LABELS[t.platform]}: {Math.round((t.progress ?? 0) * 100)}%
+                Uploading to <PlatformName platform={t.platform} />: {Math.round((t.progress ?? 0) * 100)}%
               </div>
               <div className="h-2 w-full overflow-hidden rounded bg-surface2">
                 <div
@@ -360,7 +359,7 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
                   const done = t?.status === 'posted'
                   return (
                     <div key={p} className="grid items-start gap-2 md:grid-cols-[110px_1fr]">
-                      <div className="pt-2 text-[13px] font-semibold">{PLATFORM_LABELS[p]}</div>
+                      <div className="pt-2 text-[13px] font-semibold"><PlatformName platform={p} /></div>
                       {done ? (
                         <div className="pt-2 text-[13px] text-muted">
                           Posted {t?.postedAtUtc ? formatEastern(t.postedAtUtc) : ''}
@@ -460,7 +459,7 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
                 })
                 return (
                   <div key={t.id} className="text-[12px]">
-                    <div className="font-semibold">{PLATFORM_LABELS[t.platform]}</div>
+                    <div className="font-semibold"><PlatformName platform={t.platform} /></div>
                     {pv.title !== undefined && (
                       <div className="text-ink">Title: {pv.title || '(empty)'}</div>
                     )}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PLATFORMS, PLATFORM_LABELS } from '@shared/platformLimits'
+import { PLATFORMS } from '@shared/platformLimits'
 import { MorePlatformKeys, MorePlatformsForBrand } from './MorePlatforms'
 import { COPY } from '@shared/copy'
 import { formatEastern } from '@shared/time'
@@ -22,8 +22,7 @@ import {
   Field,
   Input,
   Select,
-  useBusy,
-} from '../ui'
+  useBusy, PlatformName } from '../ui'
 
 export const YT_MODE_LABELS: Record<YoutubeMode, string> = {
   manual_assist: 'Manual assist',
@@ -315,7 +314,7 @@ function BrandCard({
                 {real && a?.avatarUrl && (
                   <img src={a.avatarUrl} alt="" className="h-6 w-6 rounded-full" />
                 )}
-                <div className="font-semibold">{PLATFORM_LABELS[p]}</div>
+                <div className="font-semibold"><PlatformName platform={p} /></div>
                 {real && a?.status === 'needs_reauth' && (
                   <span className="rounded bg-bad/20 px-1.5 text-[10px] font-bold uppercase text-bad">
                     needs sign in
@@ -1015,7 +1014,7 @@ function HealthCard() {
               {rows.map((r) => (
                 <tr key={r.accountId} className="border-t border-line">
                   <td className="p-2">{r.brandName}</td>
-                  <td className="p-2">{PLATFORM_LABELS[r.platform]}</td>
+                  <td className="p-2"><PlatformName platform={r.platform} /></td>
                   <td className="p-2">{r.displayName ?? ''}</td>
                   <td className="p-2">
                     <span

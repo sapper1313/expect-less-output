@@ -3,7 +3,7 @@ import { COPY } from '@shared/copy'
 import type { PlatformSlot } from '@shared/types'
 import { api } from '../api'
 import { useApp, useDraft, useLoad } from '../hooks'
-import { Button, Card, Check, TimeSelect, useBusy } from '../ui'
+import { Button, Card, PlatformLogo, TimeSelect, useBusy } from '../ui'
 
 type Kind = 'short' | 'long'
 type DayType = 'weekday' | 'weekend'
@@ -31,6 +31,102 @@ interface KindDraft {
 interface Draft {
   slots: PlatformSlot[]
   kinds: Record<Kind, KindDraft>
+}
+
+
+const niceTime = (t: string) => {
+  const [h, m] = t.split(':').map(Number)
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m || 0).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`
+}
+
+/** A time as a small chip, like "7:00 PM x". Click the time to change it. */
+function TimeChip({ value, onChange, onRemove, label }: { value: string; onChange: (v: string) => void; onRemove: () => void; label: string }) {
+  const [edit, setEdit] = useState(false)
+  if (edit)
+    return (
+      <span className="inline-flex items-center gap-1 rounded-xl border border-accent bg-surface2 px-1 py-0.5">
+        <TimeSelect value={value} onChange={onChange} label={label} />
+        <button className="px-1 text-[12px] font-semibold text-accent" onClick={() => setEdit(false)}>
+          Done
+        </button>
+      </span>
+    )
+  return (
+    <span className="inline-flex items-center gap-1 rounded-xl border border-line bg-surface2 px-3 py-1 text-[14px]">
+      <button onClick={() => setEdit(true)} title="Click to change this time" aria-label={`${label}: ${niceTime(value)}. Change`}>
+        {niceTime(value)}
+      </button>
+      <button className="pl-1 text-muted hover:text-bad" aria-label="Remove this time" onClick={onRemove}>
+        ×
+      </button>
+    </span>
+  )
+}
+
+/** A strip of the day: each platform's logo sits at its time, so you can see how a day's posts are staggered. */
+function RolloutPreview({ slots, kind }: { slots: PlatformSlot[]; kind: Kind }) {
+  const [dayType, setDayType] = useState<DayType>('weekday')
+  const mins = (t: string) => {
+    const [h, m] = t.split(':').map(Number)
+    return h * 60 + (m || 0)
+  }
+  const items = slots
+    .filter((s) => s.kind === kind && s.dayType === dayType && s.enabled)
+    .map((s) => ({ platform: s.platform, at: mins(s.timeLocal), time: s.timeLocal }))
+  const lo = items.length ? Math.floor((Math.min(...items.map((i) => i.at)) - 60) / 60) * 60 : 9 * 60
+  const hi = items.length ? Math.ceil((Math.max(...items.map((i) => i.at)) + 60) / 60) * 60 : 21 * 60
+  const span = Math.max(hi - lo, 60)
+  const pos = (at: number) => `${((at - lo) / span) * 100}%`
+  const label = (m: number) => {
+    const h = Math.floor(m / 60) % 24
+    return `${h % 12 === 0 ? 12 : h % 12}:00 ${h < 12 ? 'AM' : 'PM'}`
+  }
+  const step = span > 600 ? 240 : span > 300 ? 120 : 60
+  const ticks: number[] = []
+  for (let m = lo; m <= hi; m += step) ticks.push(m)
+  const nice = (t: string) => {
+    const [h, m] = t.split(':').map(Number)
+    return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`
+  }
+  return (
+    <Card
+      title="Daily staggered rollout preview (Eastern time)"
+      actions={
+        <div className="inline-flex overflow-hidden rounded-full border border-line">
+          {(['weekday', 'weekend'] as const).map((d) => (
+            <button
+              key={d}
+              onClick={() => setDayType(d)}
+              className={`px-4 py-1 text-[12px] font-semibold ${dayType === d ? 'bg-accent text-[#111]' : 'hover:bg-surface2'}`}
+            >
+              {d === 'weekday' ? 'Weekdays' : 'Weekends'}
+            </button>
+          ))}
+        </div>
+      }
+    >
+      <div className="relative mx-6 mb-8 mt-2 h-20">
+        <div className="absolute left-0 right-0 top-[34px] h-1 rounded-full bg-surface2" />
+        {items.map((i, n) => (
+          <div
+            key={`${i.platform}-${i.at}-${n}`}
+            className="absolute -translate-x-1/2 text-center"
+            style={{ left: pos(i.at), top: 6 + (items.filter((o, k) => k < n && Math.abs(o.at - i.at) < 40).length % 2) * 0 }}
+            title={`${i.platform} at ${nice(i.time)}`}
+          >
+            <PlatformLogo platform={i.platform} size={26} />
+            <div className="mx-auto mt-1 h-3 w-[2px] bg-line" />
+          </div>
+        ))}
+        {ticks.map((m) => (
+          <div key={m} className="absolute top-[46px] -translate-x-1/2 text-[11px] text-muted" style={{ left: pos(m) }}>
+            {label(m)}
+          </div>
+        ))}
+      </div>
+      {items.length === 0 && <div className="text-[12px] text-muted">No times set for this kind of day yet.</div>}
+    </Card>
+  )
 }
 
 /**
@@ -82,31 +178,25 @@ export function PlatformSchedule({ brandId }: { brandId: number }) {
   const cell = (p: PlatformSlot['platform'], dayType: DayType) => {
     const list = mine(p, dayType)
     return (
-      <div className="flex flex-wrap items-center gap-2">
-        {list.length === 0 && <span className="text-[12px] text-muted">No posts</span>}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+        <span className="text-[14px]">{dayType === 'weekday' ? 'Weekdays:' : 'Weekends:'}</span>
         {list.map(({ s, i }) => (
-          <span key={i} className="inline-flex items-center gap-1 rounded-full border border-line px-1 py-0.5">
-            <TimeSelect
-              value={s.timeLocal}
-              onChange={(v) => setSlots(slots.map((x, j) => (j === i ? { ...x, timeLocal: v } : x)))}
-              label={`${p} ${dayType} time`}
-            />
-            <button
-              className="px-1 text-muted hover:text-bad"
-              aria-label="Remove this time"
-              onClick={() => setSlots(slots.filter((_, j) => j !== i))}
-            >
-              x
-            </button>
-          </span>
+          <TimeChip
+            key={i}
+            value={s.timeLocal}
+            label={`${p} ${dayType} time`}
+            onChange={(v) => setSlots(slots.map((x, j) => (j === i ? { ...x, timeLocal: v } : x)))}
+            onRemove={() => setSlots(slots.filter((_, j) => j !== i))}
+          />
         ))}
-        <Button
+        <button
+          className="rounded-full px-2 py-0.5 text-[13px] font-semibold text-accent hover:bg-surface2"
           onClick={() =>
             setSlots([...slots, { platform: p, kind, dayType, timeLocal: list.length ? '21:00' : '19:00', enabled: true }])
           }
         >
-          + time
-        </Button>
+          + Add
+        </button>
       </div>
     )
   }
@@ -118,6 +208,8 @@ export function PlatformSchedule({ brandId }: { brandId: number }) {
   const tickedPlatforms = PLATFORMS.filter(([p]) => ticked(p)).map(([p]) => p)
 
   return (
+    <>
+    <RolloutPreview slots={slots} kind={kind} />
     <Card
       title="Posting schedule (Eastern time)"
       actions={
@@ -145,123 +237,104 @@ export function PlatformSchedule({ brandId }: { brandId: number }) {
         </Button>
       }
     >
-      <div className="mb-3 text-[12px] text-muted">
-        Every platform has its own weekday and weekend times. A new video takes the next open time of each platform on
-        its own, so a time one platform already uses never blocks another. A Short is a tall video of 3 minutes or less,
-        everything else is Long form. If only one kind is ticked, it is used for every video. Times you pick by hand
-        when scheduling can be anything.
-      </div>
-
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <div className="inline-flex overflow-hidden rounded-md border border-line">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="inline-flex overflow-hidden rounded-full border border-line">
           {(['short', 'long'] as const).map((k) => (
             <button
               key={k}
               onClick={() => setKind(k)}
-              className={`px-4 py-1.5 text-[13px] font-semibold ${kind === k ? 'bg-accent text-[#111]' : 'hover:bg-surface2'}`}
+              className={`px-4 py-1.5 text-[14px] font-semibold ${kind === k ? 'bg-accent text-[#111]' : 'hover:bg-surface2'}`}
             >
-              {KIND_LABEL[k]}
+              {k === 'short' ? 'Shorts (9:16)' : 'Long form'}
             </button>
           ))}
         </div>
-        <Check checked={kinds[kind].enabled} onChange={(v) => setKindDraft(kind, { enabled: v })}>
-          This channel makes <b>{KIND_LABEL[kind]}</b> <span className="text-muted">{KIND_HINT[kind]}</span>
-        </Check>
+        <button
+          onClick={() => setKindDraft(kind, { enabled: !kinds[kind].enabled })}
+          aria-pressed={kinds[kind].enabled}
+          title={`${KIND_HINT[kind]} If only one kind is on, it is used for every video.`}
+          className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold ${kinds[kind].enabled ? 'border-accent text-accent' : 'border-line text-muted'}`}
+        >
+          {kinds[kind].enabled ? `Makes ${KIND_LABEL[kind]}: on` : `Makes ${KIND_LABEL[kind]}: off`}
+        </button>
+        <span className="h-7 w-px bg-line" />
+        {ALL_DAYS.map((d) => {
+          const on = kinds[kind].days.includes(d)
+          return (
+            <button
+              key={d}
+              aria-pressed={on}
+              onClick={() =>
+                setKindDraft(kind, {
+                  days: on ? kinds[kind].days.filter((x) => x !== d) : [...kinds[kind].days, d].sort((a, b) => a - b),
+                })
+              }
+              className={`rounded-full border px-4 py-1.5 text-[14px] font-semibold ${on ? 'border-line bg-surface2' : 'border-transparent text-muted opacity-60'}`}
+            >
+              {DAY_LABELS[d - 1]}
+            </button>
+          )
+        })}
+        <div className="ml-auto">
+          <Button
+            disabled={!rec || !rec.enough || picks.length === 0 || busy}
+            title={rec && !rec.enough ? COPY.stats.slotNotEnough : picks.length === 0 ? COPY.stats.slotNote : 'Adds the best times from your analytics to every ticked platform'}
+            onClick={() => {
+              const add = picks.flatMap((p) =>
+                tickedPlatforms
+                  .filter((pl) => !slots.some((s) => s.platform === pl && s.kind === kind && s.dayType === p.dayType && s.timeLocal === p.timeLocal))
+                  .map((pl) => ({ platform: pl, kind, dayType: p.dayType, timeLocal: p.timeLocal, enabled: true })),
+              )
+              if (add.length) setSlots([...slots, ...add])
+              else toast({ kind: 'info', headline: 'The best times are already on the schedule.' })
+            }}
+          >
+            ✨ Fill best times from analytics
+          </Button>
+        </div>
       </div>
 
       <div className={kinds[kind].enabled ? '' : 'opacity-50'}>
-        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">Posts on</span>
-          {ALL_DAYS.map((d) => (
-            <Check
-              key={d}
-              checked={kinds[kind].days.includes(d)}
-              onChange={(v) =>
-                setKindDraft(kind, {
-                  days: v ? [...kinds[kind].days, d].sort((a, b) => a - b) : kinds[kind].days.filter((x) => x !== d),
-                })
-              }
-            >
-              {DAY_LABELS[d - 1]}
-            </Check>
-          ))}
-        </div>
-
         <div className="overflow-x-auto">
-          <div className="grid min-w-[780px] grid-cols-[150px_minmax(290px,1fr)_minmax(290px,1fr)] text-[13px]">
-            <div className="p-2 text-[11px] font-semibold uppercase tracking-wider text-muted">Platform</div>
-            <div className="p-2 text-[11px] font-semibold uppercase tracking-wider text-muted">Weekdays (Mon to Fri)</div>
-            <div className="p-2 text-[11px] font-semibold uppercase tracking-wider text-muted">Weekends (Sat and Sun)</div>
-            {PLATFORMS.map(([p, label, color]) => (
+          <div className="grid min-w-[820px] grid-cols-[170px_minmax(260px,1fr)_minmax(300px,1fr)]">
+            {PLATFORMS.map(([p, label]) => (
               <div key={p} className="contents">
-                <div className="border-t border-line p-2">
-                  <Check checked={ticked(p)} onChange={(v) => setKindDraft(kind, { platforms: { ...(kinds[kind].platforms ?? {}), [p]: v } })}>
-                    <span className="inline-flex items-center gap-2">
-                      <span className="inline-block h-2 w-2 rounded-full" style={{ background: color }} />
-                      <b>{label}</b>
-                    </span>
-                  </Check>
-                  {!connected(p) && <div className="ml-6 text-[11px] text-muted">not connected</div>}
-                  <div className="ml-6 mt-1 flex flex-wrap gap-1">
-                    <button className="text-[11px] text-accent underline" onClick={() => copyRow(p, PLATFORMS.map(([x]) => x).filter((x) => x !== p))}>
-                      copy to all
+                <div className={`flex flex-col items-start justify-center gap-1 border-t border-line p-3 ${ticked(p) ? '' : 'opacity-40'}`}>
+                  <button
+                    onClick={() => setKindDraft(kind, { platforms: { ...(kinds[kind].platforms ?? {}), [p]: !ticked(p) } })}
+                    aria-pressed={ticked(p)}
+                    title={ticked(p) ? `Click to stop posting ${KIND_LABEL[kind]} on ${label} (its times are kept)` : `Click to post ${KIND_LABEL[kind]} on ${label} again`}
+                    className="flex items-center gap-3"
+                  >
+                    <PlatformLogo platform={p} size={30} />
+                    <span className="text-[16px] font-semibold">{label}</span>
+                  </button>
+                  {!connected(p) && <span className="text-[11px] text-muted">not connected</span>}
+                  <span className="flex flex-col gap-0.5 text-[11px]">
+                    <button className="text-left underline hover:text-accent" onClick={() => copyRow(p, PLATFORMS.map(([x]) => x).filter((x) => x !== p))}>
+                      Copy to all
                     </button>
-                    <button className="text-[11px] text-accent underline" onClick={() => weekdaysToWeekends(p)}>
-                      weekdays to weekends
+                    <button className="text-left text-muted underline hover:text-accent" onClick={() => weekdaysToWeekends(p)}>
+                      Weekdays to weekends
                     </button>
-                  </div>
+                  </span>
+
                 </div>
-                <div className={`border-t border-line p-2 ${ticked(p) ? '' : 'opacity-40'}`}>{cell(p, 'weekday')}</div>
-                <div className={`border-t border-line p-2 ${ticked(p) ? '' : 'opacity-40'}`}>{cell(p, 'weekend')}</div>
+                <div className={`border-t border-l border-line p-3 ${ticked(p) ? '' : 'opacity-40'}`}>{cell(p, 'weekday')}</div>
+                <div className={`border-t border-l border-line p-3 ${ticked(p) ? '' : 'opacity-40'}`}>
+                  {cell(p, 'weekend')}
+                </div>
               </div>
             ))}
           </div>
         </div>
-        <div className="mt-2 text-[11px] text-muted">
-          Untick a platform to stop posting {KIND_LABEL[kind]} there (its times are kept). Only platforms that are also
+        <div className="mt-3 text-[12px] text-muted">
+          Every platform has its own times, and a new video takes the next open time of each one. A Short is a tall video of 3 minutes
+          or less, everything else is Long form. Click a platform to stop posting there (its times are kept). Only platforms that are
           connected on the Connections tab are used.
         </div>
       </div>
-
-      <div className="mt-4 rounded-md border border-line p-2 text-[12px]">
-        <div className="mb-1 font-semibold">Recommended</div>
-        {rec && !rec.enough ? (
-          <div className="text-muted">{COPY.stats.slotNotEnough}</div>
-        ) : picks.length === 0 ? (
-          <div className="text-muted">{COPY.stats.slotNote}</div>
-        ) : (
-          picks.map((p) => {
-            const have = tickedPlatforms.every((pl) =>
-              slots.some((s) => s.platform === pl && s.kind === kind && s.dayType === p.dayType && s.timeLocal === p.timeLocal),
-            )
-            return (
-              <div key={`${p.dayType}${p.timeLocal}`} className="flex items-center justify-between gap-2 py-0.5">
-                <span>
-                  <b>{p.timeLocal}</b>{' '}
-                  <span className="text-muted">
-                    {p.dayType === 'weekday' ? 'weekdays' : 'weekends'},{' '}
-                    {p.lift >= 1 ? `${Math.round((p.lift - 1) * 100)}% above typical` : `${Math.round((1 - p.lift) * 100)}% below typical`}
-                    , {p.count} videos
-                  </span>
-                </span>
-                <Button
-                  disabled={have}
-                  onClick={() =>
-                    setSlots([
-                      ...slots,
-                      ...tickedPlatforms
-                        .filter((pl) => !slots.some((s) => s.platform === pl && s.kind === kind && s.dayType === p.dayType && s.timeLocal === p.timeLocal))
-                        .map((pl) => ({ platform: pl, kind, dayType: p.dayType, timeLocal: p.timeLocal, enabled: true })),
-                    ])
-                  }
-                >
-                  {have ? 'Added' : `Add to every ${KIND_LABEL[kind]} platform`}
-                </Button>
-              </div>
-            )
-          })
-        )}
-      </div>
     </Card>
+    </>
   )
 }

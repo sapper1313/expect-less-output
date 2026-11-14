@@ -92,3 +92,24 @@ textarea.f{width:100%;min-height:72px;resize:vertical;font-family:var(--sans)}
 .hlab{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--label);margin-top:4px}
 .kv{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-top:1px solid rgba(var(--g-edge),.12)}
 .kv b{font-family:var(--mono)}
+
+/* Posted videos as cards, like the Queue */
+.seg{display:inline-flex;border-radius:999px;border:1px solid rgba(var(--g-edge),.3);overflow:hidden}
+.seg button{background:none;border:0;color:inherit;font:inherit;font-size:12px;font-weight:600;padding:6px 14px;cursor:pointer}
+.seg button.on{background:var(--g-c1);color:var(--g-ink)}
+.pcards{display:flex;flex-direction:column;gap:12px}
+.pcard{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:16px;align-items:center;padding:14px 18px;border-radius:18px}
+.pcard.click{cursor:pointer}
+.pcard.click:hover{border-color:var(--g-c1)}
+.pthumb{width:72px;height:102px;border-radius:12px;object-fit:cover;background:rgba(var(--g-ov),.08);display:block}
+.pwho{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--label)}
+.pwho .dot{width:8px;height:8px;border-radius:50%}
+.ptitle{font-size:18px;font-weight:700;margin:2px 0;line-height:1.25}
+.pwhen{font-size:13px;color:var(--label)}
+.pplat{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.ppill{display:inline-flex;align-items:center;gap:8px;padding:4px 12px 4px 6px;border-radius:999px;border:1px solid rgba(var(--g-ov),.2);background:rgba(var(--g-ov),.05);color:inherit;text-decoration:none;font-size:12px;font-weight:600}
+a.ppill:hover{border-color:var(--g-c1)}
+.pnums{display:grid;grid-template-columns:repeat(4,auto);gap:22px;text-align:right}
+.pn{font-family:var(--mono);font-size:22px;font-weight:700}
+.pc2{font-size:12px;color:var(--label)}
+@media (max-width:900px){.pcard{grid-template-columns:72px 1fr}.pnums{grid-column:1/-1;text-align:left}}

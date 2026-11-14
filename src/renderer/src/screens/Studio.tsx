@@ -4,7 +4,7 @@ import { describeFlag } from '@shared/studio/flagText'
 import type { DirectorActionView } from '../../../main/studio/directorChat'
 import { api } from '../api'
 import { useApp, useLoad, useWritingOff } from '../hooks'
-import { BrandDot, Button, Card, Check, Empty, PageHeader, Select, Textarea, useBusy } from '../ui'
+import { Button, Card, Check, Empty, PageHeader, PlatformLogo, Select, Textarea, useBusy } from '../ui'
 import { StudioBible } from './StudioBible'
 import { StudioPublishing } from './StudioPublishing'
 import { StudioLibrary } from './StudioLibrary'
@@ -159,46 +159,47 @@ function Overview() {
         )}
       </Card>
       <DirectorChat onChanged={reload} />
-      <div className="grid gap-4 md:grid-cols-2">
-        {ov.brands.map((b) => (
-          <Card key={b.brandId} title={b.name} actions={<BrandDot color={b.color} />}>
-            <div className="space-y-1 text-[13px]">
-              <div className="flex gap-3 pb-1">
-                <button
-                  className="text-accent underline"
-                  onClick={() => void api.studio.openBrandFolder(b.brandId, 'scripts')}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {ov.brands.map((b) => {
+          const on = Object.entries(b.config.platforms).filter(([, on]) => on)
+          const covered = b.runwayCovered >= b.config.runwayDays
+          return (
+            <section key={b.brandId} className="rounded-lg border border-line bg-surface p-4">
+              <header className="mb-1 flex items-center justify-between gap-2">
+                <h2 className="text-[17px]">Channel runway</h2>
+                <span
+                  className="rounded-full px-3 py-0.5 text-[12px] font-bold text-[#111]"
+                  style={{ background: b.color }}
                 >
-                  Open episode scripts folder
-                </button>
-                <button
-                  className="text-accent underline"
-                  onClick={() => void api.studio.openBrandFolder(b.brandId, 'videos')}
-                >
-                  Open videos folder
-                </button>
+                  {b.config.format === 'long' ? 'Long 16:9' : 'Short 9:16'}
+                </span>
+              </header>
+              <div className="text-[18px] font-bold">{b.name}</div>
+              <div className={`text-[14px] font-semibold ${covered ? 'text-ok' : 'text-warn'}`}>
+                {b.runwayCovered} of {b.config.runwayDays} days covered{b.config.paused ? ' (paused)' : ''}
               </div>
-              <div>
-                {b.config.format === 'long' ? 'Long form, 16:9' : 'Short form, 9:16'}.{' '}
-                {b.config.cadenceMode === 'every_n'
-                  ? `Every ${b.config.everyN} day(s)`
-                  : 'Weekly schedule'}
-                {b.config.paused ? ' (paused)' : ''}.
+              <div className="my-3 flex items-center gap-2">
+                {on.length === 0 ? (
+                  <span className="text-[12px] text-muted">Posts nowhere yet.</span>
+                ) : (
+                  on.map(([p]) => <PlatformLogo key={p} platform={p} size={30} />)
+                )}
               </div>
-              <div className="text-muted">
-                Next due: {b.nextDue ?? 'none'}. Runway covered: {b.runwayCovered} date(s) of{' '}
-                {b.config.runwayDays} days.
+              <div className="mb-3 text-[12px] text-muted">
+                {b.config.cadenceMode === 'every_n' ? `Every ${b.config.everyN} day(s)` : 'Weekly schedule'}. Next due:{' '}
+                {b.nextDue ?? 'none'}.
               </div>
-              <div className="text-muted">
-                Posts to:{' '}
-                {Object.entries(b.config.platforms)
-                  .filter(([, on]) => on)
-                  .map(([p]) => p)
-                  .join(', ') || 'nowhere yet'}
-                .
+              <div className="space-y-2">
+                <Button className="w-full justify-start" onClick={() => void api.studio.openBrandFolder(b.brandId, 'scripts')}>
+                  📁 Open scripts folder
+                </Button>
+                <Button className="w-full justify-start" onClick={() => void api.studio.openBrandFolder(b.brandId, 'videos')}>
+                  📁 Open videos folder
+                </Button>
               </div>
-            </div>
-          </Card>
-        ))}
+            </section>
+          )
+        })}
       </div>
     </div>
   )

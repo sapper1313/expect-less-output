@@ -24,8 +24,8 @@ export function UploadPostCard() {
     <Card title="Upload-Post">
       <p className="mb-3 text-[12px] text-muted">
         Upload-Post is the paid service that holds your logins. ELO uses it to post to TikTok straight to the
-        feed. For the other platforms you tick, it will be used for comments, first comments and numbers. It never
-        posts to them. The key is kept in the macOS Keychain and is never shown again.
+        feed and to post Instagram Reels. For the other platforms you tick, it is used for comments, first comments and
+        numbers. It never posts to them. The key is kept in the macOS Keychain and is never shown again.
       </p>
 
       <div className="rounded-md border border-line p-3">
@@ -84,7 +84,8 @@ export function UploadPostCard() {
         <p className="mb-2 mt-1 text-[12px] text-muted">
           Type the profile name exactly as it is on Upload-Post, then tick the platforms you have logged in there.
           ELO cannot see what is logged in, so it only trusts your ticks. TikTok ticked means ELO posts to TikTok
-          through Upload-Post. TikTok not ticked means ELO puts the video in your TikTok drafts like before.
+          through Upload-Post. TikTok not ticked means ELO puts the video in your TikTok drafts like before. Instagram ticked means ELO posts the
+          Reel through Upload-Post. Instagram not ticked means ELO uses its own Instagram login like before.
         </p>
         <div className="space-y-3">
           {st.links.map((l) => (

@@ -54,7 +54,7 @@ describe('buildSnapshot', () => {
     const coe = s.channels.find((c) => c.id === 2)!;
     expect(coe).toMatchObject({ name: 'Clock Out Early', filled: 12, total: 14, percent: 86, views7d: 121000 });
     expect(coe.days).toHaveLength(7);
-    expect(coe.days[5].slots).toEqual([
+    expect(coe.days[5].slots).toMatchObject([
       { type: 'episode', state: 'filled' },
       { type: 'clip', state: 'open' }
     ]);

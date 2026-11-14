@@ -1,10 +1,9 @@
-import { PLATFORM_LABELS } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
 import { formatEastern } from '@shared/time'
 import type { PostStats, StatsNumbers, TargetStats } from '@shared/types'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
-import { Button, useBusy } from '../ui'
+import { Button, useBusy, PlatformName } from '../ui'
 
 export const fmt = (n: number | null | undefined) =>
   n === null || n === undefined ? '-' : n.toLocaleString('en-US')
@@ -50,7 +49,7 @@ function Row({ t }: { t: TargetStats }) {
   return (
     <div className="space-y-2 rounded-md border border-line p-3">
       <div className="flex items-center justify-between">
-        <b>{PLATFORM_LABELS[t.platform]}</b>
+        <b><PlatformName platform={t.platform} /></b>
         {t.latest && (
           <span className="text-[11px] text-muted">Read {formatEastern(t.latest.fetchedAt)}</span>
         )}

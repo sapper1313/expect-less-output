@@ -9,3 +9,6 @@ export function mountDashboard(
   onGo: (where: string) => void,
   loadWeek?: (offset: number) => Promise<WeekMap | null>,
 ): () => void
+
+/** Fixed SVG markup for a real platform logo, or an empty string for an unknown platform. */
+export function platformLogo(platform: string, size?: number): string

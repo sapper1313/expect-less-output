@@ -1,6 +1,25 @@
 /* eslint-disable */
 // @ts-nocheck
 // The As Expected. dashboard page logic, run inside a shadow root so its styles stay apart from ELO's.
+
+// Real platform logos, fixed markup (never built from data). Used on this page and by the app screens.
+const LOGOS = {
+  youtube: '<rect width="24" height="24" rx="6" fill="#FF0000"/><path d="M9.6 7.8v8.4l7.2-4.2z" fill="#fff"/>',
+  facebook: '<circle cx="12" cy="12" r="12" fill="#1877F2"/><path d="M13.4 19.6v-6.2h2.1l.4-2.6h-2.5V9.3c0-.8.3-1.3 1.4-1.3h1.2V5.7c-.2 0-1-.1-1.9-.1-2 0-3.3 1.200-3.300 3.400v1.800H8.700v2.600h2.100v6.200z" fill="#fff"/>',
+  instagram: '<defs><linearGradient id="eloig" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#FEDA75"/><stop offset=".35" stop-color="#FA7E1E"/><stop offset=".6" stop-color="#D62976"/><stop offset=".85" stop-color="#962FBF"/><stop offset="1" stop-color="#4F5BD5"/></linearGradient></defs><rect width="24" height="24" rx="6.5" fill="url(#eloig)"/><rect x="5.6" y="5.6" width="12.8" height="12.8" rx="3.8" fill="none" stroke="#fff" stroke-width="1.7"/><circle cx="12" cy="12" r="3.1" fill="none" stroke="#fff" stroke-width="1.7"/><circle cx="16.3" cy="7.7" r="1" fill="#fff"/>',
+  tiktok: '<rect width="24" height="24" rx="6" fill="#000"/><g transform="translate(0 .3)"><path transform="translate(-.6 -.5)" fill="#25F4EE" d="M16.600 5.900c-.7-.5-1.200-1.300-1.300-2.200h-2.400v10.300c0 1.200-1 2-2 2-1.200 0-2.100-1-2-2.100.1-1.100 1.100-2 2.300-1.900.2 0 .4 0 .6.100V9.500c-.2 0-.4-.1-.6-.1-2.500-.1-4.600 1.900-4.600 4.400 0 2.400 1.900 4.400 4.400 4.400s4.400-1.900 4.400-4.400V9.300c.9.600 1.900 1 3 1V7.900c-.9 0-1.800-.4-2.400-1z"/><path transform="translate(.6 .5)" fill="#FE2C55" d="M16.600 5.900c-.7-.5-1.200-1.300-1.300-2.200h-2.400v10.300c0 1.200-1 2-2 2-1.200 0-2.100-1-2-2.100.1-1.100 1.100-2 2.300-1.900.2 0 .4 0 .6.100V9.500c-.2 0-.4-.1-.6-.1-2.500-.1-4.600 1.900-4.600 4.400 0 2.400 1.900 4.400 4.400 4.400s4.400-1.900 4.400-4.400V9.300c.9.600 1.900 1 3 1V7.900c-.9 0-1.800-.4-2.400-1z"/><path fill="#fff" d="M16.600 5.900c-.7-.5-1.200-1.300-1.300-2.200h-2.400v10.300c0 1.200-1 2-2 2-1.200 0-2.100-1-2-2.100.1-1.100 1.100-2 2.300-1.900.2 0 .4 0 .6.100V9.500c-.2 0-.4-.1-.6-.1-2.500-.1-4.600 1.900-4.600 4.400 0 2.400 1.900 4.400 4.400 4.400s4.400-1.900 4.400-4.400V9.300c.9.600 1.900 1 3 1V7.900c-.9 0-1.800-.4-2.400-1z"/></g>',
+  bluesky: '<g transform="translate(0 2.2) scale(.9) translate(1.3 0)"><path fill="#1185FE" d="M12 10.800c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.080 0 3.768c0 .69.378 5.650.624 6.479.815 2.736 3.713 3.660 6.383 3.364.136-.02.275-.039.415-.056-.138.022-.276.040-.415.056-3.912.580-7.387 2.005-2.830 7.078 5.013 5.190 6.870-1.113 7.823-4.308.953 3.195 2.050 9.271 7.733 4.308 4.267-4.308 1.172-6.498-2.740-7.078a8.741 8.741 0 0 1-.415-.056c.140.017.279.036.415.056 2.670.297 5.568-.628 6.383-3.364.246-.828.624-5.790.624-6.478 0-.69-.139-1.861-.902-2.206-.659-.298-1.664-.620-4.300 1.240C16.046 4.748 13.087 8.687 12 10.800Z"/></g>',
+  x: '<rect width="24" height="24" rx="6" fill="#000"/><path d="M6 6l12 12M18 6L6 18" stroke="#fff" stroke-width="2" stroke-linecap="round"/>',
+  linkedin: '<rect width="24" height="24" rx="5" fill="#0A66C2"/><path fill="#fff" d="M6.200 9.600h2.400V18H6.200zM7.400 5.800a1.400 1.400 0 1 1 0 2.800 1.400 1.400 0 0 1 0-2.800zM10.200 9.600h2.300v1.100c.4-.7 1.300-1.300 2.500-1.300 2.500 0 3 1.600 3 3.800V18h-2.400v-4.200c0-1 0-2.200-1.400-2.200s-1.600 1.100-1.600 2.200V18h-2.400z"/>',
+  pinterest: '<circle cx="12" cy="12" r="12" fill="#E60023"/><path fill="#fff" d="M12.200 5.500c-3.300 0-5 2.200-5 4.600 0 1.100.6 2.500 1.600 2.900.2.100.3 0 .3-.2l.2-.9c0-.1 0-.2-.1-.3-.3-.4-.5-1-.5-1.700 0-1.700 1.300-3.300 3.400-3.300 1.900 0 3.200 1.300 3.200 3.100 0 2-1 3.500-2.400 3.500-.8 0-1.300-.6-1.100-1.400.2-.9.6-1.900.6-2.500 0-.6-.3-1.100-1-1.100-.8 0-1.400.8-1.400 1.900 0 .7.200 1.200.2 1.200l-.9 3.800c-.2.900 0 2.200 0 2.300 0 .1.100.1.200 0 .1-.1 1.100-1.400 1.400-2.600l.6-2.200c.3.600 1.200 1.100 2.100 1.100 2.800 0 4.700-2.500 4.700-5.800 0-2.500-2.100-4.800-5.400-4.800z"/>'
+};
+export function platformLogo(platform, size) {
+  const inner = LOGOS[platform];
+  const px = size || 18;
+  if (!inner) return '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${px}" height="${px}" role="img" aria-label="${platform}" style="flex:none;display:block">${inner}</svg>`;
+}
+
 export function mountDashboard(root, loadSnapshot, loadTiles, onGo, loadWeek) {
 // All dynamic text goes through textContent. Nothing from the snapshot is ever parsed as HTML.
 
@@ -15,6 +34,18 @@ function e(tag, cls, text, style) {
   if (text !== undefined && text !== null) n.textContent = text;
   if (style) for (const [k, v] of Object.entries(style)) n.style.setProperty(k, v);
   return n;
+}
+function logoEl(platform, size) {
+  const w = e('span', 'plogo');
+  w.innerHTML = platformLogo(platform, size);
+  return w;
+}
+// One logo per platform, even if the list carries a platform twice.
+function uniqConns(list) {
+  const seen = new Set();
+  const order = ['youtube', 'instagram', 'facebook', 'tiktok', 'bluesky'];
+  const rank = (p) => (order.includes(p) ? order.indexOf(p) : 9);
+  return (list || []).filter((c) => (seen.has(c.platform) ? false : (seen.add(c.platform), true))).sort((a, b) => rank(a.platform) - rank(b.platform));
 }
 function clear(n) {
   while (n.firstChild) n.removeChild(n.firstChild);
@@ -116,19 +147,26 @@ function renderStrip(t, s) {
   const stage = (key) => (t && t.stages.find((x) => x.key === key)) || { count: 0 };
   const flagged = stage('flagged').count + (s ? s.totals.attention : 0);
   const open = s ? (s.open3d !== undefined ? s.open3d : s.totals.open) : 0;
+  const failed = t && t.badges ? t.badges.queue : 0;
+  const nextPost = t && t.upcoming && t.upcoming.find((u) => u.whenUtc);
+  const nextTime = nextPost ? new Date(nextPost.whenUtc).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) : '-';
+  const nextDay = nextPost ? new Date(nextPost.whenUtc).toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short' }) : '';
+  const spend = t && t.spend ? '$' + t.spend.total.toFixed(2) : '-';
   const tiles = [
-    ['Being written', stage('writing').count, 'inbox', ''],
-    ['Ready for video', stage('ready').count, 'inbox', ''],
-    ['Video in progress', stage('making').count, 'inbox', ''],
-    ['Open slots, next 3 days', open, 'schedule', open > 0 ? 'amber' : ''],
-    ['Scheduled', stage('scheduled').count, 'queue', ''],
-    ['Posted this week', stage('posted').count, 'stats', ''],
-    ['Needs a look', flagged, s && s.totals.attention > 0 ? 'queue' : 'flagged', flagged > 0 ? 'bad' : '']
+    ['Open slots, next 3 days', String(open), 'schedule', open > 0 ? 'amber' : '', ''],
+    ['Scheduled', String(stage('scheduled').count), 'queue', '', ''],
+    ['Posted this week', String(stage('posted').count), 'stats', '', ''],
+    ['Needs a look', String(flagged), s && s.totals.attention > 0 ? 'queue' : 'flagged', flagged > 0 ? 'bad' : '', ''],
+    ['Views, last 7 days', s && s.stats ? fmtNum(s.stats.views) : '-', 'stats', '', ''],
+    [nextPost ? 'Next post, ' + nextDay : 'Next post', nextTime, 'queue', '', nextPost ? nextPost.brandName : ''],
+    ['Failed or retrying', String(failed), 'queue', failed > 0 ? 'bad' : '', ''],
+    ['AI spend this month', spend, 'spend', '', '']
   ];
-  for (const [label, n, go, tone] of tiles) {
+  for (const [label, n, go, tone, tip] of tiles) {
     const b = e('button', 'glass tile-btn ' + tone);
     b.type = 'button';
-    b.appendChild(e('div', 'big', String(n)));
+    if (tip) b.title = tip;
+    b.appendChild(e('div', 'big', n));
     b.appendChild(e('div', 'cap', label));
     b.addEventListener('click', () => onGo(go));
     host.appendChild(b);
@@ -182,14 +220,91 @@ function renderBest2(s) {
     if (!v) {
       card.appendChild(e('div', 'c', 'No posted video with numbers yet.'));
     } else {
-      card.appendChild(e('div', 't', v.title));
-      card.appendChild(e('div', 'c', v.channel));
+      const body = e('div', 'best-body');
+      const th = e('div', 'best-thumb');
+      if (v.posterUrl) {
+        const img = document.createElement('img');
+        img.src = v.posterUrl;
+        img.alt = '';
+        img.addEventListener('error', () => img.remove());
+        th.appendChild(img);
+      }
+      body.appendChild(th);
+      const info = e('div', 'best-info');
+      info.appendChild(e('div', 't', v.title));
+      info.appendChild(e('div', 'c', v.channel));
       const views = e('div', 'v', fmtNum(v.views));
       views.appendChild(e('small', null, 'views'));
-      card.appendChild(views);
+      info.appendChild(views);
+      const chips = e('div', 'best-plat');
+      for (const p of v.platforms || []) {
+        const chip = e('span', 'bp-chip');
+        chip.appendChild(logoEl(p.platform, 16));
+        chip.appendChild(e('span', null, fmtNum(p.views)));
+        chip.title = (PLAT_NAMES[p.platform] || p.platform) + ': ' + p.views + ' views, ' + p.likes + ' likes, ' + p.comments + ' comments, ' + p.shares + ' shares';
+        chips.appendChild(chip);
+      }
+      info.appendChild(chips);
+      body.appendChild(info);
+      card.appendChild(body);
+    }
+    if (v) {
+      card.classList.add('clickable');
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      card.setAttribute('aria-label', 'Show where the views come from');
+      const open = () => showBestDetail(label, v);
+      card.addEventListener('click', open);
+      card.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); } });
     }
     host.appendChild(card);
   }
+}
+const PCOLOR = { youtube: '#ff4d4d', facebook: '#2f6bff', instagram: '#d946ef', tiktok: '#22d3ee', bluesky: '#8ec5ff' };
+const PLAT_NAMES = { youtube: 'YouTube', instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', bluesky: 'Bluesky' };
+function showBestDetail(label, v) {
+  const root = $('best2').parentNode;
+  const old = root.querySelector('.best-pop');
+  if (old) old.remove();
+  const back = e('div', 'best-pop');
+  const close = () => { back.remove(); document.removeEventListener('keydown', onKey, true); };
+  const onKey = (ev) => { if (ev.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey, true);
+  back.addEventListener('click', (ev) => { if (ev.target === back) close(); });
+  const box = e('div', 'glass best-pop-box');
+  box.setAttribute('role', 'dialog');
+  box.appendChild(e('div', 'cap', label));
+  box.appendChild(e('div', 'pt', v.title));
+  const when = v.postedAt ? ' · posted ' + new Date(v.postedAt).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' ET' : '';
+  box.appendChild(e('div', 'c', v.channel + when));
+  const total = e('div', 'v', fmtNum(v.views));
+  total.appendChild(e('small', null, 'views in total'));
+  box.appendChild(total);
+  const tbl = e('div', 'pp-table');
+  const head = e('div', 'pp-row pp-head');
+  for (const h of ['Platform', 'Views', 'Likes', 'Comments', 'Shares']) head.appendChild(e('div', null, h));
+  tbl.appendChild(head);
+  for (const p of (v.platforms || [])) {
+    const row = e('div', 'pp-row');
+    const pn = e('div', 'pn');
+    pn.appendChild(logoEl(p.platform, 18));
+    pn.appendChild(e('span', null, PLAT_NAMES[p.platform] || p.platform));
+    row.appendChild(pn);
+    row.appendChild(e('div', 'pv', fmtNum(p.views)));
+    row.appendChild(e('div', null, fmtNum(p.likes)));
+    row.appendChild(e('div', null, fmtNum(p.comments)));
+    row.appendChild(e('div', null, fmtNum(p.shares)));
+    tbl.appendChild(row);
+  }
+  if (!(v.platforms || []).length) tbl.appendChild(e('div', 'c', 'No per platform numbers yet.'));
+  box.appendChild(tbl);
+  box.appendChild(e('div', 'c', 'Numbers are the latest ELO has saved for each platform, read about once an hour. A platform that has not posted yet, or has no numbers, is not listed.'));
+  const x = e('button', 'pp-close', 'Close');
+  x.addEventListener('click', close);
+  box.appendChild(x);
+  back.appendChild(box);
+  root.appendChild(back);
+  x.focus();
 }
 function showWeek(s) {
   if (weekOffset === 0 || !weekData) { renderMap(s); return; }
@@ -211,22 +326,16 @@ function renderMap(s) {
   $('week-range').textContent = `${fmtDate(s.week.start)} to ${fmtDate(s.week.end)}` + (weekOffset === 0 ? ' (this week)' : '');
   $('week-prev').disabled = weekOffset === 0;
   const head = e('div', 'map-head');
-  head.appendChild(e('div'));
+  head.appendChild(e('div', 'dh chl', 'Channel'));
   s.week.days.forEach((date, i) => {
-    const d = e('div', 'dh' + (date === s.week.today ? ' today' : ''));
-    d.appendChild(e('div', 'dn', DAYS[i]));
-    d.appendChild(e('div', 'dd', fmtDate(date)));
-    head.appendChild(d);
+    head.appendChild(e('div', 'dh' + (date === s.week.today ? ' today' : ''), `${DAYS[i]} ${fmtDate(date)}`));
   });
   host.appendChild(head);
   for (const c of s.channels) {
     const row = e('div', 'map-row' + (c.state === 'active' ? '' : ' dim'));
     const who = e('div', 'who');
-    who.appendChild(e('span', 'bar', null, { background: c.color, 'box-shadow': '0 0 10px ' + c.color }));
-    const nm = e('div');
-    nm.appendChild(e('div', 'nm', c.name));
-    nm.appendChild(e('div', 'fr', c.state === 'active' ? c.filled + '/' + c.total : c.state));
-    who.appendChild(nm);
+    who.appendChild(e('div', 'nm', c.name));
+    who.title = c.state === 'active' ? c.filled + ' of ' + c.total + ' slots filled' : c.state;
     row.appendChild(who);
     c.days.forEach((day, i) => {
       const open = day.slots.filter((x) => x.state === 'open').length;
@@ -234,9 +343,41 @@ function renderMap(s) {
       cell.setAttribute('aria-label', `${c.name} ${DAYS[i]}: ${day.slots.length} slots, ${open} open`);
       if (day.slots.length === 0) cell.appendChild(e('span', 'none', '-'));
       for (const sl of day.slots) {
-        const dot = e('span', `slot ${sl.type} ${sl.state}`, null, { '--c': c.color });
-        dot.title = `${typeLabel(sl.type)}, ${sl.state}`;
-        cell.appendChild(dot);
+        if (sl.state === 'open') {
+          const b = e('button', 'slot-open');
+          b.type = 'button';
+          b.appendChild(e('span', 'plus', '+ Fill Slot'));
+          b.title = `${c.name}, ${typeLabel(sl.type)}, open${sl.timeET ? ' at ' + sl.timeET : ''}`;
+          b.addEventListener('click', () => onGo('schedule'));
+          cell.appendChild(b);
+          continue;
+        }
+        const card = e('div', 'slot-card ' + sl.state);
+        const th = e('div', 'slot-thumb', null, { background: `linear-gradient(135deg, ${c.color}, var(--violet))` });
+        if (sl.posterUrl) {
+          const img = document.createElement('img');
+          img.src = sl.posterUrl;
+          img.alt = '';
+          img.addEventListener('error', () => img.remove());
+          th.appendChild(img);
+        }
+        card.appendChild(th);
+        const meta = e('div', 'slot-meta');
+        if (sl.timeET) meta.appendChild(e('div', 'tm', sl.timeET));
+        if (sl.platforms && sl.platforms.length) {
+          const dots = e('div', 'pdots');
+          for (const pf of sl.platforms) {
+            const d = e('span', 'pdot' + (pf.status === 'failed' ? ' failed' : ''), null, { background: PCOLOR[pf.platform] || '#9ca3af' });
+            d.title = (PLAT_NAMES[pf.platform] || pf.platform) + ': ' + pf.status.replace('_', ' ');
+            dots.appendChild(d);
+          }
+          meta.appendChild(dots);
+        } else {
+          meta.appendChild(e('span', `slot ${sl.type} ${sl.state}`, null, { '--c': c.color }));
+        }
+        card.appendChild(meta);
+        card.title = `${sl.title ? sl.title + ', ' : ''}${typeLabel(sl.type)}, ${sl.state === 'attention' ? 'needs attention' : 'filled'}`;
+        cell.appendChild(card);
       }
       row.appendChild(cell);
     });
@@ -256,6 +397,12 @@ function renderCards(s) {
     head.appendChild(title);
     head.appendChild(active ? e('div', 'pct', c.percent + '%') : e('div', 'state-label', c.state));
     card.appendChild(head);
+    const hc = tiles && tiles.channels && tiles.channels.find((x) => x.brandId === c.id);
+    if (hc && hc.connections && hc.connections.length) {
+      const row = e('div', 'plogos');
+      for (const cn of uniqConns(hc.connections)) { const l = logoEl(cn.platform, 22); l.classList.add('pl-' + cn.state); l.title = cn.label + ': ' + cn.note; row.appendChild(l); }
+      card.appendChild(row);
+    }
     const track = e('div', 'track');
     track.appendChild(e('div', 'fillbar', null, { width: (active ? c.percent : 0) + '%', background: `linear-gradient(90deg, ${c.color}, var(--open))` }));
     card.appendChild(track);
@@ -282,19 +429,54 @@ function renderVideos(s) {
     return;
   }
   const colors = new Map(s.channels.map((c) => [c.name, c.color]));
-  const rankColor = ['#ffcf7a', '#d7defa', '#ffa56b'];
   for (const v of s.topVideos.slice(0, 3)) {
-    const row = e('div', 'video-row');
-    row.appendChild(e('div', 'rank', String(v.rank), { color: rankColor[v.rank - 1] || 'var(--label)' }));
-    const base = colors.get(v.channel) || 'var(--cyan)';
-    row.appendChild(e('div', 'thumb', null, { background: `linear-gradient(135deg, ${base}, var(--violet))` }));
-    const info = e('div', 'info');
-    info.appendChild(e('div', 't', v.title));
-    info.appendChild(e('div', 'c', v.channel));
-    row.appendChild(info);
-    const views = e('div', 'views', (v.approximate ? '~' : '') + fmtNum(v.views));
-    views.appendChild(e('small', null, 'views'));
-    row.appendChild(views);
+    const card = e('button', 'short-card');
+    card.type = 'button';
+    const th = e('div', 'short-thumb', null, { background: `linear-gradient(135deg, ${colors.get(v.channel) || 'var(--cyan)'}, var(--violet))` });
+    if (v.posterUrl) {
+      const img = document.createElement('img');
+      img.src = v.posterUrl;
+      img.alt = '';
+      img.addEventListener('error', () => img.remove());
+      th.appendChild(img);
+    }
+    th.appendChild(e('span', 'ratio', '9:16'));
+    card.appendChild(th);
+    card.appendChild(e('div', 'short-title', v.title));
+    card.appendChild(e('div', 'short-chan', v.channel));
+    const views = e('div', 'short-views', (v.approximate ? '~' : '') + fmtNum(v.views));
+    views.appendChild(e('small', null, ' views'));
+    card.appendChild(views);
+    card.addEventListener('click', () => showBestDetail('Top performing, last 7 days', v));
+    host.appendChild(card);
+  }
+}
+
+function renderRunway(s) {
+  const host = clear($('runway'));
+  const list = (tiles && tiles.channels) || [];
+  if (!list.length) { host.appendChild(e('div', 'none-msg', 'No channel health yet.')); return; }
+  for (const c of list) {
+    const row = e('div', 'runway-row');
+    row.appendChild(e('div', 'rn', c.name));
+    const logos = e('div', 'plogos tight');
+    for (const cn of uniqConns(c.connections)) {
+      const l = logoEl(cn.platform, 20);
+      l.classList.add('pl-' + cn.state);
+      l.title = cn.label + ': ' + cn.note;
+      logos.appendChild(l);
+    }
+    row.appendChild(logos);
+    const bad = (c.connections || []).some((x) => x.state === 'bad');
+    const warn = (c.connections || []).some((x) => x.state === 'warn');
+    const nx = ((tiles && tiles.upcoming) || []).find((u) => u.brandId === c.brandId && u.whenUtc);
+    const nxText = nx
+      ? new Date(nx.whenUtc).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })
+      : null;
+    const pill = e('div', 'rpill ' + (c.paused ? 'amber' : bad ? 'bad' : warn || !nx ? 'amber' : 'ok'),
+      c.paused ? 'Paused' : bad ? 'Needs a look' : nx ? 'Next ' + nxText : 'Nothing scheduled');
+    pill.title = bad ? 'A connection needs you to sign in again' : nx ? nx.title : 'No upcoming post is scheduled for this channel';
+    row.appendChild(pill);
     host.appendChild(row);
   }
 }
@@ -316,6 +498,7 @@ function renderSnapshot(s) {
   } else showWeek(s);
   renderCards(s);
   renderVideos(s);
+  renderRunway(s);
   $('foot').textContent = 'Data from ELO · updated ' + fmtTime(s.generatedAt, s.week.tz);
 }
 

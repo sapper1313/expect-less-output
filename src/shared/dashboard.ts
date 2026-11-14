@@ -45,6 +45,14 @@ export interface Slot {
 export interface SnapshotSlot {
   type: PostType
   state: SlotState
+  /** The post that fills this slot (app screens only use it to show a preview picture). */
+  postId?: number | null
+  /** The slot's time, Eastern, for example "7:00 PM". */
+  timeET?: string
+  title?: string | null
+  posterUrl?: string | null
+  /** One entry per platform the post goes to, for the colored dots. */
+  platforms?: { platform: string; status: string }[]
 }
 
 export interface SnapshotChannel {
@@ -60,10 +68,23 @@ export interface SnapshotChannel {
   days: { date: string; slots: SnapshotSlot[] }[]
 }
 
+export interface PlatformViews {
+  platform: string
+  views: number
+  likes: number
+  comments: number
+  shares: number
+}
+
 export interface BestVideo {
   title: string
   channel: string
   views: number
+  /** First time any platform posted it (UTC). */
+  postedAt?: string | null
+  /** Where the views come from, biggest first. */
+  platforms?: PlatformViews[]
+  posterUrl?: string | null
 }
 
 export interface WeekMap {
@@ -121,6 +142,9 @@ export interface Snapshot {
     channel: string
     views: number
     approximate: boolean
+    postedAt?: string | null
+    platforms?: PlatformViews[]
+    posterUrl?: string | null
   }[]
   /** Open posting slots today and the next 2 days, for channels that are on. */
   open3d?: number

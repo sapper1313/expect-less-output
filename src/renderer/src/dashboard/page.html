@@ -25,6 +25,31 @@
   <div id="attention-list"></div>
 </div>
 
+<section class="two-col">
+  <div class="glass card">
+    <div class="lab">Top performing recent shorts</div>
+    <div id="top-videos" class="shorts"></div>
+  </div>
+  <div class="glass card">
+    <div class="lab">Channel health and next post</div>
+    <div id="runway"></div>
+  </div>
+</section>
+
+<section class="glass card map-card">
+  <div class="row-between wrap">
+    <h2 class="map-title">Visual Week Schedule Map</h2>
+    <div class="weeknav">
+      <button type="button" class="chip glass btn" id="week-prev" aria-label="Previous week">&#9664;</button>
+      <span id="week-range" class="week-range"></span>
+      <button type="button" class="chip glass btn" id="week-next" aria-label="Next week">&#9654;</button>
+    </div>
+  </div>
+  <div class="scroll-x">
+    <div class="map" id="week-map"></div>
+  </div>
+</section>
+
 <div class="lab section-lab">Channel totals, all platforms</div>
 <section class="glass card acct-card" id="acct-card" hidden>
   <div class="acct-total" id="acct-total"></div>
@@ -35,33 +60,10 @@
 <div class="lab section-lab">Total, last 7 days</div>
 <section class="glass card totals-card"><div class="totals5" id="totals"></div></section>
 
-<div class="lab section-lab">Best videos, last 7 days</div>
-<section class="glass card"><div id="top-videos"></div></section>
 
 <div class="lab section-lab">Channel stats</div>
 <section class="cards" id="channel-cards"></section>
 
-<section class="glass card map-card">
-  <div class="row-between wrap">
-    <div class="maphead-left">
-      <div class="lab">Week map, channel by day</div>
-      <div class="weeknav">
-        <button type="button" class="chip glass btn" id="week-prev" aria-label="Previous week">&#9664;</button>
-        <span id="week-range" class="week-range"></span>
-        <button type="button" class="chip glass btn" id="week-next" aria-label="Next week">&#9654;</button>
-      </div>
-    </div>
-    <div class="legend">
-      <span><i class="slot episode filled demo"></i>Episode filled</span>
-      <span><i class="slot clip filled demo"></i>Clip filled</span>
-      <span><i class="slot episode open demo"></i>Open</span>
-      <span><i class="slot episode attention demo"></i>Needs attention</span>
-    </div>
-  </div>
-  <div class="scroll-x">
-    <div class="map" id="week-map"></div>
-  </div>
-</section>
 
 <footer class="foot" id="foot"></footer>
 </div>

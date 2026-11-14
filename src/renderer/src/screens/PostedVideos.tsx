@@ -1,3 +1,4 @@
+import { PlatformName } from '../ui'
 import { useEffect, useMemo, useState } from 'react'
 import { PLATFORM_LABELS, type Platform } from '@shared/platformLimits'
 import { COPY } from '@shared/copy'
@@ -91,6 +92,8 @@ export function PostedVideos() {
   const [text, setText] = useState('')
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<number | null>(null)
+  const [view, setView] = useState<'cards' | 'table'>('cards')
+  const [sortBy, setSortBy] = useState<'posted' | 'views' | 'likes' | 'comments' | 'shares' | 'title'>('posted')
   useEffect(() => {
     const t = setTimeout(() => setSearch(text.trim().toLowerCase()), 200)
     return () => clearTimeout(t)
@@ -178,6 +181,18 @@ export function PostedVideos() {
     () => [...new Set(all.flatMap((r) => r.chips.map((c) => c.platform)))].sort(),
     [all],
   )
+
+  const cards = useMemo(() => {
+    const out = [...rows]
+    out.sort((a, b) =>
+      sortBy === 'title'
+        ? a.title.toLowerCase().localeCompare(b.title.toLowerCase())
+        : sortBy === 'posted'
+          ? b.at.localeCompare(a.at)
+          : (sum(b.chips, sortBy) ?? -1) - (sum(a.chips, sortBy) ?? -1),
+    )
+    return out
+  }, [rows, sortBy])
 
   return (
     <>
@@ -302,13 +317,75 @@ export function PostedVideos() {
                 <input type="checkbox" checked={outside} onChange={(e) => setOutside(e.target.checked)} />
                 Include videos posted outside ELO
               </label>
-              <span className="muted small">Click a heading to sort.</span>
+              <select className="f" aria-label="Sort by" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+                <option value="posted">Newest first</option>
+                <option value="views">Most views</option>
+                <option value="likes">Most likes</option>
+                <option value="comments">Most comments</option>
+                <option value="shares">Most shares</option>
+                <option value="title">Title A to Z</option>
+              </select>
+              <span className="seg">
+                <button type="button" className={view === 'cards' ? 'on' : ''} onClick={() => setView('cards')}>Cards</button>
+                <button type="button" className={view === 'table' ? 'on' : ''} onClick={() => setView('table')}>Compact table</button>
+              </span>
             </section>
 
             {posts && sorted && sorted.length === 0 ? (
               <div className="glass card muted">
                 No posted videos match.{' '}
                 {outside ? '' : 'Tick Include videos posted outside ELO to add your older ones.'}
+              </div>
+            ) : view === 'cards' ? (
+              <div className="pcards">
+                {cards.map((r) => (
+                  <article key={r.key} className={`glass pcard ${r.postId ? 'click' : ''}`} onClick={() => r.postId && setEditing(r.postId)}>
+                    {r.poster ? <img src={r.poster} alt="" className="pthumb" /> : <div className="pthumb" />}
+                    <div className="pmain">
+                      <div className="pwho">
+                        {r.brandColor && <span className="dot" style={{ background: r.brandColor }} />}
+                        {r.brandName}
+                        {r.kind && <span className="muted"> · {r.kind}</span>}
+                      </div>
+                      <div className="ptitle">
+                        {r.title}
+                        {r.kind === 'Clip' && <span className="tag clip">Clip</span>}
+                        {r.outside && <span className="tag">Outside ELO</span>}
+                        {r.hasComment && <span className="tag ok">comment added</span>}
+                      </div>
+                      <div className="pwhen">Posted {r.at ? formatEastern(r.at) : '-'}</div>
+                      <div className="pplat" onClick={(e) => e.stopPropagation()}>
+                        {r.chips.map((c) => {
+                          const inner = (
+                            <>
+                              <PlatformName platform={c.platform} size={16} />
+                              <span className="pn2">
+                                {fmt(c.views)} views · {fmt(c.likes)} likes · {fmt(c.comments)} comments · {fmt(c.shares)} shares
+                              </span>
+                            </>
+                          )
+                          return c.url ? (
+                            <a key={c.platform} className="ppill" href={c.url} target="_blank" rel="noreferrer" title={`Open on ${PLATFORM_LABELS[c.platform]}`}>
+                              {inner}
+                            </a>
+                          ) : (
+                            <span key={c.platform} className="ppill" title="No link saved for this one">
+                              {inner}
+                            </span>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    <div className="pnums">
+                      {(['views', 'likes', 'comments', 'shares'] as const).map((k) => (
+                        <div key={k}>
+                          <div className="pn">{fmt(sum(r.chips, k))}</div>
+                          <div className="pc2">{k}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                ))}
               </div>
             ) : (
               <section className="glass tbl-card scroll-x">
@@ -367,11 +444,11 @@ export function PostedVideos() {
                                   rel="noreferrer"
                                   title={`Open on ${PLATFORM_LABELS[c.platform]}`}
                                 >
-                                  {PLATFORM_LABELS[c.platform]}
+                                  <PlatformName platform={c.platform} />
                                 </a>
                               ) : (
                                 <span key={c.platform} className="pchip" title="No link saved for this one">
-                                  {PLATFORM_LABELS[c.platform]}
+                                  <PlatformName platform={c.platform} />
                                 </span>
                               ),
                             )}

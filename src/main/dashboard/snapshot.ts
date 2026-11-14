@@ -111,7 +111,7 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
           slots: mine
             .filter((m) => m.date === date)
             .sort((x, y) => Number(x.type === 'clip') - Number(y.type === 'clip'))
-            .map((m) => ({ type: m.type, state: m.state })),
+            .map((m) => ({ type: m.type, state: m.state, postId: m.postId, timeET: m.timeET })),
         })),
       }
     })

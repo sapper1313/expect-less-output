@@ -11,6 +11,7 @@ import { PLATFORM_LABELS } from '@shared/platformLimits'
 import type { CounterInfo, Platform } from '@shared/platformLimits'
 import type { PostStatus, TargetStatus } from '@shared/types'
 import { useApp } from './hooks'
+import { platformLogo } from './dashboard/dashboardView'
 
 const cx = (...a: Array<string | false | null | undefined>) => a.filter(Boolean).join(' ')
 
@@ -19,7 +20,7 @@ type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 }
 export function Button({ variant = 'secondary', className, ...p }: BtnProps) {
   const base =
-    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md px-3.5 py-2 text-[13px] font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed no-drag'
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-[13px] font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed no-drag'
   const styles = {
     fine: 'bg-fine text-[#111] hover:brightness-110 px-6 py-2.5 text-[15px]',
     primary: 'bg-accent text-[#111] hover:brightness-110',
@@ -372,6 +373,25 @@ export const PLATFORM_SHORT: Record<Platform, string> = {
   linkedin: 'LI',
   pinterest: 'PI',
 }
+/** The real logo of a platform. Fixed markup from one place, so every screen shows the same mark. */
+export function PlatformLogo({ platform, size = 18 }: { platform: string; size?: number }) {
+  return (
+    <span
+      className="plogo"
+      title={PLATFORM_LABELS[platform as Platform] ?? platform}
+      dangerouslySetInnerHTML={{ __html: platformLogo(platform, size) }}
+    />
+  )
+}
+/** Logo and name side by side. */
+export function PlatformName({ platform, size = 18 }: { platform: string; size?: number }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <PlatformLogo platform={platform} size={size} />
+      <span>{PLATFORM_LABELS[platform as Platform] ?? platform}</span>
+    </span>
+  )
+}
 export function TargetChip({
   platform,
   status,
@@ -384,9 +404,9 @@ export function TargetChip({
   return (
     <span
       title={title ?? `${PLATFORM_LABELS[platform]}: ${status.replace('_', ' ')}`}
-      className={cx('rounded border px-1.5 py-0.5 text-[10px] font-bold', TARGET_STYLE[status])}
+      className={cx('inline-flex items-center rounded-full border p-0.5', TARGET_STYLE[status])}
     >
-      {PLATFORM_SHORT[platform]}
+      <PlatformLogo platform={platform} size={16} />
     </span>
   )
 }

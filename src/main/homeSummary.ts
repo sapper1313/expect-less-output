@@ -130,13 +130,16 @@ export async function buildHomeSummary(d: HomeDeps): Promise<HomeSummary> {
   const channels: HomeChannel[] = brands.map((b) => {
     const conns = health.filter((h) => h.brandId === b.brandId).map(connState)
     const bs = bsky.find((x) => x.brandId === b.brandId)?.bluesky
-    if (bs && bs.state !== 'not_set')
+    if (bs && bs.state !== 'not_set') {
+      // The accounts list can already carry a Bluesky row. Keep one, the tested login result.
+      for (let i = conns.length - 1; i >= 0; i--) if (conns[i].platform === 'bluesky') conns.splice(i, 1)
       conns.push({
         platform: 'bluesky',
         label: 'Bluesky',
         state: bs.state === 'connected' ? 'ok' : bs.state === 'failed' ? 'bad' : 'warn',
         note: bs.state === 'connected' ? 'Connected' : bs.message || 'Not tested yet',
       })
+    }
     if (!conns.length)
       conns.push({
         platform: 'youtube',

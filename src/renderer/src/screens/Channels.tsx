@@ -48,7 +48,7 @@ export function Channels({ initialTab = 'setup' }: { initialTab?: ChannelsTab })
                 setSelId(b.id)
                 setAdding(false)
               }}
-              className={`flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left ${!adding && sel?.id === b.id ? 'border-accent bg-surface' : 'border-line hover:bg-surface'} ${b.archived ? 'opacity-50' : ''}`}
+              className={`flex w-full items-center gap-3 pill border px-4 py-2 text-left ${!adding && sel?.id === b.id ? 'border-accent bg-surface' : 'border-line hover:bg-surface'} ${b.archived ? 'opacity-50' : ''}`}
             >
               <span
                 className="h-4 w-4 shrink-0 rounded-full border border-black/30"

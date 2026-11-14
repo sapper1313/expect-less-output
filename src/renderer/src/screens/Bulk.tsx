@@ -23,8 +23,7 @@ import {
   Select,
   Textarea,
   useBusy,
-  DateTimeSelect,
-} from '../ui'
+  DateTimeSelect, PlatformName } from '../ui'
 import { isVideo } from './NewPost'
 
 interface Row {
@@ -374,7 +373,7 @@ export function Bulk({ onDone }: { onDone: () => void }) {
                       setRows((r) => r.map((x) => ({ ...x, ai: { ...x.ai, [p]: v } })))
                     }
                   >
-                    AI flag all: {PLATFORM_LABELS[p]}
+                    AI flag all: <PlatformName platform={p} />
                   </Check>
                 ))}
               </div>
@@ -483,7 +482,7 @@ export function Bulk({ onDone }: { onDone: () => void }) {
                                     })
                                   }
                                 >
-                                  {PLATFORM_LABELS[p]}
+                                  <PlatformName platform={p} />
                                 </Check>
                                 <label className="flex items-center gap-1 text-[10px] text-muted">
                                   AI
