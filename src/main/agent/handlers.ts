@@ -20,6 +20,7 @@ import type { Actor } from '@shared/upcoming'
 import {
   AgentError,
   agentRetryPost,
+  agentResubmit,
   requireStudioWrite,
   listFilter,
   toUtc,
@@ -473,6 +474,11 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
   retryPost: ({ s, params }) => {
     const r = agentRetryPost(s, params.id)
     return { post: postOut(r.post), retried_targets: r.retried }
+  },
+
+  resubmitPostPlatform: ({ s, params, body }) => {
+    const r = agentResubmit(s, params.id, body.platform as Platform)
+    return { post: postOut(r.post), resubmitted_target: r.target }
   },
 
   calendar: ({ s, query }) => {

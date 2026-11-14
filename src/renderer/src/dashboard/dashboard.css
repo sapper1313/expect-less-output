@@ -313,3 +313,17 @@ p{margin:6px 0 0}
 .slot-meta .tm{font-size:12px;margin-bottom:3px}
 .pdot{width:8px;height:8px}
 .pdots{gap:4px}
+
+/* Channel status cards: next post, coverage, attention. */
+#runway{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.ch-card{padding:12px 14px;border-radius:14px;background:rgba(var(--g-ov),.06);border:1px solid rgba(var(--g-ov),.12)}
+.ch-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.ch-top .rn{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-line{display:grid;grid-template-columns:78px minmax(0,1fr);gap:8px;font-size:13px;padding:3px 0}
+.ch-k{color:var(--g-label);font-weight:600}
+.ch-v{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ch-v.ok{color:var(--g-t-ok)}
+.ch-v.amber{color:var(--g-t-warn)}
+.ch-v.bad{color:var(--g-t-bad);font-weight:700}
+.ch-line.link{cursor:pointer}
+.ch-line.link:hover .ch-v{text-decoration:underline}

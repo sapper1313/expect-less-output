@@ -454,30 +454,62 @@ function renderVideos(s) {
 
 function renderRunway(s) {
   const host = clear($('runway'));
-  const list = (tiles && tiles.channels) || [];
+  const list = ((tiles && tiles.channels) || []).slice();
   if (!list.length) { host.appendChild(e('div', 'none-msg', 'No channel health yet.')); return; }
+  const et = (iso, opts) => new Date(iso).toLocaleString('en-US', Object.assign({ timeZone: 'America/New_York' }, opts));
+  // Most urgent first: needs the owner, then the soonest hole.
+  const urgency = (c) => {
+    const st = c.status || {};
+    const hole = st.firstHoleUtc ? Date.parse(st.firstHoleUtc) : Infinity;
+    return [st.attention > 0 ? 0 : 1, hole];
+  };
+  list.sort((a, b) => { const x = urgency(a), y = urgency(b); return x[0] - y[0] || x[1] - y[1]; });
   for (const c of list) {
-    const row = e('div', 'runway-row');
-    row.appendChild(e('div', 'rn', c.name));
+    const st = c.status || { next: null, coveredDays: null, firstHoleUtc: null, holeSoon: false, attention: 0, platformResults: [] };
+    const card = e('div', 'ch-card');
+    const top = e('div', 'ch-top');
+    top.appendChild(e('div', 'rn', c.name));
     const logos = e('div', 'plogos tight');
+    const byPlat = new Map((st.platformResults || []).map((r) => [r.platform, r.result]));
     for (const cn of uniqConns(c.connections)) {
       const l = logoEl(cn.platform, 20);
-      l.classList.add('pl-' + cn.state);
-      l.title = cn.label + ': ' + cn.note;
+      const res = byPlat.get(cn.platform);
+      const cls = cn.state === 'bad' ? 'bad' : res === 'failed' ? 'bad' : res === 'pending' ? 'warn' : res === 'ok' ? 'ok' : cn.state;
+      l.classList.add('pl-' + cls);
+      l.title = cn.label + ': ' + (res === 'ok' ? 'last post went out' : res === 'failed' ? 'last post failed or needs you' : res === 'pending' ? 'a retry is pending' : cn.note);
       logos.appendChild(l);
     }
-    row.appendChild(logos);
-    const bad = (c.connections || []).some((x) => x.state === 'bad');
-    const warn = (c.connections || []).some((x) => x.state === 'warn');
-    const nx = ((tiles && tiles.upcoming) || []).find((u) => u.brandId === c.brandId && u.whenUtc);
-    const nxText = nx
-      ? new Date(nx.whenUtc).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })
-      : null;
-    const pill = e('div', 'rpill ' + (c.paused ? 'amber' : bad ? 'bad' : warn || !nx ? 'amber' : 'ok'),
-      c.paused ? 'Paused' : bad ? 'Needs a look' : nx ? 'Next ' + nxText : 'Nothing scheduled');
-    pill.title = bad ? 'A connection needs you to sign in again' : nx ? nx.title : 'No upcoming post is scheduled for this channel';
-    row.appendChild(pill);
-    host.appendChild(row);
+    top.appendChild(logos);
+    card.appendChild(top);
+    const row = (label, text, cls) => {
+      const r = e('div', 'ch-line');
+      r.appendChild(e('span', 'ch-k', label));
+      r.appendChild(e('span', 'ch-v' + (cls ? ' ' + cls : ''), text));
+      return r;
+    };
+    if (c.paused) card.appendChild(row('Status', 'Paused', 'amber'));
+    // 1. Next post.
+    const nx = st.next;
+    const nxRow = row('Next', nx ? '"' + nx.title.replace(/\s*\|.*$/, '') + '", ' + et(nx.whenUtc, { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : 'Nothing scheduled', nx ? '' : 'amber');
+    if (nx) nxRow.title = nx.title;
+    card.appendChild(nxRow);
+    // 2. Coverage and the first hole.
+    if (st.coveredDays !== null && st.coveredDays !== undefined) {
+      const hole = st.firstHoleUtc ? et(st.firstHoleUtc, { weekday: 'short', month: 'short', day: 'numeric' }) : null;
+      const txt = hole
+        ? 'Covered ' + st.coveredDays + (st.coveredDays === 1 ? ' day' : ' days') + ', first hole ' + hole
+        : 'Covered 30+ days, no holes';
+      card.appendChild(row('Coverage', txt, st.holeSoon ? 'bad' : ''));
+    }
+    // 3. Attention.
+    const at = row('Attention', st.attention > 0 ? st.attention + (st.attention === 1 ? ' needs you' : ' need you') : 'All clear', st.attention > 0 ? 'bad' : 'ok');
+    if (st.attention > 0) {
+      at.classList.add('link');
+      at.title = 'Open the Queue to see them';
+      at.addEventListener('click', () => onGo('queue'));
+    }
+    card.appendChild(at);
+    host.appendChild(card);
   }
 }
 

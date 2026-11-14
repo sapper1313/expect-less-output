@@ -23,7 +23,23 @@ export interface HomeLatest {
   shares: number | null
 }
 
+/** What the owner runs a channel on: the next post, how far out it is covered, and what needs them. */
+export interface HomeChannelStatus {
+  next: { postId: number; title: string; whenUtc: string; platform: string } | null
+  /** Whole days from now to the first empty slot. Null when no slot data is available. */
+  coveredDays: number | null
+  firstHoleUtc: string | null
+  /** The first hole is within 48 hours. */
+  holeSoon: boolean
+  /** Failed, partial or retrying platform results from the last 7 days. */
+  attention: number
+  attentionPostId: number | null
+  /** Result of the last post on each platform. */
+  platformResults: Array<{ platform: string; result: 'ok' | 'failed' | 'pending' | 'none' }>
+}
+
 export interface HomeChannel {
+  status?: HomeChannelStatus
   brandId: number
   name: string
   color: string

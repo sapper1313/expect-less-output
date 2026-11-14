@@ -52,6 +52,8 @@ import {
   RebuildBody,
   RemoveSkillOut,
   RetryOut,
+  ResubmitBody,
+  ResubmitOut,
   SetStudioCapsBody,
   SkillParams,
   SkillsOut,
@@ -358,6 +360,19 @@ export const ROUTES: RouteDef[] = [
     response: RetryOut,
     success: 200,
     tool: 'retry_post',
+  },
+  {
+    id: 'resubmitPostPlatform',
+    method: 'POST',
+    path: '/v1/posts/{id}/resubmit',
+    summary: 'Send one platform of a post again (a missed, stuck, handed-off or failed entry).',
+    description:
+      'Re-fires that platform from the post\'s saved video and text right away, then reconciles the entry to its true outcome. Works on old entries too. A platform that already posted is refused so nothing goes out twice.',
+    params: IdParams,
+    body: ResubmitBody,
+    response: ResubmitOut,
+    success: 200,
+    tool: 'resubmit_post_platform',
   },
   {
     id: 'postStats',

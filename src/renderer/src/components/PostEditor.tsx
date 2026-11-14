@@ -459,7 +459,22 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
                 })
                 return (
                   <div key={t.id} className="text-[12px]">
-                    <div className="font-semibold"><PlatformName platform={t.platform} /></div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-semibold"><PlatformName platform={t.platform} /></div>
+                      {!locked && ['pending', 'handed_off', 'processing', 'failed', 'needs_action'].includes(t.status) && draft.status !== 'draft' && (
+                        <Button
+                          disabled={busy}
+                          title="Sends this platform again right now, using the saved video and text"
+                          onClick={async () => {
+                            if (!window.confirm(`Send ${PLATFORM_LABELS[t.platform]} again right now?`)) return
+                            await run(() => api.posts.resubmitTarget(t.id))
+                            toast({ kind: 'info', headline: `Resubmitting ${PLATFORM_LABELS[t.platform]}.`, detail: 'It goes out in the next minute.' })
+                          }}
+                        >
+                          Resubmit
+                        </Button>
+                      )}
+                    </div>
                     {pv.title !== undefined && (
                       <div className="text-ink">Title: {pv.title || '(empty)'}</div>
                     )}

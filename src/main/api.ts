@@ -363,6 +363,7 @@ export function buildApi(d: ApiDeps): Api {
         return r
       },
       retryTarget: async (id) => d.scheduler.retryTarget(id),
+      resubmitTarget: async (id) => void d.scheduler.resubmitTarget(id),
       markPosted: async (id, url) => d.scheduler.markPosted(id, url),
       duplicate: async (id) => d.posts.duplicate(id),
       dismissChecklist: async (id) => d.posts.dismissChecklist(id),
@@ -569,6 +570,8 @@ export function buildApi(d: ApiDeps): Api {
           spend: () => d.studio.spendSummary(),
           mockMode: () => d.studio.cfg.get().mockMode,
           postStats: (id) => d.stats.postStats(id),
+          openSlots: (brandId, fromUtc, toUtc) =>
+            d.posts.openSlotsInRange(brandId, fromUtc, toUtc).filter((s) => s.kind === 'episode').map((s) => s.whenUtc),
         }),
     },
     platforms: {

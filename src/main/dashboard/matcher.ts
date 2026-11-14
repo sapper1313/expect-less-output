@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon'
 import type { Post, Slot, SlotState } from './types'
+import { pairNearest } from '@shared/slots'
 
 export interface MatchedSlot extends Slot {
   state: SlotState
@@ -69,6 +70,22 @@ export function matchSlots(slots: Slot[], posts: Post[], opts: MatchOptions = {}
     if (dayLevel(s)) continue
     const hit = byMinute.get(`${s.brandId}|${s.type}|${s.instant}`)
     if (hit) result.set(s, hit)
+  }
+
+  // A post a little off its slot (its earliest platform time, such as Bluesky 6:00 PM on a 6:30 PM slot) still fills it.
+  {
+    const usedPosts = new Set([...result.values()].map((v) => v.postId))
+    const groups = new Map<string, { slots: Slot[]; posts: Usable[] }>()
+    const g = (k: string) => groups.get(k) ?? (groups.set(k, { slots: [], posts: [] }), groups.get(k)!)
+    for (const s of slots) if (!dayLevel(s) && !result.has(s)) g(`${s.brandId}|${s.type}`).slots.push(s)
+    for (const u of usable) if (!usedPosts.has(u.post.id)) g(`${u.post.brandId}|${u.post.type}`).posts.push(u)
+    for (const { slots: gs, posts: gp } of groups.values()) {
+      if (!gs.length || !gp.length) continue
+      const pairs = pairNearest(gs.map((s) => s.instant), gp.map((u) => u.minute))
+      pairs.forEach((pi, si) => {
+        if (pi !== -1) result.set(gs[si], { state: gp[pi].state, postId: gp[pi].post.id })
+      })
+    }
   }
 
   // Per Eastern date matching (capped episodes and clips).

@@ -772,6 +772,54 @@ export class Scheduler {
     void this.tick()
   }
 
+  /**
+   * Fires one platform entry of a post again, from the post's own media and text, whatever state it is stuck in
+   * (still Scheduled past its time, handed off and never published, processing, failed, needs action).
+   * Works on entries made by the old push system too. A posted entry is refused so nothing is ever sent twice.
+   * It goes out right away and the entry then settles to its true outcome through the normal path.
+   */
+  resubmitTarget(targetId: number): { postId: number; platform: string } {
+    const t = this.d.db
+      .prepare('SELECT post_id, platform, status FROM post_targets WHERE id = ?')
+      .get(targetId) as { post_id: number; platform: string; status: TargetStatus } | undefined
+    if (!t) throw new Error('That platform entry no longer exists.')
+    if (t.status === 'posted') throw new Error('That platform already posted this video, so it is not sent again.')
+    if (t.status === 'skipped') throw new Error('That platform is skipped for this post.')
+    if (t.status === 'uploading' && this.inFlight.has(targetId))
+      throw new Error('That platform is sending right now. Give it a minute.')
+    const post = this.d.posts.get(t.post_id)
+    if (!post) throw new Error('That post no longer exists.')
+    if (post.status === 'draft') throw new Error('Schedule the post first, then resubmit.')
+    // A half-finished old upload is forgotten, so the platform gets a clean copy from the saved video.
+    const state = this.targetState(targetId)
+    for (const k of ['uploadSession', 'progress', 'videoId', 'privacyStatus', 'deferrals', 'upRequestId', 'igMediaId'])
+      delete state[k]
+    const nowIso = new Date(this.now()).toISOString()
+    this.d.db
+      .prepare(
+        `UPDATE post_targets SET status = 'pending', attempts = 0, last_error = NULL, lock_token = NULL, locked_at_utc = NULL,
+         external_id = NULL, external_url = NULL, handed_off_at_utc = NULL, settings_json = ?,
+         target_at_utc = ?, stagger_offset_min = 0, next_attempt_at_utc = ? WHERE id = ?`,
+      )
+      .run(JSON.stringify(state), nowIso, nowIso, targetId)
+    if (['missed', 'failed', 'partial', 'canceled'].includes(post.status))
+      this.d.posts.setPostStatus(t.post_id, 'scheduled')
+    this.d.posts.recomputeStatus(t.post_id)
+    this.d.log.log('info', `Resubmit requested for ${PLATFORM_LABELS[t.platform as keyof typeof PLATFORM_LABELS] ?? t.platform}.`, {
+      postId: t.post_id,
+      platform: t.platform as never,
+    })
+    this.d.audit?.({
+      actor: 'system',
+      action: 'post.resubmit',
+      target: `${post.brandName}/${post.episodeRef ?? post.id}`,
+      after: { platform: t.platform, was: t.status },
+    })
+    this.d.emit?.()
+    void this.tick()
+    return { postId: t.post_id, platform: t.platform }
+  }
+
   postNow(postId: number): void {
     this.d.posts.update(postId, {
       scheduledAtUtc: new Date(this.now()).toISOString(),

@@ -3,7 +3,7 @@ import type { Db } from '../db'
 import type { Library } from './library'
 import type { ActivityLog } from './activity'
 import type { MediaService } from './media'
-import { getNextOpenSlots, getSlotTimes, type SlotDef, type SlotKind } from '@shared/slots'
+import { getNextOpenSlots, getSlotTimes, pairNearest, type SlotDef, type SlotKind } from '@shared/slots'
 import { kindToUse, platformSlotRows, platformSlotsFor, slotKinds, slotsForKind } from './channelSettings'
 import { derivePostStatus } from '@shared/scheduling'
 import { readSetting } from './settings'
@@ -551,8 +551,11 @@ export class PostService {
       const takenMinutes = new Set(taken.map((t) => t.slice(0, 16)))
       const perDay = new Map<string, number>()
       for (const t of taken) perDay.set(dayOf(t), (perDay.get(dayOf(t)) ?? 0) + 1)
+      // A post close to a slot fills it, even when it sits a few minutes off (its earliest platform time).
+      const near = pairNearest(all, taken)
+      const filledNear = new Set(all.filter((_, i) => near[i] !== -1))
       for (const s of all) {
-        if (s < from || takenMinutes.has(s.slice(0, 16))) continue
+        if (s < from || takenMinutes.has(s.slice(0, 16)) || filledNear.has(s)) continue
         const d = dayOf(s)
         const n = perDay.get(d) ?? 0
         if (cap > 0 && n >= cap) continue

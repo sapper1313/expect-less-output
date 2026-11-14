@@ -4982,6 +4982,342 @@
         }
       }
     },
+    "/v1/posts/{id}/resubmit": {
+      "post": {
+        "operationId": "resubmitPostPlatform",
+        "summary": "Send one platform of a post again (a missed, stuck, handed-off or failed entry).",
+        "description": "Re-fires that platform from the post's saved video and text right away, then reconciles the entry to its true outcome. Works on old entries too. A platform that already posted is refused so nothing goes out twice.",
+        "x-mcp-tool": "resubmit_post_platform",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "platform": {
+                    "type": "string",
+                    "enum": [
+                      "youtube",
+                      "facebook",
+                      "instagram",
+                      "tiktok",
+                      "bluesky",
+                      "x",
+                      "linkedin",
+                      "pinterest"
+                    ],
+                    "description": "The platform entry to send again."
+                  }
+                },
+                "required": [
+                  "platform"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "post": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "brand_id": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "brand_name": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "caption": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "scheduled",
+                            "in_progress",
+                            "partial",
+                            "posted",
+                            "failed",
+                            "missed",
+                            "canceled"
+                          ]
+                        },
+                        "scheduled_at": {
+                          "nullable": true,
+                          "description": "UTC.",
+                          "type": "string"
+                        },
+                        "scheduled_at_eastern": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "file_name": {
+                          "type": "string"
+                        },
+                        "duration_seconds": {
+                          "nullable": true,
+                          "type": "number"
+                        },
+                        "post_type": {
+                          "type": "string",
+                          "enum": [
+                            "episode",
+                            "clip"
+                          ],
+                          "description": "clip is a short vertical clip with its own schedule."
+                        },
+                        "source_episode_id": {
+                          "nullable": true,
+                          "description": "For a clip: the episode it was cut from.",
+                          "type": "string"
+                        },
+                        "related_video": {
+                          "nullable": true,
+                          "description": "For a clip with a YouTube Short: the Related video to set by hand in YouTube Studio (the YouTube API cannot). url is the episode link, or null until it is live.",
+                          "type": "object",
+                          "properties": {
+                            "episode_id": {
+                              "type": "string"
+                            },
+                            "url": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "done": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "episode_id",
+                            "url",
+                            "done"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "origin": {
+                          "type": "string",
+                          "enum": [
+                            "manual",
+                            "inbox",
+                            "api"
+                          ]
+                        },
+                        "episode_id": {
+                          "nullable": true,
+                          "description": "The id a bot gave this episode (pipeline posts).",
+                          "type": "string"
+                        },
+                        "source_bot": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "hold_reason": {
+                          "nullable": true,
+                          "description": "Why the post is held back, or null.",
+                          "type": "string"
+                        },
+                        "targets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "platform": {
+                                "type": "string",
+                                "enum": [
+                                  "youtube",
+                                  "facebook",
+                                  "instagram",
+                                  "tiktok",
+                                  "bluesky",
+                                  "x",
+                                  "linkedin",
+                                  "pinterest"
+                                ]
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "caption_override": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "ai_flag": {
+                                "type": "boolean"
+                              },
+                              "attempts": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "last_error": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "external_url": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "progress": {
+                                "nullable": true,
+                                "type": "number"
+                              },
+                              "scheduled_at": {
+                                "nullable": true,
+                                "description": "When this platform posts (UTC). Each platform has its own time.",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "platform",
+                              "status",
+                              "caption_override",
+                              "ai_flag",
+                              "attempts",
+                              "last_error",
+                              "external_url",
+                              "progress",
+                              "scheduled_at"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "warnings": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "updated_at": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "brand_id",
+                        "brand_name",
+                        "title",
+                        "caption",
+                        "status",
+                        "scheduled_at",
+                        "scheduled_at_eastern",
+                        "file_name",
+                        "duration_seconds",
+                        "post_type",
+                        "source_episode_id",
+                        "related_video",
+                        "origin",
+                        "episode_id",
+                        "source_bot",
+                        "hold_reason",
+                        "targets",
+                        "created_at",
+                        "updated_at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "resubmitted_target": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "post",
+                    "resubmitted_target"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such post.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/posts/{id}/stats": {
       "get": {
         "operationId": "postStats",

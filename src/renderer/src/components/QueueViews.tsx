@@ -14,6 +14,15 @@ const timeET = (iso: string | null) =>
   iso
     ? new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: TZ }) + ' ET'
     : 'No time'
+/** When this post next needs to go out: its earliest platform still waiting, else its own time. */
+export function nextDue(p: Post): string | null {
+  const open = p.targets
+    .filter((t) => t.status !== 'posted' && t.status !== 'skipped' && (t.scheduledAtUtc ?? p.scheduledAtUtc))
+    .map((t) => (t.scheduledAtUtc ?? p.scheduledAtUtc) as string)
+  return open.length ? open.reduce((a, b) => (a < b ? a : b)) : p.scheduledAtUtc
+}
+const dayTag = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, weekday: 'short', month: 'short', day: 'numeric' })
 const todayKey = () => new Date().toLocaleDateString('en-CA', { timeZone: TZ })
 const addDays = (key: string, n: number) => {
   const d = new Date(key + 'T12:00:00Z')
@@ -102,7 +111,13 @@ function PostCard({ p, selected, onToggle, onOpen, onPreview }: Omit<Props, 'pos
                 className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] font-semibold ${STATUS_STYLE[t.status]}`}
               >
                 <PlatformLogo platform={t.platform} size={16} />
-                {timeET(t.scheduledAtUtc ?? p.scheduledAtUtc)} · {STATUS_TEXT[t.status]}
+                {(() => {
+                  const at = t.scheduledAtUtc ?? p.scheduledAtUtc
+                  const home = nextDue(p)
+                  const other = at && home && dayKey(at) !== dayKey(home)
+                  return `${other ? `${dayTag(at)} ` : ''}${timeET(at)}`
+                })()}{' '}
+                · {STATUS_TEXT[t.status]}
               </span>
             ))}
           </div>
@@ -119,7 +134,8 @@ export function VisualTimeline(props: Props) {
   const days = useMemo(() => {
     const by = new Map<string, Post[]>()
     for (const p of posts) {
-      const k = p.scheduledAtUtc ? dayKey(p.scheduledAtUtc) : 'none'
+      const due = nextDue(p)
+      const k = due ? dayKey(due) : 'none'
       by.set(k, [...(by.get(k) ?? []), p])
     }
     const open = new Map<string, Map<string, string[]>>()
@@ -132,7 +148,7 @@ export function VisualTimeline(props: Props) {
     const keys = [...new Set([...by.keys(), ...open.keys()])].sort((a, b) => (a === 'none' ? 1 : b === 'none' ? -1 : a.localeCompare(b)))
     return keys.map((k) => ({
       key: k,
-      posts: (by.get(k) ?? []).sort((a, b) => String(a.scheduledAtUtc).localeCompare(String(b.scheduledAtUtc))),
+      posts: (by.get(k) ?? []).sort((a, b) => String(nextDue(a)).localeCompare(String(nextDue(b)))),
       open: open.get(k),
     }))
   }, [posts, snap])
@@ -193,8 +209,8 @@ export function WeekCalendar(props: Props) {
       <div className="grid grid-cols-7 gap-2">
         {keys.map((k) => {
           const list = posts
-            .filter((p) => p.scheduledAtUtc && dayKey(p.scheduledAtUtc) === k)
-            .sort((a, b) => String(a.scheduledAtUtc).localeCompare(String(b.scheduledAtUtc)))
+            .filter((p) => nextDue(p) && dayKey(nextDue(p)!) === k)
+            .sort((a, b) => String(nextDue(a)).localeCompare(String(nextDue(b))))
           return (
             <div key={k} className={`min-h-[180px] rounded-lg border p-2 ${k === today ? 'border-accent' : 'border-line'} bg-surface`}>
               <div className="mb-2 text-[11px] font-bold tracking-wide text-muted">{dayLabel(k)}</div>
@@ -204,7 +220,7 @@ export function WeekCalendar(props: Props) {
                     <div className="flex gap-2">
                       <Thumb post={p} w="w-[30px]" h="h-[44px]" />
                       <div className="min-w-0">
-                        <div className="text-[11px] font-bold">{timeET(p.scheduledAtUtc)}</div>
+                        <div className="text-[11px] font-bold">{timeET(nextDue(p))}</div>
                         <div className="truncate text-[11px]" title={p.title}>{p.title || p.fileName}</div>
                         <div className="mt-1 flex gap-1">
                           {p.targets.slice(0, 5).map((t) => (

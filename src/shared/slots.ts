@@ -160,3 +160,35 @@ export function getSlotTimes(input: SlotTimesInput): string[] {
   }
   return out
 }
+
+/**
+ * A channel slot counts as filled when a post sits within this many minutes of it. Since each platform has its own times,
+ * a post's own time is its earliest platform time, which can be a little off the channel's slot (Bluesky 6:00 PM against
+ * a 6:30 PM slot). Matching only the exact minute left those slots looking empty.
+ */
+export const SLOT_MATCH_TOLERANCE_MIN = 90
+
+/**
+ * Pairs slots with the nearest unused post time inside the tolerance, one post per slot.
+ * Returns, for each slot index, the index of the time that fills it (or -1).
+ */
+export function pairNearest(slotIsos: string[], timeIsos: string[], toleranceMin = SLOT_MATCH_TOLERANCE_MIN): number[] {
+  const tol = toleranceMin * 60_000
+  const s = slotIsos.map((x) => new Date(x).getTime())
+  const t = timeIsos.map((x) => new Date(x).getTime())
+  const pairs: Array<{ si: number; ti: number; d: number }> = []
+  for (let si = 0; si < s.length; si++)
+    for (let ti = 0; ti < t.length; ti++) {
+      const d = Math.abs(s[si] - t[ti])
+      if (d <= tol) pairs.push({ si, ti, d })
+    }
+  pairs.sort((a, b) => a.d - b.d || a.si - b.si)
+  const out = slotIsos.map(() => -1)
+  const used = new Set<number>()
+  for (const p of pairs) {
+    if (out[p.si] !== -1 || used.has(p.ti)) continue
+    out[p.si] = p.ti
+    used.add(p.ti)
+  }
+  return out
+}

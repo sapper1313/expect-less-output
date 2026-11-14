@@ -5,6 +5,7 @@ import type { BrandStudioRow } from '@shared/studio/api'
 import {
   EPISODE_STAGE,
   type HomeChannel,
+  type HomeChannelStatus,
   type HomeConnection,
   type HomePost,
   type HomeStage,
@@ -25,6 +26,8 @@ export interface HomeDeps {
   spend: () => Promise<SpendSummary>
   mockMode: () => boolean
   postStats: (id: number) => PostStats
+  /** Empty episode slot times for a channel in a window, oldest first. */
+  openSlots?: (brandId: number, fromUtc: string, toUtc: string) => string[]
   /** The app settings, to see whether alerts are set up. */
   settings?: () => {
     alertIMessageEnabled: boolean
@@ -53,6 +56,71 @@ const toPost = (p: Post): HomePost => ({
   platforms: p.targets.map((t) => t.platform),
   status: p.status,
 })
+
+function channelStatus(
+  brandId: number,
+  upcoming: Post[],
+  recent: Post[],
+  now: number,
+  openSlots?: HomeDeps['openSlots'],
+): HomeChannelStatus {
+  const nowIso = new Date(now).toISOString()
+  // Next post: the earliest platform entry still to go out, not the post's old first time.
+  let next: HomeChannelStatus['next'] = null
+  for (const p of upcoming) {
+    if (p.brandId !== brandId || !['scheduled', 'in_progress', 'partial'].includes(p.status)) continue
+    for (const t of p.targets) {
+      if (t.status === 'posted' || t.status === 'skipped') continue
+      const at = t.scheduledAtUtc ?? p.scheduledAtUtc
+      if (!at || at < nowIso) continue
+      if (!next || at < next.whenUtc)
+        next = { postId: p.id, title: p.title || p.fileName, whenUtc: at, platform: t.platform }
+    }
+  }
+  // Coverage and the first hole come from the channel's empty slots.
+  let firstHoleUtc: string | null = null
+  let coveredDays: number | null = null
+  if (openSlots) {
+    const to = new Date(now + 30 * DAY).toISOString()
+    firstHoleUtc = openSlots(brandId, nowIso, to)[0] ?? null
+    coveredDays = firstHoleUtc ? Math.max(0, Math.floor((Date.parse(firstHoleUtc) - now) / DAY)) : 30
+  }
+  const holeSoon = !!firstHoleUtc && Date.parse(firstHoleUtc) - now <= 2 * DAY
+  // Attention: failed or partial results and pending retries from the last 7 days.
+  const since = now - 7 * DAY
+  let attention = 0
+  let attentionPostId: number | null = null
+  for (const p of [...upcoming, ...recent]) {
+    if (p.brandId !== brandId || p.status === 'canceled') continue
+    const when = Date.parse(p.scheduledAtUtc ?? '')
+    if (Number.isFinite(when) && when < since) continue
+    for (const t of p.targets) {
+      const bad =
+        t.status === 'failed' || t.status === 'needs_action' || (t.status === 'pending' && t.attempts > 0 && !!t.lastError)
+      if (!bad) continue
+      attention++
+      if (attentionPostId === null) attentionPostId = p.id
+    }
+  }
+  // The last post on each platform, and how it went.
+  const platformResults: HomeChannelStatus['platformResults'] = []
+  const mine = [...recent, ...upcoming]
+    .filter((p) => p.brandId === brandId && p.status !== 'canceled')
+    .sort((a, b) => String(b.scheduledAtUtc).localeCompare(String(a.scheduledAtUtc)))
+  const seen = new Set<string>()
+  for (const p of mine)
+    for (const t of p.targets) {
+      if (seen.has(t.platform) || t.status === 'skipped') continue
+      const settled = t.status === 'posted' || t.status === 'failed' || t.status === 'needs_action' || (t.status === 'pending' && t.attempts > 0)
+      if (!settled) continue
+      seen.add(t.platform)
+      platformResults.push({
+        platform: t.platform,
+        result: t.status === 'posted' ? 'ok' : t.status === 'pending' ? 'pending' : 'failed',
+      })
+    }
+  return { next, coveredDays, firstHoleUtc, holeSoon, attention, attentionPostId, platformResults }
+}
 
 /** One picture of the whole studio for the Home screen and the left menu badges. */
 export async function buildHomeSummary(d: HomeDeps): Promise<HomeSummary> {
@@ -207,7 +275,9 @@ export async function buildHomeSummary(d: HomeDeps): Promise<HomeSummary> {
     const sched = upcomingAll.filter(
       (p) => p.brandId === b.brandId && p.status !== 'missed' && p.status !== 'draft',
     ).length
+    const status = channelStatus(b.brandId, upcomingAll, recentAll, now, d.openSlots)
     return {
+      status,
       brandId: b.brandId,
       name: b.name,
       color: b.color,

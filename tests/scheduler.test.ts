@@ -154,6 +154,18 @@ describe('scheduler with dry run adapters', () => {
     expect(env.posts.get(post.id)!.status).toBe('posted')
   })
 
+  it('resubmit sends a stuck platform entry again right away and refuses a posted one', async () => {
+    const env = makeEnv()
+    const post = await env.makePost({ whenMs: env.clock.ms + 60 * MIN, platforms: ['tiktok'] })
+    const t = env.posts.get(post.id)!.targets[0]
+    env.db.prepare("UPDATE post_targets SET status = 'handed_off', external_id = 'old' WHERE id = ?").run(t.id)
+    env.scheduler.resubmitTarget(t.id)
+    await env.scheduler.idle()
+    const after = env.posts.get(post.id)!.targets[0]
+    expect(after.status).toBe('posted')
+    expect(() => env.scheduler.resubmitTarget(t.id)).toThrow(/already posted/)
+  })
+
   it('posts late when within the grace window, holds as missed beyond it', async () => {
     const env = makeEnv()
     const late = await env.makePost({

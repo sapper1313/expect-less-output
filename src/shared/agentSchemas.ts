@@ -429,6 +429,11 @@ export const HealthOut = z.object({
   }),
 })
 
+export const ResubmitBody = z.object({
+  platform: PlatformEnum.meta({ description: 'The platform entry to send again.' }),
+})
+export const ResubmitOut = z.object({ post: PostOut, resubmitted_target: z.number().int() })
+
 export const RetryOut = z.object({ post: PostOut, retried_targets: z.array(z.number().int()) })
 
 export type CreatePostInput = z.infer<typeof CreatePostBody>

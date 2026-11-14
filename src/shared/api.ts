@@ -187,6 +187,8 @@ export interface Api {
     /** Sends already posted videos to one more platform, a few minutes apart. */
     addPlatform(postIds: number[], platform: Platform, schedule?: SendSchedule): Promise<{ added: number; problems: Array<{ postId: number; title: string; reason: string }>; times: string[] }>
     retryTarget(targetId: number): Promise<void>
+    /** Fires one platform entry again from the post's saved video and text, even a stuck or legacy one. */
+    resubmitTarget(targetId: number): Promise<void>
     markPosted(targetId: number, url?: string): Promise<void>
     duplicate(id: number): Promise<Post>
     dismissChecklist(targetId: number): Promise<void>

@@ -26,6 +26,19 @@ function post(over: Partial<Post> = {}): Post {
   };
 }
 
+describe('matchSlots near a slot', () => {
+  it('a post 30 minutes off the slot still fills it (its earliest platform time)', () => {
+    const [m] = matchSlots([slot()], [post({ scheduledAtUtc: '2026-10-31T13:30:00Z' })]);
+    expect(m.state).toBe('filled');
+  });
+  it('one post fills only one slot, and a post far from any slot fills none', () => {
+    const slots = [slot(), slot({ instant: '2026-10-31T14:30:00.000Z' })];
+    const r = matchSlots(slots, [post({ scheduledAtUtc: '2026-10-31T14:10:00Z' })]);
+    expect(r.filter((x) => x.state === 'filled')).toHaveLength(1);
+    expect(matchSlots([slot()], [post({ scheduledAtUtc: '2026-10-31T20:00:00Z' })])[0].state).toBe('open');
+  });
+});
+
 describe('matchSlots', () => {
   it('fills a slot when the post is the same minute in a different format', () => {
     const [m] = matchSlots([slot()], [post()]);

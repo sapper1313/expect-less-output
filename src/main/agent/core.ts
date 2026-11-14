@@ -461,6 +461,24 @@ export function agentRetryPost(s: AgentServices, id: number): { post: Post; retr
   return { post: s.posts.get(id) as Post, retried: failed.map((t) => t.id) }
 }
 
+export function agentResubmit(
+  s: AgentServices,
+  id: number,
+  platform: Platform,
+): { post: Post; target: number } {
+  const post = s.posts.get(id)
+  if (!post) throw new AgentError(404, 'not_found', `No post with id ${id}.`)
+  const t = post.targets.find((x) => x.platform === platform)
+  if (!t) throw new AgentError(404, 'not_found', `This post has no ${platform} entry.`)
+  try {
+    s.scheduler.resubmitTarget(t.id)
+  } catch (e) {
+    throw new AgentError(409, 'conflict', (e as Error).message)
+  }
+  s.log.log('info', `Agent (api): resubmitted ${platform} of "${post.title}".`, { postId: id })
+  return { post: s.posts.get(id) as Post, target: t.id }
+}
+
 export function listFilter(q: {
   brand_id?: number
   status?: string
