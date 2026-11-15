@@ -77,6 +77,16 @@ export function UploadPostCard() {
         {test && (
           <p className={`mt-2 text-[12px] ${test.ok ? 'text-ok' : 'text-bad'}`}>{test.message}</p>
         )}
+        {test && test.profiles.length > 0 && (
+          <ul className="mt-2 space-y-1 text-[12px] text-muted" aria-label="Profiles on this key">
+            {test.profiles.map((p) => (
+              <li key={p.username}>
+                Username to type: <code className="select-all rounded bg-surface2 px-1.5 py-0.5 text-ink">{p.username}</code>
+                {' '}({p.connected.length ? `logged in: ${p.connected.join(', ')}` : 'no logins yet'})
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="mt-4">
