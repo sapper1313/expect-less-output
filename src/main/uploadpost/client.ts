@@ -52,6 +52,16 @@ export interface UploadInstagramInput {
   coverTimestampMs?: number
 }
 
+/**
+ * True when Upload-Post clearly refused or could not do a write (a 4xx answer). A time out, no answer at all, or a 5xx
+ * is unsure: the comment or message may have gone through, so ELO's own login must not send it again.
+ * A 429 (slow down) is not a failure either, it is a wait.
+ */
+export function isDefinitiveFailure(err: unknown): boolean {
+  if (!(err instanceof UploadPostError)) return false
+  return err.status >= 400 && err.status < 500 && err.status !== 408 && err.status !== 429
+}
+
 type Fetch = typeof fetch
 
 /** Plain fetch calls to Upload-Post. The key is passed in for each call and never stored here. */

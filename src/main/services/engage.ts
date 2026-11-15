@@ -2,7 +2,8 @@ import type { Db } from '../db'
 import type { ActivityLog } from './activity'
 import type { UploadPostService } from './uploadPost'
 import { uploadPostOn } from './uploadPost'
-import { UploadPostError, type UploadPostClient } from '../uploadpost/client'
+import { UploadPostError, isDefinitiveFailure, type UploadPostClient } from '../uploadpost/client'
+import type { OwnEngage } from './ownEngage'
 import { PLATFORM_LABELS } from '@shared/platformLimits'
 import type { Platform } from '@shared/types'
 import type {
@@ -32,6 +33,10 @@ export interface EngageDeps {
   /** Asks the local AI for reply ideas. Throws a plain message when it is not set up. */
   suggest?: (ctx: { kind: 'comment' | 'dm'; brand: string; video: string; text: string }) => Promise<string[]>
   sleep?: (ms: number) => Promise<void>
+  /** ELO's own login for comments and messages. Used only when Upload-Post fails. */
+  own?: Pick<OwnEngage, 'listComments' | 'reply' | 'dmConversations' | 'sendDm'>
+  /** Tells the owner (message). */
+  alert?: (headline: string, detail: string) => void
 }
 
 /** How to point Upload-Post at one posted video. Null when ELO does not have what it needs. */
@@ -67,10 +72,21 @@ export function explainProblem(err: unknown, label: string): string {
 export class EngageService {
   private running = false
   private dmCache = new Map<number, { at: number; channel: DmChannel }>()
+  private switchedAt = new Map<string, number>()
   constructor(private d: EngageDeps) {}
 
   private now(): number {
     return (this.d.now ?? Date.now)()
+  }
+
+  /** Records that ELO's own login took over from Upload-Post: in the log always, to the owner at most every 6 hours per channel and task. */
+  private switched(task: string, brandId: number, label: string, why: string): void {
+    const brand = (this.d.db.prepare('SELECT name FROM brands WHERE id = ?').get(brandId) as { name: string } | undefined)?.name ?? `Channel ${brandId}`
+    this.d.log.log('warn', `Upload-Post failed for ${label} ${task} on ${brand} (${why.replace(/\.$/, '')}). ELO's own login took over.`)
+    const key = `${brandId}:${label}:${task}`
+    if (this.now() - (this.switchedAt.get(key) ?? 0) < 6 * 3_600_000) return
+    this.switchedAt.set(key, this.now())
+    this.d.alert?.('Upload-Post failed, ELO took over.', `${brand}, ${label} ${task}: ${why.replace(/\.$/, '')}. ELO's own login is doing it instead.`)
   }
 
   // ---------------------------------------------------------------- comments
@@ -86,7 +102,7 @@ export class EngageService {
       const now = this.now()
       const rows = this.d.db
         .prepare(
-          `SELECT t.id AS target_id, t.post_id, t.platform, t.external_id, t.external_url, t.posted_at_utc,
+          `SELECT t.id AS target_id, t.post_id, t.platform, t.external_id, t.external_url, t.account_id, t.posted_at_utc,
                   p.brand_id, p.title, p.first_comment, t.settings_json, s.last_at_utc
            FROM post_targets t JOIN posts p ON p.id = t.post_id
            LEFT JOIN inbox_sync s ON s.target_id = t.id
@@ -99,6 +115,7 @@ export class EngageService {
         platform: string
         external_id: string | null
         external_url: string | null
+        account_id: number | null
         posted_at_utc: string
         brand_id: number
         title: string
@@ -128,11 +145,26 @@ export class EngageService {
         }
         result.checked++
         try {
-          const list = await this.d.client.listComments(key, {
-            platform: r.platform,
-            user: this.d.uploadPost.profileFor(r.brand_id),
-            ...ref,
-          })
+          let list: Array<{ id: string; text: string; at: string | null; userId: string; username: string }>
+          try {
+            list = await this.d.client.listComments(key, {
+              platform: r.platform,
+              user: this.d.uploadPost.profileFor(r.brand_id),
+              ...ref,
+            })
+          } catch (upErr) {
+            // Reading cannot post anything twice, so any Upload-Post failure goes to ELO's own login.
+            const own = r.external_id && this.d.own
+              ? await this.d.own
+                  .listComments({ platform: r.platform, brandId: r.brand_id, accountId: r.account_id, externalId: r.external_id })
+                  .catch((e: Error) => {
+                    throw new Error(`${explainProblem(upErr, label)} ELO's own login also failed: ${e.message}`, { cause: upErr })
+                  })
+              : null
+            if (!own) throw upErr
+            this.switched('comments', r.brand_id, label, explainProblem(upErr, label))
+            list = own
+          }
           let own = ''
           try {
             own = String((JSON.parse(r.settings_json ?? '{}') as { firstComment?: string }).firstComment ?? '')
@@ -225,7 +257,7 @@ export class EngageService {
   private row(id: number) {
     const r = this.d.db
       .prepare(
-        `SELECT c.*, b.name AS brand_name, COALESCE(p.title, '') AS post_title, t.external_id, t.external_url
+        `SELECT c.*, b.name AS brand_name, COALESCE(p.title, '') AS post_title, t.external_id, t.external_url, t.account_id
          FROM inbox_comments c JOIN brands b ON b.id = c.brand_id
          LEFT JOIN posts p ON p.id = c.post_id LEFT JOIN post_targets t ON t.id = c.target_id WHERE c.id = ?`,
       )
@@ -251,7 +283,17 @@ export class EngageService {
         postId: r.platform === 'tiktok' ? commentRef('tiktok', r.external_id, r.external_url)?.postId : undefined,
       })
     } catch (err) {
-      throw new Error(explainProblem(err, label), { cause: err })
+      // Only a clear refusal (a 4xx) goes to ELO's own login. A time out or no answer may have sent it already.
+      let done = false
+      if (isDefinitiveFailure(err) && this.d.own) {
+        try {
+          done = await this.d.own.reply({ platform: r.platform, brandId: r.brand_id, accountId: r.account_id, commentId: r.comment_id, text: msg })
+        } catch (e) {
+          throw new Error(`${explainProblem(err, label)} ELO's own login also failed: ${(e as Error).message}`, { cause: err })
+        }
+        if (done) this.switched('reply', r.brand_id, label, explainProblem(err, label))
+      }
+      if (!done) throw new Error(explainProblem(err, label), { cause: err })
     }
     this.d.db
       .prepare("UPDATE inbox_comments SET status = 'replied', reply_text = ?, replied_at_utc = ? WHERE id = ?")
@@ -277,7 +319,8 @@ export class EngageService {
       if (!uploadPostOn(this.d.db, b.id, 'instagram')) continue
       const user = this.d.uploadPost.profileFor(b.id)
       if (!key || !user) {
-        out.push({ brandId: b.id, brandName: b.name, conversations: [], problem: 'The Upload-Post key or profile name is missing.' })
+        const viaOwn = await this.ownDms(b.id, b.name, 'The Upload-Post key or profile name is missing.')
+        out.push(viaOwn ?? { brandId: b.id, brandName: b.name, conversations: [], problem: 'The Upload-Post key or profile name is missing.' })
         continue
       }
       const cached = this.dmCache.get(b.id)
@@ -290,12 +333,31 @@ export class EngageService {
         const raw = await this.d.client.dmConversations(key, user)
         channel = { brandId: b.id, brandName: b.name, conversations: this.normalizeDms(b.id, raw), problem: null }
       } catch (err) {
-        channel = { brandId: b.id, brandName: b.name, conversations: [], problem: explainProblem(err, 'Instagram') }
+        channel =
+          (await this.ownDms(b.id, b.name, explainProblem(err, 'Instagram'))) ?? {
+            brandId: b.id,
+            brandName: b.name,
+            conversations: [],
+            problem: explainProblem(err, 'Instagram'),
+          }
       }
       this.dmCache.set(b.id, { at: this.now(), channel })
       out.push(channel)
     }
     return out
+  }
+
+  /** The backup for reading messages: ELO's own Instagram login through Meta. Null when it cannot either. */
+  private async ownDms(brandId: number, brandName: string, why: string): Promise<DmChannel | null> {
+    if (!this.d.own) return null
+    try {
+      const raw = await this.d.own.dmConversations(brandId)
+      if (!raw) return null
+      this.switched('messages', brandId, 'Instagram', why)
+      return { brandId, brandName, conversations: this.normalizeDms(brandId, raw), problem: null }
+    } catch (e) {
+      return { brandId, brandName, conversations: [], problem: `${why} ELO's own login also failed: ${(e as Error).message}` }
+    }
   }
 
   private normalizeDms(brandId: number, raw: any[]): DmConversation[] {
@@ -351,7 +413,16 @@ export class EngageService {
     try {
       await this.d.client.sendDm(key, { user: this.d.uploadPost.profileFor(brandId), recipientId, message: msg })
     } catch (err) {
-      throw new Error(explainProblem(err, 'Instagram'), { cause: err })
+      let done = false
+      if (isDefinitiveFailure(err) && this.d.own) {
+        try {
+          done = await this.d.own.sendDm(brandId, recipientId, msg)
+        } catch (e) {
+          throw new Error(`${explainProblem(err, 'Instagram')} ELO's own login also failed: ${(e as Error).message}`, { cause: err })
+        }
+        if (done) this.switched('message', brandId, 'Instagram', explainProblem(err, 'Instagram'))
+      }
+      if (!done) throw new Error(explainProblem(err, 'Instagram'), { cause: err })
     }
     this.dmCache.delete(brandId)
     this.d.log.log('info', 'Sent an Instagram message.')

@@ -81,6 +81,7 @@ import { UploadPostInstagramAdapter } from './adapters/uploadPostInstagram'
 import { UploadPostVideoAdapter, type UploadFields } from './adapters/uploadPostVideo'
 import { PrimaryBackupAdapter } from './adapters/primaryBackup'
 import { uploadPostFirst } from './stats/uploadPostStats'
+import { OwnEngage } from './services/ownEngage'
 import { UploadPostClient } from './uploadpost/client'
 import { UploadPostService } from './services/uploadPost'
 import { FirstCommentService } from './services/firstComments'
@@ -534,15 +535,20 @@ async function boot(): Promise<void> {
       log: (level, message, ctx) => log.log(level, message, { postId: ctx.postId, platform: 'instagram' }),
     },
   })
+  // ELO's own login for comments and messages: the backup when Upload-Post fails.
+  const ownEngage = new OwnEngage({
+    graph,
+    tokenFor: (account) => meta.tokenForAccount(account),
+    accountFor: (brandId, platform, accountId) =>
+      brands.listAccounts(brandId).find((a) => a.platform === platform && (accountId === null || a.id === accountId)) ?? null,
+    youtube: ytClient,
+    bluesky: (brandId) => studio.socialAccounts.blueskyFor(brandId),
+  })
   const firstComments = new FirstCommentService({
     db,
     uploadPost,
     client: new UploadPostClient(),
-    ownComment: async (platform, accountId, postId, text) => {
-      if (platform !== 'youtube' || !accountId) return false
-      await ytClient.postComment(accountId, postId, text)
-      return true
-    },
+    ownComment: (i) => ownEngage.postComment(i),
     log,
     alert: (headline, detail) => notifier.failure(headline, detail, { kind: 'other' }),
     emit,
@@ -555,6 +561,8 @@ async function boot(): Promise<void> {
     client: new UploadPostClient(),
     log,
     emit,
+    own: ownEngage,
+    alert: (headline, detail) => notifier.failure(headline, detail, { kind: 'other' }),
     suggest: async (ctx) => {
       const { llmProvider } = await import('./api')
       return (await llmProvider(settings.get(), studio)).suggestReply(ctx)

@@ -2,7 +2,7 @@ import type { Db } from '../db'
 import type { ActivityLog } from './activity'
 import type { UploadPostService } from './uploadPost'
 import { uploadPostOn } from './uploadPost'
-import { UploadPostClient, UploadPostError } from '../uploadpost/client'
+import { UploadPostClient, UploadPostError, isDefinitiveFailure } from '../uploadpost/client'
 import { PLATFORM_LABELS } from '@shared/platformLimits'
 import type { Platform } from '@shared/types'
 
@@ -60,7 +60,7 @@ export class FirstCommentService {
       uploadPost: UploadPostService
       client: Pick<UploadPostClient, 'createComment' | 'status'>
       /** ELO's own way to comment, used only after Upload-Post fails. Returns false when there is none for the platform. */
-      ownComment?: (platform: string, accountId: number | null, postId: string, text: string) => Promise<boolean>
+      ownComment?: (i: { platform: string; brandId: number; accountId: number | null; externalId: string; externalUrl: string | null; text: string }) => Promise<boolean>
       log: ActivityLog
       alert: (headline: string, detail: string) => void
       now?: () => number
@@ -235,8 +235,9 @@ export class FirstCommentService {
       else if (e.status === 401) plain = 'Upload-Post does not accept the key. Copy it again in AI Settings.'
       else if (e.status === 400) plain = `Upload-Post refused the comment: ${e.message}`
       if (plain || attempts >= MAX_ATTEMPTS) {
-        // Upload-Post could not do it. ELO's own login is the backup.
-        if (await this.tryOwn(j, t, label, plain ?? e.message, attempts)) return
+        // Upload-Post definitively refused it (a 4xx). ELO's own login is the backup. An unsure answer (a time out, no
+        // answer, a 5xx) never goes to the backup, because the comment may already be up and would be posted twice.
+        if (isDefinitiveFailure(err) && (await this.tryOwn(j, t, label, plain ?? e.message, attempts))) return
         this.fail(j, t, label, plain ?? `Tried ${attempts} times: ${e.message}`, attempts)
         return
       }
@@ -248,14 +249,14 @@ export class FirstCommentService {
   /** The backup: ELO's own login posts the comment after Upload-Post failed. True when it did. */
   private async tryOwn(
     j: JobRow,
-    t: { external_id: string | null; account_id: number | null; title: string },
+    t: { external_id: string | null; external_url: string | null; account_id: number | null; brand_id: number; brand_name: string; title: string },
     label: string,
     upReason: string,
     attempts: number,
   ): Promise<boolean> {
     if (!this.d.ownComment || !t.external_id) return false
     try {
-      const ok = await this.d.ownComment(j.platform, t.account_id, t.external_id, j.text)
+      const ok = await this.d.ownComment({ platform: j.platform, brandId: t.brand_id, accountId: t.account_id, externalId: t.external_id, externalUrl: t.external_url, text: j.text })
       if (!ok) return false
     } catch (err) {
       this.d.log.log('warn', `First comment on ${label}: ELO's own login also failed: ${(err as Error).message}`, { postId: j.post_id, platform: j.platform as Platform })
@@ -263,6 +264,7 @@ export class FirstCommentService {
     }
     this.setStatus(j.target_id, 'done', `Upload-Post could not do it (${upReason.slice(0, 120)}), so ELO's own login posted it.`, attempts)
     this.d.log.log('info', `First comment posted on ${label} for "${t.title}" by ELO's own login, because Upload-Post failed.`, { postId: j.post_id, platform: j.platform as Platform })
+    this.d.alert('Upload-Post failed, ELO took over a comment.', `${t.brand_name}, ${label}, "${t.title}": ${upReason.slice(0, 160)}. ELO's own login posted the first comment instead.`)
     return true
   }
 

@@ -236,6 +236,25 @@ export class BlueskyClient {
     return { ...d, url: `https://bsky.app/profile/${this.creds.handle()}/post/${rkey}` }
   }
 
+  /**
+   * The uri and content id of one of our own posts, from its at:// uri or its bsky.app link. A reply needs both.
+   */
+  async refFor(idOrUrl: string): Promise<BskyPostRef> {
+    let uri = idOrUrl
+    if (!uri.startsWith('at://')) {
+      const m = uri.match(/profile\/([^/]+)\/post\/([^/?#]+)/)
+      if (!m) throw new SocialError('ELO does not have the Bluesky post address, so it cannot comment on it.', 'permanent')
+      const did = m[1].startsWith('did:') ? m[1] : (await this.login()).did
+      uri = `at://${did}/app.bsky.feed.post/${m[2]}`
+    }
+    const res = await this.pds(`/xrpc/app.bsky.feed.getPosts?${new URLSearchParams({ uris: uri })}`)
+    if (!res.ok) throw await httpError('Bluesky', res)
+    const d = (await res.json()) as { posts?: Array<{ uri: string; cid: string }> }
+    const p = d.posts?.[0]
+    if (!p) throw new SocialError('Bluesky does not know that post.', 'permanent')
+    return { uri: p.uri, cid: p.cid }
+  }
+
   async replyText(text: string, root: BskyPostRef, parent: BskyPostRef): Promise<BskyPostRef> {
     const s = await this.login()
     const res = await this.pds('/xrpc/com.atproto.repo.createRecord', {
