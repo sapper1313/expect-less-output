@@ -70,6 +70,11 @@ export class YoutubeAdapter implements PlatformAdapter {
     this.metadata(ctx, 'private')
   }
 
+  /** The metadata for a public post, for the Upload-Post path to send the same title, description and tags. */
+  publicMetadata(ctx: AdapterContext) {
+    return this.metadata(ctx, 'public')
+  }
+
   private metadata(ctx: AdapterContext, privacy: 'private' | 'public', publishAt?: string) {
     const d = this.d.brandDefaults(ctx.brandId)
     return buildVideoMetadata({

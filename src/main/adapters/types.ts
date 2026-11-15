@@ -5,6 +5,13 @@ export type ErrorKind = 'transient' | 'permanent'
 export class AdapterError extends Error {
   /** When set, try again after this many milliseconds without using up a retry (for example a daily cap). */
   retryAfterMs?: number
+  /**
+   * Upload-Post only: the video may already have gone out (it timed out or Upload-Post lost track of it), so ELO's own
+   * backup must not post it again. The normal retry asks Upload-Post again instead.
+   */
+  ambiguous?: boolean
+  /** Upload-Post could not be reached at all. Two of these in a row count as a real failure. */
+  unreachable?: boolean
   constructor(
     message: string,
     public kind: ErrorKind,
@@ -66,4 +73,19 @@ export interface PlatformAdapter {
   publish(ctx: AdapterContext): Promise<AdapterResult>
   checkStatus(ctx: AdapterContext, nowMs: number): Promise<AdapterResult>
   fetchStats?(ctx: AdapterContext): Promise<Record<string, number>>
+}
+
+/** Marks an Upload-Post error as "the video may already be out", so the backup path stays out of it. */
+export function ambiguous<T extends AdapterError>(e: T): T {
+  e.ambiguous = true
+  return e
+}
+
+/** Marks an error as "Upload-Post could not be reached" when its status says so. */
+export function unreachableIf<T extends AdapterError>(e: T, status: number): T {
+  if (status === 0) {
+    e.ambiguous = true
+    e.unreachable = true
+  }
+  return e
 }

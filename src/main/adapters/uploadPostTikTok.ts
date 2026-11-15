@@ -1,5 +1,5 @@
 import { statSync } from 'fs'
-import { AdapterError, type AdapterContext, type AdapterResult, type PlatformAdapter } from './types'
+import { AdapterError, ambiguous, unreachableIf, type AdapterContext, type AdapterResult, type PlatformAdapter } from './types'
 import { PLATFORM_LIMITS } from '@shared/platformLimits'
 import { tiktokCaptionText } from './tiktok'
 import { UploadPostError, type UploadPostClient } from '../uploadpost/client'
@@ -120,7 +120,7 @@ export class UploadPostTikTokAdapter implements PlatformAdapter {
     }
     if (r.status === 'not_found') {
       ctx.setState({ upRequestId: null })
-      throw new AdapterError('Upload-Post lost track of this upload. Starting over.', 'transient')
+      throw ambiguous(new AdapterError('Upload-Post lost track of this upload. Starting over.', 'transient'))
     }
     if (mine?.success) {
       if (mine.fallbackToInbox) {
@@ -136,7 +136,7 @@ export class UploadPostTikTokAdapter implements PlatformAdapter {
     const started = typeof st.upStartedAtMs === 'number' ? st.upStartedAtMs : ctx.nowMs()
     if (ctx.nowMs() - started > PROCESSING_TIMEOUT_MS) {
       ctx.setState({ upRequestId: null })
-      throw new AdapterError('Upload-Post has taken more than 45 minutes on this video. Starting over.', 'transient')
+      throw ambiguous(new AdapterError('Upload-Post has taken more than 45 minutes on this video. Starting over.', 'transient'))
     }
     return { status: 'processing', externalId: requestId }
   }
@@ -163,7 +163,7 @@ export class UploadPostTikTokAdapter implements PlatformAdapter {
       }
       if (err.status === 400 && STOP_WORDS.test(`${err.code ?? ''} ${err.message}`))
         return new AdapterError(friendly(`${err.code ?? ''} ${err.message}`), 'permanent')
-      return new AdapterError(`Upload-Post problem: ${friendly(err.message)}`, err.status === 400 ? 'permanent' : 'transient')
+      return unreachableIf(new AdapterError(`Upload-Post problem: ${friendly(err.message)}`, err.status === 400 ? 'permanent' : 'transient'), err.status)
     }
     return new AdapterError(`Upload-Post problem: ${(err as Error).message}`, 'transient')
   }

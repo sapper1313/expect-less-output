@@ -792,7 +792,7 @@ export class Scheduler {
     if (post.status === 'draft') throw new Error('Schedule the post first, then resubmit.')
     // A half-finished old upload is forgotten, so the platform gets a clean copy from the saved video.
     const state = this.targetState(targetId)
-    for (const k of ['uploadSession', 'progress', 'videoId', 'privacyStatus', 'deferrals', 'upRequestId', 'igMediaId'])
+    for (const k of ['uploadSession', 'progress', 'videoId', 'privacyStatus', 'deferrals', 'upRequestId', 'igMediaId', 'igContainerId', 'ttPublishId', 'ttUploadUrl', 'fbVideoId', 'fbUploadUrl', 'fbFinished', 'route', 'upFailure', 'fallbackAtMs', 'upUnreachable'])
       delete state[k]
     const nowIso = new Date(this.now()).toISOString()
     this.d.db

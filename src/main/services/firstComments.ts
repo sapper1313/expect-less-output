@@ -59,6 +59,8 @@ export class FirstCommentService {
       db: Db
       uploadPost: UploadPostService
       client: Pick<UploadPostClient, 'createComment' | 'status'>
+      /** ELO's own way to comment, used only after Upload-Post fails. Returns false when there is none for the platform. */
+      ownComment?: (platform: string, accountId: number | null, postId: string, text: string) => Promise<boolean>
       log: ActivityLog
       alert: (headline: string, detail: string) => void
       now?: () => number
@@ -161,11 +163,11 @@ export class FirstCommentService {
   private async send(key: string, j: JobRow): Promise<void> {
     const t = this.d.db
       .prepare(
-        `SELECT t.external_id, t.external_url, t.posted_at_utc, p.brand_id, b.name AS brand_name, p.title
+        `SELECT t.external_id, t.external_url, t.account_id, t.posted_at_utc, p.brand_id, b.name AS brand_name, p.title
          FROM post_targets t JOIN posts p ON p.id = t.post_id JOIN brands b ON b.id = p.brand_id WHERE t.id = ?`,
       )
       .get(j.target_id) as
-      | { external_id: string | null; external_url: string | null; posted_at_utc: string | null; brand_id: number; brand_name: string; title: string }
+      | { external_id: string | null; external_url: string | null; account_id: number | null; posted_at_utc: string | null; brand_id: number; brand_name: string; title: string }
       | undefined
     if (!t) return
     const label = PLATFORM_LABELS[j.platform as Platform] ?? j.platform
@@ -233,12 +235,35 @@ export class FirstCommentService {
       else if (e.status === 401) plain = 'Upload-Post does not accept the key. Copy it again in AI Settings.'
       else if (e.status === 400) plain = `Upload-Post refused the comment: ${e.message}`
       if (plain || attempts >= MAX_ATTEMPTS) {
+        // Upload-Post could not do it. ELO's own login is the backup.
+        if (await this.tryOwn(j, t, label, plain ?? e.message, attempts)) return
         this.fail(j, t, label, plain ?? `Tried ${attempts} times: ${e.message}`, attempts)
         return
       }
       this.d.log.log('warn', `First comment on ${label} did not go through (${e.message}). Trying again soon.`, ctx)
       this.setStatus(j.target_id, 'waiting', e.message, attempts, this.now() + RETRY_MS)
     }
+  }
+
+  /** The backup: ELO's own login posts the comment after Upload-Post failed. True when it did. */
+  private async tryOwn(
+    j: JobRow,
+    t: { external_id: string | null; account_id: number | null; title: string },
+    label: string,
+    upReason: string,
+    attempts: number,
+  ): Promise<boolean> {
+    if (!this.d.ownComment || !t.external_id) return false
+    try {
+      const ok = await this.d.ownComment(j.platform, t.account_id, t.external_id, j.text)
+      if (!ok) return false
+    } catch (err) {
+      this.d.log.log('warn', `First comment on ${label}: ELO's own login also failed: ${(err as Error).message}`, { postId: j.post_id, platform: j.platform as Platform })
+      return false
+    }
+    this.setStatus(j.target_id, 'done', `Upload-Post could not do it (${upReason.slice(0, 120)}), so ELO's own login posted it.`, attempts)
+    this.d.log.log('info', `First comment posted on ${label} for "${t.title}" by ELO's own login, because Upload-Post failed.`, { postId: j.post_id, platform: j.platform as Platform })
+    return true
   }
 
   private fail(j: JobRow, t: { brand_name: string; title: string }, label: string, reason: string, attempts: number): void {

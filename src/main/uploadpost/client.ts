@@ -133,6 +133,58 @@ export class UploadPostClient {
     await this.call(key, '/upload', { method: 'POST', body: form })
   }
 
+  /**
+   * Starts a video post on any platform (YouTube, Facebook, Bluesky and the rest). `fields` are the platform's own
+   * form fields; a value may be a list (sent once per item, such as tags). Returns at once; the video keeps
+   * uploading on Upload-Post's side and is followed up with its request id.
+   */
+  async uploadVideo(
+    key: string,
+    i: { user: string; platform: string; requestId: string; filePath: string; fields: Record<string, string | string[]>; thumbnailPath?: string },
+  ): Promise<void> {
+    const form = new FormData()
+    form.set('user', i.user)
+    form.append('platform[]', i.platform)
+    form.set('async_upload', 'true')
+    form.set('request_id', i.requestId)
+    for (const [k, v] of Object.entries(i.fields)) {
+      if (Array.isArray(v)) for (const x of v) form.append(k, x)
+      else form.set(k, v)
+    }
+    form.set('video', await openAsBlob(i.filePath), basename(i.filePath))
+    if (i.thumbnailPath) form.set('thumbnail', await openAsBlob(i.thumbnailPath), basename(i.thumbnailPath))
+    await this.call(key, '/upload', { method: 'POST', body: form })
+  }
+
+  /**
+   * Views, likes, comments and shares of one post. Looked up by the upload's request id when there is one, otherwise by
+   * the platform's own post id. Returns the numbers Upload-Post has, or an empty object when it has none.
+   */
+  async postAnalytics(
+    key: string,
+    i: { platform: string; user: string; requestId?: string; platformPostId?: string },
+  ): Promise<{ metrics: Record<string, number>; postId: string | null; postUrl: string | null; error: string | null }> {
+    let r: any
+    if (i.requestId) {
+      r = await this.call(key, `/uploadposts/post-analytics/${encodeURIComponent(i.requestId)}?platform=${encodeURIComponent(i.platform)}`)
+    } else if (i.platformPostId) {
+      const q = new URLSearchParams({ platform_post_id: i.platformPostId, platform: i.platform, user: i.user })
+      r = await this.call(key, `/uploadposts/post-analytics?${q.toString()}`)
+    } else {
+      throw new UploadPostError('No upload id or post id to look up.', 0)
+    }
+    const mine = r?.platforms?.[i.platform] ?? {}
+    const raw = (mine.post_metrics && typeof mine.post_metrics === 'object' ? mine.post_metrics : {}) as Record<string, unknown>
+    const metrics: Record<string, number> = {}
+    for (const [k, v] of Object.entries(raw)) if (typeof v === 'number' && Number.isFinite(v)) metrics[k] = v
+    return {
+      metrics,
+      postId: mine.platform_post_id ? String(mine.platform_post_id) : null,
+      postUrl: mine.post_url ? String(mine.post_url) : null,
+      error: (mine.post_metrics_error ?? r?.post_metrics_error ?? mine.error_message ?? null) as string | null,
+    }
+  }
+
   /** A top-level comment on one of your posts (or a reply, when commentId is given). */
   async createComment(
     key: string,

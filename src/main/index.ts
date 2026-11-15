@@ -78,6 +78,9 @@ import { MetaService } from './meta/metaService'
 import { TikTokAdapter } from './adapters/tiktok'
 import { UploadPostTikTokAdapter } from './adapters/uploadPostTikTok'
 import { UploadPostInstagramAdapter } from './adapters/uploadPostInstagram'
+import { UploadPostVideoAdapter, type UploadFields } from './adapters/uploadPostVideo'
+import { PrimaryBackupAdapter } from './adapters/primaryBackup'
+import { uploadPostFirst } from './stats/uploadPostStats'
 import { UploadPostClient } from './uploadpost/client'
 import { UploadPostService } from './services/uploadPost'
 import { FirstCommentService } from './services/firstComments'
@@ -103,7 +106,8 @@ import { GrowthService } from './growth/service'
 import { fetchSuggestions } from './growth/seo'
 import { StorageService } from './growth/storage'
 import { WebsiteService } from './website/service'
-import type { PlatformAdapter } from './adapters/types'
+import type { AdapterContext, PlatformAdapter } from './adapters/types'
+import { fitText } from '@shared/growth'
 import { COPY } from '@shared/copy'
 import type { Account, AppEvent, Platform, Settings } from '@shared/types'
 
@@ -429,7 +433,20 @@ async function boot(): Promise<void> {
     log,
     emit,
     imported,
-    providers: { youtube: ytStats, facebook: fbStats, instagram: igStats, tiktok: ttStats },
+    // Upload-Post first for every platform it can read, ELO's own connection when it cannot.
+    providers: Object.fromEntries(
+      (['youtube', 'facebook', 'instagram', 'tiktok'] as const).map((p) => [
+        p,
+        uploadPostFirst({ youtube: ytStats, facebook: fbStats, instagram: igStats, tiktok: ttStats }[p], p, {
+          db,
+          client: new UploadPostClient(),
+          apiKey: () => uploadPost.apiKey(),
+          profileFor: (brandId) => uploadPost.profileFor(brandId),
+          active: (brandId, platform) => uploadPost.active(brandId, platform),
+          log: (m) => log.log('info', m),
+        }),
+      ]),
+    ) as never,
   })
   const tiktokAdapter = new TikTokAdapter({
     stats: ttStats,
@@ -521,6 +538,11 @@ async function boot(): Promise<void> {
     db,
     uploadPost,
     client: new UploadPostClient(),
+    ownComment: async (platform, accountId, postId, text) => {
+      if (platform !== 'youtube' || !accountId) return false
+      await ytClient.postComment(accountId, postId, text)
+      return true
+    },
     log,
     alert: (headline, detail) => notifier.failure(headline, detail, { kind: 'other' }),
     emit,
@@ -543,6 +565,76 @@ async function boot(): Promise<void> {
   setInterval(() => void accountStats.sync().catch(() => {}), 60 * 60_000)
   setTimeout(() => void engage.sync().catch(() => {}), 60_000)
   setInterval(() => void engage.sync().catch(() => {}), 5 * 60_000)
+  // Upload-Post first for every platform it can post. Each wraps ELO's own adapter as the backup.
+  const upHost = {
+    log: (level: 'info' | 'warn' | 'error', message: string, ctx: { postId: number }, platform: Platform) =>
+      log.log(level, message, { postId: ctx.postId, platform }),
+  }
+  const upFields = (platform: Platform, ctx: AdapterContext): UploadFields => {
+    if (platform === 'youtube') {
+      const m = youtubeAdapter.publicMetadata(ctx)
+      const playlist = brands.getDefaults(ctx.brandId).youtubePlaylistId
+      const thumb = ctx.settings.thumbnailPath
+      return {
+        fields: {
+          title: m.snippet.title,
+          youtube_title: m.snippet.title,
+          youtube_description: m.snippet.description,
+          'tags[]': m.snippet.tags,
+          categoryId: m.snippet.categoryId,
+          privacyStatus: 'public',
+          selfDeclaredMadeForKids: String(m.status.selfDeclaredMadeForKids),
+          containsSyntheticMedia: String(m.status.containsSyntheticMedia),
+          ...(playlist ? { youtube_playlist_id: playlist } : {}),
+        },
+        thumbnailPath: typeof thumb === 'string' && thumb ? thumb : undefined,
+      }
+    }
+    if (platform === 'facebook')
+      return {
+        fields: {
+          title: ctx.title,
+          facebook_title: ctx.title,
+          facebook_description: ctx.caption,
+          facebook_media_type: 'REELS',
+          video_state: 'PUBLISHED',
+          facebook_is_ai_generated: String(ctx.aiFlag),
+        },
+      }
+    const text = fitText('bluesky', ctx.caption || ctx.title, 300)
+    return { fields: { title: text, bluesky_title: text } }
+  }
+  const upVideo = (platform: Platform) =>
+    new UploadPostVideoAdapter(platform, {
+      client: new UploadPostClient(),
+      apiKey: () => uploadPost.apiKey(),
+      profileFor: (brandId) => uploadPost.profileFor(brandId),
+      fieldsFor: upFields,
+      host: { log: (level, message, ctx) => upHost.log(level, message, ctx, platform) },
+    })
+  const backupHost = (platform: Platform) => ({
+    log: (level: 'info' | 'warn' | 'error', message: string, ctx: AdapterContext) => upHost.log(level, message, ctx, platform),
+    onFallback: (ctx: AdapterContext, reason: string) => {
+      auditEvents.write({
+        actor: 'system',
+        action: 'post.fallback',
+        target: `${ctx.brandName}/${ctx.episodeId ?? ctx.postId}`,
+        after: { platform, reason },
+      })
+      notifier.failure(
+        'Upload-Post failed, ELO took over.',
+        `${ctx.brandName}, ${platform}: ${reason.replace(/\.$/, '')}. ELO's own login is posting it instead.`,
+        { kind: 'other' },
+      )
+    },
+  })
+  const primaries: Partial<Record<Platform, PlatformAdapter>> = {
+    youtube: new PrimaryBackupAdapter('youtube', upVideo('youtube'), realAdapters.youtube, backupHost('youtube')),
+    facebook: new PrimaryBackupAdapter('facebook', upVideo('facebook'), realAdapters.facebook, backupHost('facebook')),
+    bluesky: new PrimaryBackupAdapter('bluesky', upVideo('bluesky'), realAdapters.bluesky, backupHost('bluesky')),
+    instagram: new PrimaryBackupAdapter('instagram', uploadPostInstagram, realAdapters.instagram, backupHost('instagram')),
+    tiktok: new PrimaryBackupAdapter('tiktok', uploadPostTikTok, realAdapters.tiktok, backupHost('tiktok')),
+  }
   const adapterFor = (
     platform: Platform,
     account: Account | null,
@@ -555,18 +647,17 @@ async function boot(): Promise<void> {
       { dry: dryRuns, real: realAdapters },
       settings.get().globalDryRun,
     )
-    // Instagram: a channel with Instagram ticked on the Upload-Post page posts through them. Meta's own upload kept
-    // failing the first time and working on a retry. A post already published, or one already started through
-    // Upload-Post, is finished the same way; a half started Meta upload is simply dropped.
-    if (platform === 'instagram' && account && base !== dryRuns.instagram) {
-      if (typeof targetSettings?.upRequestId === 'string') return uploadPostInstagram
-      if (typeof targetSettings?.igMediaId === 'string') return base
-      return uploadPost.active(account.brandId, 'instagram') ? uploadPostInstagram : base
-    }
-    if (platform !== 'tiktok' || !account || base === dryRuns.tiktok) return base
-    if (typeof targetSettings?.upRequestId === 'string') return uploadPostTikTok
-    if (typeof targetSettings?.ttPublishId === 'string') return base
-    return uploadPost.active(account.brandId, 'tiktok') ? uploadPostTikTok : base
+    // Upload-Post first, ELO's own login only after Upload-Post fails. A target already started on ELO's own path (a
+    // YouTube video id, a Facebook or Instagram upload, a TikTok publish id) or already switched to the backup is
+    // finished there; one already sent to Upload-Post keeps being followed on Upload-Post.
+    const up = primaries[platform]
+    if (!up || !account || base === dryRuns[platform]) return base
+    const st = targetSettings ?? {}
+    if (st.route === 'elo') return base
+    if (typeof st.upRequestId === 'string') return up
+    const startedNative = ['videoId', 'fbVideoId', 'igContainerId', 'igMediaId', 'ttPublishId'].some((k) => typeof st[k] === 'string' && st[k])
+    if (startedNative) return base
+    return uploadPost.active(account.brandId, platform) ? up : base
   }
 
   const scheduler = new Scheduler({
