@@ -522,9 +522,15 @@ export class PostService {
     const blackoutDates = [
       ...new Set([...readSetting(this.db, 'blackoutDates'), ...rules.blackoutDates]),
     ]
-    const slots = (
-      this.db.prepare('SELECT * FROM brand_slots WHERE brand_id = ?').all(brandId) as any[]
-    ).map<SlotDef>((r) => ({ dayType: r.day_type, timeLocal: r.time_local, enabled: !!r.enabled }))
+    // Only the kinds the channel makes have slots. A kind that is switched off (Long form on a Shorts channel) never
+    // gets a post, so its times are not empty slots, they do not exist. No kind ticked at all means every time counts.
+    const kindRows = slotKinds(this.db, brandId)
+    const onKinds = kindRows.filter((k) => k.enabled)
+    const slotRows = this.db.prepare('SELECT * FROM brand_slots WHERE brand_id = ?').all(brandId) as any[]
+    // Like the scheduler: a kind with no times of its own uses the channel's whole list.
+    const slotsOf = (kind?: string) =>
+      (kind && slotRows.some((r) => r.kind === kind) ? slotRows.filter((r) => r.kind === kind) : slotRows)
+        .map<SlotDef>((r) => ({ dayType: r.day_type, timeLocal: r.time_local, enabled: !!r.enabled }))
     const used = (type: 'episode' | 'clip') =>
       (
         this.db
@@ -541,6 +547,20 @@ export class PostService {
           t: string
         }>
       ).map((r) => r.t)
+    // Posts are placed per platform, so a queued post sits at each platform's own time, and its post time is only its
+    // earliest one. A slot a platform target sits on is filled, the same test the scheduler uses to skip a taken time.
+    const targetMinutes = new Set(
+      (
+        this.db
+          .prepare(
+            `SELECT COALESCE(t.target_at_utc, p.scheduled_at_utc) AS t
+             FROM post_targets t JOIN posts p ON p.id = t.post_id
+             WHERE p.brand_id = ? AND p.post_type = 'episode' AND p.status NOT IN ('canceled','draft')
+               AND t.status NOT IN ('skipped','canceled') AND COALESCE(t.target_at_utc, p.scheduled_at_utc) IS NOT NULL`,
+          )
+          .all(brandId) as Array<{ t: string }>
+      ).map((r) => r.t.slice(0, 16)),
+    )
     const out: Array<{ whenUtc: string; kind: 'episode' | 'clip'; blockedBy?: string }> = []
     const gapMs = 0
     const blockerOf = (_iso: string): string | undefined => undefined
@@ -554,8 +574,11 @@ export class PostService {
       // A post close to a slot fills it, even when it sits a few minutes off (its earliest platform time).
       const near = pairNearest(all, taken)
       const filledNear = new Set(all.filter((_, i) => near[i] !== -1))
+      const onTarget = (s: string) => kind === 'episode' && targetMinutes.has(s.slice(0, 16))
+      // Slots already filled by a platform target count toward the daily limit first.
+      for (const s of all) if (onTarget(s) && !takenMinutes.has(s.slice(0, 16)) && !filledNear.has(s)) perDay.set(dayOf(s), (perDay.get(dayOf(s)) ?? 0) + 1)
       for (const s of all) {
-        if (s < from || takenMinutes.has(s.slice(0, 16)) || filledNear.has(s)) continue
+        if (s < from || takenMinutes.has(s.slice(0, 16)) || filledNear.has(s) || onTarget(s)) continue
         const d = dayOf(s)
         const n = perDay.get(d) ?? 0
         if (cap > 0 && n >= cap) continue
@@ -567,18 +590,19 @@ export class PostService {
     // Look a day wider on both sides so a slot near midnight is judged against the right day.
     const wideFrom = new Date(new Date(fromUtc).getTime() - 86_400_000).toISOString()
     const wideTo = new Date(new Date(toUtc).getTime() + 86_400_000).toISOString()
-    collect(
-      'episode',
-      getSlotTimes({
-        slots,
+    const episodeTimes = new Set<string>()
+    for (const k of onKinds.length ? onKinds : [null]) {
+      for (const t of getSlotTimes({
+        slots: slotsOf(k?.kind),
         from: wideFrom,
         to: wideTo,
-        weekdays: this.postDays(brandId),
+        weekdays: k?.days ?? this.postDays(brandId),
         blackoutDates,
         maxPerDay: rules.maxPerDay,
-      }).filter((s) => s < toUtc),
-      rules.maxPerDay,
-    )
+      }))
+        if (t < toUtc) episodeTimes.add(t)
+    }
+    collect('episode', [...episodeTimes].sort(), rules.maxPerDay)
     const clip = this.clipSchedule(brandId)
     if (clip.days.length)
       collect(

@@ -92,6 +92,64 @@ describe('open slots for the Calendar', () => {
     expect(days).toEqual(['Wed'])
   })
 
+  it('a platform target sitting on a slot fills it, even when the post time is an earlier platform', async () => {
+    const e = makeEnv(MON)
+    const eps = () =>
+      e.posts
+        .openSlotsInRange(1, from, to)
+        .filter((s) => s.kind === 'episode')
+        .map((s) => s.whenUtc)
+    const tue = e.posts.nextSlots(1, 2)[1]
+    expect(eps()).toContain(tue)
+    // An earlier time on one platform (so the post time is far from Tuesday), Tuesday's slot on another.
+    const early = new Date('2026-10-19T20:00:00Z').getTime()
+    await e.makePost({
+      whenMs: early,
+      platforms: ['youtube', 'facebook'],
+      times: { facebook: new Date(tue).getTime() },
+      title: 'Spans days',
+    })
+    expect(eps()).not.toContain(tue)
+  })
+
+  it('a canceled or skipped target does not fill a slot', async () => {
+    const e = makeEnv(MON)
+    const tue = e.posts.nextSlots(1, 2)[1]
+    const p = await e.makePost({
+      whenMs: new Date('2026-10-19T20:00:00Z').getTime(),
+      platforms: ['youtube', 'facebook'],
+      times: { facebook: new Date(tue).getTime() },
+    })
+    e.db.prepare("UPDATE post_targets SET status = 'skipped' WHERE post_id = ? AND platform = 'facebook'").run(p.id)
+    expect(e.posts.openSlotsInRange(1, from, to).map((s) => s.whenUtc)).toContain(tue)
+  })
+
+  it('a kind that is switched off has no slots to be empty', async () => {
+    const e = makeStudioEnv({ startMs: MON })
+    const id = hollowId(e)
+    e.brands.setSlotKinds(id, [
+      { kind: 'short', enabled: true, days: null },
+      { kind: 'long', enabled: false, days: null },
+    ])
+    const shortOnly = e.posts.openSlotsInRange(id, from, to).length
+    e.brands.setSlotKinds(id, [
+      { kind: 'short', enabled: true, days: null },
+      { kind: 'long', enabled: true, days: null },
+    ])
+    const both = e.posts.openSlotsInRange(id, from, to).length
+    expect(shortOnly).toBeLessThanOrEqual(both)
+    const longTimes = (e.db.prepare("SELECT time_local FROM brand_slots WHERE brand_id = ? AND kind = 'long'").all(id) as Array<{ time_local: string }>).map((r) => r.time_local)
+    const shortTimes = new Set((e.db.prepare("SELECT time_local FROM brand_slots WHERE brand_id = ? AND kind = 'short'").all(id) as Array<{ time_local: string }>).map((r) => r.time_local))
+    e.brands.setSlotKinds(id, [
+      { kind: 'short', enabled: true, days: null },
+      { kind: 'long', enabled: false, days: null },
+    ])
+    for (const s of e.posts.openSlotsInRange(id, from, to)) {
+      const hhmm = new Date(s.whenUtc).toLocaleString('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit' })
+      if (longTimes.includes(hhmm) && !shortTimes.has(hhmm)) throw new Error(`long-only slot ${hhmm} offered while Long form is off`)
+    }
+  })
+
   it('clips have their own open slots on the clip days at the clip time', async () => {
     const e = makeEnv(MON)
     e.db
