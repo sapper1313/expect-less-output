@@ -147,6 +147,12 @@ export function normalizePost(raw: unknown): Post {
     // ELO has no separate posted time; a posted post went out at its scheduled time.
     postedAtUtc: postedAt ?? (status === 'posted' ? scheduled : null),
     title: typeof raw.title === 'string' ? raw.title : '',
+    targets: Array.isArray(raw.targets)
+      ? raw.targets.filter(isObj).map((t) => ({
+          status: typeof t.status === 'string' ? t.status : 'unknown',
+          scheduledAtUtc: typeof t.scheduled_at === 'string' ? t.scheduled_at : null,
+        }))
+      : undefined,
   }
 }
 

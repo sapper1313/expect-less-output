@@ -152,3 +152,36 @@ describe('day-level matching (daily cap and clips)', () => {
     expect(matchSlots([clipSlot], [wedPost({ type: 'episode' })], { tz })[0].state).toBe('open');
   });
 });
+
+describe('a platform entry fills the slot it sits on', () => {
+  const tz = 'America/New_York';
+  const sat = slot({ instant: '2026-11-14T16:00:00.000Z', date: '2026-11-14', weekday: 6 });
+  const mon = slot({ instant: '2026-11-16T16:00:00.000Z', date: '2026-11-16', weekday: 1 });
+  // Saturday Instagram, Monday Facebook: the post time is Saturday, but Monday's slot is held by the Facebook entry.
+  const spans = post({
+    scheduledAtUtc: '2026-11-14T16:00:00Z',
+    targets: [
+      { status: 'posted', scheduledAtUtc: '2026-11-14T16:00:00Z' },
+      { status: 'pending', scheduledAtUtc: '2026-11-16T16:00:00Z' }
+    ]
+  });
+  for (const [label, opts] of [
+    ['uncapped channel', {}],
+    ['capped channel', { tz, dailyCapByBrand: new Map([[1, 1]]) }]
+  ] as const) {
+    it(`fills both days (${label})`, () => {
+      expect(matchSlots([sat, mon], [spans], opts).map((m) => m.state)).toEqual(['filled', 'filled']);
+    });
+    it(`ignores a skipped entry (${label})`, () => {
+      const p = post({
+        scheduledAtUtc: '2026-11-14T16:00:00Z',
+        targets: [{ status: 'skipped', scheduledAtUtc: '2026-11-16T16:00:00Z' }]
+      });
+      expect(matchSlots([sat, mon], [p], opts).map((m) => m.state)).toEqual(['filled', 'open']);
+    });
+  }
+  it('a canceled post fills nothing', () => {
+    const p = { ...spans, status: 'canceled' };
+    expect(matchSlots([mon], [p]).map((m) => m.state)).toEqual(['open']);
+  });
+});

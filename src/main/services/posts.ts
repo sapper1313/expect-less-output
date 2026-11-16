@@ -1173,6 +1173,23 @@ export class PostService {
     this.log.log('info', `Rescheduled ${ids.length} post(s) to ${scheduledAtUtc}.`)
   }
 
+  /**
+   * Posts of a channel made from a bare video (no episode id) whose video file has this name and that have not gone out.
+   * Used when a sidecar arrives after its video was already taken without it.
+   */
+  bareByVideoName(brandId: number, fileName: string): Post[] {
+    const rows = this.db
+      .prepare(
+        `SELECT id, video_path FROM posts WHERE brand_id = ? AND status NOT IN ('posted','canceled')
+         AND (episode_ref IS NULL OR episode_ref = '')`,
+      )
+      .all(brandId) as Array<{ id: number; video_path: string }>
+    return rows
+      .filter((r) => r.video_path === fileName || r.video_path.endsWith(`/${fileName}`))
+      .map((r) => this.get(r.id))
+      .filter((p): p is Post => !!p)
+  }
+
   cancel(ids: number[]): void {
     this.db.transaction(() => {
       for (const id of ids) {

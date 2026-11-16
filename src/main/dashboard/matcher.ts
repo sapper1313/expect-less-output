@@ -72,9 +72,31 @@ export function matchSlots(slots: Slot[], posts: Post[], opts: MatchOptions = {}
     if (hit) result.set(s, hit)
   }
 
+  // Posts that took a slot by their own time. A platform entry filling a slot does not use its post up for the nearest-time pass.
+  const ownTimePosts = new Set([...result.values()].map((v) => v.postId))
+
+  // A platform entry sitting exactly on a slot fills it, whatever the post's own (earliest) time is. Posts are placed
+  // per platform, so one post can hold Saturday's slot with one platform and Monday's with another.
+  {
+    const slotKey = (s: Slot) => `${s.brandId}|${s.type}|${s.instant}`
+    const bySlot = new Map<string, Slot>()
+    for (const s of slots) bySlot.set(slotKey(s), s)
+    for (const u of usable) {
+      for (const t of u.post.targets ?? []) {
+        if (t.status === 'skipped' || t.status === 'canceled' || !t.scheduledAtUtc) continue
+        const m = minuteIso(t.scheduledAtUtc)
+        const slot = m ? bySlot.get(`${u.post.brandId}|${u.post.type}|${m}`) : undefined
+        if (!slot) continue
+        const cur = result.get(slot)
+        if (!cur || (cur.state === 'attention' && u.state === 'filled'))
+          result.set(slot, { state: u.state, postId: u.post.id })
+      }
+    }
+  }
+
   // A post a little off its slot (its earliest platform time, such as Bluesky 6:00 PM on a 6:30 PM slot) still fills it.
   {
-    const usedPosts = new Set([...result.values()].map((v) => v.postId))
+    const usedPosts = ownTimePosts
     const groups = new Map<string, { slots: Slot[]; posts: Usable[] }>()
     const g = (k: string) => groups.get(k) ?? (groups.set(k, { slots: [], posts: [] }), groups.get(k)!)
     for (const s of slots) if (!dayLevel(s) && !result.has(s)) g(`${s.brandId}|${s.type}`).slots.push(s)
@@ -111,7 +133,7 @@ export function matchSlots(slots: Slot[], posts: Post[], opts: MatchOptions = {}
         Number(a.state === 'attention') - Number(b.state === 'attention') ||
         a.minute.localeCompare(b.minute),
     )
-    const free = [...daySlots].sort((a, b) => a.instant.localeCompare(b.instant))
+    const free = [...daySlots].filter((sl) => !result.has(sl)).sort((a, b) => a.instant.localeCompare(b.instant))
     const rest: Usable[] = []
     for (const c of candidates) {
       const i = free.findIndex((s) => s.instant === c.minute)

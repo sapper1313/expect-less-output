@@ -28,6 +28,8 @@ export interface Post {
   scheduledAtUtc: string
   postedAtUtc: string | null
   title: string
+  /** Each platform entry's own time. A post spans days, so its post time is only its earliest entry. */
+  targets?: { status: string; scheduledAtUtc: string | null }[]
 }
 
 export interface Slot {

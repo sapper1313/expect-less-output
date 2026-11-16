@@ -88,7 +88,9 @@ describe('watched Inbox folder', () => {
     await t.watcher.scan()
     t.env.clock.ms += 6 * SEC
     expect(await t.watcher.scan()).toBe(0) // finished copying, but still waiting for a sidecar
-    t.env.clock.ms += 6 * SEC
+    t.env.clock.ms += 30 * SEC
+    expect(await t.watcher.scan()).toBe(0) // a bot may take half a minute to write the sidecar
+    t.env.clock.ms += 60 * SEC
     expect(await t.watcher.scan()).toBe(1)
     const [post] = t.env.posts.list()
     expect(post).toMatchObject({ title: 'My New Clip', status: 'draft' })
@@ -179,7 +181,7 @@ describe('watched Inbox folder', () => {
     const expected = t.env.posts.nextSlots(1, 1)[0]
     writeFileSync(join(t.inbox, 'bare.mp4'), 'video bytes')
     await t.settle()
-    t.env.clock.ms += 30 * SEC // the wait for a sidecar that never comes
+    t.env.clock.ms += 100 * SEC // the wait for a sidecar that never comes
     await t.watcher.scan()
     const [post] = t.env.posts.list()
     expect(post.status).toBe('scheduled')
@@ -199,7 +201,7 @@ describe('watched Inbox folder', () => {
     })
     writeFileSync(join(locked.inbox, 'bare.mp4'), 'video bytes')
     await locked.settle()
-    locked.env.clock.ms += 30 * SEC
+    locked.env.clock.ms += 100 * SEC
     await locked.watcher.scan()
     expect(locked.env.posts.list()[0].status).toBe('draft')
   })

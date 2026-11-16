@@ -29,8 +29,11 @@ import type { DropRow } from '@shared/pipeline'
 const VIDEO = ['.mp4', '.mov']
 /** A file that has not changed size for this long is finished copying. */
 const STABLE_MS = 5_000
-/** A video with no sidecar waits this long for one to show up before becoming a draft. */
-const SIDECAR_GRACE_MS = 10_000
+/**
+ * A video with no sidecar waits this long for one to show up before becoming a draft. A bot can copy the video and
+ * write its sidecar half a minute later (Mamá Ep014 took 26 seconds), so a short wait files the video bare.
+ */
+const SIDECAR_GRACE_MS = 90_000
 /** A video_url download that takes longer than this is given up on. */
 const DOWNLOAD_TIMEOUT_MS = 10 * 60_000
 /** A video_url download bigger than this is refused. */
@@ -164,6 +167,7 @@ export class InboxWatcher {
         if (!enabled.has(b.id)) continue
         const dir = this.inboxDir(b.name)
         mkdirSync(join(dir, 'Rejected'), { recursive: true })
+        this.adoptStrandedSidecars(b.id, b.name, dir)
         const names = readdirSync(dir)
         for (const name of names) {
           const full = join(dir, name)
@@ -186,6 +190,60 @@ export class InboxWatcher {
       this.running = false
     }
     return handled
+  }
+
+  /**
+   * A finished sidecar (with its .ready marker) in the Inbox and no video beside it, while the video of that name was
+   * already taken without it and filed as a bare post that has not gone out. The post has the file name as its title
+   * and none of the sidecar's choices, so it is canceled and its video put back in the Inbox. The normal pass then pairs
+   * it with the sidecar and makes the one real post. Nothing is sent again and the bot is not asked for anything.
+   * Left alone, and said so once, when any platform of the bare post has really started or finished.
+   */
+  private adoptStrandedSidecars(brandId: number, brandName: string, dir: string): void {
+    const names = readdirSync(dir)
+    for (const name of names) {
+      if (extname(name).toLowerCase() !== '.json') continue
+      const stem = name.slice(0, name.length - 5)
+      if (!existsSync(join(dir, `${stem}.ready`))) continue
+      if (names.some((n) => VIDEO.includes(extname(n).toLowerCase()) && n.slice(0, -extname(n).length) === stem)) continue
+      let videoFile: unknown
+      try {
+        const raw = JSON.parse(readFileSync(join(dir, name), 'utf8')) as Record<string, unknown> | null
+        if (!raw || !PipelineIntake.handles(raw)) continue
+        videoFile = raw.video_file
+      } catch {
+        continue
+      }
+      if (typeof videoFile !== 'string' || videoFile !== basename(videoFile) || !VIDEO.includes(extname(videoFile).toLowerCase())) continue
+      const bare = this.d.s.posts.bareByVideoName(brandId, videoFile)
+      if (!bare.length) continue
+      const started = bare.some((p) =>
+        p.targets.some(
+          (t) =>
+            ['handed_off', 'uploading', 'processing'].includes(t.status) ||
+            (t.status === 'posted' && !String(t.externalId ?? '').startsWith('dry-')),
+        ),
+      )
+      const key = `adopt:${join(dir, name)}`
+      if (started) {
+        if (!this.seen.has(key)) {
+          this.seen.set(key, { size: 0, since: this.now(), firstSeen: this.now() })
+          this.d.alert(
+            'A sidecar is waiting for a video that already started posting.',
+            `${brandName}: ${videoFile}. The video was taken without its sidecar and a platform has already started, so it was left alone. Open the post and check it.`,
+          )
+        }
+        continue
+      }
+      const video = this.d.library.resolve(bare[0].videoPath)
+      if (!existsSync(video) || existsSync(join(dir, videoFile))) continue
+      this.d.s.posts.cancel(bare.map((p) => p.id))
+      moveFile(video, join(dir, videoFile))
+      this.d.s.log.log(
+        'info',
+        `Inbox (${brandName}): the sidecar for ${videoFile} arrived after the video was filed without it. The bare post was canceled and the video put back so the two pair up.`,
+      )
+    }
   }
 
   private async handle(
