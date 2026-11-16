@@ -3,9 +3,9 @@ import type { Post, TargetStatus } from '@shared/types'
 import { api } from '../api'
 import { useLoad } from '../hooks'
 import { Button, PlatformLogo } from '../ui'
+import { dayKey, entryAt, entryDays, firstOn } from './queueDays'
 
 const TZ = 'America/New_York'
-const dayKey = (iso: string) => new Date(iso).toLocaleDateString('en-CA', { timeZone: TZ })
 const dayLabel = (key: string) =>
   new Date(key + 'T12:00:00Z')
     .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
@@ -21,8 +21,6 @@ export function nextDue(p: Post): string | null {
     .map((t) => (t.scheduledAtUtc ?? p.scheduledAtUtc) as string)
   return open.length ? open.reduce((a, b) => (a < b ? a : b)) : p.scheduledAtUtc
 }
-const dayTag = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, weekday: 'short', month: 'short', day: 'numeric' })
 const todayKey = () => new Date().toLocaleDateString('en-CA', { timeZone: TZ })
 const addDays = (key: string, n: number) => {
   const d = new Date(key + 'T12:00:00Z')
@@ -75,7 +73,9 @@ function Thumb({ post, w = 'w-[52px]', h = 'h-[74px]' }: { post: Post; w?: strin
 }
 
 /** One post as a card: picture, channel, title, and one pill per platform with its own time and state. */
-function PostCard({ p, selected, onToggle, onOpen, onPreview }: Omit<Props, 'posts' | 'selected' | 'onSchedule'> & { p: Post; selected: boolean }) {
+function PostCard({ p, day, selected, onToggle, onOpen, onPreview }: Omit<Props, 'posts' | 'selected' | 'onSchedule'> & { p: Post; day?: string; selected: boolean }) {
+  const here = day ? p.targets.filter((t) => t.status !== 'skipped' && (entryAt(p, t) ? dayKey(entryAt(p, t)!) === day : true)) : p.targets
+  const elsewhere = p.targets.length - here.length
   return (
     <div className={`rounded-lg border bg-surface p-3 ${selected ? 'border-accent' : 'border-line'}`}>
       <div className="flex items-start gap-3">
@@ -105,21 +105,17 @@ function PostCard({ p, selected, onToggle, onOpen, onPreview }: Omit<Props, 'pos
             </div>
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
-            {p.targets.map((t) => (
+            {here.map((t) => (
               <span
                 key={t.id}
                 className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] font-semibold ${STATUS_STYLE[t.status]}`}
               >
                 <PlatformLogo platform={t.platform} size={16} />
-                {(() => {
-                  const at = t.scheduledAtUtc ?? p.scheduledAtUtc
-                  const home = nextDue(p)
-                  const other = at && home && dayKey(at) !== dayKey(home)
-                  return `${other ? `${dayTag(at)} ` : ''}${timeET(at)}`
-                })()}{' '}
+                {timeET(entryAt(p, t))}{' '}
                 · {STATUS_TEXT[t.status]}
               </span>
             ))}
+            {day && elsewhere > 0 && <span className="self-center text-[12px] text-muted">+{elsewhere} on other days</span>}
           </div>
         </div>
       </div>
@@ -134,9 +130,8 @@ export function VisualTimeline(props: Props) {
   const days = useMemo(() => {
     const by = new Map<string, Post[]>()
     for (const p of posts) {
-      const due = nextDue(p)
-      const k = due ? dayKey(due) : 'none'
-      by.set(k, [...(by.get(k) ?? []), p])
+      const ds = entryDays(p)
+      for (const k of ds.length ? ds : ['none']) by.set(k, [...(by.get(k) ?? []), p])
     }
     const open = new Map<string, Map<string, string[]>>()
     for (const s of snap?.openSlots ?? []) {
@@ -148,7 +143,7 @@ export function VisualTimeline(props: Props) {
     const keys = [...new Set([...by.keys(), ...open.keys()])].sort((a, b) => (a === 'none' ? 1 : b === 'none' ? -1 : a.localeCompare(b)))
     return keys.map((k) => ({
       key: k,
-      posts: (by.get(k) ?? []).sort((a, b) => String(nextDue(a)).localeCompare(String(nextDue(b)))),
+      posts: (by.get(k) ?? []).sort((a, b) => firstOn(a, k).localeCompare(firstOn(b, k))),
       open: open.get(k),
     }))
   }, [posts, snap])
@@ -165,7 +160,7 @@ export function VisualTimeline(props: Props) {
           </h2>
           <div className="space-y-2.5">
             {d.posts.map((p) => (
-              <PostCard key={p.id} p={p} selected={selected.has(p.id)} onToggle={onToggle} onOpen={onOpen} onPreview={onPreview} />
+              <PostCard key={p.id} p={p} day={d.key === 'none' ? undefined : d.key} selected={selected.has(p.id)} onToggle={onToggle} onOpen={onOpen} onPreview={onPreview} />
             ))}
             {d.open &&
               [...d.open.entries()].map(([brand, times]) => (
@@ -209,8 +204,8 @@ export function WeekCalendar(props: Props) {
       <div className="grid grid-cols-7 gap-2">
         {keys.map((k) => {
           const list = posts
-            .filter((p) => nextDue(p) && dayKey(nextDue(p)!) === k)
-            .sort((a, b) => String(nextDue(a)).localeCompare(String(nextDue(b))))
+            .filter((p) => entryDays(p).includes(k))
+            .sort((a, b) => firstOn(a, k).localeCompare(firstOn(b, k)))
           return (
             <div key={k} className={`min-h-[180px] rounded-lg border p-2 ${k === today ? 'border-accent' : 'border-line'} bg-surface`}>
               <div className="mb-2 text-[11px] font-bold tracking-wide text-muted">{dayLabel(k)}</div>
@@ -220,10 +215,10 @@ export function WeekCalendar(props: Props) {
                     <div className="flex gap-2">
                       <Thumb post={p} w="w-[30px]" h="h-[44px]" />
                       <div className="min-w-0">
-                        <div className="text-[11px] font-bold">{timeET(nextDue(p))}</div>
+                        <div className="text-[11px] font-bold">{timeET(firstOn(p, k))}</div>
                         <div className="truncate text-[11px]" title={p.title}>{p.title || p.fileName}</div>
                         <div className="mt-1 flex gap-1">
-                          {p.targets.slice(0, 5).map((t) => (
+                          {p.targets.filter((t) => t.status !== 'skipped' && entryAt(p, t) && dayKey(entryAt(p, t)!) === k).slice(0, 5).map((t) => (
                             <PlatformLogo key={t.id} platform={t.platform} size={12} />
                           ))}
                         </div>
