@@ -62,7 +62,7 @@ Posts carry `post_type` (`episode` or `clip`) and, for a clip, `source_episode_i
 
 ## Statuses
 
-Upcoming: `idea`, `scripted`, `queued`, `rendering`, `needs-review`, `dropped`. Posts: `draft` (waiting, no slot yet), `scheduled`, `in_progress`, `partial`, `posted`, `failed`, `missed`, `canceled`; a post with a `hold_reason` is held. Drops: `accepted`, `rejected`, `duplicate`, `held`.
+Upcoming: `idea`, `scripted`, `queued`, `rendering`, `needs-review`, `muse-passed`, `dropped`. Posts: `draft` (waiting, no slot yet), `scheduled`, `in_progress`, `partial`, `posted`, `failed`, `missed`, `canceled`; a post with a `hold_reason` is held. Drops: `accepted`, `rejected`, `duplicate`, `held`.
 
 ## The gate for scheduling
 

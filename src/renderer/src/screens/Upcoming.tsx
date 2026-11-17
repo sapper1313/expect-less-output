@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { UpcomingTracker } from './UpcomingTracker'
 import { COPY } from '@shared/copy'
 import { formatEastern } from '@shared/time'
 import { UPCOMING_STATUSES, type UpcomingRow } from '@shared/upcoming'
@@ -25,6 +26,7 @@ const LABEL: Record<string, string> = {
   queued: 'Queued',
   rendering: 'Rendering',
   'needs-review': 'Needs review',
+  'muse-passed': 'Muse passed',
   dropped: 'Dropped',
 }
 
@@ -40,7 +42,8 @@ export function Upcoming({ openQueue }: { openQueue?: () => void }) {
   const [busy, run] = useBusy()
   const { data: view, reload } = useLoad(() => api.upcoming.view())
   const { data: brands } = useLoad(() => api.brands.list())
-  const [mode, setMode] = useState<'board' | 'table'>('board')
+  const { data: tracker, reload: reloadTracker } = useLoad(() => api.upcoming.tracker())
+  const [mode, setMode] = useState<'tracker' | 'board' | 'table'>('tracker')
   const [channel, setChannel] = useState('')
   const [status, setStatus] = useState('')
   const [bot, setBot] = useState('')
@@ -76,6 +79,7 @@ export function Upcoming({ openQueue }: { openQueue?: () => void }) {
   const done = (r: unknown, msg: string) => {
     if (r !== undefined) toast({ kind: 'success', headline: COPY.success, detail: msg })
     reload()
+    reloadTracker()
   }
 
   const Card1 = ({ r }: { r: UpcomingRow }) => (
@@ -114,7 +118,7 @@ export function Upcoming({ openQueue }: { openQueue?: () => void }) {
 
   return (
     <div className="h-full overflow-auto pb-10">
-      <PageHeader title="Upcoming">
+      <PageHeader title="Production">
         <Button variant="primary" onClick={() => setAdding(true)}>
           Add idea
         </Button>
@@ -136,8 +140,8 @@ export function Upcoming({ openQueue }: { openQueue?: () => void }) {
       </PageHeader>
       <div className="space-y-4 px-8">
         <p className="max-w-3xl text-[13px] text-muted">
-          Every episode in flight, before any script or video exists. Bots add and move their own
-          entries here, you add your own ideas, and ELO marks an entry dropped when its finished
+          Every episode in flight, from idea to dropped. The Tracker tab lines it up against the
+          schedule. Bots add and move their own entries here, you add your own ideas, and ELO marks an entry dropped when its finished
           video arrives with the exact same episode id.
         </p>
         {view?.invalidReason && (
@@ -150,13 +154,13 @@ export function Upcoming({ openQueue }: { openQueue?: () => void }) {
         )}
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex gap-1">
-            {(['board', 'table'] as const).map((m) => (
+            {(['tracker', 'board', 'table'] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => setMode(m)}
                 className={`rounded-md px-3 py-1.5 text-[13px] font-semibold ${mode === m ? 'bg-accent text-[#111]' : 'text-ink hover:bg-surface2'}`}
               >
-                {m === 'board' ? 'Board' : 'Table'}
+                {m === 'tracker' ? 'Tracker' : m === 'board' ? 'Board' : 'Table'}
               </button>
             ))}
           </div>
@@ -250,8 +254,20 @@ export function Upcoming({ openQueue }: { openQueue?: () => void }) {
         )}
         {view?.rows.length === 0 && <Empty>Nothing is planned yet. Click Add idea to start.</Empty>}
 
+        {mode === 'tracker' && (
+          <UpcomingTracker
+            view={tracker}
+            channel={channel}
+            text={text}
+            onOpen={(ch, id) => {
+              const r = rows.find((x) => x.channel === ch && x.episode_id === id)
+              if (r) setEditing(r)
+            }}
+          />
+        )}
+
         {mode === 'board' && rows.length > 0 && (
-          <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-7">
             {UPCOMING_STATUSES.map((s) => (
               <div key={s} className="min-w-0 space-y-2">
                 <div className="flex items-center justify-between text-[12px] font-bold uppercase tracking-wider text-muted">
@@ -416,6 +432,7 @@ function AddDialog({
   const [channel, setChannel] = useState(brands[0]?.slug ?? '')
   const [title, setTitle] = useState('')
   const [premise, setPremise] = useState('')
+  const [airDate, setAirDate] = useState('')
   return (
     <Dialog title="Add an idea" onClose={onClose}>
       <div className="space-y-3">
@@ -434,6 +451,9 @@ function AddDialog({
         <Field label="Premise" hint="A sentence or two about the episode.">
           <Textarea value={premise} onChange={(e) => setPremise(e.target.value)} />
         </Field>
+        <Field label="Air date (optional)" hint="The day it is planned to go out. Only the Tracker reads it.">
+          <Input type="date" value={airDate} onChange={(e) => setAirDate(e.target.value)} />
+        </Field>
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>Cancel</Button>
           <Button
@@ -441,7 +461,12 @@ function AddDialog({
             disabled={busy || !title.trim() || !channel}
             onClick={async () => {
               const r = await run(() =>
-                api.upcoming.add({ channel, working_title: title, premise }),
+                api.upcoming.add({
+                  channel,
+                  working_title: title,
+                  premise,
+                  ...(airDate ? { air_date: airDate } : {}),
+                }),
               )
               if (r) {
                 toast({ kind: 'success', headline: COPY.success, detail: `Added ${r.episode_id}.` })
@@ -476,6 +501,7 @@ function EditDialog({
   const [title, setTitle] = useState(row.working_title)
   const [premise, setPremise] = useState(row.premise)
   const [notes, setNotes] = useState(row.notes)
+  const [airDate, setAirDate] = useState(row.air_date ?? '')
   const [base, setBase] = useState(row.entry_revision)
   const changedUnderUs = live.entry_revision !== base
   const next = nextStatus(live.status)
@@ -484,7 +510,13 @@ function EditDialog({
       api.upcoming.patch(
         row.channel,
         row.episode_id,
-        { working_title: title, premise, notes, ...extra },
+        {
+          working_title: title,
+          premise,
+          notes,
+          ...(airDate && airDate !== live.air_date ? { air_date: airDate } : {}),
+          ...extra,
+        },
         { entry_revision: base },
       ),
     )
@@ -542,6 +574,17 @@ function EditDialog({
           <Textarea
             value={premise}
             onChange={(e) => setPremise(e.target.value)}
+            disabled={live.status === 'dropped'}
+          />
+        </Field>
+        <Field
+          label="Air date"
+          hint="The day this episode is planned to go out. Only the Tracker reads it. It never moves a post."
+        >
+          <Input
+            type="date"
+            value={airDate}
+            onChange={(e) => setAirDate(e.target.value)}
             disabled={live.status === 'dropped'}
           />
         </Field>

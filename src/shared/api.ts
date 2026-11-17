@@ -63,6 +63,7 @@ import type { SearchHit } from './search'
 import type { EditPatch } from './platformEdit'
 import type { StudioApi } from './studio/api'
 import type { UpcomingEntryT, UpcomingView } from './upcoming'
+import type { TrackerView } from './tracker'
 import type {
   GrowthRetract,
   StorageReport,
@@ -303,11 +304,14 @@ export interface Api {
     view(): Promise<UpcomingView>
     /** Entries waiting for your review, for the menu badge. */
     needsReview(): Promise<number>
+    /** Planned versus finished per channel and platform, with flags. Read only. */
+    tracker(flagDays?: number): Promise<TrackerView>
     add(input: {
       channel: string
       working_title: string
       premise?: string
       notes?: string
+      air_date?: string
     }): Promise<UpcomingEntryT>
     patch(
       channel: string,
@@ -319,6 +323,7 @@ export interface Api {
           | 'premise'
           | 'notes'
           | 'script_path'
+          | 'air_date'
           | 'status'
           | 'post_type'
           | 'source_episode_id'

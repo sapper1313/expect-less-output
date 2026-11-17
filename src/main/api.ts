@@ -3,6 +3,7 @@ import type { DropLog } from './pipeline/dropLog'
 import type { PipelineIntake } from './pipeline/intake'
 import type { InboxService } from './pipeline/inboxService'
 import type { UpcomingService } from './pipeline/upcoming'
+import { TrackerService } from './pipeline/tracker'
 import { type Actor } from '@shared/upcoming'
 import type { BotStore } from './agent/bots'
 import { rmSync, writeFileSync } from 'fs'
@@ -675,6 +676,10 @@ export function buildApi(d: ApiDeps): Api {
     upcoming: {
       view: async () => d.upcoming.view(),
       needsReview: async () => d.upcoming.needsReviewCount(),
+      tracker: async (flagDays) =>
+        new TrackerService({ db: d.db, brands: d.brands, posts: d.posts, upcoming: d.upcoming }).view(
+          flagDays,
+        ),
       add: async (input) => d.upcoming.add(JOSH, input),
       patch: async (channel, episodeId, patch, base) =>
         d.upcoming.patch(JOSH, channel, episodeId, patch, base),

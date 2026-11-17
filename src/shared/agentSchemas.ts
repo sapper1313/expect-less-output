@@ -802,6 +802,11 @@ export const UpcomingOut = z.object({
   episodes: z.array(UpcomingEntry),
 })
 
+const AirDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .meta({ description: 'Planned day, YYYY-MM-DD in Eastern time. Only the production tracker reads it.' })
+
 export const AddUpcomingBody = z
   .object({
     channel: z.string().min(1).meta({ description: 'The channel slug.' }),
@@ -817,6 +822,7 @@ export const AddUpcomingBody = z
       .optional()
       .meta({ description: 'Leave out and ELO picks the next free id, <slug>-<year>-<nnnn>.' }),
     script_path: z.string().nullable().optional(),
+    air_date: AirDate.optional(),
     post_type: z.enum(['episode', 'clip']).optional(),
     source_episode_id: z.string().optional(),
   })
@@ -828,6 +834,7 @@ export const PatchUpcomingBody = z
     premise: z.string().max(5000).optional(),
     notes: z.string().max(5000).optional(),
     script_path: z.string().nullable().optional(),
+    air_date: AirDate.optional(),
     status: z.enum(UPCOMING_STATUSES).optional(),
     post_type: z.enum(['episode', 'clip']).optional(),
     source_episode_id: z.string().optional(),

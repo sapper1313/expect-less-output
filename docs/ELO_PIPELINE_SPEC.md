@@ -215,7 +215,7 @@ A shared planning list, visible before any script or render exists, so Josh sees
 ### 6.2 File
 - Setting `upcoming.filePath`, default `<Media Root>/Shared/upcoming.json` (a new top-level folder, ignored by the Inbox watcher, never a source of posts). Bots that cannot reach the API may point at the same file (or at the mirror they use before ELO is live, by setting this path).
 - Schema as in the new spec: `schema_version, revision, updated_at, episodes[]` with entries `channel, episode_id, working_title, premise, status, source_bot, created_by, created_at, updated_by, updated_at, entry_revision, notes, script_path, drop_id` and optional `conflict, conflict_detail`. Unknown fields are preserved on write. JSON Schema at `docs/upcoming.schema.json` (generated from the same zod schema ELO validates with, with a test that fails if it is stale).
-- `channel` is a slug. `episode_id` is unique per channel and uses the one id format (U1). `status`: `idea, scripted, queued, rendering, needs-review, dropped`.
+- `channel` is a slug. `episode_id` is unique per channel and uses the one id format (U1). `status`: `idea, scripted, queued, rendering, needs-review, muse-passed, dropped`.
 
 ### 6.3 Reading, writing, conflicts
 - **Writes by ELO** use `<file>.tmp` then atomic rename. Every write bumps top-level `revision` and the entry's `entry_revision`, sets `updated_by` and `updated_at`, and writes an `audit_log` row with before and after.

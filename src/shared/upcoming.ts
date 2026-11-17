@@ -11,6 +11,7 @@ export const UPCOMING_STATUSES = [
   'queued',
   'rendering',
   'needs-review',
+  'muse-passed',
   'dropped',
 ] as const
 export type UpcomingStatus = (typeof UPCOMING_STATUSES)[number]
@@ -49,6 +50,14 @@ export const UpcomingEntry = z
       .meta({ description: 'For a clip: the episode it comes from.' }),
     notes: z.string().default(''),
     script_path: z.string().nullable().default(null),
+    air_date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional()
+      .meta({
+        description:
+          'The day the episode is planned to go out, YYYY-MM-DD in Eastern time. Only the production tracker reads it. It never moves a post.',
+      }),
     drop_id: z.string().nullable().default(null),
     conflict: z.boolean().optional(),
     conflict_detail: z.string().optional(),
@@ -73,7 +82,7 @@ export const UpcomingFile = z
 export type UpcomingFileT = z.infer<typeof UpcomingFile>
 
 /** The editable fields of an entry. Everything else is set by the system. */
-export const EDITABLE = ['working_title', 'premise', 'notes', 'script_path'] as const
+export const EDITABLE = ['working_title', 'premise', 'notes', 'script_path', 'air_date'] as const
 
 /** The fields a change touched, comparing two versions of an entry. */
 export function changedFields(
@@ -101,7 +110,7 @@ export interface ChangeVerdict {
 /**
  * Who may change what (section 6.4). prev is null for a new entry.
  * - Josh may add and edit anything.
- * - system (ELO) makes one change only: needs-review to dropped, with the drop_id.
+ * - system (ELO) makes one change only: needs-review or muse-passed to dropped, with the drop_id.
  * - A bot adds entries on its own channels. It may edit the title, premise and notes only of entries it created.
  *   It may advance any entry on its own channels, and set script_path and notes there, but cannot delete or reword
  *   another actor's title or premise.
@@ -117,12 +126,12 @@ export function mayChange(
   if (actor.name === 'system') {
     if (
       prev &&
-      prev.status === 'needs-review' &&
+      (prev.status === 'needs-review' || prev.status === 'muse-passed') &&
       next.status === 'dropped' &&
       changedFields(prev, next).every((f) => f === 'status' || f === 'drop_id')
     )
       return { ok: true }
-    return { ok: false, reason: 'ELO only moves an entry from needs-review to dropped.' }
+    return { ok: false, reason: 'ELO only moves an entry from needs-review or muse-passed to dropped.' }
   }
   const own = channelAllowed(actor.channels, next.channel)
   const orchestrator = actor.role === 'orchestrator'
@@ -180,6 +189,7 @@ export function mayChange(
     if (
       f === 'notes' ||
       f === 'script_path' ||
+      f === 'air_date' ||
       f === 'source_bot' ||
       f === 'post_type' ||
       f === 'source_episode_id'

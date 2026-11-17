@@ -505,6 +505,7 @@ export class UpcomingService {
       status?: UpcomingEntryT['status']
       episode_id?: string
       script_path?: string | null
+      air_date?: string
       post_type?: 'episode' | 'clip'
       source_episode_id?: string
       /** Extra fields kept on the entry, for example community_request. */
@@ -542,6 +543,7 @@ export class UpcomingService {
           entry_revision: 1,
           notes: input.notes ?? '',
           script_path: input.script_path ?? null,
+          ...(input.air_date ? { air_date: input.air_date } : {}),
           ...(input.post_type === 'clip' ? { post_type: 'clip' } : {}),
           ...(input.source_episode_id ? { source_episode_id: input.source_episode_id } : {}),
           drop_id: null,
@@ -577,6 +579,7 @@ export class UpcomingService {
         | 'premise'
         | 'notes'
         | 'script_path'
+        | 'air_date'
         | 'status'
         | 'post_type'
         | 'source_episode_id'
@@ -604,6 +607,7 @@ export class UpcomingService {
           'premise',
           'notes',
           'script_path',
+          'air_date',
           'status',
           'post_type',
           'source_episode_id',
@@ -712,7 +716,7 @@ export class UpcomingService {
   }
 
   /**
-   * The one change ELO makes by itself: a drop with the exact episode id moves an entry from needs-review to dropped.
+   * The one change ELO makes by itself: a drop with the exact episode id moves an entry from needs-review or muse-passed to dropped.
    * An entry at an earlier status is not advanced. An id with no entry makes no change.
    */
   async markDropped(
@@ -727,7 +731,7 @@ export class UpcomingService {
       if (!e)
         return this.adopt(channel, episodeId, dropId) ? ('dropped' as const) : ('none' as const)
       if (e.status === 'dropped') return 'none' as const
-      if (e.status !== 'needs-review') {
+      if (e.status !== 'needs-review' && e.status !== 'muse-passed') {
         this.addViolation({
           key: `early:${channel}/${episodeId}:${dropId}`,
           detail: `${channel} ${episodeId} was dropped while its Upcoming status is "${e.status}". The drop arrived before the status caught up. Nothing was changed.`,

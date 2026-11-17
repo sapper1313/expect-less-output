@@ -46,6 +46,7 @@
               "queued",
               "rendering",
               "needs-review",
+              "muse-passed",
               "dropped"
             ]
           },
@@ -95,6 +96,11 @@
               "string",
               "null"
             ]
+          },
+          "air_date": {
+            "description": "The day the episode is planned to go out, YYYY-MM-DD in Eastern time. Only the production tracker reads it. It never moves a post.",
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
           },
           "drop_id": {
             "default": null,

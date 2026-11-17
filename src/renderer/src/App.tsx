@@ -18,6 +18,7 @@ import { EpisodePeek } from './screens/StudioLibrary'
 import type { SearchHit } from '@shared/search'
 import { Schedule, type ScheduleMode } from './screens/Schedule'
 import { Inbox } from './screens/Inbox'
+import { Upcoming } from './screens/Upcoming'
 import { About, SettingsScreen, type SettingsTab } from './screens/Simple'
 import logoWide from './assets/logo-wide.png'
 
@@ -26,6 +27,7 @@ type Screen =
   | 'schedule'
   | 'inbox'
   | 'queue'
+  | 'production'
   | 'posted'
   | 'stats'
   | 'channels'
@@ -48,6 +50,7 @@ const NAV_GROUPS: Array<{ label: string; items: Screen[] }> = [
       'schedule',
       'inbox',
       'queue',
+      'production',
       'posted',
       'stats',
       'channels',
@@ -109,7 +112,7 @@ function Shell() {
     if (channels === 'studio') channels = 'other'
     if (screenName === 'dashboard') screenName = 'home'
     else if (screenName === 'calendar') screenName = 'queue'
-    else if (screenName === 'upcoming') screenName = 'inbox'
+    else if (screenName === 'upcoming') screenName = 'production'
     else if (screenName === 'activity') screenName = 'about'
     else if (screenName === 'studio') {
       if (studioTarget === 'spend') screenName = 'financial'
@@ -134,9 +137,11 @@ function Shell() {
   const { data: studio } = useLoad(() => api.studio.overview())
   const { data: home } = useLoad(() => api.home.summary())
   const { data: inboxCounts } = useLoad(() => api.pipeline.counts())
+  const { data: trackerFlags } = useLoad(() => api.upcoming.tracker())
   const badge: Partial<Record<Screen, number>> = {
     aiStudio: home?.badges.studio,
     queue: home?.badges.queue,
+    production: trackerFlags?.flags.filter((f) => f.severity === 'bad').length,
     inbox: inboxCounts?.badge,
     channels: home?.badges.channels,
   }
@@ -283,6 +288,7 @@ function Shell() {
         {screen === 'home' && <Home go={go} />}
         {screen === 'queue' && <Queue onSchedule={() => openSchedule('one')} />}
         {screen === 'posted' && <PostedVideos />}
+        {screen === 'production' && <Upcoming openQueue={() => setScreen('queue')} />}
         {screen === 'inbox' && <Inbox />}
         {screen === 'stats' && <Stats key={statsTab} initialTab={statsTab} />}
         {screen === 'aiStudio' && <Studio key={studioKey} initialTab={studioTab} />}

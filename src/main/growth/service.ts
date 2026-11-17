@@ -794,7 +794,7 @@ export class GrowthService {
         : '- No numbers yet.',
       '',
       '## Pipeline',
-      `- Ideas ${up['idea'] ?? 0}, scripted ${up['scripted'] ?? 0}, queued ${up['queued'] ?? 0}, rendering ${up['rendering'] ?? 0}, needs review ${up['needs-review'] ?? 0}`,
+      `- Ideas ${up['idea'] ?? 0}, scripted ${up['scripted'] ?? 0}, queued ${up['queued'] ?? 0}, rendering ${up['rendering'] ?? 0}, needs review ${up['needs-review'] ?? 0}, Muse passed ${up['muse-passed'] ?? 0}`,
       `- ${waiting} finished video${waiting === 1 ? '' : 's'} waiting for a slot, ${scheduled} scheduled for the next 7 days, ${empty} empty slot${empty === 1 ? '' : 's'} in the next 7 days`,
       '',
       '## Watch list',

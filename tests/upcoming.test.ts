@@ -320,6 +320,30 @@ describe('Upcoming: the file or its folder was deleted', () => {
 })
 
 describe('Upcoming: drop link and reconcile (tests 31, 32, 33, 34)', () => {
+  it('muse-passed becomes dropped when its drop arrives, and a bot may set muse-passed and air_date but never dropped', async () => {
+    const t = setup()
+    const a = await t.up.add(GROK, {
+      channel: 'trash-panda',
+      working_title: 'Passed',
+      episode_id: 'trash-panda-2026-0021',
+      status: 'needs-review',
+      air_date: '2026-11-20',
+    })
+    const moved = await t.up.patch(GROK, 'trash-panda', a.episode_id, { status: 'muse-passed' })
+    expect(moved.entry).toMatchObject({ status: 'muse-passed', air_date: '2026-11-20' })
+    await expect(
+      t.up.patch(GROK, 'trash-panda', a.episode_id, { status: 'dropped' }),
+    ).rejects.toThrow(/Only ELO sets dropped/)
+    const dated = await t.up.patch(GROK, 'trash-panda', a.episode_id, { air_date: '2026-11-21' })
+    expect(dated.entry.air_date).toBe('2026-11-21')
+    t.drop('Trash Panda', 'trash-panda', 21)
+    await t.settle()
+    await new Promise((r) => setTimeout(r, 20))
+    expect(t.up.view().rows.find((r) => r.episode_id === a.episode_id)).toMatchObject({
+      status: 'dropped',
+      updated_by: 'system',
+    })
+  })
   it('needs-review becomes dropped when a drop with the exact id arrives; a different id changes nothing', async () => {
     const t = setup()
     const a = await t.up.add(JOSH, {

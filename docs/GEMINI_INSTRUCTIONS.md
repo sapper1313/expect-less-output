@@ -63,7 +63,7 @@ Each bot has its own token, made by the owner in ELO under Settings, Agent API, 
 
 ## The Upcoming list
 
-`GET /v1/upcoming` shows every episode in flight. `POST /v1/upcoming` adds one (on your own channels). `PATCH /v1/upcoming/{channel}/{episode_id}` edits or moves one. The statuses go in this order: `idea`, `scripted`, `queued`, `rendering`, `needs-review`, `dropped`.
+`GET /v1/upcoming` shows every episode in flight. `POST /v1/upcoming` adds one (on your own channels). `PATCH /v1/upcoming/{channel}/{episode_id}` edits or moves one. The statuses go in this order: `idea`, `scripted`, `queued`, `rendering`, `needs-review`, `muse-passed`, `dropped`.
 
 - Move an entry forward as the work moves: `scripted` when the script is done, `queued` when a render is queued, `rendering` while it renders, `needs-review` when the video is ready for Josh.
 - You may edit the title, premise and notes only of entries you created. You may move any entry on your own channels forward and set `script_path` and `notes` on it.

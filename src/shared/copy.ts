@@ -29,6 +29,7 @@ export const COPY = {
     schedule: 'Manual Schedule',
     inbox: 'Inbox',
     queue: 'Queue',
+    production: 'Production',
     posted: 'Posted Videos',
     stats: 'Analytics',
     channels: 'Setup Channels',
