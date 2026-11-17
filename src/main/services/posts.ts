@@ -72,6 +72,44 @@ const POST_SELECT = `SELECT p.*, b.name AS brand_name, b.color AS brand_color
 
 /** Statuses that reserve a slot for a brand. */
 const RESERVING = ['scheduled', 'in_progress', 'partial']
+/** How many extra open times per platform are looked at when lining a video's platforms up on one day. */
+const SAME_DAY_LOOKAHEAD = 45
+const etDay = (iso: string) => DateTime.fromISO(iso, { zone: ZONE }).toFormat('yyyy-MM-dd')
+
+/**
+ * Each platform keeps its own times of day, and videos still take open times in arrival order, but the platforms of one
+ * video are put on the SAME Eastern day wherever the platforms' open times allow it. For each video the day chosen is
+ * the earliest one on which every platform has an open time; each platform then takes its first open time that day.
+ * If no day suits every platform (for example their weekdays never meet), the earliest day that suits the most
+ * platforms is used and the others take their own next open time after it. Open times skipped over stay open.
+ */
+export function planSameDay(
+  platforms: Platform[],
+  lists: Map<Platform, string[]>,
+  count: number,
+): Array<Partial<Record<Platform, string>>> {
+  const left = new Map<Platform, string[]>(platforms.map((p) => [p, [...(lists.get(p) ?? [])]]))
+  const out: Array<Partial<Record<Platform, string>>> = []
+  for (let i = 0; i < count; i++) {
+    const active = platforms.filter((p) => (left.get(p) ?? []).length > 0)
+    if (active.length === 0) break
+    const have = new Map<string, number>() // day -> how many platforms have an open time on it
+    for (const p of active) for (const d of new Set(left.get(p)!.map(etDay))) have.set(d, (have.get(d) ?? 0) + 1)
+    const best = Math.max(...have.values())
+    const day = [...have.keys()].sort().find((d) => have.get(d) === best)!
+    const plan: Partial<Record<Platform, string>> = {}
+    for (const p of active) {
+      const list = left.get(p)!
+      let at = list.findIndex((t) => etDay(t) === day)
+      if (at < 0) at = list.findIndex((t) => etDay(t) > day)
+      if (at < 0) at = 0
+      plan[p] = list[at]
+      list.splice(at, 1)
+    }
+    out.push(plan)
+  }
+  return out
+}
 
 export class PostService {
   constructor(
@@ -456,22 +494,14 @@ export class PostService {
   ): Array<Partial<Record<Platform, string>>> {
     let combined: string[] | null = null
     const lists = new Map<Platform, string[]>()
+    // Ask for more than `count` open times per platform so a day that suits every platform can be found.
+    const depth = count + SAME_DAY_LOOKAHEAD
     for (const p of platforms) {
       const own = platformSlotsFor(this.db, brandId, p, kind)
-      if (own && own.slots.some((x) => x.enabled)) lists.set(p, this.nextSlotsFor(brandId, p, count, fromUtc, [], kind))
-      else lists.set(p, (combined ??= this.nextSlots(brandId, count, fromUtc, [], kind)))
+      if (own && own.slots.some((x) => x.enabled)) lists.set(p, this.nextSlotsFor(brandId, p, depth, fromUtc, [], kind))
+      else lists.set(p, (combined ??= this.nextSlots(brandId, depth, fromUtc, [], kind)))
     }
-    const out: Array<Partial<Record<Platform, string>>> = []
-    for (let i = 0; i < count; i++) {
-      const plan: Partial<Record<Platform, string>> = {}
-      for (const p of platforms) {
-        const t = lists.get(p)?.[i]
-        if (t) plan[p] = t
-      }
-      if (Object.keys(plan).length === 0) break
-      out.push(plan)
-    }
-    return out
+    return planSameDay(platforms, lists, count)
   }
 
   /** The channel's one list of times, for a channel that has no per-platform times. */

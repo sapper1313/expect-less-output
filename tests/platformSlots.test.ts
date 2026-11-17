@@ -181,3 +181,56 @@ describe('canceled posts and their slots', () => {
     expect(env.posts.nextSlotsFor(1, 'youtube', 1, undefined, [], 'short')[0]).not.toBe(iso(H(0, 30)))
   })
 })
+
+describe('one video, one day', () => {
+  // Tue 10 Nov 2026 Eastern: Facebook 4 PM and Instagram 6 PM on weekdays; YouTube 7 PM. Booking Tuesday's YouTube
+  // slot with an earlier post is what used to push the next video's YouTube to Wednesday and leave the rest on Tuesday.
+  function rigDays() {
+    const env = makeEnv(MON)
+    env.db.prepare("INSERT OR REPLACE INTO channel_rules (brand_id, max_per_day, blackout_json) VALUES (1, 0, '[]')").run()
+    env.brands.setPlatformSlots(1, [
+      slot('facebook', 'weekday', '16:00'),
+      slot('instagram', 'weekday', '18:00'),
+      slot('youtube', 'weekday', '19:00'),
+    ])
+    return env
+  }
+  const dayOf = (isoStr: string) => new Date(isoStr).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+
+  it('puts every platform of a video on the same Eastern day', () => {
+    const env = rigDays()
+    for (const plan of env.posts.slotPlans(1, 4, 'short', ['facebook', 'instagram', 'youtube'])) {
+      expect(new Set(Object.values(plan).map((t) => dayOf(t!))).size).toBe(1)
+    }
+  })
+
+  it('keeps each platform on its own time of day', () => {
+    const env = rigDays()
+    const plan = env.posts.slotPlans(1, 1, 'short', ['facebook', 'instagram', 'youtube'])[0]!
+    const hm = (t: string) => new Date(t).toLocaleTimeString('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit' })
+    expect([hm(plan.facebook!), hm(plan.instagram!), hm(plan.youtube!)]).toEqual(['16:00', '18:00', '19:00'])
+  })
+
+  it('moves a whole video to the next day when one platform is full that day, instead of splitting it', async () => {
+    const env = rigDays()
+    const first = env.posts.slotPlans(1, 1, 'short', ['facebook', 'instagram', 'youtube'])[0]!
+    // an earlier post already holds that day's YouTube slot only
+    await env.makePost({ brandId: 1, whenMs: Date.parse(first.youtube!), platforms: ['youtube'] })
+    const plan = env.posts.slotPlans(1, 1, 'short', ['facebook', 'instagram', 'youtube'])[0]!
+    expect(new Set(Object.values(plan).map((t) => dayOf(t!))).size).toBe(1)
+    expect(dayOf(plan.youtube!) > dayOf(first.youtube!)).toBe(true)
+    // the slots it skipped stay open for anything that can use them
+    expect(env.posts.nextSlotsFor(1, 'facebook', 1, undefined, [], 'short')[0]).toBe(first.facebook)
+  })
+
+  it('still places a platform whose days never meet the others', () => {
+    const env = rigDays()
+    env.brands.setPlatformSlots(1, [
+      slot('facebook', 'weekday', '16:00'),
+      slot('youtube', 'weekend', '12:00'),
+    ])
+    const plan = env.posts.slotPlans(1, 1, 'short', ['facebook', 'youtube'])[0]!
+    expect(plan.facebook).toBeTruthy()
+    expect(plan.youtube).toBeTruthy()
+  })
+})
