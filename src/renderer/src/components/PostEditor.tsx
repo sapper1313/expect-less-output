@@ -66,6 +66,8 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
 
   if (!draft) return null
   const locked = ['posted', 'in_progress'].includes(draft.status)
+  // A post that is partly out still lets its waiting (pending) platforms move to another time.
+  const retimeWaiting = draft.status === 'in_progress' && draft.targets.some((t) => t.status === 'pending')
   const canCommentNow = draft.targets.some((t) => t.status === 'posted')
   const counters = captionCounters(draft.title, draft.caption)
   const failed = draft.targets.filter((t) => t.status === 'failed')
@@ -369,7 +371,7 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
                           brandId={draft.brandId}
                           platform={p}
                           kind={slotKindFor(draft.videoMeta)}
-                          disabled={locked}
+                          disabled={locked && !(retimeWaiting && t?.status === 'pending')}
                           value={times[p] ?? draft.scheduledAtUtc}
                           onChange={(v) => setTimes({ ...times, [p]: v })}
                         />
@@ -377,10 +379,13 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
                     </div>
                   )
                 })}
-                {platforms.length > 1 && !locked && (
+                {platforms.length > 1 && (!locked || retimeWaiting) && (
                   <Button
                     onClick={() => {
-                      const open = platforms.filter((p) => draft.targets.find((x) => x.platform === p)?.status !== 'posted')
+                      const open = platforms.filter((p) => {
+                        const st = draft.targets.find((x) => x.platform === p)?.status
+                        return locked ? st === 'pending' : st !== 'posted'
+                      })
                       const first = open.map((p) => times[p] ?? draft.scheduledAtUtc).find((x) => !!x) ?? null
                       setTimes({ ...times, ...Object.fromEntries(open.map((p) => [p, first])) })
                     }}
@@ -564,6 +569,11 @@ export function PostEditor({ postId, onClose }: { postId: number; onClose: () =>
         </div>
         <div className="flex gap-2">
           <Button onClick={onClose}>Close</Button>
+          {retimeWaiting && (
+            <Button variant="fine" disabled={busy} onClick={() => save()}>
+              Save new times
+            </Button>
+          )}
           {!locked && draft.status !== 'posted' && (
             <>
               {['draft', 'canceled'].includes(draft.status) && (

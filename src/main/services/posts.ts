@@ -1026,7 +1026,15 @@ export class PostService {
         'This post is already scheduled inside YouTube. Cancel it and delete the scheduled video in YouTube Studio first, then schedule it again.',
       )
     }
-    if (['posted', 'in_progress'].includes(cur.status)) {
+    // A post that is partly out can still pull its waiting platforms to another time (a pending one is not with any
+    // platform yet), so one drop is never stuck split across nights. Anything else waits until it has finished.
+    const pendingOnly = (t: { platform: string }) =>
+      cur.targets.find((x) => x.platform === t.platform)?.status === 'pending'
+    const retimeOnly =
+      cur.status === 'in_progress' &&
+      !(patch.scheduledAtUtc && patch.scheduledAtUtc !== cur.scheduledAtUtc) &&
+      retimed.every(pendingOnly)
+    if (['posted', 'in_progress'].includes(cur.status) && !retimeOnly) {
       throw new Error('This post is already going out. Wait for it to finish first.')
     }
     this.db.transaction(() => {
