@@ -7,6 +7,7 @@ import { getNextOpenSlots, getSlotTimes, pairNearest, type SlotDef, type SlotKin
 import { kindToUse, platformSlotRows, platformSlotsFor, slotKinds, slotsForKind } from './channelSettings'
 import { derivePostStatus } from '@shared/scheduling'
 import { readSetting } from './settings'
+import { realPlatforms } from '../pipeline/verify'
 import { PLATFORM_LIMITS, durationProblem } from '@shared/platformLimits'
 import type { SendSchedule } from '@shared/sendSchedule'
 import { tiktokSettingsProblem } from '@shared/tiktok'
@@ -591,6 +592,27 @@ export class PostService {
           .all(brandId) as Array<{ t: string }>
       ).map((r) => r.t.slice(0, 16)),
     )
+    // Live episode entries per platform and Eastern day, for the channels that have their own platform times.
+    const coverage = (() => {
+      const rows = platformSlotRows(this.db, brandId)
+      if (rows.length === 0) return null
+      const platforms = realPlatforms(this.db, brandId).filter((p) => rows.some((r) => r.platform === p && r.enabled))
+      if (platforms.length === 0) return null
+      const count = new Map<string, number>()
+      const got = this.db
+        .prepare(
+          `SELECT t.platform AS platform, COALESCE(t.target_at_utc, p.scheduled_at_utc) AS t
+           FROM post_targets t JOIN posts p ON p.id = t.post_id
+           WHERE p.brand_id = ? AND p.post_type = 'episode' AND p.status NOT IN ('canceled','draft')
+             AND t.status NOT IN ('skipped','canceled') AND COALESCE(t.target_at_utc, p.scheduled_at_utc) IS NOT NULL`,
+        )
+        .all(brandId) as Array<{ platform: string; t: string }>
+      for (const r of got) {
+        const k = r.platform + '|' + DateTime.fromISO(r.t, { zone: 'utc' }).setZone(ZONE).toFormat('yyyy-MM-dd')
+        count.set(k, (count.get(k) ?? 0) + 1)
+      }
+      return { platforms, count }
+    })()
     const out: Array<{ whenUtc: string; kind: 'episode' | 'clip'; blockedBy?: string }> = []
     const gapMs = 0
     const blockerOf = (_iso: string): string | undefined => undefined
@@ -607,9 +629,22 @@ export class PostService {
       const onTarget = (s: string) => kind === 'episode' && targetMinutes.has(s.slice(0, 16))
       // Slots already filled by a platform target count toward the daily limit first.
       for (const s of all) if (onTarget(s) && !takenMinutes.has(s.slice(0, 16)) && !filledNear.has(s)) perDay.set(dayOf(s), (perDay.get(dayOf(s)) ?? 0) + 1)
+      // A platform with a video on a day has had its slot, whatever time that video sits at (YouTube at 11 AM instead of
+      // 6 PM). A day keeps as many open slots as the least covered platform still lacks, so a moved time is not a hole.
+      const slotsPerDay = new Map<string, number>()
+      for (const s of all) slotsPerDay.set(dayOf(s), (slotsPerDay.get(dayOf(s)) ?? 0) + 1)
+      const openLeft = new Map<string, number>()
+      const lacking = (d: string) => {
+        if (kind !== 'episode' || !coverage) return Infinity
+        const have = slotsPerDay.get(d) ?? 0
+        return Math.max(0, ...coverage.platforms.map((p) => have - (coverage.count.get(p + '|' + d) ?? 0)))
+      }
       for (const s of all) {
         if (s < from || takenMinutes.has(s.slice(0, 16)) || filledNear.has(s) || onTarget(s)) continue
         const d = dayOf(s)
+        if (!openLeft.has(d)) openLeft.set(d, lacking(d))
+        if (openLeft.get(d)! <= 0) continue
+        openLeft.set(d, openLeft.get(d)! - 1)
         const n = perDay.get(d) ?? 0
         if (cap > 0 && n >= cap) continue
         perDay.set(d, n + 1)
