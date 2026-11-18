@@ -251,6 +251,7 @@ export function Queue({ onSchedule }: { onSchedule?: () => void }) {
         {view !== 'table' && posts && posts.length > 0 ? (
           view === 'timeline' ? (
             <VisualTimeline
+              onlyBrand={brands?.find((b) => b.id === filter.brandId)?.name ?? null}
               posts={posts}
               selected={sel}
               onToggle={toggle}

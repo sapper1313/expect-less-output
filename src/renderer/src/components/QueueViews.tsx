@@ -56,6 +56,8 @@ type Props = {
   onOpen: (id: number) => void
   onPreview: (post: Post) => void
   onSchedule: () => void
+  /** When the Queue is filtered to one channel, only that channel's open slots are shown. */
+  onlyBrand?: string | null
 }
 
 function Thumb({ post, w = 'w-[52px]', h = 'h-[74px]' }: { post: Post; w?: string; h?: string }) {
@@ -125,7 +127,7 @@ function PostCard({ p, day, selected, onToggle, onOpen, onPreview }: Omit<Props,
 
 /** Posts grouped by day, newest day last, with the open slots of each day as dashed cards. */
 export function VisualTimeline(props: Props) {
-  const { posts, selected, onToggle, onOpen, onPreview, onSchedule } = props
+  const { posts, selected, onToggle, onOpen, onPreview, onSchedule, onlyBrand } = props
   const { data: snap } = useLoad(() => api.dashboard.snapshot(), [])
   const days = useMemo(() => {
     const by = new Map<string, Post[]>()
@@ -135,7 +137,7 @@ export function VisualTimeline(props: Props) {
     }
     const open = new Map<string, Map<string, string[]>>()
     for (const s of snap?.openSlots ?? []) {
-      if (s.date < todayKey()) continue
+      if (s.date < todayKey() || (onlyBrand && s.brand !== onlyBrand)) continue
       const m = open.get(s.date) ?? new Map<string, string[]>()
       m.set(s.brand, [...(m.get(s.brand) ?? []), s.timeET])
       open.set(s.date, m)
@@ -146,7 +148,7 @@ export function VisualTimeline(props: Props) {
       posts: (by.get(k) ?? []).sort((a, b) => firstOn(a, k).localeCompare(firstOn(b, k))),
       open: open.get(k),
     }))
-  }, [posts, snap])
+  }, [posts, snap, onlyBrand])
   const today = todayKey()
 
   return (
