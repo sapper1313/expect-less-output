@@ -24,7 +24,7 @@ describe('open slots with a platform time moved', () => {
     expect(after).toEqual([])
   })
 
-  it('keeps a slot open while one platform still has no video that day', async () => {
+  it('counts a video on any platform as the day\'s video', async () => {
     const e = makeEnv(MON)
     e.db.prepare("INSERT OR REPLACE INTO channel_rules (brand_id, max_per_day, blackout_json) VALUES (1, 0, '[]')").run()
     for (const p of ['youtube', 'facebook'])
@@ -33,6 +33,6 @@ describe('open slots with a platform time moved', () => {
     await e.makePost({ whenMs: Date.UTC(2026, 10, 10, 16, 0), platforms: ['youtube'] })
     const open = e.posts.openSlotsInRange(1, new Date(MON).toISOString(), new Date(Date.UTC(2026, 10, 12, 5)).toISOString())
       .filter((s) => s.whenUtc >= '2026-11-10T05' && s.whenUtc < '2026-11-11T05')
-    expect(open.length).toBe(1)
+    expect(open).toEqual([])
   })
 })

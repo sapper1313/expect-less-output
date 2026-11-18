@@ -7,7 +7,6 @@ import { getNextOpenSlots, getSlotTimes, pairNearest, type SlotDef, type SlotKin
 import { kindToUse, platformSlotRows, platformSlotsFor, slotKinds, slotsForKind } from './channelSettings'
 import { derivePostStatus } from '@shared/scheduling'
 import { readSetting } from './settings'
-import { realPlatforms } from '../pipeline/verify'
 import { PLATFORM_LIMITS, durationProblem } from '@shared/platformLimits'
 import type { SendSchedule } from '@shared/sendSchedule'
 import { tiktokSettingsProblem } from '@shared/tiktok'
@@ -592,26 +591,22 @@ export class PostService {
           .all(brandId) as Array<{ t: string }>
       ).map((r) => r.t.slice(0, 16)),
     )
-    // Live episode entries per platform and Eastern day, for the channels that have their own platform times.
-    const coverage = (() => {
-      const rows = platformSlotRows(this.db, brandId)
-      if (rows.length === 0) return null
-      const platforms = realPlatforms(this.db, brandId).filter((p) => rows.some((r) => r.platform === p && r.enabled))
-      if (platforms.length === 0) return null
-      const count = new Map<string, number>()
+    // How many different videos have an entry on each Eastern day (any platform, any time), for episode slots.
+    const videosOn = (() => {
+      const days = new Map<string, Set<number>>()
       const got = this.db
         .prepare(
-          `SELECT t.platform AS platform, COALESCE(t.target_at_utc, p.scheduled_at_utc) AS t
+          `SELECT p.id AS id, COALESCE(t.target_at_utc, p.scheduled_at_utc) AS t
            FROM post_targets t JOIN posts p ON p.id = t.post_id
            WHERE p.brand_id = ? AND p.post_type = 'episode' AND p.status NOT IN ('canceled','draft')
              AND t.status NOT IN ('skipped','canceled') AND COALESCE(t.target_at_utc, p.scheduled_at_utc) IS NOT NULL`,
         )
-        .all(brandId) as Array<{ platform: string; t: string }>
+        .all(brandId) as Array<{ id: number; t: string }>
       for (const r of got) {
-        const k = r.platform + '|' + DateTime.fromISO(r.t, { zone: 'utc' }).setZone(ZONE).toFormat('yyyy-MM-dd')
-        count.set(k, (count.get(k) ?? 0) + 1)
+        const k = DateTime.fromISO(r.t, { zone: 'utc' }).setZone(ZONE).toFormat('yyyy-MM-dd')
+        days.set(k, (days.get(k) ?? new Set()).add(r.id))
       }
-      return { platforms, count }
+      return days
     })()
     const out: Array<{ whenUtc: string; kind: 'episode' | 'clip'; blockedBy?: string }> = []
     const gapMs = 0
@@ -629,16 +624,13 @@ export class PostService {
       const onTarget = (s: string) => kind === 'episode' && targetMinutes.has(s.slice(0, 16))
       // Slots already filled by a platform target count toward the daily limit first.
       for (const s of all) if (onTarget(s) && !takenMinutes.has(s.slice(0, 16)) && !filledNear.has(s)) perDay.set(dayOf(s), (perDay.get(dayOf(s)) ?? 0) + 1)
-      // A platform with a video on a day has had its slot, whatever time that video sits at (YouTube at 11 AM instead of
-      // 6 PM). A day keeps as many open slots as the least covered platform still lacks, so a moved time is not a hole.
+      // A day with a video already scheduled on it has had that video's slot, whatever time or platform it sits on (YouTube
+      // at 11 AM instead of 6 PM). A day keeps only as many open slots as it has slots left over after its videos.
       const slotsPerDay = new Map<string, number>()
       for (const s of all) slotsPerDay.set(dayOf(s), (slotsPerDay.get(dayOf(s)) ?? 0) + 1)
       const openLeft = new Map<string, number>()
-      const lacking = (d: string) => {
-        if (kind !== 'episode' || !coverage) return Infinity
-        const have = slotsPerDay.get(d) ?? 0
-        return Math.max(0, ...coverage.platforms.map((p) => have - (coverage.count.get(p + '|' + d) ?? 0)))
-      }
+      const lacking = (d: string) =>
+        kind !== 'episode' ? Infinity : Math.max(0, (slotsPerDay.get(d) ?? 0) - (videosOn.get(d)?.size ?? 0))
       for (const s of all) {
         if (s < from || takenMinutes.has(s.slice(0, 16)) || filledNear.has(s) || onTarget(s)) continue
         const d = dayOf(s)
