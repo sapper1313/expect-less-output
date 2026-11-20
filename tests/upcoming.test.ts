@@ -412,6 +412,8 @@ describe('Upcoming: drop link and reconcile (tests 31, 32, 33, 34)', () => {
     await new Promise((r) => setTimeout(r, 20))
     expect(t.up.view().rows[0].status).toBe('rendering')
     expect(t.up.issues().some((i) => /before the status caught up/.test(i.detail))).toBe(true)
+    // The owner asked for no alert for this one: the note stays on screen, nothing is sent.
+    expect(t.alerts.some((a) => /Upcoming needs a look/.test(a[0]))).toBe(false)
   })
 
   it('reconcile reports a duplicate id, a dropped entry with no drop row, and a stale needs-review, and deletes nothing', async () => {

@@ -327,11 +327,12 @@ export class UpcomingService {
     return out
   }
 
-  private addViolation(v: Omit<Violation, 'at'>): void {
+  /** `quiet` keeps the note in the Upcoming issues list but sends no alert to the owner. */
+  private addViolation(v: Omit<Violation, 'at'>, quiet = false): void {
     const st = this.state()
     if (st.violations.some((x) => x.key === v.key)) return
     this.saveState({ violations: [...st.violations, { ...v, at: this.iso() }].slice(-100) })
-    this.d.notify('Upcoming needs a look', v.detail)
+    if (!quiet) this.d.notify('Upcoming needs a look', v.detail)
   }
 
   // ---------- the view ----------
@@ -738,7 +739,8 @@ export class UpcomingService {
           channel,
           episodeId,
           entryRevision: e.entry_revision,
-        })
+          // The owner asked for no alert on this one. The note stays in the issues list on the Upcoming screen.
+        }, true)
         return 'early' as const
       }
       this.mutate('system', 'dropped', (file) => {

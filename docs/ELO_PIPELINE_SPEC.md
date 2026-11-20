@@ -227,7 +227,7 @@ A shared planning list, visible before any script or render exists, so Josh sees
 
 ### 6.4 Ownership and transitions
 - Channel owners: Grok Bot owns `wonder-hollow, math-of-it, clock-out-early, trash-panda, teach-your-parents-tech`. Kids Comedy owns `backup-heroes, complaint-department`. A bot may create, edit and advance only entries on its own channels that it created. Josh may add or edit any entry (`created_by: "josh"`). `beth` (B.E.T.H.) may advance any entry `scripted to queued to rendering to needs-review`.
-- **ELO (`system`) makes exactly one transition:** `needs-review` to `dropped`, setting `drop_id`, when an accepted drop has the **same exact `episode_id`**. A mismatch makes no transition and raises a reconcile issue. An accepted drop whose entry is at an earlier status is not advanced: it raises a warning ("the drop arrived before the status caught up").
+- **ELO (`system`) makes exactly one transition:** `needs-review` to `dropped`, setting `drop_id`, when an accepted drop has the **same exact `episode_id`**. A mismatch makes no transition and raises a reconcile issue. An accepted drop whose entry is at an earlier status is not advanced: it records a note in the Upcoming issues list ("the drop arrived before the status caught up") and sends no alert.
 - Nobody but the owner rewrites another actor's `working_title` or `premise`. A bot can advance Josh's idea to `scripted` and set `script_path`, but cannot delete it or edit its premise. Rejecting an idea is a status note by Josh or B.E.T.H.
 - Backward moves need Josh or B.E.T.H. and a note.
 
