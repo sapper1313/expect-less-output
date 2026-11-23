@@ -549,6 +549,7 @@ export class PostService {
     const from = fromUtc > now ? fromUtc : now
     if (from >= toUtc) return []
     const rules = this.channelRules(brandId)
+    if (rules.alwaysOn) return []
     const blackoutDates = [
       ...new Set([...readSetting(this.db, 'blackoutDates'), ...rules.blackoutDates]),
     ]
@@ -751,9 +752,10 @@ export class PostService {
     maxPerDay: number
     blackoutDates: string[]
     lowQueueDays: number | null
+    alwaysOn: boolean
   } {
     const r = this.db.prepare('SELECT * FROM channel_rules WHERE brand_id = ?').get(brandId) as
-      { max_per_day: number; blackout_json: string; low_queue_days: number | null } | undefined
+      { max_per_day: number; blackout_json: string; low_queue_days: number | null; always_on: number } | undefined
     let blackoutDates: string[] = []
     try {
       blackoutDates = r ? (JSON.parse(r.blackout_json) as string[]) : []
@@ -764,6 +766,7 @@ export class PostService {
       maxPerDay: r?.max_per_day ?? 1,
       blackoutDates,
       lowQueueDays: r?.low_queue_days ?? null,
+      alwaysOn: !!r?.always_on,
     }
   }
 

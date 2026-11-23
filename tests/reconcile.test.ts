@@ -85,6 +85,17 @@ describe('reconcile (tests 9, 23)', () => {
     expect(issues.filter((i) => i.kind === 'low_queue').map((i) => i.brandId)).toEqual([1])
   })
 
+  it('a 24/7 stream channel never gets a low queue alert or open slots', async () => {
+    const t = pipelineSetup({ patch: { lowQueueDays: 3 }, live: [[1, 'youtube'], [2, 'youtube']] })
+    const { r } = make(t)
+    t.env.db.prepare('UPDATE channel_rules SET always_on = 1 WHERE brand_id = 2').run()
+    const issues = await r.run()
+    expect(issues.filter((i) => i.kind === 'low_queue').map((i) => i.brandId)).toEqual([1])
+    const from = new Date(t.env.clock.ms).toISOString()
+    const to = new Date(t.env.clock.ms + 7 * 86_400_000).toISOString()
+    expect(t.env.posts.openSlotsInRange(2, from, to)).toEqual([])
+  })
+
   it('auto fix moves the later bot post out of a taken slot, and only when switched on', async () => {
     const t = pipelineSetup()
     t.drop('Trash Panda', 'trash-panda', 3)

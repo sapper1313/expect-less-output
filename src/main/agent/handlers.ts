@@ -98,6 +98,7 @@ function brandOut(s: AgentServices, b: Brand) {
     clip_time: s.posts.clipSchedule(b.id).time,
     clip_platforms: clipPlatformsOf(s, b.id),
     daily_cap: rules.maxPerDay,
+    always_on: rules.alwaysOn,
     blackout_dates: [...new Set([...settings.blackoutDates, ...rules.blackoutDates])].sort(),
     aliases: Object.entries(SLUG_ALIASES)
       .filter(([, v]) => v === b.slug)

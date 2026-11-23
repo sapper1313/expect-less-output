@@ -141,6 +141,7 @@ export function PlatformSchedule({ brandId }: { brandId: number }) {
   const { data: kindRows } = useLoad(() => api.brands.getSlotKinds(brandId), [brandId])
   const { data: rec } = useLoad(() => api.stats.recommendedSlots(brandId), [brandId])
   const { data: accounts } = useLoad(() => api.accounts.list(brandId), [brandId])
+  const { data: rules, reload: reloadRules } = useLoad(() => api.pipeline.channelRules(brandId), [brandId])
 
   const fresh = useMemo<Draft | null>(() => {
     if (!rows || !kindRows) return null
@@ -256,6 +257,19 @@ export function PlatformSchedule({ brandId }: { brandId: number }) {
           className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold ${kinds[kind].enabled ? 'border-accent text-accent' : 'border-line text-muted'}`}
         >
           {kinds[kind].enabled ? `Makes ${KIND_LABEL[kind]}: on` : `Makes ${KIND_LABEL[kind]}: off`}
+        </button>
+        <button
+          disabled={!rules || busy}
+          onClick={async () => {
+            if (!rules) return
+            const ok = await run(() => api.pipeline.setChannelRules(brandId, { alwaysOn: !rules.alwaysOn }))
+            if (ok) reloadRules()
+          }}
+          aria-pressed={!!rules?.alwaysOn}
+          title="A stream that is always live, like rain or a fireplace. It never needs episodes, so ELO stops the low queue alerts and the open slot cards for this channel."
+          className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold ${rules?.alwaysOn ? 'border-accent text-accent' : 'border-line text-muted'}`}
+        >
+          {rules?.alwaysOn ? '24/7 stream: on (no episodes needed)' : '24/7 stream: off'}
         </button>
         <span className="h-7 w-px bg-line" />
         {ALL_DAYS.map((d) => {

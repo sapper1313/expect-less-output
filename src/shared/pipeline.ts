@@ -440,6 +440,8 @@ export interface InboxCounts {
 export interface ChannelRules {
   /** Not producing or scheduling while a decision is made. Drops wait. */
   onHold: boolean
+  /** A 24/7 stream. It never needs episodes, so no low queue alert and no open slot cards. */
+  alwaysOn: boolean
   maxPerDay: number
   blackoutDates: string[]
   lowQueueDays: number | null

@@ -445,7 +445,9 @@ export class Reconciler {
       if (paused.has(b.id)) continue
       // Only channels that post for real are watched; a channel with no connected account has nothing to run out of.
       if (!s.globalDryRun && realPlatforms(this.d.db, b.id).length === 0) continue
-      const days = this.d.posts.channelRules(b.id).lowQueueDays ?? s.lowQueueDays
+      const rules = this.d.posts.channelRules(b.id)
+      if (rules.alwaysOn) continue // a 24/7 stream never runs out of episodes
+      const days = rules.lowQueueDays ?? s.lowQueueDays
       if (days <= 0) continue
       const last = this.d.db
         .prepare(
