@@ -588,7 +588,7 @@ export function buildApi(d: ApiDeps): Api {
       connectedFor: async (brandId) => d.platforms.connected(brandId),
     },
     amazon: {
-      channel: async (brandId) => ({ ...d.amazon.channel(brandId), blocked: d.amazon.blockedReason(brandId) }),
+      channel: async (brandId) => ({ ...d.amazon.channel(brandId), blocked: d.amazon.blockedReason(brandId), stream: d.amazon.isStream(brandId) }),
       saveChannel: async (brandId, patch) => {
         const out = d.amazon.saveChannel(brandId, patch)
         void d.amazon.catchUp().catch(() => {})

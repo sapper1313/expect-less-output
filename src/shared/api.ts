@@ -365,7 +365,7 @@ export interface Api {
   }
   amazon: {
     /** This channel's tracking id and lines, and why lists cannot run for it yet (null when they can). */
-    channel(brandId: number): Promise<AmazonChannelSettings & { blocked: string | null }>
+    channel(brandId: number): Promise<AmazonChannelSettings & { blocked: string | null; stream: boolean }>
     saveChannel(brandId: number, patch: Partial<AmazonChannelSettings>): Promise<AmazonChannelSettings>
     live(): Promise<boolean>
     /** The master switch. Turning it on catches up every waiting post and returns how many were looked at. */

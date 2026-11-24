@@ -141,6 +141,14 @@ export class AmazonLists {
     return w?.site_slug || null
   }
 
+  /** True when the channel is marked as a 24/7 stream. */
+  isStream(brandId: number): boolean {
+    const r = this.d.db.prepare('SELECT always_on FROM channel_rules WHERE brand_id = ?').get(brandId) as
+      | { always_on: number }
+      | undefined
+    return !!r?.always_on
+  }
+
   /** Why a list cannot be made for this channel yet, in plain words. Null when it can. */
   blockedReason(brandId: number): string | null {
     return this.reasonOff(brandId)
