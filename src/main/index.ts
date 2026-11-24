@@ -107,6 +107,7 @@ import { GrowthService } from './growth/service'
 import { fetchSuggestions } from './growth/seo'
 import { StorageService } from './growth/storage'
 import { WebsiteService } from './website/service'
+import { AmazonLists } from './pipeline/amazonLists'
 import type { AdapterContext, PlatformAdapter } from './adapters/types'
 import { fitText } from '@shared/growth'
 import { COPY } from '@shared/copy'
@@ -997,6 +998,16 @@ async function boot(): Promise<void> {
     notify: (headline, detail) => notifier.failure(headline, detail, { kind: 'failure' }),
     emit,
   })
+  const amazon = new AmazonLists({
+    db,
+    publishList: (file) => website.publishList(file),
+    log: (level, m, o) => log.log(level, m, o),
+    audit: (action, target, after) => auditEvents.write({ actor: 'system', action, target, after }),
+    emit,
+  })
+  posts.afterCreate = (postId, products) => amazon.attach(postId, products)
+  setInterval(() => void amazon.syncVideoIds().catch(() => {}), 10 * 60_000)
+  setInterval(() => void amazon.catchUp().catch(() => {}), 30 * 60_000)
   setInterval(() => void website.tick().catch(() => {}), 30 * 60_000)
   setTimeout(() => void website.tick().catch(() => {}), 150_000)
   setInterval(() => platformService.ensureBluesky(), 5 * 60_000)
@@ -1281,6 +1292,7 @@ async function boot(): Promise<void> {
     growth,
     storage,
     website,
+    amazon,
     platforms: platformService,
     audit: auditEvents,
     drops: dropLog,

@@ -2604,6 +2604,37 @@
                     "type": "string",
                     "maxLength": 2000
                   },
+                  "products": {
+                    "description": "Amazon picks for this video, 0 to 5. ELO builds each link from the ASIN and the channel tracking id, makes the list page on the website and adds the lines to the description. Nobody types a link.",
+                    "maxItems": 5,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "asin": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9]{10}$",
+                          "description": "The Amazon ASIN, 10 letters and numbers."
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 70,
+                          "description": "Short display name, written by the desk. Not copied Amazon text."
+                        },
+                        "note": {
+                          "default": "",
+                          "description": "One plain sentence on why it is in this video's list.",
+                          "type": "string",
+                          "maxLength": 240
+                        }
+                      },
+                      "required": [
+                        "asin",
+                        "name"
+                      ]
+                    }
+                  },
                   "first_comments": {
                     "description": "A first comment for one platform. It replaces first_comment for that platform.",
                     "type": "object",

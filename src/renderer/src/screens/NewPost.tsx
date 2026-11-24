@@ -3,7 +3,8 @@ import { PLATFORMS, PLATFORM_LABELS, captionCounters, type Platform } from '@sha
 import { COPY } from '@shared/copy'
 import { applyCaptionTemplate, titleFromFilename } from '@shared/text'
 import { formatEastern } from '@shared/time'
-import type { MediaInspection } from '@shared/types'
+import type { MediaInspection, ProductInput } from '@shared/types'
+import { AmazonProducts } from '../components/AmazonProducts'
 import { api } from '../api'
 import { useApp, useLoad } from '../hooks'
 import { PlatformPicker, PlatformTimes } from '../components/pickers'
@@ -43,6 +44,7 @@ export function NewPost({
   const [title, setTitle] = useState('')
   const [caption, setCaption] = useState('')
   const [firstComment, setFirstComment] = useState('')
+  const [products, setProducts] = useState<ProductInput[]>([])
   const [captionTouched, setCaptionTouched] = useState(false)
   const [setId, setSetId] = useState<number | null>(null)
   const [platforms, setPlatforms] = useState<Platform[]>([])
@@ -176,6 +178,7 @@ export function NewPost({
         title: title.trim(),
         caption,
         firstComment: firstComment.trim() || null,
+        products: products.filter((p) => p.asin.trim() || p.name.trim() || p.note.trim()),
         scheduledAtUtc: when,
         status,
         targets: platforms.map((p) => ({
@@ -332,6 +335,9 @@ export function NewPost({
                   placeholder="Which one would you try first?"
                 />
               </Field>
+            </div>
+            <div className="mt-4">
+              <AmazonProducts brandId={brandId} value={products} onChange={setProducts} />
             </div>
             <button
               className="mt-3 text-[12px] font-semibold text-accent"

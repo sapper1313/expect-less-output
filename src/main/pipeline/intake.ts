@@ -387,6 +387,7 @@ export class PipelineIntake {
         status: 'draft',
         targets,
         firstComment: sc.first_comment ?? null,
+        products: sc.products,
         origin: 'inbox',
         pipeline: {
           episodeRef: sc.episode_id,

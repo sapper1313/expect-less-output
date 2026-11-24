@@ -100,6 +100,20 @@ export const CreatePostBody = z
       description:
         'A question or call to action posted as the first comment once the video is live. Uses Upload-Post, so the platform must be ticked on the Upload-Post card for the channel. Instagram cannot take one. YouTube already posts pinned_comment itself, so it skips this one when both are sent.',
     }),
+    products: z
+      .array(
+        z.object({
+          asin: z.string().regex(/^[A-Za-z0-9]{10}$/).meta({ description: 'The Amazon ASIN, 10 letters and numbers.' }),
+          name: z.string().min(1).max(70).meta({ description: 'Short display name, written by the desk. Not copied Amazon text.' }),
+          note: z.string().max(240).default('').meta({ description: 'One plain sentence on why it is in this video\'s list.' }),
+        }),
+      )
+      .max(5)
+      .optional()
+      .meta({
+        description:
+          'Amazon picks for this video, 0 to 5. ELO builds each link from the ASIN and the channel tracking id, makes the list page on the website and adds the lines to the description. Nobody types a link.',
+      }),
     first_comments: platformMap(z.string().max(2000)).optional().meta({
       description: 'A first comment for one platform. It replaces first_comment for that platform.',
     }),

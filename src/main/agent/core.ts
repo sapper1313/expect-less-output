@@ -328,6 +328,7 @@ export async function agentCreatePost(
       status: body.status,
       targets,
       firstComment: body.first_comment ?? null,
+      products: body.products,
     }),
   )
   s.log.log(

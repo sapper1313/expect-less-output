@@ -108,6 +108,7 @@ export interface ApiDeps {
   inbox: InboxService
   growth: import('./growth/service').GrowthService
   website: import('./website/service').WebsiteService
+  amazon: import('./pipeline/amazonLists').AmazonLists
   storage: import('./growth/storage').StorageService
   platforms: import('./platforms/service').PlatformService
   upcoming: UpcomingService
@@ -585,6 +586,19 @@ export function buildApi(d: ApiDeps): Api {
       boards: async (brandId) => d.platforms.boards(brandId),
       setBoard: async (brandId, id, name) => d.platforms.setBoard(brandId, id, name),
       connectedFor: async (brandId) => d.platforms.connected(brandId),
+    },
+    amazon: {
+      channel: async (brandId) => ({ ...d.amazon.channel(brandId), blocked: d.amazon.blockedReason(brandId) }),
+      saveChannel: async (brandId, patch) => {
+        const out = d.amazon.saveChannel(brandId, patch)
+        void d.amazon.catchUp().catch(() => {})
+        return out
+      },
+      live: async () => d.amazon.live(),
+      setLive: async (on) => {
+        d.settings.set({ amazonListsLive: on })
+        return on ? d.amazon.catchUp() : 0
+      },
     },
     website: {
       config: async () => d.website.config(),

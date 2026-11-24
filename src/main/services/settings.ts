@@ -27,6 +27,7 @@ export const DEFAULT_SETTINGS: Settings = {
   alertQuietStart: '22:00',
   alertQuietEnd: '08:00',
   pausedBrandIds: [],
+  amazonListsLive: false,
   agentApiEnabled: false,
   agentApiPort: 47821,
   agentApiTailscale: false,

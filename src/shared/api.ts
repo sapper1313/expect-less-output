@@ -1,3 +1,4 @@
+import type { AmazonChannelSettings } from './types'
 import type {
   WebsiteConfig,
   WebsiteProfile,
@@ -361,6 +362,14 @@ export interface Api {
     setBoard(brandId: number, boardId: string, boardName: string): Promise<ExtraAccountView>
     /** The extra platforms a channel has a working login for. */
     connectedFor(brandId: number): Promise<ExtraPlatform[]>
+  }
+  amazon: {
+    /** This channel's tracking id and lines, and why lists cannot run for it yet (null when they can). */
+    channel(brandId: number): Promise<AmazonChannelSettings & { blocked: string | null }>
+    saveChannel(brandId: number, patch: Partial<AmazonChannelSettings>): Promise<AmazonChannelSettings>
+    live(): Promise<boolean>
+    /** The master switch. Turning it on catches up every waiting post and returns how many were looked at. */
+    setLive(on: boolean): Promise<number>
   }
   website: {
     config(): Promise<WebsiteConfig>

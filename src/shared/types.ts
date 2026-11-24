@@ -43,6 +43,8 @@ export interface Settings {
   /** HH:MM Eastern. Alerts by iMessage and email wait until quiet hours end. */
   alertQuietStart: string
   alertQuietEnd: string
+  /** Master switch for Amazon lists. Off means no list pages and no description lines are made. */
+  amazonListsLive: boolean
   /** Brands whose scheduled posts are held. */
   pausedBrandIds: number[]
   // Agents (local API, watched folders, MCP)
@@ -332,6 +334,11 @@ export interface Post {
   relatedVideo: { episodeId: string; url: string | null; done: boolean } | null
   /** A question or call to action posted as the first comment once the video is live. Null means none. */
   firstComment: string | null
+  /** The Amazon picks saved with this post, and where the list page stands. */
+  products: ProductInput[]
+  listState: 'waiting' | 'published' | 'failed' | 'skipped' | null
+  listError: string | null
+  listUrl: string | null
 }
 
 export type TikTokMode = 'drafts' | 'direct'
@@ -399,6 +406,24 @@ export interface PostTargetInput {
   settings?: TargetSettings
 }
 
+/** One channel's Amazon settings. The tracking id is created in Associates Central. */
+export interface AmazonChannelSettings {
+  tag: string
+  /** The line before the link. Blank uses the English default. */
+  pointer: string
+  /** The disclosure sentence. Blank uses the standard English one. */
+  disclosure: string
+}
+
+/** One Amazon pick. ELO builds the link from the ASIN and the channel's tracking id. */
+export interface ProductInput {
+  asin: string
+  /** Short name shown on the page. */
+  name: string
+  /** One plain sentence on why it is in this video's list. */
+  note: string
+}
+
 export interface PostInput {
   /** Move the source file into the Queue instead of copying it (used by the watched folder). */
   moveSource?: boolean
@@ -412,6 +437,8 @@ export interface PostInput {
   status: 'draft' | 'scheduled'
   /** The first comment for every platform that does not have its own. */
   firstComment?: string | null
+  /** Amazon picks for this video, 0 to 5. The list page and the description lines come from these. */
+  products?: ProductInput[]
   /** Set for posts that arrive through the Inbox. */
   origin?: 'manual' | 'inbox' | 'api'
   pipeline?: {

@@ -1,4 +1,5 @@
 import { existsSync } from 'fs'
+import { cleanProducts } from '../pipeline/amazonLists'
 import type { Db } from '../db'
 import type { Library } from './library'
 import type { ActivityLog } from './activity'
@@ -24,7 +25,17 @@ import type {
   TargetSettings,
   Platform,
   TargetStatus,
+  ProductInput,
 } from '@shared/types'
+
+function parseProducts(json: string | null): ProductInput[] {
+  try {
+    const v = json ? (JSON.parse(json) as unknown) : []
+    return Array.isArray(v) ? (v as ProductInput[]) : []
+  } catch {
+    return []
+  }
+}
 
 interface PostRow {
   id: number
@@ -52,6 +63,10 @@ interface PostRow {
   channel_link: number
   related_done: number
   first_comment: string | null
+  products_json: string | null
+  list_id: string | null
+  list_state: string | null
+  list_error: string | null
 }
 
 /** When a platform posts: its own time (or the post's time) plus its small stagger, so platforms on one slot go a few minutes apart. */
@@ -121,6 +136,9 @@ export class PostService {
     private now: () => number = Date.now,
   ) {}
 
+  /** Set by the app: saves a post's Amazon picks and makes its list page. */
+  afterCreate: ((postId: number, products: ProductInput[]) => Promise<void>) | null = null
+
   // ---------- reading ----------
 
   private mapTarget(r: any, base: string | null = null): PostTarget {
@@ -184,6 +202,10 @@ export class PostService {
       sourceEpisodeRef: r.source_episode_ref,
       relatedVideo: this.relatedFor(r),
       firstComment: r.first_comment ?? null,
+      products: parseProducts(r.products_json),
+      listState: (r.list_state as Post['listState']) ?? null,
+      listError: r.list_error ?? null,
+      listUrl: r.list_id ? `https://expectlessmedia.com/lists/${r.list_id}/` : null,
     }
   }
 
@@ -924,6 +946,7 @@ export class PostService {
   }
 
   private validateInput(input: PostInput): void {
+    cleanProducts(input.products) // a bad ASIN or name is a plain error before anything is saved
     if (input.targets.length === 0 && input.status === 'scheduled') {
       throw new Error('Pick at least one platform before scheduling.')
     }
@@ -1004,6 +1027,17 @@ export class PostService {
         ),
       )
       this.emit()
+      // Amazon picks: one shared step for a bot drop, an agent post and the manual page. It never holds the post.
+      for (let i = 0; i < ids.length; i++) {
+        const picks = prepared[i].input.products
+        if (picks?.length && this.afterCreate) {
+          try {
+            await this.afterCreate(ids[i], picks)
+          } catch (e) {
+            this.log.log('error', `Amazon list was not made: ${(e as Error).message}`, { postId: ids[i] })
+          }
+        }
+      }
       return ids.map((id) => this.get(id) as Post)
     } catch (err) {
       for (const p of prepared) {

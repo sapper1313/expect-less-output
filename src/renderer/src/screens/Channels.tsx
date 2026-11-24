@@ -7,6 +7,7 @@ import { ChannelSetup } from './Brands'
 import { ChannelOther } from './ChannelOther'
 import { Connections } from './Connections'
 import { WebsiteProfileCard } from './WebsiteProfile'
+import { AmazonChannelCard } from '../components/AmazonChannelCard'
 
 export type ChannelsTab = 'setup' | 'connections' | 'other' | 'website'
 const TABS: Array<[ChannelsTab, string, string]> = [
@@ -135,7 +136,12 @@ export function Channels({ initialTab = 'setup' }: { initialTab?: ChannelsTab })
                 {tab === 'setup' && <ChannelSetup key={sel.id} brand={sel} onArchived={reload} />}
                 {tab === 'connections' && <Connections key={sel.id} brandId={sel.id} />}
                 {tab === 'other' && <ChannelOther key={sel.id} brand={sel} />}
-                {tab === 'website' && <WebsiteProfileCard key={sel.id} brand={sel} />}
+                {tab === 'website' && (
+                  <>
+                    <WebsiteProfileCard key={sel.id} brand={sel} />
+                    <AmazonChannelCard key={`amz${sel.id}`} brand={sel} />
+                  </>
+                )}
               </div>
             </>
           )

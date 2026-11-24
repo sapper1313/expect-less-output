@@ -2,6 +2,8 @@
 
 ## 0.20.0 First comments
 
+- **Amazon product lists.** A drop (or a manual New Post) can carry up to 5 Amazon picks (ASIN, short name, one sentence). ELO builds each link from the ASIN and the channel's own tracking id, sends a list page to expectlessmedia.com (`/lists/<episode id>/`, shown on the video's watch page and the channel's new `/resources/` page), and adds the disclosure and a pointer line to the description and first comment. Shorts, Instagram and TikTok point to the channel's resources page because their text is not clickable. A failed page never holds a post. New settings: Setup Channels, Website tab, Amazon lists card (tracking id, lines, and one master switch, off by default). Bots send `products` in the sidecar. See docs/AMAZON_LISTS.md.
+
 - **24/7 stream checkbox.** In Setup Channels, next to the Shorts and Long form buttons, a new **24/7 stream** button marks a channel that is always live (rain, fireplace). A 24/7 channel never needs episodes, so it gets no low queue alert and no open slot cards in Queue or Home. Tin Roof Rainy Nights is marked automatically. Bots can read it as `always_on` and set it with the channel rules.
 
 - **No more "Upcoming needs a look" alert for an early drop.** When a video is dropped while its Upcoming entry is still behind (for example at "scripted"), ELO no longer sends the alert. The note ("The drop arrived before the status caught up") still shows in the issues list on the Upcoming screen, and nothing is changed. Other Upcoming alerts, such as a bot changing a locked field, are unchanged.

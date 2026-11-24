@@ -11,6 +11,7 @@ import {
 import { extname, join } from 'path'
 import { isDeepStrictEqual } from 'util'
 import type { Db } from '../db'
+import type { ListFile } from '../pipeline/amazonLists'
 import {
   SITE_LINK_KEYS,
   buildEntry,
@@ -649,6 +650,39 @@ export class WebsiteService {
     })
     this.d.emit?.()
     return result
+  }
+
+  /**
+   * Sends one Amazon list page to the website: src/data/lists/<episode id>.json. Only that file is touched. If the
+   * same file is already on the site with the same content, nothing is sent.
+   */
+  publishList(file: ListFile): Promise<void> {
+    return this.serial(async () => {
+      const rel = `src/data/lists/${file.episodeId}.json`
+      if (!/^[a-z0-9][a-z0-9-]*$/.test(file.episodeId)) throw new Error('The episode id cannot be used in a web address.')
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await this.ensureRepo()
+        const dir = this.d.repoDir
+        const text = JSON.stringify(file, null, 2) + '\n'
+        const full = join(dir, rel)
+        if (existsSync(full) && readFileSync(full, 'utf8') === text) return
+        mkdirSync(join(dir, 'src', 'data', 'lists'), { recursive: true })
+        writeFileSync(full, text)
+        await this.git(['add', '--', rel], dir)
+        const who = (await this.git(['config', 'user.name'], dir).catch(() => '')).trim()
+        const ident = who ? [] : ['-c', 'user.name=Expect Less Output', '-c', 'user.email=elo@expectlessmedia.com']
+        await this.git([...ident, 'commit', '-m', `list: ${file.episodeId} [elo]`], dir)
+        try {
+          await this.git(['push', 'origin', `HEAD:${this.config().branch}`], dir)
+          this.d.audit?.('website.list', file.episodeId, { products: file.products.length })
+          return
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e)
+          if (!/rejected|fetch first|non-fast-forward/i.test(msg)) throw new Error(plainGitError(msg), { cause: e })
+        }
+      }
+      throw new Error('The website changed while the list was being sent. It will try again.')
+    })
   }
 
   // ---------- automatic ----------
