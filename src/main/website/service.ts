@@ -8,7 +8,7 @@ import {
   statSync,
   writeFileSync,
 } from 'fs'
-import { extname, join } from 'path'
+import { dirname, extname, join } from 'path'
 import { isDeepStrictEqual } from 'util'
 import type { Db } from '../db'
 import type { ListFile } from '../pipeline/amazonLists'
@@ -657,31 +657,66 @@ export class WebsiteService {
    * same file is already on the site with the same content, nothing is sent.
    */
   publishList(file: ListFile): Promise<void> {
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(file.episodeId))
+      return Promise.reject(new Error('The episode id cannot be used in a web address.'))
+    return this.changeFile(
+      `src/data/lists/${file.episodeId}.json`,
+      () => JSON.stringify(file, null, 2) + '\n',
+      `list: ${file.episodeId} [elo]`,
+      { products: file.products.length },
+    )
+  }
+
+  /**
+   * Fills in the links of a channel's starter picks (src/data/resources/<site slug>.json) from its tracking id.
+   * The desk supplies the picks without links. Does nothing when the channel has no starter file.
+   */
+  fillStarters(siteSlug: string, linkFor: (asin: string) => string): Promise<void> {
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(siteSlug)) return Promise.resolve()
+    return this.changeFile(
+      `src/data/resources/${siteSlug}.json`,
+      (old) => {
+        if (old === null) return null
+        const data = JSON.parse(old) as { products?: Array<{ asin: string; url?: string }> }
+        for (const p of data.products ?? []) p.url = linkFor(p.asin)
+        return JSON.stringify(data, null, 2) + '\n'
+      },
+      `starter picks: ${siteSlug} [elo]`,
+      { starters: siteSlug },
+    )
+  }
+
+  /** Writes one file in the website project and pushes it. `build` gets the file's text (null when missing) and returns the new text, or null for no change. */
+  private changeFile(
+    rel: string,
+    build: (old: string | null) => string | null,
+    message: string,
+    audit: unknown,
+  ): Promise<void> {
     return this.serial(async () => {
-      const rel = `src/data/lists/${file.episodeId}.json`
-      if (!/^[a-z0-9][a-z0-9-]*$/.test(file.episodeId)) throw new Error('The episode id cannot be used in a web address.')
       for (let attempt = 0; attempt < 3; attempt++) {
         await this.ensureRepo()
         const dir = this.d.repoDir
-        const text = JSON.stringify(file, null, 2) + '\n'
         const full = join(dir, rel)
-        if (existsSync(full) && readFileSync(full, 'utf8') === text) return
-        mkdirSync(join(dir, 'src', 'data', 'lists'), { recursive: true })
+        const old = existsSync(full) ? readFileSync(full, 'utf8') : null
+        const text = build(old)
+        if (text === null || text === old) return
+        mkdirSync(dirname(full), { recursive: true })
         writeFileSync(full, text)
         await this.git(['add', '--', rel], dir)
         const who = (await this.git(['config', 'user.name'], dir).catch(() => '')).trim()
         const ident = who ? [] : ['-c', 'user.name=Expect Less Output', '-c', 'user.email=elo@expectlessmedia.com']
-        await this.git([...ident, 'commit', '-m', `list: ${file.episodeId} [elo]`], dir)
+        await this.git([...ident, 'commit', '-m', message], dir)
         try {
           await this.git(['push', 'origin', `HEAD:${this.config().branch}`], dir)
-          this.d.audit?.('website.list', file.episodeId, { products: file.products.length })
+          this.d.audit?.('website.file', rel, audit)
           return
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e)
           if (!/rejected|fetch first|non-fast-forward/i.test(msg)) throw new Error(plainGitError(msg), { cause: e })
         }
       }
-      throw new Error('The website changed while the list was being sent. It will try again.')
+      throw new Error('The website changed while the file was being sent. It will try again.')
     })
   }
 

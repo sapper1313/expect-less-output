@@ -79,6 +79,8 @@ export interface AmazonListsDeps {
   db: Db
   /** Writes the list file into the website project and pushes it. */
   publishList: (file: ListFile) => Promise<void>
+  /** Fills the links of the channel's starter picks on the website. */
+  fillStarters?: (siteSlug: string, linkFor: (asin: string) => string) => Promise<void>
   log: (level: 'info' | 'warn' | 'error', message: string, opts?: { postId?: number }) => void
   audit?: (action: string, target: string, after: unknown) => void
   emit?: () => void
@@ -285,7 +287,25 @@ export class AmazonLists {
       )
       .all() as Array<{ id: number }>
     for (const r of rows) await this.apply(r.id)
+    await this.starters()
     return rows.length
+  }
+
+  /** Puts the tracking id into the starter picks of every channel that is ready. Failures are logged and retried next time. */
+  async starters(): Promise<void> {
+    if (!this.d.fillStarters) return
+    const rows = this.d.db.prepare('SELECT brand_id FROM channel_rules WHERE amazon_tag != ?').all('') as Array<{
+      brand_id: number
+    }>
+    for (const r of rows) {
+      if (this.reasonOff(r.brand_id)) continue
+      const tag = this.channel(r.brand_id).tag
+      try {
+        await this.d.fillStarters(this.siteSlug(r.brand_id) as string, (asin) => amazonLink(asin, tag))
+      } catch (e) {
+        this.d.log('warn', `Starter picks were not sent yet: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
   }
 
   /** After a video is live on YouTube, tell the list page its video id so the watch page can show the list. */

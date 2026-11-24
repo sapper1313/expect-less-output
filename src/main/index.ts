@@ -1001,6 +1001,7 @@ async function boot(): Promise<void> {
   const amazon = new AmazonLists({
     db,
     publishList: (file) => website.publishList(file),
+    fillStarters: (slug, linkFor) => website.fillStarters(slug, linkFor),
     log: (level, m, o) => log.log(level, m, o),
     audit: (action, target, after) => auditEvents.write({ actor: 'system', action, target, after }),
     emit,

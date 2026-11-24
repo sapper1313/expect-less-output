@@ -11,8 +11,10 @@ function setup(live = true) {
   const t = pipelineSetup({ patch: { inboxAutoScheduleBrandIds: [], amazonListsLive: live } })
   const files: ListFile[] = []
   let fail = false
+  const starters: Array<{ slug: string; urls: string[] }> = []
   const amazon = new AmazonLists({
     db: t.env.db,
+    fillStarters: async (slug, linkFor) => void starters.push({ slug, urls: ['B0AAAAAAAA'].map(linkFor) }),
     publishList: async (f) => {
       if (fail) throw new Error('GitHub is down')
       files.push(f)
@@ -24,7 +26,7 @@ function setup(live = true) {
   t.env.db
     .prepare('INSERT OR REPLACE INTO website_profiles (brand_id, add_to_site, site_slug) VALUES (?, 1, ?)')
     .run(brand.id, 'trash-panda')
-  return { t, amazon, files, brandId: brand.id, failNext: () => (fail = true) }
+  return { t, amazon, files, starters, brandId: brand.id, failNext: () => (fail = true) }
 }
 
 describe('amazon lists', () => {
@@ -86,6 +88,21 @@ describe('amazon lists', () => {
     await s.amazon.apply(post.id)
     const again = s.t.env.posts.list().find((p) => p.episodeRef)!
     expect(again.caption.match(/Amazon Associate/g)).toHaveLength(1)
+  })
+
+  it('fills the starter picks with the tracking id once the channel is ready, and never for a 24/7 channel', async () => {
+    const s = setup(false)
+    await s.amazon.catchUp()
+    expect(s.starters).toHaveLength(0)
+    s.amazon.saveChannel(s.brandId, { tag: 'josh-20' })
+    await s.amazon.catchUp() // switch still off
+    expect(s.starters).toHaveLength(0)
+    s.t.env.settings.set({ amazonListsLive: true })
+    await s.amazon.catchUp()
+    expect(s.starters).toEqual([{ slug: 'trash-panda', urls: ['https://www.amazon.com/dp/B0AAAAAAAA?tag=josh-20'] }])
+    s.t.env.db.prepare('UPDATE channel_rules SET always_on = 1 WHERE brand_id = ?').run(s.brandId)
+    await s.amazon.catchUp()
+    expect(s.starters).toHaveLength(1)
   })
 
   it('a 24/7 stream channel never carries lists', async () => {
