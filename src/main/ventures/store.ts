@@ -92,13 +92,18 @@ export class VentureStore {
     const priceHistory = this.db
       .prepare('SELECT at, cents FROM venture_price_history WHERE storefront = ? AND listing_id = ? ORDER BY at, rowid')
       .all(storefront, id) as Array<{ at: string; cents: number }>
+    const sold = (
+      this.db
+        .prepare('SELECT COALESCE(SUM(quantity), 0) AS n FROM venture_order_items WHERE storefront = ? AND listing_id = ?')
+        .get(storefront, id) as { n: number }
+    ).n
     return {
       ...this.toRow(r),
       description: r.description,
       tags: JSON.parse(r.tags_json) as string[],
       images,
       priceHistory,
-      sales: r.sales,
+      sales: Math.max(r.sales, sold),
     }
   }
 
