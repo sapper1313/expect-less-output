@@ -17,7 +17,7 @@ describe('EtsyClient', () => {
       apiKey: KEY,
       token: async () => TOKEN,
       sleep: async (ms) => void waits.push(ms),
-      fetch: (async (url: string, init: any) => {
+      fetch: (async (_url: string, init: any) => {
         calls.push(init.headers['x-api-key'])
         return calls.length === 1 ? resp(429, {}, { 'retry-after': '1' }) : resp(200, { ok: true })
       }) as any,
