@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.21.0 ELS Ventures and Etsy
+
+- **New menu item: ELS Ventures.** A home for storefronts, with Etsy first. Every storefront is a provider with the same pages: Sales (revenue, fees, net shown separately, orders, units, average order, today / 7 days / 30 days / year to date / custom, a revenue chart and top products), Listings (thumbnail, price, views, favorites, quantity, state, search, sort, link to Etsy), Items sold (buyer username only), Listing detail (pictures, description, tags, price history, sales), Reviews (low rating flag for 1 to 3 stars) and Notifications (new orders, reviews, low reviews and buyer messages, with a badge on the menu and on Etsy). Runs on sample data until Etsy approves the app. See `docs/ELS_VENTURES.md` and section 29 of the user guide.
+- **Narrow windows.** Under about 900 pixels wide the left menu becomes a Menu button with a drawer. Every screen is still reachable.
+- **Phone page.** `/m/<secret>/ventures/` on the existing phone link shows the same pages, read only.
+- **Connect Etsy.** Save the keystring and shared secret (encrypted), click Connect Etsy (OAuth with PKCE), and ELO syncs about every 20 minutes within Etsy's rate limits. Tokens refresh automatically.
+- **Buyer messages** are read from Etsy's "new message" emails over IMAP (read only) and shown with sender, subject, a short snippet and a link to the conversation on Etsy.
+- **Telegram** sends a line for each new order, review, low review and message, through the existing Telegram setup. Review text and message snippets stay in ELO.
+- **beth can create and change draft Etsy listings** (`create_etsy_draft`, `update_etsy_draft`). Drafts only, never activated. Every call is audited. Drafts wait in ELO until a shop is connected.
+
 ## 0.20.0 First comments
 
 - **Amazon product lists.** A drop (or a manual New Post) can carry up to 5 Amazon picks (ASIN, short name, one sentence). ELO builds each link from the ASIN and the channel's own tracking id, sends a list page to expectlessmedia.com (`/lists/<episode id>/`, shown on the video's watch page and the channel's new `/resources/` page), and adds the disclosure and a pointer line to the description and first comment. Shorts, Instagram and TikTok point to the channel's resources page because their text is not clickable. A failed page never holds a post. New settings: Setup Channels, Website tab, Amazon lists card (tracking id, lines, and one master switch, off by default). Bots send `products` in the sidecar. See docs/AMAZON_LISTS.md.

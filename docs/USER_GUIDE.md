@@ -778,3 +778,61 @@ Each channel has a **Website** card (Channels, Channel setup, pick the channel, 
 - **TikTok message.** When a channel sends a video to TikTok, ELO sends you a message with the channel, the title and the description. Drafts mode: open TikTok, look in your inbox, find the video and post it. Turn alerts on under Settings, Alerts (iMessage number). Quiet hours do not hold this message.
 - **Why the description is not in the draft.** TikTok does not let apps fill in text on a draft. Paste it from the message, or from your clipboard (ELO copies it too).
 - **Snapchat** was removed. It never let apps post.
+
+## 29. ELS Ventures and Etsy (0.21.0)
+
+ELS Ventures is a new menu item, under Financial. It holds your storefronts. Etsy is the first one. Later ones (Amazon KDP, Gumroad) will show up in the same place with the same pages.
+
+### What you see right now (sample data)
+
+Etsy has not approved the ELO app yet, so the pages show made up sample data. A box at the top says so. Nothing there is real.
+
+1. Click **ELS Ventures** in the left menu.
+2. Click **Etsy**. If there is more than one storefront, they are buttons at the top.
+3. Use the buttons under the title: **Sales**, **Listings**, **Items sold**, **Reviews**, **Notifications**.
+   - **Sales** shows revenue, fees, net (what you keep), orders, units and average order. Pick Today, 7 days, 30 days, Year to date or Custom. Below are a chart and your top products.
+   - **Listings** shows every listing. Type in the search box. Click a column name to sort. Click a title to see its pictures, tags, price history, views, favorites and sales. **Open on Etsy** opens the real listing.
+   - **Items sold** shows each order and what was in it. Buyers show only as a username. ELO never keeps or shows emails or addresses.
+   - **Reviews** shows the latest reviews. Anything with 1 to 3 stars has an orange **Low rating** tag.
+   - **Notifications** shows new orders, new reviews, low reviews and new buyer messages. A red number on the menu item and on the Etsy button counts the ones you have not read. **Mark all read** clears it.
+
+### Small windows
+
+If the ELO window is narrower than about 900 pixels, the left menu hides. Click **Menu** at the top left to open it. Every screen is still there.
+
+### See it on your phone
+
+1. Open ELS Ventures. The card **See this on your phone** shows a link.
+2. Send that link to your phone and open it while the phone is on Tailscale.
+3. If the card says to turn on the phone link, go to Settings, Agent API, and switch on the Tailscale option.
+
+The phone page only shows numbers. It cannot change anything, connect Etsy or post anything. Do not share the link: anyone with it can see your sales. Make a new one in Settings, Agent API if it ever leaks.
+
+### Connecting the real shop (after Etsy approves the app)
+
+1. In your Etsy developer app, add this exact redirect address: `http://127.0.0.1:38487/callback`
+2. Open ELS Ventures, then Etsy. In the **Etsy connection** box, paste the **Keystring** and the **Shared secret**, then click **Save keys**. They are saved encrypted. ELO never shows them again.
+3. Click **Connect Etsy**. Your browser opens Etsy. Click **Allow access**. Come back to ELO.
+4. The sample data disappears and ELO starts reading your real shop. It checks again about every 20 minutes.
+5. **Sync now** checks right away. **Disconnect Etsy** forgets the login.
+
+If Etsy ever stops accepting the login, the page says **Etsy needs you to sign in again**. Click Connect Etsy again.
+
+### Buyer messages
+
+Etsy does not let apps read messages. ELO reads Etsy's "new message" emails instead.
+
+1. In your email, forward or label Etsy's new message emails so they land in one folder or label.
+2. In ELS Ventures, Etsy, fill in the **Buyer messages from email** box: the mail host (for Gmail, `imap.gmail.com`), your email address as the user, the folder or label name, and an app password.
+3. Click **Save mailbox**, then **Test mailbox**. It should say it works.
+4. New messages show in Notifications with the sender, subject, a short snippet and a link that opens the conversation on Etsy. Reply on Etsy.
+
+ELO only reads the mailbox. It never moves, marks or deletes an email.
+
+### Telegram
+
+New orders, new reviews, low reviews and new messages are also sent to your Telegram, the same chat ELO already uses. The text of a review or message is never sent there, only that it arrived.
+
+### Draft listings from beth
+
+beth can create and change draft listings on Etsy. They are always drafts. Nothing goes live until you click Activate on Etsy yourself. Every change beth makes is written in the audit log with who, what and when. Until the shop is connected, her drafts wait inside ELO (they show on the Listings page with an id that starts with `pending-`) and are sent to Etsy after you connect. The bot steps are in `docs/ELS_VENTURES.md`.
