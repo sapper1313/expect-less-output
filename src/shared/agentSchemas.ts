@@ -234,21 +234,38 @@ export const IdParams = z.object({ id })
 
 // ---------- ELS Ventures: Etsy draft listings ----------
 // There is deliberately no `state` field: a draft stays a draft until a person activates it on Etsy.
+// Etsy accepts letters, digits, spaces, hyphens, apostrophes and a few marks in tags. A comma would split one tag in two.
+const tag = z
+  .string()
+  .trim()
+  .min(1)
+  .max(20)
+  .regex(/^[\p{L}\p{Nd}\p{Zs}\-'\u2122\u00a9\u00ae]+$/u, 'Tags can use letters, numbers, spaces, hyphens and apostrophes.')
 const draftFields = {
   title: z.string().trim().min(1).max(140),
   description: z.string().trim().min(1).max(10000),
-  tags: z.array(z.string().trim().min(1).max(20)).max(13),
+  tags: z.array(tag).max(13),
   priceCents: z.number().int().min(20).max(100_000_00),
   images: z.array(z.string().min(1).max(1000)).max(10),
   digitalFile: z.string().min(1).max(1000).optional(),
   quantity: z.number().int().min(1).max(999).optional(),
   taxonomyId: z.number().int().min(1).optional(),
+  shippingProfileId: z.number().int().min(1).optional(),
 }
 export const DraftListingBody = z
   .object({ ...draftFields, tags: draftFields.tags.default([]), images: draftFields.images.default([]) })
   .strict()
+// Pictures and the digital file are set when the draft is made. Changing them later is done on Etsy.
 export const UpdateDraftBody = z
-  .object(draftFields)
+  .object({
+    title: draftFields.title,
+    description: draftFields.description,
+    tags: draftFields.tags,
+    priceCents: draftFields.priceCents,
+    quantity: draftFields.quantity,
+    taxonomyId: draftFields.taxonomyId,
+    shippingProfileId: draftFields.shippingProfileId,
+  })
   .partial()
   .strict()
   .refine((b) => Object.keys(b).length > 0, { message: 'Send at least one field to change.' })

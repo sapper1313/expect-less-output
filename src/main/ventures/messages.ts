@@ -68,30 +68,43 @@ export interface ImapSource {
   fetchUnseen(cfg: MailboxConfig): Promise<Array<string | Buffer>>
 }
 
-/** The real mailbox reader. Read only: it never marks, moves or deletes anything. */
-export const realImap: ImapSource = {
-  async fetchUnseen(cfg) {
-    const client = new ImapFlow({ host: cfg.host, port: cfg.port, secure: true, auth: { user: cfg.user, pass: cfg.password }, logger: false })
-    await client.connect()
-    const out: Buffer[] = []
-    try {
-      const lock = await client.getMailboxLock(cfg.folder, { readOnly: true })
+type MailClient = Pick<ImapFlow, 'connect' | 'getMailboxLock' | 'search' | 'fetchOne' | 'logout'>
+
+/**
+ * The mailbox reader. Read only: the folder is opened read only, so nothing is marked, moved or deleted. It looks at
+ * the last 30 days by UID and does not require unread mail (the owner may have opened the email on a phone first);
+ * the poller skips what it has already stored.
+ */
+export function makeImap(
+  factory: (cfg: MailboxConfig) => MailClient = (cfg) =>
+    new ImapFlow({ host: cfg.host, port: cfg.port, secure: true, auth: { user: cfg.user, pass: cfg.password }, logger: false }),
+): ImapSource {
+  return {
+    async fetchUnseen(cfg) {
+      const client = factory(cfg)
+      await client.connect()
+      const out: Buffer[] = []
       try {
-        const since = new Date(Date.now() - 30 * 86_400_000)
-        const uids = ((await client.search({ seen: false, since })) || []).slice(-50)
-        for (const uid of uids) {
-          const m = await client.fetchOne(String(uid), { source: true }, { uid: true })
-          if (m && m.source) out.push(m.source)
+        const lock = await client.getMailboxLock(cfg.folder, { readOnly: true })
+        try {
+          const since = new Date(Date.now() - 30 * 86_400_000)
+          const uids = ((await client.search({ since }, { uid: true })) || []).slice(-50)
+          for (const uid of uids) {
+            const m = await client.fetchOne(String(uid), { source: true }, { uid: true })
+            if (m && m.source) out.push(m.source)
+          }
+        } finally {
+          lock.release()
         }
       } finally {
-        lock.release()
+        await client.logout().catch(() => undefined)
       }
-    } finally {
-      await client.logout().catch(() => undefined)
-    }
-    return out
-  },
+      return out
+    },
+  }
 }
+
+export const realImap: ImapSource = makeImap()
 
 export interface PollerDeps {
   secrets: SecretStore

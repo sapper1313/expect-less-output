@@ -44,7 +44,7 @@ import { seedMockData } from './ventures/mock'
 import { ETSY_KEYSTRING_KEY, ETSY_SECRET_KEY, EtsyAuth, etsyCredentials } from './ventures/etsy/oauth'
 import { EtsyClient } from './ventures/etsy/client'
 import { DraftService } from './ventures/drafts'
-import { etsyDraftClient } from './ventures/etsy/draftClient'
+import { checkFilesIn, etsyDraftClient } from './ventures/etsy/draftClient'
 import { VentureNotifier } from './ventures/notifications'
 import { MAIL_PASSWORD_KEY, MessagePoller, realImap } from './ventures/messages'
 import { EtsySyncer } from './ventures/etsy/sync'
@@ -1145,6 +1145,7 @@ async function boot(): Promise<void> {
         return `${c.keystring}:${c.sharedSecret}`
       },
       token: () => etsyAuth.accessToken(),
+      onUnauthorized: () => etsyAuth.forceRefresh(),
   })
   const etsySyncer = new EtsySyncer({
     client: etsyClient,
@@ -1158,6 +1159,7 @@ async function boot(): Promise<void> {
     store: ventureStore,
     now: () => Date.now(),
     syncers: { etsy: etsySyncer },
+    afterConnect: async () => void (await ventureDraftsRef?.pushPending()),
     etsy: {
       connect: () => etsyAuth.connect(),
       disconnect: () => etsyAuth.disconnect(),
@@ -1196,12 +1198,16 @@ async function boot(): Promise<void> {
     },
     log: (level, m) => log.log(level, m),
   })
+  // Files a draft may use: the Media Root, and a folder made for them. Nothing else on this Mac can be uploaded.
+  const draftRoots = () => [settings.get().mediaRoot, join(dataDir, 'ventures-uploads')].filter(Boolean)
   ventureDraftsRef = new DraftService({
     store: ventureStore,
     live: () => {
       const shopId = etsyAuth.shopId()
-      return etsyAuth.status().mode === 'connected' && shopId ? { client: etsyDraftClient(etsyClient), shopId } : null
+      return etsyAuth.status().mode === 'connected' && shopId ? { client: etsyDraftClient(etsyClient, { roots: draftRoots }), shopId } : null
     },
+    checkFiles: checkFilesIn(draftRoots),
+    defaultShippingProfile: () => Number(ventureStore.getState('etsy', 'default_shipping_profile_id')) || null,
     audit: auditEvents,
     defaultTaxonomy: () => Number(ventureStore.getState('etsy', 'default_taxonomy_id')) || null,
   })

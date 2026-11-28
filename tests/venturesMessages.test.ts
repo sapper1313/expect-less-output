@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { makeEnv } from './helpers'
 import { SecretStore } from '../src/main/services/secrets'
 import { VentureStore } from '../src/main/ventures/store'
-import { MessagePoller, parseEtsyMessageEmail, MAIL_PASSWORD_KEY } from '../src/main/ventures/messages'
+import { MessagePoller, parseEtsyMessageEmail, makeImap, MAIL_PASSWORD_KEY } from '../src/main/ventures/messages'
 
 const fakeCrypto = { isEncryptionAvailable: () => true, encryptString: (s: string) => Buffer.from('enc:' + s), decryptString: (b: Buffer) => b.toString().slice(4) }
 const mail = (over: { from?: string; subject?: string; body?: string; headers?: string; contentType?: string; encoding?: string } = {}) =>
@@ -92,5 +92,26 @@ describe('MessagePoller', () => {
     const { poller, seen } = setup(false)
     expect(await poller.poll()).toBe(0)
     expect(seen).toHaveLength(0)
+  })
+})
+
+describe('makeImap', () => {
+  it('searches by UID, opens the folder read only, and does not require unseen mail', async () => {
+    const log: Array<{ op: string; args: any[] }> = []
+    const fake = {
+      connect: async () => {},
+      getMailboxLock: async (...a: any[]) => (log.push({ op: 'lock', args: a }), { release: () => {} }),
+      search: async (...a: any[]) => (log.push({ op: 'search', args: a }), [11, 12]),
+      fetchOne: async (...a: any[]) => (log.push({ op: 'fetch', args: a }), { source: Buffer.from('mail') }),
+      logout: async () => {},
+    }
+    const imap = makeImap(() => fake as any)
+    const out = await imap.fetchUnseen({ host: 'h', port: 993, user: 'u', password: 'p', folder: 'Etsy' })
+    expect(out).toHaveLength(2)
+    expect(log.find((l) => l.op === 'lock')!.args[1]).toEqual({ readOnly: true })
+    const search = log.find((l) => l.op === 'search')!
+    expect(search.args[1]).toEqual({ uid: true })
+    expect(search.args[0].seen).toBeUndefined()
+    expect(log.filter((l) => l.op === 'fetch').every((l) => l.args[2]?.uid === true)).toBe(true)
   })
 })

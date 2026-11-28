@@ -626,6 +626,12 @@ export function buildApi(d: ApiDeps): Api {
       },
       mailboxStatus: async () => d.ventures.mailboxStatus(),
       testMailbox: async () => d.ventures.testMailbox(),
+      draftDefaults: async () => d.ventures.draftDefaults(),
+      saveDraftDefaults: async (v) => {
+        d.ventures.saveDraftDefaults(v)
+        d.emit()
+      },
+      pendingDrafts: async () => d.ventures.pendingDrafts(),
     },
     amazon: {
       channel: async (brandId) => ({ ...d.amazon.channel(brandId), blocked: d.amazon.blockedReason(brandId), stream: d.amazon.isStream(brandId) }),

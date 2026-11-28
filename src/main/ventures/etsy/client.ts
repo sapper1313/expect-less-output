@@ -13,6 +13,8 @@ export interface EtsyClientOpts {
   /** Etsy wants "keystring:shared_secret" in the x-api-key header. Never logged. */
   apiKey: string | (() => string)
   token: () => Promise<string>
+  /** Called once when Etsy answers 401, to get a fresh token. The call is then tried one more time. */
+  onUnauthorized?: () => Promise<void>
   fetch?: typeof fetch
   sleep?: (ms: number) => Promise<void>
   baseUrl?: string
@@ -48,6 +50,7 @@ export class EtsyClient {
   ): Promise<T> {
     const qs = new URLSearchParams(Object.entries(query).map(([k, v]) => [k, String(v)])).toString()
     const url = `${this.o.baseUrl ?? 'https://api.etsy.com'}${path}${qs ? '?' + qs : ''}`
+    let refreshed = false
     for (let attempt = 0; ; attempt++) {
       const gap = this.last + MIN_GAP_MS - Date.now()
       if (gap > 0) await this.sleep(gap)
@@ -58,6 +61,12 @@ export class EtsyClient {
         headers: { 'x-api-key': typeof this.o.apiKey === 'function' ? this.o.apiKey() : this.o.apiKey, Authorization: `Bearer ${await this.o.token()}`, Accept: 'application/json' },
       })
       if (res.ok) return (await res.json()) as T
+      if (res.status === 401 && this.o.onUnauthorized && !refreshed) {
+        refreshed = true
+        await this.o.onUnauthorized()
+        attempt--
+        continue
+      }
       const transient = res.status === 429 || (method === 'GET' && res.status >= 500)
       if (!transient || attempt >= 3) {
         throw new EtsyError(`Etsy answered ${res.status} for ${path}.`, res.status, !transient)

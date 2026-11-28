@@ -4,7 +4,7 @@ import type { EtsyClient } from './client'
 
 const SF = 'etsy'
 const PAGE = 100
-const STATES = ['active', 'inactive', 'draft', 'expired'] as const
+const STATES = ['active', 'inactive', 'sold_out', 'draft', 'expired'] as const
 
 interface Money {
   amount: number
@@ -105,32 +105,40 @@ export class EtsySyncer {
       )
     }
 
-    // Fees first, so orders can pick theirs up.
-    await this.paged(
-      'ledger',
-      async (offset) =>
-        (
-          await client.get<{ results: unknown[] }>(`${base}/payment-account/ledger-entries`, {
-            ...this.since('ledger'),
-            limit: PAGE,
-            offset,
-          })
-        ).results,
-      (rows) => {
-        for (const e of rows) {
-          const isFee = /fee/i.test(String(e.description ?? ''))
-          const forReceipt = /receipt/i.test(String(e.reference_type ?? ''))
-          store.addLedger(SF, {
-            id: String(e.entry_id),
-            receiptId: forReceipt && e.reference_id != null ? String(e.reference_id) : null,
-            at: iso(Number(e.create_date)),
-            cents: Number(e.amount),
-            kind: isFee ? 'fee' : 'other',
-          })
-        }
-      },
-    )
-    this.doneSince('ledger')
+    // Fees first, so orders can pick theirs up. Etsy requires both ends of the date range here. A fee lookup that fails
+    // never blocks orders and reviews: the orders just show no fees until the next run.
+    const nowSec = Math.floor(this.d.now() / 1000)
+    try {
+      await this.paged(
+        'ledger',
+        async (offset) =>
+          (
+            await client.get<{ results: unknown[] }>(`${base}/payment-account/ledger-entries`, {
+              min_created: Number(store.getState(SF, 'since:ledger') ?? nowSec - 365 * 86_400),
+              max_created: nowSec,
+              limit: PAGE,
+              offset,
+            })
+          ).results,
+        (rows) => {
+          for (const e of rows) {
+            const isFee = /fee/i.test(String(e.description ?? ''))
+            const forReceipt = /receipt/i.test(String(e.reference_type ?? ''))
+            store.addLedger(SF, {
+              id: String(e.entry_id),
+              receiptId: forReceipt && e.reference_id != null ? String(e.reference_id) : null,
+              at: iso(Number(e.create_date)),
+              cents: Number(e.amount),
+              kind: isFee ? 'fee' : 'other',
+            })
+          }
+        },
+      )
+      this.doneSince('ledger')
+      store.setState(SF, 'ledger_error', null)
+    } catch (e) {
+      store.setState(SF, 'ledger_error', e instanceof Error ? e.message : 'unknown error')
+    }
 
     const orders = await this.paged(
       'receipts',

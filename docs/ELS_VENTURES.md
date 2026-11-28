@@ -21,13 +21,16 @@ Each storefront is a provider in `src/main/ventures/registry.ts` with the same r
 Both routes need the beth token (or the owner token). Drafts only: there is no `state` field and a listing that is not a draft is refused with 403 `drafts_only`.
 
 - `POST /v1/ventures/etsy/drafts` (MCP tool `create_etsy_draft`)
-  - Body: `title` (up to 140 characters), `description`, `tags` (up to 13, each up to 20 characters), `priceCents` (at least 20), `images` (up to 10 file paths on this Mac or https links), optional `digitalFile` (a file path), optional `quantity`, optional `taxonomyId` (the Etsy category).
+  - Body: `title` (up to 140 characters), `description`, `tags` (up to 13, each up to 20 characters, letters, numbers, spaces, hyphens and apostrophes only), `priceCents` (at least 20), `images` (up to 10), optional `digitalFile`, optional `quantity`, optional `taxonomyId` (the Etsy category), optional `shippingProfileId` (needed for a physical item).
+  - Files: local paths must be inside the Media Root or ELO's `ventures-uploads` folder (symlinks are followed first, so a link out of those folders is refused). Pictures must be .jpg, .jpeg, .png, .gif or .webp. Links must be public https. Every file is at most 20 MB. A bad file is refused with 400 before anything is sent to Etsy.
   - Answer: `{ "id": "...", "state": "draft", "pending": false }`. `pending: true` means no shop is connected yet and the draft is waiting in ELO (id starts with `pending-`).
-- `PATCH /v1/ventures/etsy/drafts/{id}` (MCP tool `update_etsy_draft`): any of the same fields.
+- `PATCH /v1/ventures/etsy/drafts/{id}` (MCP tool `update_etsy_draft`): any of `title`, `description`, `tags`, `priceCents`, `quantity`, `taxonomyId`, `shippingProfileId`. Pictures and the digital file cannot be changed after the draft is made. ELO asks Etsy for the listing's state first and refuses (403 `drafts_only`) unless it is still a draft.
 
-Send `taxonomyId` on a new draft. Without one, and without a default, the draft stays pending after the shop is connected and the reason is kept with it.
+Send `taxonomyId` on a new draft, or save a default category (and shipping profile) in ELS Ventures, Etsy, Drafts from beth. Without one the draft stays pending and the reason shows in that same box.
 
-Every call, allowed or refused, is written to the audit log (`ventures.draft.create`, `ventures.draft.update`, `api.denied`) with who, what and when. File paths and file contents are never logged.
+If the draft was made on Etsy but a picture did not upload, ELO keeps the Etsy listing id and a retry only finishes the pictures. It never makes a second listing.
+
+Every call, allowed or refused (including a body that fails the schema), is written to the audit log (`ventures.draft.create`, `ventures.draft.update`, `api.denied`) with who, what and when. File paths and file contents are never logged.
 
 ## Etsy facts the code relies on (checked against Etsy's published OpenAPI)
 

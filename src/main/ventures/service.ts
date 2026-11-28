@@ -28,6 +28,8 @@ export interface VenturesDeps {
     saveKeys(keystring: string, sharedSecret: string): void
     hasKeys(): boolean
   }
+  /** Runs right after Etsy connects, for example to send the drafts that were waiting. */
+  afterConnect?: () => Promise<unknown>
   /** The mailbox that receives Etsy's "new message" emails. The password is never read back. */
   mail?: {
     save(c: { host: string; user: string; password: string; folder: string }): void
@@ -100,9 +102,14 @@ export class VenturesService {
   /** Runs the Etsy sign-in. Sample data gives way to the real shop, and the first sync starts in the background. */
   async connectEtsy(): Promise<{ shopName: string }> {
     if (!this.d.etsy) throw new Error('Etsy keys are not set up yet.')
+    const first = this.d.store.getState('etsy', 'demo_cleared') !== '1'
     const r = await this.d.etsy.connect()
-    this.d.store.clearStorefront('etsy')
-    this.d.store.setState('etsy', 'demo_cleared', '1')
+    // Sample data gives way to the real shop only the first time. A reconnect keeps everything that is real.
+    if (first) {
+      this.d.store.clearSampleData('etsy')
+      this.d.store.setState('etsy', 'demo_cleared', '1')
+    }
+    await this.d.afterConnect?.().catch((e) => this.d.log?.('warn', `Sending waiting drafts failed: ${e instanceof Error ? e.message : 'unknown error'}`))
     this.d.log?.('info', `Etsy connected: ${r.shopName}.`)
     void this.syncNow('etsy').catch((e) => this.d.log?.('warn', `First Etsy sync failed: ${e instanceof Error ? e.message : 'unknown error'}`))
     return { shopName: r.shopName }
@@ -140,6 +147,28 @@ export class VenturesService {
 
   async testMailbox(): Promise<{ ok: boolean; found?: number; error?: string }> {
     return this.d.mail ? this.d.mail.test() : { ok: false, error: 'Mailbox settings are not available.' }
+  }
+
+  draftDefaults(): { taxonomyId: number | null; shippingProfileId: number | null } {
+    const n = (k: string) => Number(this.d.store.getState('etsy', k)) || null
+    return { taxonomyId: n('default_taxonomy_id'), shippingProfileId: n('default_shipping_profile_id') }
+  }
+
+  saveDraftDefaults(v: { taxonomyId: number | null; shippingProfileId: number | null }): void {
+    for (const [key, value] of [['default_taxonomy_id', v.taxonomyId], ['default_shipping_profile_id', v.shippingProfileId]] as const) {
+      if (value !== null && (!Number.isInteger(value) || value < 1)) throw new Error('Enter a whole number, or leave it empty.')
+      this.d.store.setState('etsy', key, value === null ? null : String(value))
+    }
+  }
+
+  /** Drafts waiting for the shop (or for a fix), with the reason one is stuck. */
+  pendingDrafts(): Array<{ id: string; kind: 'create' | 'update'; title: string; error: string | null }> {
+    return this.d.store.listPending('etsy').map((p) => ({
+      id: p.targetId,
+      kind: p.kind,
+      title: String(p.payload?.title ?? '(no title change)'),
+      error: p.lastError,
+    }))
   }
 
   /** Every storefront with a real shop connected. One failing never stops the others. */

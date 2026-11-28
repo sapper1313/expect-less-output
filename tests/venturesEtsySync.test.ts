@@ -9,6 +9,23 @@ const TOKEN = 'TOKEN-ABC-789'
 const resp = (status: number, body: unknown, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers })
 
+describe('EtsyClient unauthorized', () => {
+  it('refreshes once on a 401 and retries', async () => {
+    let n = 0
+    let refreshed = 0
+    const c = new EtsyClient({ apiKey: KEY, token: async () => TOKEN, sleep: async () => {}, onUnauthorized: async () => void refreshed++, fetch: (async () => (n++, n === 1 ? resp(401, {}) : resp(200, { ok: 1 }))) as any })
+    expect(await c.get('/v3/x')).toEqual({ ok: 1 })
+    expect(refreshed).toBe(1)
+  })
+  it('gives up if the second try is also a 401', async () => {
+    let n = 0
+    const c = new EtsyClient({ apiKey: KEY, token: async () => TOKEN, sleep: async () => {}, onUnauthorized: async () => {}, fetch: (async () => (n++, resp(401, {}))) as any })
+    const e = (await c.get('/v3/x').catch((x) => x)) as EtsyError
+    expect(e.permanent).toBe(true)
+    expect(n).toBe(2)
+  })
+})
+
 describe('EtsyClient writes', () => {
   it('never retries a POST after a 500, so a draft cannot be made twice', async () => {
     let n = 0
@@ -92,6 +109,37 @@ function harness(route: (path: string, q: Record<string, any>) => unknown) {
 }
 
 const empty = { count: 0, results: [] }
+
+describe('EtsySyncer ledger', () => {
+  it('always sends both min_created and max_created, backfilling a year on the first run', async () => {
+    const queries: Array<Record<string, any>> = []
+    const h = harness((path, q) => (path.endsWith('/ledger-entries') && queries.push(q), empty))
+    await h.syncer.run()
+    const NOW_SEC = Math.floor(Date.UTC(2026, 5, 10) / 1000)
+    expect(queries[0].max_created).toBe(NOW_SEC)
+    expect(queries[0].min_created).toBe(NOW_SEC - 365 * 86_400)
+    await h.syncer.run()
+    expect(queries[1].min_created).toBe(NOW_SEC - 86_400)
+    expect(queries[1].max_created).toBe(NOW_SEC)
+  })
+  it('still loads orders and reviews when the fee lookup fails', async () => {
+    const h = harness((path) => {
+      if (path.endsWith('/ledger-entries')) throw new Error('400')
+      if (path.endsWith('/receipts'))
+        return { count: 1, results: [{ receipt_id: 3, buyer_user_id: 9, create_timestamp: 1780000000, transactions: [{ listing_id: 1, title: 'Mug', quantity: 1, price: price(900) }] }] }
+      return empty
+    })
+    const r = await h.syncer.run()
+    expect(r.orders).toBe(1)
+  })
+  it('syncs sold out listings too', async () => {
+    const states: string[] = []
+    const h = harness((path, q) => (path.endsWith('/listings') && states.push(String(q.state)), empty))
+    await h.syncer.run()
+    expect(states).toContain('sold_out')
+  })
+})
+
 
 describe('EtsySyncer', () => {
   it('pages through listings and stores them', async () => {

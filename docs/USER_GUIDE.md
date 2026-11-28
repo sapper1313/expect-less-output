@@ -836,3 +836,5 @@ New orders, new reviews, low reviews and new messages are also sent to your Tele
 ### Draft listings from beth
 
 beth can create and change draft listings on Etsy. They are always drafts. Nothing goes live until you click Activate on Etsy yourself. Every change beth makes is written in the audit log with who, what and when. Until the shop is connected, her drafts wait inside ELO (they show on the Listings page with an id that starts with `pending-`) and are sent to Etsy after you connect. The bot steps are in `docs/ELS_VENTURES.md`.
+
+In the **Drafts from beth** box you can save a default category number and shipping profile number (you find both on Etsy). The box also lists drafts that are waiting, and says why one is stuck. beth can only use pictures and files from your Media Root (or the `ventures-uploads` folder inside ELO's data folder).

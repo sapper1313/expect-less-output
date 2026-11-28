@@ -392,6 +392,10 @@ export interface Api {
     saveMailbox(c: { host: string; user: string; password: string; folder: string }): Promise<void>
     mailboxStatus(): Promise<{ configured: boolean; host: string; user: string; folder: string }>
     testMailbox(): Promise<{ ok: boolean; found?: number; error?: string }>
+    /** Used for a draft that does not name its own category or shipping profile. Owner only. */
+    draftDefaults(): Promise<{ taxonomyId: number | null; shippingProfileId: number | null }>
+    saveDraftDefaults(v: { taxonomyId: number | null; shippingProfileId: number | null }): Promise<void>
+    pendingDrafts(): Promise<Array<{ id: string; kind: 'create' | 'update'; title: string; error: string | null }>>
   }
   amazon: {
     /** This channel's tracking id and lines, and why lists cannot run for it yet (null when they can). */

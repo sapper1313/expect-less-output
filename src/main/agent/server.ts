@@ -150,8 +150,17 @@ export async function handleAgentRequest(
     const result = await handler({ s, params, query, body, caller })
     return { status: route.success, body: result }
   } catch (e) {
-    if (e instanceof ZodError)
+    if (e instanceof ZodError) {
+      // Etsy draft routes log every refusal, including a request that tried to set a state.
+      if (route.id === 'createEtsyDraft' || route.id === 'updateEtsyDraft')
+        s.audit?.write({
+          actor: caller.kind === 'owner' ? 'josh' : caller.actor,
+          action: 'api.denied',
+          target: route.id,
+          after: { reason: 'The request did not match the schema.', fields: [...new Set(e.issues.map((i) => String(i.path[0] ?? '')))] },
+        })
       return err(400, 'validation', 'The request did not match the schema.', issuesOf(e))
+    }
     if (e instanceof AgentError) return err(e.status, e.code, e.message, e.details)
     s.log.log('error', `Agent API error on ${req.method} ${url.pathname}: ${(e as Error).message}`)
     return err(500, 'server_error', 'Something went wrong inside the app. Check the Activity Log.')

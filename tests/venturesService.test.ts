@@ -8,7 +8,7 @@ import { VenturesService } from '../src/main/ventures/service'
 
 const NOW = Date.UTC(2026, 5, 10, 16, 0, 0)
 
-function setup(etsy?: ConstructorParameters<typeof VenturesService>[0]['etsy']) {
+function setup(etsy?: ConstructorParameters<typeof VenturesService>[0]['etsy'], afterConnect?: () => Promise<unknown>) {
   const store = new VentureStore(makeEnv().db)
   const registry = new VentureRegistry()
   const mk = (id: string, label: string) =>
@@ -24,6 +24,7 @@ function setup(etsy?: ConstructorParameters<typeof VenturesService>[0]['etsy']) 
     now: () => NOW,
     syncers: { etsy: { run: async () => void synced.push('etsy') } },
     etsy,
+    afterConnect,
   })
   return { svc, synced, store }
 }
@@ -124,5 +125,63 @@ describe('VenturesService mailbox', () => {
     const { svc2 } = mk()
     svc2.saveMailbox({ host: 'h', user: 'u', password: 'SECRETPW', folder: 'Etsy' })
     expect(JSON.stringify(svc2.mailboxStatus())).not.toContain('SECRETPW')
+  })
+})
+
+describe('VenturesService connect keeps what is real', () => {
+  const fakeEtsy = { connect: async () => ({ shopId: '1', shopName: 'MyShop' }), disconnect: () => {}, saveKeys: () => {}, hasKeys: () => true }
+  it('keeps pending drafts, mailbox settings, default category and real messages, and then pushes the drafts', async () => {
+    let pushed = 0
+    const { svc, store } = setup(fakeEtsy, async () => void pushed++)
+    const rowId = store.addPending('etsy', 'create', 'pending-1', { title: 'Waiting draft' })
+    store.setPendingTarget(rowId, 'pending-1')
+    store.upsertListing('etsy', { id: 'pending-1', title: 'Waiting draft', thumbUrl: null, priceCents: 600, currency: 'USD', views: 0, favorites: 0, quantity: 1, state: 'draft', url: '', description: 'd', tags: [], images: [], priceHistory: [], sales: 0 })
+    store.setState('etsy', 'mail_host', 'imap.example.com')
+    store.setState('etsy', 'mail_user', 'me')
+    store.setState('etsy', 'default_taxonomy_id', '1234')
+    store.addNotification({ storefront: 'etsy', kind: 'message', title: 'New message from Sam', detail: '', at: '2026-06-01T00:00:00.000Z', url: null }, 'message:abc')
+    await svc.connectEtsy()
+    expect(store.listPending('etsy')).toHaveLength(1)
+    expect(store.getListing('etsy', 'pending-1')?.title).toBe('Waiting draft')
+    expect(store.getState('etsy', 'mail_host')).toBe('imap.example.com')
+    expect(store.getState('etsy', 'mail_user')).toBe('me')
+    expect(store.getState('etsy', 'default_taxonomy_id')).toBe('1234')
+    expect(store.notifications('etsy').map((n) => n.title)).toEqual(['New message from Sam'])
+    expect(store.listingRows('etsy').map((l) => l.id)).toEqual(['pending-1'])
+    expect(pushed).toBe(1)
+  })
+  it('does not wipe real data on a reconnect', async () => {
+    const { svc, store } = setup(fakeEtsy)
+    await svc.connectEtsy()
+    store.upsertListing('etsy', { id: '555', title: 'Real listing', thumbUrl: null, priceCents: 900, currency: 'USD', views: 0, favorites: 0, quantity: 1, state: 'active', url: 'https://www.etsy.com/listing/555', description: '', tags: [], images: [], priceHistory: [], sales: 0 })
+    store.addNotification({ storefront: 'etsy', kind: 'order', title: 'Real order', detail: '', at: '2026-06-01T00:00:00.000Z', url: null }, 'order:1')
+    store.setState('etsy', 'since:receipts', '123')
+    await svc.connectEtsy()
+    expect(store.getListing('etsy', '555')?.title).toBe('Real listing')
+    expect(store.unreadCount('etsy')).toBe(1)
+    expect(store.getState('etsy', 'since:receipts')).toBe('123')
+  })
+})
+
+describe('VenturesService draft defaults and waiting drafts', () => {
+  it('saves and clears the default category and shipping profile, and refuses nonsense', () => {
+    const { svc } = setup()
+    expect(svc.draftDefaults()).toEqual({ taxonomyId: null, shippingProfileId: null })
+    svc.saveDraftDefaults({ taxonomyId: 1234, shippingProfileId: 55 })
+    expect(svc.draftDefaults()).toEqual({ taxonomyId: 1234, shippingProfileId: 55 })
+    svc.saveDraftDefaults({ taxonomyId: null, shippingProfileId: null })
+    expect(svc.draftDefaults()).toEqual({ taxonomyId: null, shippingProfileId: null })
+    for (const bad of [0, -3, 1.5, Number.NaN]) expect(() => svc.saveDraftDefaults({ taxonomyId: bad, shippingProfileId: null })).toThrow(/whole number/i)
+  })
+  it('lists waiting drafts with the reason one is stuck', () => {
+    const { svc, store } = setup()
+    const a = store.addPending('etsy', 'create', 'pending-1', { title: 'Planner' })
+    store.setPendingTarget(a, 'pending-1')
+    store.failPending(a, 'This draft needs a category. Set a default category or send taxonomyId.')
+    store.addPending('etsy', 'update', '777', { title: 'New title' })
+    const list = svc.pendingDrafts()
+    expect(list).toHaveLength(2)
+    expect(list[0]).toEqual({ id: 'pending-1', kind: 'create', title: 'Planner', error: 'This draft needs a category. Set a default category or send taxonomyId.' })
+    expect(list[1]).toMatchObject({ id: '777', kind: 'update', title: 'New title', error: null })
   })
 })

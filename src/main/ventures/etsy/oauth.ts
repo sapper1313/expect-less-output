@@ -14,6 +14,12 @@ const AUTHORIZE = 'https://www.etsy.com/oauth/connect'
 const TOKEN_URL = 'https://api.etsy.com/v3/public/oauth/token'
 const REFRESH_MARGIN_MS = 5 * 60_000
 
+class TokenError extends Error {
+  constructor(readonly status: number) {
+    super(`Etsy refused the sign-in (${status}).`)
+  }
+}
+
 interface Stored {
   access: string
   refresh: string
@@ -124,7 +130,7 @@ export class EtsyAuth {
       body: new URLSearchParams(body).toString(),
     })
     // The response text is never put in an error: it can echo secrets.
-    if (!res.ok) throw new Error(`Etsy refused the sign-in (${res.status}).`)
+    if (!res.ok) throw new TokenError(res.status)
     return (await res.json()) as { access_token: string; refresh_token: string; expires_in: number }
   }
 
@@ -168,21 +174,37 @@ export class EtsyAuth {
     if (!s) throw new Error('Etsy is not connected.')
     if (s.reauth) throw new Error('Etsy needs you to sign in again.')
     if (s.expiresAt - this.d.now() > REFRESH_MARGIN_MS) return s.access
+    return this.refreshOnce(s)
+  }
+
+  private refreshOnce(s: Stored): Promise<string> {
     this.refreshing ??= this.refresh(s).finally(() => (this.refreshing = null))
     return this.refreshing
   }
 
+  /** Gets a new token now, for when Etsy says the saved one no longer works. */
+  async forceRefresh(): Promise<void> {
+    const s = this.load()
+    if (!s) throw new Error('Etsy is not connected.')
+    if (s.reauth) throw new Error('Etsy needs you to sign in again.')
+    await this.refreshOnce(s)
+  }
+
   private async refresh(s: Stored): Promise<string> {
     const creds = this.d.credentials()
+    if (!creds) throw new Error('Etsy keys are not set up yet.')
     try {
-      if (!creds) throw new Error('keys')
       const t = await this.tokenCall({ grant_type: 'refresh_token', client_id: creds.keystring, refresh_token: s.refresh })
       this.save({ ...s, access: t.access_token, refresh: t.refresh_token, expiresAt: this.d.now() + t.expires_in * 1000 })
       return t.access_token
-    } catch {
-      this.save({ ...s, reauth: true })
-      this.d.onReauth?.()
-      throw new Error('Etsy needs you to sign in again.')
+    } catch (e) {
+      // Only a real refusal from Etsy means the login is gone. A network blip or an Etsy outage tries again later.
+      if (e instanceof TokenError && [400, 401, 403].includes(e.status)) {
+        this.save({ ...s, reauth: true })
+        this.d.onReauth?.()
+        throw new Error('Etsy needs you to sign in again.', { cause: e })
+      }
+      throw new Error('Could not reach Etsy. ELO will try again.', { cause: e })
     }
   }
 

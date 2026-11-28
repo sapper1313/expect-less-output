@@ -7739,7 +7739,7 @@
       "post": {
         "operationId": "createEtsyDraft",
         "summary": "Create a draft Etsy listing (title, description, tags, price, images, digital file).",
-        "description": "Only the beth bot token and the owner token may call this. The listing is always a draft: there is no way to activate it from here, a person does that on Etsy. Limits: title up to 140 characters, up to 13 tags of up to 20 characters, price at least 20 cents, up to 10 images (file paths on this Mac or https links), one optional digital file path. Send taxonomyId (the Etsy category) unless a default is set. While no Etsy shop is connected the draft is kept in ELO as pending and sent after the shop is connected (pending is true in the answer). Every call is logged with who, what and when.",
+        "description": "Only the beth bot token and the owner token may call this. The listing is always a draft: there is no way to activate it from here, a person does that on Etsy. Limits: title up to 140 characters, up to 13 tags of up to 20 characters, price at least 20 cents, up to 10 images, one optional digital file. Images are file paths inside the Media Root (or the ventures-uploads folder in the ELO data folder) or public https links, picture types only, up to 20 MB each; the digital file is a file path in those same folders, up to 20 MB. Anything else is refused with 400. Send taxonomyId (the Etsy category) unless a default is set, and shippingProfileId for a physical item. While no Etsy shop is connected the draft is kept in ELO as pending and sent after the shop is connected (pending is true in the answer). Every call is logged with who, what and when.",
         "x-mcp-tool": "create_etsy_draft",
         "security": [
           {
@@ -7770,7 +7770,8 @@
                     "items": {
                       "type": "string",
                       "minLength": 1,
-                      "maxLength": 20
+                      "maxLength": 20,
+                      "pattern": "^[\\p{L}\\p{Nd}\\p{Zs}\\-'\\u2122\\u00a9\\u00ae]+$"
                     }
                   },
                   "priceCents": {
@@ -7799,6 +7800,11 @@
                     "maximum": 999
                   },
                   "taxonomyId": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "shippingProfileId": {
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 9007199254740991
@@ -7882,7 +7888,7 @@
       "patch": {
         "operationId": "updateEtsyDraft",
         "summary": "Change a draft Etsy listing.",
-        "description": "Only the beth bot token and the owner token may call this. Only drafts can be changed: a listing that is active, inactive or expired is refused with 403 drafts_only. Send any of title, description, tags, priceCents, images, digitalFile, quantity, taxonomyId. A pending id (pending-N) changes the draft that is waiting for the shop to be connected. Every call is logged.",
+        "description": "Only the beth bot token and the owner token may call this. Only drafts can be changed: a listing that is active, inactive or expired is refused with 403 drafts_only. Send any of title, description, tags, priceCents, quantity, taxonomyId, shippingProfileId (pictures and the digital file are set when the draft is made, change them on Etsy). ELO asks Etsy for the state of the listing first, so a draft that was activated a minute ago is refused. A pending id (pending-N) changes the draft that is waiting for the shop to be connected. Every call is logged.",
         "x-mcp-tool": "update_etsy_draft",
         "security": [
           {
@@ -7923,7 +7929,8 @@
                     "items": {
                       "type": "string",
                       "minLength": 1,
-                      "maxLength": 20
+                      "maxLength": 20,
+                      "pattern": "^[\\p{L}\\p{Nd}\\p{Zs}\\-'\\u2122\\u00a9\\u00ae]+$"
                     }
                   },
                   "priceCents": {
@@ -7931,26 +7938,17 @@
                     "minimum": 20,
                     "maximum": 10000000
                   },
-                  "images": {
-                    "maxItems": 10,
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 1000
-                    }
-                  },
-                  "digitalFile": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1000
-                  },
                   "quantity": {
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 999
                   },
                   "taxonomyId": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "shippingProfileId": {
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 9007199254740991

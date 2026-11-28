@@ -155,3 +155,61 @@ export function MailboxCard() {
     </Card>
   )
 }
+
+/** Mac only. The category and shipping profile beth's drafts use when she does not name one, and the drafts waiting. */
+export function DraftsCard() {
+  const { data: defaults, reload } = useLoad(() => api.ventures.draftDefaults())
+  const { data: waiting, reload: reloadWaiting } = useLoad(() => api.ventures.pendingDrafts())
+  const [cat, setCat] = useState<string | null>(null)
+  const [ship, setShip] = useState<string | null>(null)
+  const [msg, setMsg] = useState<string | null>(null)
+  if (!defaults || !waiting) return null
+  const num = (v: string) => (v.trim() === '' ? null : Number(v))
+  const catVal = cat ?? (defaults.taxonomyId ? String(defaults.taxonomyId) : '')
+  const shipVal = ship ?? (defaults.shippingProfileId ? String(defaults.shippingProfileId) : '')
+  return (
+    <Card title="Drafts from beth">
+      <p className="text-[13px] text-muted">
+        beth's drafts use these when she does not name a category or shipping profile. Both are numbers from Etsy. Drafts only: nothing goes live until you activate it on Etsy.
+      </p>
+      <div className="mt-2 grid gap-2 md:grid-cols-2">
+        <Input aria-label="Default category number" inputMode="numeric" placeholder="Default category number" value={catVal} onChange={(e) => setCat(e.target.value)} />
+        <Input aria-label="Default shipping profile number" inputMode="numeric" placeholder="Default shipping profile number (physical items)" value={shipVal} onChange={(e) => setShip(e.target.value)} />
+      </div>
+      <div className="mt-2">
+        <Button
+          onClick={async () => {
+            try {
+              await api.ventures.saveDraftDefaults({ taxonomyId: num(catVal), shippingProfileId: num(shipVal) })
+              setMsg('Saved.')
+              setCat(null)
+              setShip(null)
+              reload()
+            } catch (e) {
+              setMsg(String((e as Error).message ?? e))
+            }
+          }}
+        >
+          Save defaults
+        </Button>
+        {msg && <span className="ml-3 text-[13px]">{msg}</span>}
+      </div>
+      {waiting.length > 0 && (
+        <div className="mt-4">
+          <div className="mb-1 text-[12px] font-bold uppercase tracking-wider text-muted">Waiting for Etsy ({waiting.length})</div>
+          <ul className="divide-y divide-line text-[13px]">
+            {waiting.map((w, i) => (
+              <li key={i} className="py-2">
+                <b>{w.title}</b> <span className="text-muted">({w.kind === 'create' ? 'new draft' : 'change'})</span>
+                {w.error && <div className="text-warn">{w.error}</div>}
+              </li>
+            ))}
+          </ul>
+          <Button variant="ghost" className="mt-1" onClick={reloadWaiting}>
+            Refresh
+          </Button>
+        </div>
+      )}
+    </Card>
+  )
+}

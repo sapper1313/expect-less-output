@@ -301,23 +301,22 @@ export class VentureStore {
     return r.changes > 0
   }
 
-  /** Removes everything cached for one storefront (used when sample data gives way to the real shop). */
-  clearStorefront(storefront: string): void {
+  /**
+   * Removes the sample data when the real shop is connected for the first time. It never touches pending drafts,
+   * the mailbox settings, the default category or real buyer messages: those belong to the owner, not to the demo.
+   */
+  clearSampleData(storefront: string): void {
     this.db.transaction(() => {
-      for (const t of [
-        'venture_listings',
-        'venture_listing_images',
-        'venture_price_history',
-        'venture_orders',
-        'venture_order_items',
-        'venture_reviews',
-        'venture_ledger',
-        'venture_messages',
-        'venture_notifications',
-        'venture_pending_drafts',
-      ])
+      const keep = "id NOT LIKE 'pending-%'"
+      this.db.prepare(`DELETE FROM venture_listing_images WHERE storefront = ? AND listing_id NOT LIKE 'pending-%'`).run(storefront)
+      this.db.prepare(`DELETE FROM venture_price_history WHERE storefront = ? AND listing_id NOT LIKE 'pending-%'`).run(storefront)
+      this.db.prepare(`DELETE FROM venture_listings WHERE storefront = ? AND ${keep}`).run(storefront)
+      for (const t of ['venture_orders', 'venture_order_items', 'venture_reviews', 'venture_ledger'])
         this.db.prepare(`DELETE FROM ${t} WHERE storefront = ?`).run(storefront)
-      this.db.prepare("DELETE FROM venture_state WHERE storefront = ? AND key != 'demo_cleared'").run(storefront)
+      this.db.prepare("DELETE FROM venture_notifications WHERE storefront = ? AND dedupe_key LIKE 'mock:%'").run(storefront)
+      this.db
+        .prepare("DELETE FROM venture_state WHERE storefront = ? AND (key LIKE 'cursor:%' OR key LIKE 'since:%' OR key IN ('first_sync_done', 'last_sync_at', 'ledger_error'))")
+        .run(storefront)
     })()
   }
 

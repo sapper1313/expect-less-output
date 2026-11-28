@@ -137,6 +137,34 @@ describe('EtsyAuth.accessToken', () => {
     await auth.accessToken().catch(() => {})
     expect(alerts).toHaveLength(1)
   })
+  it('does not force a new login when the network is down during a refresh', async () => {
+    const now = { t: 1_000_000 }
+    let down = false
+    const alerts: string[] = []
+    const f = (async (url: string) => {
+      if (down && String(url).includes('/oauth/token')) throw new TypeError('fetch failed')
+      return String(url).includes('/oauth/token') ? tokenResp() : new Response(JSON.stringify({ shop_id: 55, shop_name: 'MyShop' }), { status: 200 })
+    }) as unknown as typeof fetch
+    const auth = new EtsyAuth({ secrets: newSecrets(), now: () => now.t, openUrl: () => {}, credentials: () => CREDS, redirectUri: 'http://127.0.0.1:38487/callback', fetch: f, onReauth: () => void alerts.push('x') })
+    const b = auth.begin()
+    await b.finish(new URLSearchParams({ code: 'c', state: b.state }))
+    now.t += 3_600_000
+    down = true
+    await expect(auth.accessToken()).rejects.toThrow(/reach Etsy/i)
+    expect(auth.status().mode).toBe('connected')
+    expect(alerts).toHaveLength(0)
+    down = false
+    expect(await auth.accessToken()).toBe('777.ACCESSTOKEN')
+  })
+  it('forceRefresh gets a new token even when the old one has not expired', async () => {
+    const now = { t: 1_000_000 }
+    const calls: string[] = []
+    const { auth } = await connected(now, calls)
+    const before = calls.filter((c) => c.includes('refresh_token')).length
+    await auth.forceRefresh()
+    expect(calls.filter((c) => c.includes('refresh_token')).length - before).toBe(1)
+    expect(await auth.accessToken()).toBe('777.NEWACCESS')
+  })
   it('disconnect forgets everything', async () => {
     const now = { t: 1_000_000 }
     const { auth, secrets } = await connected(now, [])
