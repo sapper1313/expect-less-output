@@ -1080,6 +1080,29 @@ async function boot(): Promise<void> {
     studioOn: () => !studio.isOff(),
     accountTotals: () => accountStats.homeTotals(),
   })
+  const ventureStore = new VentureStore(db)
+  const ventureRegistry = new VentureRegistry()
+  const etsyStatus = (): ConnectionStatus => ({
+    mode: 'mock',
+    shopName: null,
+    lastSyncAt: ventureStore.getState('etsy', 'last_sync_at'),
+    expiresAt: null,
+  })
+  ventureRegistry.register(
+    new CacheProvider({ id: 'etsy', label: 'Etsy', store: ventureStore, now: () => Date.now(), status: etsyStatus }),
+  )
+  // Until Etsy approves the app there is no real shop, so the pages show sample data.
+  if (etsyStatus().mode === 'mock' && ventureStore.listingRows('etsy').length === 0)
+    seedMockData(ventureStore, 'etsy', Date.now())
+  const ventures = new VenturesService({
+    registry: ventureRegistry,
+    store: ventureStore,
+    now: () => Date.now(),
+    syncers: {},
+    log: (level, m) => log.log(level, m),
+  })
+  setInterval(() => void ventures.syncAll().catch(() => {}), 20 * 60_000)
+
   agent.server.phone = {
     token: () => agent.phoneToken(),
     look: () => settings.get().colorTheme,
@@ -1087,6 +1110,7 @@ async function boot(): Promise<void> {
     refresh: async () => dashboard.refresh(),
     week: async (offset) => dashboard.weekMap(offset),
     tiles: async () => apiRef!.home.summary(),
+    ventures: { service: ventures, dir: join(app.getAppPath(), 'out', 'renderer') },
   }
   const inbox = new InboxWatcher({
     s: {
@@ -1291,28 +1315,6 @@ async function boot(): Promise<void> {
   })
   telegramRef = telegram
 
-  const ventureStore = new VentureStore(db)
-  const ventureRegistry = new VentureRegistry()
-  const etsyStatus = (): ConnectionStatus => ({
-    mode: 'mock',
-    shopName: null,
-    lastSyncAt: ventureStore.getState('etsy', 'last_sync_at'),
-    expiresAt: null,
-  })
-  ventureRegistry.register(
-    new CacheProvider({ id: 'etsy', label: 'Etsy', store: ventureStore, now: () => Date.now(), status: etsyStatus }),
-  )
-  // Until Etsy approves the app there is no real shop, so the pages show sample data.
-  if (etsyStatus().mode === 'mock' && ventureStore.listingRows('etsy').length === 0)
-    seedMockData(ventureStore, 'etsy', Date.now())
-  const ventures = new VenturesService({
-    registry: ventureRegistry,
-    store: ventureStore,
-    now: () => Date.now(),
-    syncers: {},
-    log: (level, m) => log.log(level, m),
-  })
-  setInterval(() => void ventures.syncAll().catch(() => {}), 20 * 60_000)
 
   const api = buildApi({
     ventures,

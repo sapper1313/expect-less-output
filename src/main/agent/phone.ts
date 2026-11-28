@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from 'crypto'
 import type { IncomingHttpHeaders } from 'http'
+import { handleVenturesPhone, type PhoneVentures } from '../ventures/phoneRoutes'
 import pageHtml from '../../renderer/src/dashboard/page.html?raw'
 import pageCss from '../../renderer/src/dashboard/dashboard.css?raw'
 import viewJs from '../../renderer/src/dashboard/dashboardView.js?raw'
@@ -14,6 +15,8 @@ export interface PhoneProvider {
   refresh(): Promise<unknown>
   week(offset: number): Promise<unknown>
   tiles(): Promise<unknown>
+  /** ELS Ventures, read only. Null until it exists. */
+  ventures?: PhoneVentures | null
 }
 
 export interface PhoneRequest {
@@ -26,7 +29,7 @@ export interface PhoneRequest {
 export interface PhoneResponse {
   status: number
   type: string
-  body: string
+  body: string | Buffer
 }
 
 const safeEqual = (a: string, b: string): boolean =>
@@ -126,6 +129,13 @@ export async function handlePhoneRequest(
   if (!token || !given || !safeEqual(given, token)) return plain(404, 'Not found.')
   if (req.method !== 'GET') return plain(405, 'This page is read only.')
   const file = m[2] ?? ''
+  if (p.ventures && (file === 'ventures/' || file.startsWith('ventures/'))) {
+    try {
+      return handleVenturesPhone(p.ventures, file.slice('ventures/'.length), url.searchParams)
+    } catch {
+      return plain(500, 'Something went wrong inside the app.')
+    }
+  }
   try {
     if (file === '' ) return { status: 200, type: 'text/html; charset=utf-8', body: phonePage(p.look()) }
     if (file === 'snapshot.json')

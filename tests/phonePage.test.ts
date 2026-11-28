@@ -33,10 +33,10 @@ describe('phone page', () => {
   })
   it('is read only and answers the data files', async () => {
     expect((await handlePhoneRequest(provider, req('/m/secret123/', { method: 'POST' }), ok))!.status).toBe(405)
-    expect(JSON.parse((await handlePhoneRequest(provider, req('/m/secret123/snapshot.json'), ok))!.body)).toEqual({ kind: 'snapshot' })
-    expect(JSON.parse((await handlePhoneRequest(provider, req('/m/secret123/snapshot.json?force=1'), ok))!.body)).toEqual({ kind: 'refreshed' })
-    expect(JSON.parse((await handlePhoneRequest(provider, req('/m/secret123/week.json?offset=2'), ok))!.body)).toEqual({ kind: 'week', n: 2 })
-    expect(JSON.parse((await handlePhoneRequest(provider, req('/m/secret123/tiles.json'), ok))!.body)).toEqual({ kind: 'tiles' })
+    expect(JSON.parse((await handlePhoneRequest(provider, req('/m/secret123/snapshot.json'), ok))!.body as string)).toEqual({ kind: 'snapshot' })
+    expect(JSON.parse((await handlePhoneRequest(provider, req('/m/secret123/snapshot.json?force=1'), ok))!.body as string)).toEqual({ kind: 'refreshed' })
+    expect(JSON.parse((await handlePhoneRequest(provider, req('/m/secret123/week.json?offset=2'), ok))!.body as string)).toEqual({ kind: 'week', n: 2 })
+    expect(JSON.parse((await handlePhoneRequest(provider, req('/m/secret123/tiles.json'), ok))!.body as string)).toEqual({ kind: 'tiles' })
     expect((await handlePhoneRequest(provider, req('/m/secret123/other'), ok))!.status).toBe(404)
   })
   it('refuses a strange Host header, ignores other paths and falls back to Midnight', async () => {

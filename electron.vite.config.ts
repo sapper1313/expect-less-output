@@ -17,5 +17,14 @@ export default defineConfig({
   renderer: {
     resolve: { alias: { '@shared': shared, '@': resolve(__dirname, 'src/renderer/src') } },
     plugins: [react(), tailwindcss()],
+    build: {
+      rollupOptions: {
+        // Two pages: the app itself, and the read only ELS Ventures page the phone opens.
+        input: {
+          index: resolve(__dirname, 'src/renderer/index.html'),
+          ventures: resolve(__dirname, 'src/renderer/ventures.html'),
+        },
+      },
+    },
   },
 })
