@@ -1,5 +1,26 @@
 // Every user-facing string lives here so tone can change in one place.
 export const COPY = {
+  ventures: {
+    nav: 'ELS Ventures',
+    pages: {
+      dashboard: 'Sales',
+      listings: 'Listings',
+      itemsSold: 'Items sold',
+      reviews: 'Reviews',
+      notifications: 'Notifications',
+    },
+    lowStarFlag: 'Low rating',
+    connectEtsy: 'Connect Etsy',
+    notConnected: 'Etsy is not connected yet. Showing sample data until it is.',
+    mockBanner: 'Sample data. Nothing here is from a real shop yet.',
+    emptyListings: 'No listings yet.',
+    emptyOrders: 'No orders in this range.',
+    emptyReviews: 'No reviews yet.',
+    emptyNotifications: 'Nothing new.',
+    markAllRead: 'Mark all read',
+    openOnEtsy: 'Open on Etsy',
+    keysMissing: 'Etsy keys are not set up yet.',
+  },
   appName: 'Expect Less Output',
   tagline: 'The algorithm has been fed.',
   publishButton: 'Save',
