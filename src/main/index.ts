@@ -43,6 +43,8 @@ import { CacheProvider } from './ventures/etsy/provider'
 import { seedMockData } from './ventures/mock'
 import { ETSY_KEYSTRING_KEY, ETSY_SECRET_KEY, EtsyAuth, etsyCredentials } from './ventures/etsy/oauth'
 import { EtsyClient } from './ventures/etsy/client'
+import { VentureNotifier } from './ventures/notifications'
+import { MAIL_PASSWORD_KEY, MessagePoller, realImap } from './ventures/messages'
 import { EtsySyncer } from './ventures/etsy/sync'
 import type { ConnectionStatus } from '@shared/ventures'
 import { AgentRuntime } from './agent/runtime'
@@ -1118,6 +1120,19 @@ async function boot(): Promise<void> {
   )
   if (etsyStatus().mode === 'mock' && ventureStore.listingRows('etsy').length === 0)
     seedMockData(ventureStore, 'etsy', Date.now())
+  const ventureNotifier = new VentureNotifier({
+    store: ventureStore,
+    telegram: async (text) => void (await telegramRef?.notify(text)),
+    label: (id) => ventureRegistry.get(id)?.label ?? id,
+    onNew: () => emit(),
+  })
+  const messagePoller = new MessagePoller({
+    secrets,
+    imap: realImap,
+    store: ventureStore,
+    notify: (n, key) => ventureNotifier.notify(n, key),
+    now: () => Date.now(),
+  })
   const etsySyncer = new EtsySyncer({
     client: new EtsyClient({
       // Looked up on every call so keys saved after start-up work at once. Never logged.
@@ -1130,7 +1145,7 @@ async function boot(): Promise<void> {
     }),
     store: ventureStore,
     shopId: () => etsyAuth.shopId(),
-    notify: (n, key) => void ventureStore.addNotification(n, key),
+    notify: (n, key) => ventureNotifier.notify(n, key),
     now: () => Date.now(),
   })
   const ventures = new VenturesService({
@@ -1147,9 +1162,38 @@ async function boot(): Promise<void> {
       },
       hasKeys: () => !!etsyKeys(),
     },
+    mail: {
+      save: (c) => {
+        ventureStore.setState('etsy', 'mail_host', c.host)
+        ventureStore.setState('etsy', 'mail_user', c.user)
+        ventureStore.setState('etsy', 'mail_folder', c.folder)
+        secrets.set(MAIL_PASSWORD_KEY, c.password)
+      },
+      status: () => {
+        const cfg = messagePoller.config()
+        return {
+          configured: !!cfg,
+          host: ventureStore.getState('etsy', 'mail_host') ?? '',
+          user: ventureStore.getState('etsy', 'mail_user') ?? '',
+          folder: ventureStore.getState('etsy', 'mail_folder') ?? '',
+        }
+      },
+      test: async () => {
+        const cfg = messagePoller.config()
+        if (!cfg) return { ok: false, error: 'Save the mailbox first.' }
+        try {
+          return { ok: true, found: (await realImap.fetchUnseen(cfg)).length }
+        } catch {
+          // The text from the mail server can echo a login, so only a plain message is shown.
+          return { ok: false, error: 'Could not sign in to the mailbox. Check the host, user, password and folder.' }
+        }
+      },
+    },
     log: (level, m) => log.log(level, m),
   })
   setInterval(() => void ventures.syncAll().catch(() => {}), 20 * 60_000)
+  setInterval(() => void messagePoller.poll().catch(() => {}), 20 * 60_000)
+  setTimeout(() => void messagePoller.poll().catch(() => {}), 90_000)
 
   agent.server.phone = {
     token: () => agent.phoneToken(),

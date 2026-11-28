@@ -22,7 +22,7 @@ import { Upcoming } from './screens/Upcoming'
 import { About, SettingsScreen, type SettingsTab } from './screens/Simple'
 import logoWide from './assets/logo-wide.png'
 import { VenturesLayout } from './ventures/VenturesLayout'
-import { EtsyConnectCard, PhoneLinkCard } from './ventures/EtsyConnectCard'
+import { EtsyConnectCard, MailboxCard, PhoneLinkCard } from './ventures/EtsyConnectCard'
 import { needsDrawer } from './ventures/nav'
 
 type Screen =
@@ -354,6 +354,7 @@ function Shell() {
             extra={(id) => (
               <>
                 {id === 'etsy' && <EtsyConnectCard />}
+                {id === 'etsy' && <MailboxCard />}
                 <PhoneLinkCard />
               </>
             )}

@@ -254,6 +254,14 @@ export class VentureStore {
     ).n
   }
 
+  /** False when this email was already stored. */
+  addMessage(storefront: string, m: { dedupeKey: string; sender: string; subject: string; snippet: string; at: string; url: string }): boolean {
+    const r = this.db
+      .prepare('INSERT OR IGNORE INTO venture_messages (storefront, dedupe_key, sender, subject, snippet, at, url) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(storefront, m.dedupeKey, m.sender, m.subject, m.snippet, m.at, m.url)
+    return r.changes > 0
+  }
+
   /** Removes everything cached for one storefront (used when sample data gives way to the real shop). */
   clearStorefront(storefront: string): void {
     this.db.transaction(() => {

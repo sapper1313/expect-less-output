@@ -620,6 +620,12 @@ export function buildApi(d: ApiDeps): Api {
         d.emit()
       },
       etsyKeysSet: async () => d.ventures.etsyKeysSet(),
+      saveMailbox: async (c) => {
+        d.ventures.saveMailbox(c)
+        d.emit()
+      },
+      mailboxStatus: async () => d.ventures.mailboxStatus(),
+      testMailbox: async () => d.ventures.testMailbox(),
     },
     amazon: {
       channel: async (brandId) => ({ ...d.amazon.channel(brandId), blocked: d.amazon.blockedReason(brandId), stream: d.amazon.isStream(brandId) }),

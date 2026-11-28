@@ -96,3 +96,33 @@ describe('VenturesService Etsy connection', () => {
     expect(saved).toEqual(['KEY|SECRET'])
   })
 })
+
+describe('VenturesService mailbox', () => {
+  const mk = () => {
+    const saved: Array<Record<string, string>> = []
+    const { svc } = setup()
+    const svc2 = new VenturesService({
+      registry: (svc as any).d.registry,
+      store: (svc as any).d.store,
+      now: () => NOW,
+      syncers: {},
+      mail: {
+        save: (c) => void saved.push(c),
+        status: () => ({ configured: saved.length > 0, host: saved[0]?.host ?? '', user: saved[0]?.user ?? '', folder: saved[0]?.folder ?? '' }),
+        test: async () => ({ ok: true, found: 2 }),
+      },
+    })
+    return { svc2, saved }
+  }
+  it('needs host, user and password, trims them and defaults the folder', () => {
+    const { svc2, saved } = mk()
+    expect(() => svc2.saveMailbox({ host: '', user: 'a', password: 'b', folder: '' })).toThrow(/host, user and password/i)
+    svc2.saveMailbox({ host: ' imap.x.com ', user: ' me ', password: ' pw ', folder: '' })
+    expect(saved[0]).toEqual({ host: 'imap.x.com', user: 'me', password: 'pw', folder: 'INBOX' })
+  })
+  it('never returns the password', () => {
+    const { svc2 } = mk()
+    svc2.saveMailbox({ host: 'h', user: 'u', password: 'SECRETPW', folder: 'Etsy' })
+    expect(JSON.stringify(svc2.mailboxStatus())).not.toContain('SECRETPW')
+  })
+})

@@ -87,3 +87,71 @@ export function PhoneLinkCard() {
     </Card>
   )
 }
+
+/** Mac only. The mailbox that gets Etsy's "new message" emails, so buyer messages show up here. Replies stay on Etsy. */
+export function MailboxCard() {
+  const { data: st, reload } = useLoad(() => api.ventures.mailboxStatus())
+  const [host, setHost] = useState('')
+  const [user, setUser] = useState('')
+  const [folder, setFolder] = useState('')
+  const [password, setPassword] = useState('')
+  const [msg, setMsg] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  if (!st) return null
+  const run = async (fn: () => Promise<string | void>) => {
+    setBusy(true)
+    setMsg(null)
+    try {
+      setMsg((await fn()) ?? null)
+    } catch (e) {
+      setMsg(String((e as Error).message ?? e))
+    } finally {
+      setBusy(false)
+      reload()
+    }
+  }
+  return (
+    <Card title="Buyer messages from email">
+      <p className="text-[13px] text-muted">
+        Etsy has no way to read messages directly. Forward Etsy's "new message" emails to a mailbox and enter it here. ELO only reads it. Replies are still made on Etsy.
+      </p>
+      {st.configured && (
+        <p className="mt-2 text-[13px]">
+          Reading <b>{st.folder || 'INBOX'}</b> on {st.host} as {st.user}.
+        </p>
+      )}
+      <div className="mt-2 grid gap-2 md:grid-cols-2">
+        <Input aria-label="Mail host" placeholder="Mail host (for example imap.gmail.com)" value={host} onChange={(e) => setHost(e.target.value)} />
+        <Input aria-label="Mail user" placeholder="Mail user" autoComplete="off" value={user} onChange={(e) => setUser(e.target.value)} />
+        <Input aria-label="Mail folder" placeholder="Folder or label (default INBOX)" value={folder} onChange={(e) => setFolder(e.target.value)} />
+        <Input aria-label="Mail password" placeholder="App password" type="password" autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Button
+          disabled={busy || !host.trim() || !user.trim() || !password.trim()}
+          onClick={() =>
+            run(async () => {
+              await api.ventures.saveMailbox({ host, user, password, folder })
+              setPassword('')
+              return 'Mailbox saved.'
+            })
+          }
+        >
+          Save mailbox
+        </Button>
+        <Button
+          disabled={busy || !st.configured}
+          onClick={() =>
+            run(async () => {
+              const r = await api.ventures.testMailbox()
+              return r.ok ? `It works. ${r.found ?? 0} unread email${r.found === 1 ? '' : 's'} found.` : (r.error ?? 'It did not work.')
+            })
+          }
+        >
+          Test mailbox
+        </Button>
+      </div>
+      {msg && <div className="mt-2 text-[13px]">{msg}</div>}
+    </Card>
+  )
+}

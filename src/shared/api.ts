@@ -388,6 +388,10 @@ export interface Api {
     disconnectEtsy(): Promise<void>
     saveEtsyKeys(keystring: string, sharedSecret: string): Promise<void>
     etsyKeysSet(): Promise<boolean>
+    /** The mailbox that receives Etsy "new message" emails. Owner only. The password is never returned. */
+    saveMailbox(c: { host: string; user: string; password: string; folder: string }): Promise<void>
+    mailboxStatus(): Promise<{ configured: boolean; host: string; user: string; folder: string }>
+    testMailbox(): Promise<{ ok: boolean; found?: number; error?: string }>
   }
   amazon: {
     /** This channel's tracking id and lines, and why lists cannot run for it yet (null when they can). */

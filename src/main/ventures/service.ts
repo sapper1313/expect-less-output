@@ -28,6 +28,12 @@ export interface VenturesDeps {
     saveKeys(keystring: string, sharedSecret: string): void
     hasKeys(): boolean
   }
+  /** The mailbox that receives Etsy's "new message" emails. The password is never read back. */
+  mail?: {
+    save(c: { host: string; user: string; password: string; folder: string }): void
+    status(): { configured: boolean; host: string; user: string; folder: string }
+    test(): Promise<{ ok: boolean; found?: number; error?: string }>
+  }
   log?: (level: 'info' | 'warn' | 'error', message: string) => void
 }
 
@@ -117,6 +123,23 @@ export class VenturesService {
 
   etsyKeysSet(): boolean {
     return !!this.d.etsy?.hasKeys()
+  }
+
+  saveMailbox(c: { host: string; user: string; password: string; folder: string }): void {
+    const host = c.host.trim()
+    const user = c.user.trim()
+    const password = c.password.trim()
+    if (!host || !user || !password) throw new Error('Enter the mail host, user and password.')
+    if (!this.d.mail) throw new Error('Mailbox settings are not available.')
+    this.d.mail.save({ host, user, password, folder: c.folder.trim() || 'INBOX' })
+  }
+
+  mailboxStatus(): { configured: boolean; host: string; user: string; folder: string } {
+    return this.d.mail?.status() ?? { configured: false, host: '', user: '', folder: '' }
+  }
+
+  async testMailbox(): Promise<{ ok: boolean; found?: number; error?: string }> {
+    return this.d.mail ? this.d.mail.test() : { ok: false, error: 'Mailbox settings are not available.' }
   }
 
   /** Every storefront with a real shop connected. One failing never stops the others. */
