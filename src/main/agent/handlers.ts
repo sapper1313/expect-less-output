@@ -465,6 +465,18 @@ export const HANDLERS: Record<string, (c: Ctx) => unknown | Promise<unknown>> = 
   updatePost: async ({ s, params, body, caller }) =>
     postOut(await operatorUpdate(s, params.id, body, caller)),
 
+  createEtsyDraft: async ({ s, body, caller }) => {
+    const d = s.ventureDrafts?.()
+    if (!d) throw new AgentError(404, 'not_found', 'ELS Ventures is not available.')
+    return d.create(caller, body)
+  },
+
+  updateEtsyDraft: async ({ s, params, body, caller }) => {
+    const d = s.ventureDrafts?.()
+    if (!d) throw new AgentError(404, 'not_found', 'ELS Ventures is not available.')
+    return d.update(caller, params.id, body)
+  },
+
   setPostThumbnail: ({ s, params, body, caller }) => agentSetThumbnail(s, params.id, body, caller),
 
   cancelPost: ({ s, params, caller }) => postOut(operatorCancel(s, params.id, caller)),

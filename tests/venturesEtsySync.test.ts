@@ -9,6 +9,21 @@ const TOKEN = 'TOKEN-ABC-789'
 const resp = (status: number, body: unknown, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers })
 
+describe('EtsyClient writes', () => {
+  it('never retries a POST after a 500, so a draft cannot be made twice', async () => {
+    let n = 0
+    const c = new EtsyClient({ apiKey: KEY, token: async () => TOKEN, sleep: async () => {}, fetch: (async () => (n++, resp(500, {}))) as any })
+    await expect(c.send('POST', '/v3/x', new URLSearchParams({ a: '1' }))).rejects.toBeInstanceOf(EtsyError)
+    expect(n).toBe(1)
+  })
+  it('does retry a POST after a 429', async () => {
+    let n = 0
+    const c = new EtsyClient({ apiKey: KEY, token: async () => TOKEN, sleep: async () => {}, fetch: (async () => (n++, n === 1 ? resp(429, {}, { 'retry-after': '1' }) : resp(200, { ok: 1 }))) as any })
+    await c.send('POST', '/v3/x', new URLSearchParams())
+    expect(n).toBe(2)
+  })
+})
+
 describe('EtsyClient', () => {
   it('retries a 429 using Retry-After and then succeeds', async () => {
     const calls: string[] = []

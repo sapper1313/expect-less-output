@@ -7735,6 +7735,306 @@
         }
       }
     },
+    "/v1/ventures/etsy/drafts": {
+      "post": {
+        "operationId": "createEtsyDraft",
+        "summary": "Create a draft Etsy listing (title, description, tags, price, images, digital file).",
+        "description": "Only the beth bot token and the owner token may call this. The listing is always a draft: there is no way to activate it from here, a person does that on Etsy. Limits: title up to 140 characters, up to 13 tags of up to 20 characters, price at least 20 cents, up to 10 images (file paths on this Mac or https links), one optional digital file path. Send taxonomyId (the Etsy category) unless a default is set. While no Etsy shop is connected the draft is kept in ELO as pending and sent after the shop is connected (pending is true in the answer). Every call is logged with who, what and when.",
+        "x-mcp-tool": "create_etsy_draft",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 140
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 10000
+                  },
+                  "tags": {
+                    "default": [],
+                    "maxItems": 13,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 20
+                    }
+                  },
+                  "priceCents": {
+                    "type": "integer",
+                    "minimum": 20,
+                    "maximum": 10000000
+                  },
+                  "images": {
+                    "default": [],
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000
+                    }
+                  },
+                  "digitalFile": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 999
+                  },
+                  "taxonomyId": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "title",
+                  "description",
+                  "priceCents"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "draft"
+                      ]
+                    },
+                    "pending": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "state",
+                    "pending"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/ventures/etsy/drafts/{id}": {
+      "patch": {
+        "operationId": "updateEtsyDraft",
+        "summary": "Change a draft Etsy listing.",
+        "description": "Only the beth bot token and the owner token may call this. Only drafts can be changed: a listing that is active, inactive or expired is refused with 403 drafts_only. Send any of title, description, tags, priceCents, images, digitalFile, quantity, taxonomyId. A pending id (pending-N) changes the draft that is waiting for the shop to be connected. Every call is logged.",
+        "x-mcp-tool": "update_etsy_draft",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,40}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 140
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 10000
+                  },
+                  "tags": {
+                    "maxItems": 13,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 20
+                    }
+                  },
+                  "priceCents": {
+                    "type": "integer",
+                    "minimum": 20,
+                    "maximum": 10000000
+                  },
+                  "images": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000
+                    }
+                  },
+                  "digitalFile": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 999
+                  },
+                  "taxonomyId": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "draft"
+                      ]
+                    },
+                    "pending": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "state",
+                    "pending"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed. For example code drafts_only while agents are limited to drafts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such post.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/studio/brands/{id}/pause": {
       "post": {
         "operationId": "setStudioBrandPaused",

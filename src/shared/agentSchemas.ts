@@ -232,6 +232,31 @@ export const ActivityQuery = z.object({
 })
 export const IdParams = z.object({ id })
 
+// ---------- ELS Ventures: Etsy draft listings ----------
+// There is deliberately no `state` field: a draft stays a draft until a person activates it on Etsy.
+const draftFields = {
+  title: z.string().trim().min(1).max(140),
+  description: z.string().trim().min(1).max(10000),
+  tags: z.array(z.string().trim().min(1).max(20)).max(13),
+  priceCents: z.number().int().min(20).max(100_000_00),
+  images: z.array(z.string().min(1).max(1000)).max(10),
+  digitalFile: z.string().min(1).max(1000).optional(),
+  quantity: z.number().int().min(1).max(999).optional(),
+  taxonomyId: z.number().int().min(1).optional(),
+}
+export const DraftListingBody = z
+  .object({ ...draftFields, tags: draftFields.tags.default([]), images: draftFields.images.default([]) })
+  .strict()
+export const UpdateDraftBody = z
+  .object(draftFields)
+  .partial()
+  .strict()
+  .refine((b) => Object.keys(b).length > 0, { message: 'Send at least one field to change.' })
+export const DraftParams = z.object({ id: z.string().regex(/^[A-Za-z0-9_-]{1,40}$/) })
+export const DraftOut = z.object({ id: z.string(), state: z.literal('draft'), pending: z.boolean() })
+export type DraftListingInput = z.infer<typeof DraftListingBody>
+export type UpdateDraftInput = z.infer<typeof UpdateDraftBody>
+
 // ---------- responses ----------
 
 export const ErrorBody = z.object({

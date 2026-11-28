@@ -88,6 +88,8 @@ export interface AgentServices {
   drops?: import('../pipeline/dropLog').DropLog
   /** The reconcile check. Missing in tests that do not need it. */
   reconciler?: import('../pipeline/reconcile').Reconciler
+  /** B.E.T.H.'s Etsy draft listings. Missing in the Inbox watcher. */
+  ventureDrafts?: () => import('../ventures/drafts').DraftService | null
   /** The app-wide audit log. */
   audit?: import('../pipeline/auditEvents').AuditEvents
   /** Tells the owner something (Telegram and a message on screen), for example when a bot changes a post. */

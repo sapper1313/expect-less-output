@@ -107,6 +107,45 @@ export class VentureStore {
     }
   }
 
+  deleteListing(storefront: string, id: string): void {
+    this.db.transaction(() => {
+      for (const t of ['venture_listings', 'venture_price_history'])
+        this.db.prepare(`DELETE FROM ${t} WHERE storefront = ? AND ${t === 'venture_listings' ? 'id' : 'listing_id'} = ?`).run(storefront, id)
+      this.db.prepare('DELETE FROM venture_listing_images WHERE storefront = ? AND listing_id = ?').run(storefront, id)
+    })()
+  }
+
+  // ---------- pending drafts ----------
+
+  addPending(storefront: string, kind: 'create' | 'update', targetId: string, payload: unknown): number {
+    const r = this.db
+      .prepare('INSERT INTO venture_pending_drafts (storefront, kind, target_id, payload_json, created_at) VALUES (?, ?, ?, ?, ?)')
+      .run(storefront, kind, targetId, JSON.stringify(payload), new Date().toISOString())
+    return Number(r.lastInsertRowid)
+  }
+
+  listPending(storefront: string): Array<{ id: number; kind: 'create' | 'update'; targetId: string; payload: any; lastError: string | null }> {
+    return (
+      this.db.prepare('SELECT * FROM venture_pending_drafts WHERE storefront = ? ORDER BY id').all(storefront) as any[]
+    ).map((r) => ({ id: r.id, kind: r.kind, targetId: r.target_id, payload: JSON.parse(r.payload_json), lastError: r.last_error }))
+  }
+
+  setPendingTarget(id: number, targetId: string): void {
+    this.db.prepare('UPDATE venture_pending_drafts SET target_id = ? WHERE id = ?').run(targetId, id)
+  }
+
+  updatePending(id: number, payload: unknown): void {
+    this.db.prepare('UPDATE venture_pending_drafts SET payload_json = ?, last_error = NULL WHERE id = ?').run(JSON.stringify(payload), id)
+  }
+
+  failPending(id: number, error: string): void {
+    this.db.prepare('UPDATE venture_pending_drafts SET last_error = ? WHERE id = ?').run(error, id)
+  }
+
+  deletePending(id: number): void {
+    this.db.prepare('DELETE FROM venture_pending_drafts WHERE id = ?').run(id)
+  }
+
   // ---------- orders ----------
 
   hasOrder(storefront: string, receiptId: string): boolean {
@@ -275,6 +314,7 @@ export class VentureStore {
         'venture_ledger',
         'venture_messages',
         'venture_notifications',
+        'venture_pending_drafts',
       ])
         this.db.prepare(`DELETE FROM ${t} WHERE storefront = ?`).run(storefront)
       this.db.prepare("DELETE FROM venture_state WHERE storefront = ? AND key != 'demo_cleared'").run(storefront)

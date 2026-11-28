@@ -43,6 +43,8 @@ import { CacheProvider } from './ventures/etsy/provider'
 import { seedMockData } from './ventures/mock'
 import { ETSY_KEYSTRING_KEY, ETSY_SECRET_KEY, EtsyAuth, etsyCredentials } from './ventures/etsy/oauth'
 import { EtsyClient } from './ventures/etsy/client'
+import { DraftService } from './ventures/drafts'
+import { etsyDraftClient } from './ventures/etsy/draftClient'
 import { VentureNotifier } from './ventures/notifications'
 import { MAIL_PASSWORD_KEY, MessagePoller, realImap } from './ventures/messages'
 import { EtsySyncer } from './ventures/etsy/sync'
@@ -801,6 +803,7 @@ async function boot(): Promise<void> {
       .finally(() => emit())
 
   let telegramRef: TelegramAssistant | null = null
+  let ventureDraftsRef: DraftService | null = null
   let apiRef: ReturnType<typeof buildApi> | null = null
   const studio: Studio = new Studio({
     db,
@@ -1054,6 +1057,7 @@ async function boot(): Promise<void> {
       upcoming,
       reconciler,
       audit: auditEvents,
+      ventureDrafts: () => ventureDraftsRef,
       bots,
       pipeline: { receive: (c, sc, f, a) => inbox.receive(c, sc, f, a) },
       episodes: () => studio.episodes,
@@ -1133,8 +1137,7 @@ async function boot(): Promise<void> {
     notify: (n, key) => ventureNotifier.notify(n, key),
     now: () => Date.now(),
   })
-  const etsySyncer = new EtsySyncer({
-    client: new EtsyClient({
+  const etsyClient = new EtsyClient({
       // Looked up on every call so keys saved after start-up work at once. Never logged.
       apiKey: () => {
         const c = etsyKeys()
@@ -1142,7 +1145,9 @@ async function boot(): Promise<void> {
         return `${c.keystring}:${c.sharedSecret}`
       },
       token: () => etsyAuth.accessToken(),
-    }),
+  })
+  const etsySyncer = new EtsySyncer({
+    client: etsyClient,
     store: ventureStore,
     shopId: () => etsyAuth.shopId(),
     notify: (n, key) => ventureNotifier.notify(n, key),
@@ -1191,6 +1196,16 @@ async function boot(): Promise<void> {
     },
     log: (level, m) => log.log(level, m),
   })
+  ventureDraftsRef = new DraftService({
+    store: ventureStore,
+    live: () => {
+      const shopId = etsyAuth.shopId()
+      return etsyAuth.status().mode === 'connected' && shopId ? { client: etsyDraftClient(etsyClient), shopId } : null
+    },
+    audit: auditEvents,
+    defaultTaxonomy: () => Number(ventureStore.getState('etsy', 'default_taxonomy_id')) || null,
+  })
+  setInterval(() => void ventureDraftsRef?.pushPending().catch(() => {}), 20 * 60_000)
   setInterval(() => void ventures.syncAll().catch(() => {}), 20 * 60_000)
   setInterval(() => void messagePoller.poll().catch(() => {}), 20 * 60_000)
   setTimeout(() => void messagePoller.poll().catch(() => {}), 90_000)
