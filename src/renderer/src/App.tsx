@@ -21,6 +21,8 @@ import { Inbox } from './screens/Inbox'
 import { Upcoming } from './screens/Upcoming'
 import { About, SettingsScreen, type SettingsTab } from './screens/Simple'
 import logoWide from './assets/logo-wide.png'
+import { VenturesLayout } from './ventures/VenturesLayout'
+import { needsDrawer } from './ventures/nav'
 
 type Screen =
   | 'home'
@@ -33,6 +35,7 @@ type Screen =
   | 'channels'
   | 'settings'
   | 'financial'
+  | 'ventures'
   | 'aiSettings'
   | 'aiStudio'
   | 'about'
@@ -56,6 +59,7 @@ const NAV_GROUPS: Array<{ label: string; items: Screen[] }> = [
       'channels',
       'settings',
       'financial',
+      'ventures',
       'aiSettings',
       'aiStudio',
     ],
@@ -70,6 +74,14 @@ function Shell() {
   const [detailPost, setDetailPost] = useState<number | null>(null)
   const [editPost, setEditPost] = useState<number | null>(null)
   const [searching, setSearching] = useState(false)
+  const [width, setWidth] = useState(() => window.innerWidth)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  useEffect(() => {
+    const h = () => setWidth(window.innerWidth)
+    window.addEventListener('resize', h)
+    return () => window.removeEventListener('resize', h)
+  }, [])
+  const drawer = needsDrawer(width)
   const [peekEpisode, setPeekEpisode] = useState<string | null>(null)
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('general')
   const [statsTab, setStatsTab] = useState<AnalyticsTab>('numbers')
@@ -137,6 +149,7 @@ function Shell() {
   const { data: studio } = useLoad(() => api.studio.overview())
   const { data: home } = useLoad(() => api.home.summary())
   const { data: inboxCounts } = useLoad(() => api.pipeline.counts())
+  const { data: venturesUnread, reload: reloadVentures } = useLoad(() => api.ventures.unreadTotal())
   const { data: trackerFlags } = useLoad(() => api.upcoming.tracker())
   const badge: Partial<Record<Screen, number>> = {
     aiStudio: home?.badges.studio,
@@ -144,6 +157,7 @@ function Shell() {
     production: trackerFlags?.flags.filter((f) => f.severity === 'bad').length,
     inbox: inboxCounts?.badge,
     channels: home?.badges.channels,
+    ventures: venturesUnread ?? 0,
   }
 
   // The left menu keeps its dark palette. The main area takes its look from the color theme.
@@ -182,7 +196,16 @@ function Shell() {
 
   return (
     <div className="glass-app glass-bg flex h-full" data-look={look}>
-      <aside className="side-glass drag flex w-[228px] shrink-0 flex-col pt-9">
+      {drawer && drawerOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50"
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden
+        />
+      )}
+      <aside
+        className={`side-glass drag flex w-[228px] shrink-0 flex-col pt-9 ${drawer ? (drawerOpen ? 'fixed inset-y-0 left-0 z-40 shadow-2xl' : 'hidden') : ''}`}
+      >
         <div className="no-drag px-4 pb-4">
           <img src={logoWide} alt="Expect Less Output" className="w-full" />
         </div>
@@ -195,40 +218,43 @@ function Shell() {
         </button>
         <nav className="no-drag flex-1 space-y-1.5 overflow-y-auto px-3" aria-label="Main">
           {NAV_GROUPS.flatMap((g) => [
-              g.label ? (
-                <div
-                  key={`h-${g.label}`}
-                  className="px-3 pb-0.5 pt-3 text-[10px] font-bold uppercase tracking-wider text-muted"
-                >
-                  {g.label}
-                </div>
-              ) : null,
-              ...g.items.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setScreen(s)}
-                  aria-current={screen === s ? 'page' : undefined}
-                  className={`pill w-full px-4 py-2 text-left text-[13px] font-semibold ${screen === s ? 'bg-accent' : 'text-ink'}`}
-                >
-                  <span className="flex items-center justify-between">
-                    {COPY.nav[s]}
-                    <span className="flex items-center gap-2">
-                      {!!badge[s] && (
-                        <span
-                          title="Needs a look"
-                          className="dot-pulse flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
-                        >
-                          {badge[s]}
-                        </span>
-                      )}
-                      {SHORTCUTS[s] && (
-                        <span className="text-[11px] font-normal opacity-60">{SHORTCUTS[s]}</span>
-                      )}
-                    </span>
+            g.label ? (
+              <div
+                key={`h-${g.label}`}
+                className="px-3 pb-0.5 pt-3 text-[10px] font-bold uppercase tracking-wider text-muted"
+              >
+                {g.label}
+              </div>
+            ) : null,
+            ...g.items.map((s) => (
+              <button
+                key={s}
+                onClick={() => {
+                  setScreen(s)
+                  setDrawerOpen(false)
+                }}
+                aria-current={screen === s ? 'page' : undefined}
+                className={`pill w-full px-4 py-2 text-left text-[13px] font-semibold ${screen === s ? 'bg-accent' : 'text-ink'}`}
+              >
+                <span className="flex items-center justify-between">
+                  {COPY.nav[s]}
+                  <span className="flex items-center gap-2">
+                    {!!badge[s] && (
+                      <span
+                        title="Needs a look"
+                        className="dot-pulse flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+                      >
+                        {badge[s]}
+                      </span>
+                    )}
+                    {SHORTCUTS[s] && (
+                      <span className="text-[11px] font-normal opacity-60">{SHORTCUTS[s]}</span>
+                    )}
                   </span>
-                </button>
-              )),
-            ])}
+                </span>
+              </button>
+            )),
+          ])}
         </nav>
         {meta?.connected && meta.expiringSoon && (
           <button
@@ -264,6 +290,23 @@ function Shell() {
         </div>
       </aside>
       <main className="min-w-0 flex-1 overflow-y-auto">
+        {drawer && (
+          <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-bg px-3 py-2">
+            <button
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Open menu"
+              className="rounded-md border border-line px-3 py-1.5 text-[13px] font-semibold"
+            >
+              Menu
+              {!!venturesUnread && (
+                <span className="ml-2 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                  {venturesUnread}
+                </span>
+              )}
+            </button>
+            <span className="text-[13px] font-semibold">{COPY.nav[screen]}</span>
+          </div>
+        )}
         {report && (
           <div className="mx-8 mt-3 flex items-center justify-between gap-4 rounded-md border border-warn p-3 text-[13px]">
             <div>
@@ -303,6 +346,9 @@ function Shell() {
         {screen === 'channels' && <Channels key={channelsTab} initialTab={channelsTab} />}
         {screen === 'settings' && <SettingsScreen key={settingsTab} initialTab={settingsTab} />}
         {screen === 'financial' && <Financial />}
+        {screen === 'ventures' && (
+          <VenturesLayout data={api.ventures} onUnreadChange={reloadVentures} />
+        )}
         {screen === 'aiSettings' && <AiSettings />}
         {screen === 'about' && <About />}
       </main>

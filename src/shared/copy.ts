@@ -56,6 +56,7 @@ export const COPY = {
     channels: 'Setup Channels',
     settings: 'Settings',
     financial: 'Financial',
+    ventures: 'ELS Ventures',
     aiSettings: 'AI Settings',
     aiStudio: 'AI Studio',
     about: 'About',
