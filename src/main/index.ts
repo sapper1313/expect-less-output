@@ -36,6 +36,12 @@ import { probe as probeVideo } from './studio/ffmpeg'
 import type { AlertKind } from './alerts/format'
 import { latestSchemaVersion, openDb } from './db'
 import { AlertService } from './alerts/service'
+import { VentureStore } from './ventures/store'
+import { VentureRegistry } from './ventures/registry'
+import { VenturesService } from './ventures/service'
+import { CacheProvider } from './ventures/etsy/provider'
+import { seedMockData } from './ventures/mock'
+import type { ConnectionStatus } from '@shared/ventures'
 import { AgentRuntime } from './agent/runtime'
 import { DashboardService } from './dashboard/service'
 import { InboxWatcher } from './agent/inbox'
@@ -1285,7 +1291,31 @@ async function boot(): Promise<void> {
   })
   telegramRef = telegram
 
+  const ventureStore = new VentureStore(db)
+  const ventureRegistry = new VentureRegistry()
+  const etsyStatus = (): ConnectionStatus => ({
+    mode: 'mock',
+    shopName: null,
+    lastSyncAt: ventureStore.getState('etsy', 'last_sync_at'),
+    expiresAt: null,
+  })
+  ventureRegistry.register(
+    new CacheProvider({ id: 'etsy', label: 'Etsy', store: ventureStore, now: () => Date.now(), status: etsyStatus }),
+  )
+  // Until Etsy approves the app there is no real shop, so the pages show sample data.
+  if (etsyStatus().mode === 'mock' && ventureStore.listingRows('etsy').length === 0)
+    seedMockData(ventureStore, 'etsy', Date.now())
+  const ventures = new VenturesService({
+    registry: ventureRegistry,
+    store: ventureStore,
+    now: () => Date.now(),
+    syncers: {},
+    log: (level, m) => log.log(level, m),
+  })
+  setInterval(() => void ventures.syncAll().catch(() => {}), 20 * 60_000)
+
   const api = buildApi({
+    ventures,
     uploadPost,
     firstComments,
     engage,

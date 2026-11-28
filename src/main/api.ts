@@ -109,6 +109,7 @@ export interface ApiDeps {
   growth: import('./growth/service').GrowthService
   website: import('./website/service').WebsiteService
   amazon: import('./pipeline/amazonLists').AmazonLists
+  ventures: import('./ventures/service').VenturesService
   storage: import('./growth/storage').StorageService
   platforms: import('./platforms/service').PlatformService
   upcoming: UpcomingService
@@ -586,6 +587,25 @@ export function buildApi(d: ApiDeps): Api {
       boards: async (brandId) => d.platforms.boards(brandId),
       setBoard: async (brandId, id, name) => d.platforms.setBoard(brandId, id, name),
       connectedFor: async (brandId) => d.platforms.connected(brandId),
+    },
+    ventures: {
+      storefronts: async () => d.ventures.storefronts(),
+      status: async (id) => d.ventures.status(id),
+      dashboard: async (id, preset, custom) => d.ventures.dashboard(id, preset, custom),
+      listings: async (id, q) => d.ventures.listings(id, q),
+      listing: async (id, listingId) => d.ventures.listing(id, listingId),
+      orders: async (id, preset, custom) => d.ventures.orders(id, preset, custom),
+      reviews: async (id, limit) => d.ventures.reviews(id, limit),
+      notifications: async (id) => d.ventures.notifications(id),
+      markRead: async (id, ids) => {
+        d.ventures.markRead(id, ids)
+        d.emit()
+      },
+      unreadTotal: async () => d.ventures.unreadTotal(),
+      syncNow: async (id) => {
+        await d.ventures.syncNow(id)
+        d.emit()
+      },
     },
     amazon: {
       channel: async (brandId) => ({ ...d.amazon.channel(brandId), blocked: d.amazon.blockedReason(brandId), stream: d.amazon.isStream(brandId) }),

@@ -363,6 +363,27 @@ export interface Api {
     /** The extra platforms a channel has a working login for. */
     connectedFor(brandId: number): Promise<ExtraPlatform[]>
   }
+  ventures: {
+    storefronts(): Promise<import('./ventures').StorefrontInfo[]>
+    status(id: string): Promise<import('./ventures').ConnectionStatus>
+    dashboard(
+      id: string,
+      preset: import('./ventures').RangePreset,
+      custom?: import('./ventures').VentureRange,
+    ): Promise<import('./ventures').DashboardSummary>
+    listings(id: string, q: import('./ventures').ListingQuery): Promise<import('./ventures').ListingRow[]>
+    listing(id: string, listingId: string): Promise<import('./ventures').ListingDetail | null>
+    orders(
+      id: string,
+      preset: import('./ventures').RangePreset,
+      custom?: import('./ventures').VentureRange,
+    ): Promise<import('./ventures').OrderRow[]>
+    reviews(id: string, limit: number): Promise<import('./ventures').ReviewRow[]>
+    notifications(id: string): Promise<import('./ventures').VentureNotification[]>
+    markRead(id: string, ids: number[]): Promise<void>
+    unreadTotal(): Promise<number>
+    syncNow(id: string): Promise<void>
+  }
   amazon: {
     /** This channel's tracking id and lines, and why lists cannot run for it yet (null when they can). */
     channel(brandId: number): Promise<AmazonChannelSettings & { blocked: string | null; stream: boolean }>
