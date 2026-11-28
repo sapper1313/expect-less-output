@@ -36,7 +36,14 @@ export class CacheProvider implements VentureProvider {
 
   dashboard(r: VentureRange): DashboardSummary {
     const { fromUtc, toUtc } = rangeToUtc(r)
-    return summarize(this.o.store.ordersBetween(this.id, fromUtc, toUtc), r)
+    const s = summarize(this.o.store.ordersBetween(this.id, fromUtc, toUtc), r)
+    // Fees that belong to no order (listing fees) still come out of what the shop keeps.
+    const extra = this.o.store.unattributedFees(this.id, fromUtc, toUtc)
+    if (extra) {
+      s.fees = { ...s.fees, cents: s.fees.cents + extra }
+      s.net = { ...s.net, cents: s.net.cents - extra }
+    }
+    return s
   }
 
   listings(q: ListingQuery): ListingRow[] {

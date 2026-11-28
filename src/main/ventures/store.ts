@@ -109,6 +109,10 @@ export class VentureStore {
 
   // ---------- orders ----------
 
+  hasOrder(storefront: string, receiptId: string): boolean {
+    return !!this.db.prepare('SELECT 1 FROM venture_orders WHERE storefront = ? AND receipt_id = ?').get(storefront, receiptId)
+  }
+
   upsertOrder(storefront: string, o: StoredOrder): void {
     this.db.transaction(() => {
       this.db
@@ -188,6 +192,24 @@ export class VentureStore {
          ON CONFLICT(storefront, id) DO UPDATE SET receipt_id=excluded.receipt_id, at=excluded.at, cents=excluded.cents, kind=excluded.kind`,
       )
       .run(storefront, e.id, e.receiptId, e.at, e.cents, e.kind)
+  }
+
+  /** Fees Etsy took for one order, in cents (positive). */
+  feesForReceipt(storefront: string, receiptId: string): number {
+    const r = this.db
+      .prepare("SELECT COALESCE(SUM(-cents), 0) AS n FROM venture_ledger WHERE storefront = ? AND receipt_id = ? AND kind = 'fee'")
+      .get(storefront, receiptId) as { n: number }
+    return r.n
+  }
+
+  /** Fees not tied to an order (listing fees and the like) inside a UTC range, in cents (positive). */
+  unattributedFees(storefront: string, fromUtc: string, toUtc: string): number {
+    const r = this.db
+      .prepare(
+        "SELECT COALESCE(SUM(-cents), 0) AS n FROM venture_ledger WHERE storefront = ? AND receipt_id IS NULL AND kind = 'fee' AND at >= ? AND at < ?",
+      )
+      .get(storefront, fromUtc, toUtc) as { n: number }
+    return r.n
   }
 
   // ---------- notifications ----------

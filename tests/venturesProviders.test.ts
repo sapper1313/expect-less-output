@@ -58,6 +58,16 @@ describe('CacheProvider with mock data', () => {
   })
 })
 
+describe('CacheProvider fees', () => {
+  it('counts listing fees that belong to no order', () => {
+    const { store, p } = make(false)
+    store.addLedger('etsy', { id: 'f1', receiptId: null, at: '2026-06-10T12:00:00.000Z', cents: -20, kind: 'fee' })
+    const d = p.dashboard(resolveRange('today', NOW))
+    expect(d.fees.cents).toBe(20)
+    expect(d.net.cents).toBe(-20)
+  })
+})
+
 describe('CacheProvider with no data', () => {
   it('returns an all zero dashboard', () => {
     const { p } = make(false)
