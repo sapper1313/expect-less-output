@@ -11,7 +11,7 @@ export class EtsyError extends Error {
 
 export interface EtsyClientOpts {
   /** Etsy wants "keystring:shared_secret" in the x-api-key header. Never logged. */
-  apiKey: string
+  apiKey: string | (() => string)
   token: () => Promise<string>
   fetch?: typeof fetch
   sleep?: (ms: number) => Promise<void>
@@ -36,7 +36,7 @@ export class EtsyClient {
       if (gap > 0) await this.sleep(gap)
       this.last = Date.now()
       const res = await (this.o.fetch ?? fetch)(url, {
-        headers: { 'x-api-key': this.o.apiKey, Authorization: `Bearer ${await this.o.token()}`, Accept: 'application/json' },
+        headers: { 'x-api-key': typeof this.o.apiKey === 'function' ? this.o.apiKey() : this.o.apiKey, Authorization: `Bearer ${await this.o.token()}`, Accept: 'application/json' },
       })
       if (res.ok) return (await res.json()) as T
       const transient = res.status === 429 || res.status >= 500

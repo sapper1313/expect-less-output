@@ -21,6 +21,13 @@ export interface VenturesDeps {
   now: () => number
   /** One syncer per storefront that has a real shop behind it. Mock storefronts have none. */
   syncers: Record<string, { run(): Promise<unknown> }>
+  /** The Etsy login. Absent in tests that do not need it. */
+  etsy?: {
+    connect(): Promise<{ shopId: string; shopName: string }>
+    disconnect(): void
+    saveKeys(keystring: string, sharedSecret: string): void
+    hasKeys(): boolean
+  }
   log?: (level: 'info' | 'warn' | 'error', message: string) => void
 }
 
@@ -82,6 +89,34 @@ export class VenturesService {
   async syncNow(id: string): Promise<void> {
     this.p(id)
     await this.d.syncers[id]?.run()
+  }
+
+  /** Runs the Etsy sign-in. Sample data gives way to the real shop, and the first sync starts in the background. */
+  async connectEtsy(): Promise<{ shopName: string }> {
+    if (!this.d.etsy) throw new Error('Etsy keys are not set up yet.')
+    const r = await this.d.etsy.connect()
+    this.d.store.clearStorefront('etsy')
+    this.d.store.setState('etsy', 'demo_cleared', '1')
+    this.d.log?.('info', `Etsy connected: ${r.shopName}.`)
+    void this.syncNow('etsy').catch((e) => this.d.log?.('warn', `First Etsy sync failed: ${e instanceof Error ? e.message : 'unknown error'}`))
+    return { shopName: r.shopName }
+  }
+
+  disconnectEtsy(): void {
+    this.d.etsy?.disconnect()
+    this.d.log?.('info', 'Etsy disconnected.')
+  }
+
+  saveEtsyKeys(keystring: string, sharedSecret: string): void {
+    const k = keystring.trim()
+    const s = sharedSecret.trim()
+    if (!k || !s) throw new Error('Enter both the keystring and the shared secret.')
+    if (!this.d.etsy) throw new Error('Etsy is not available.')
+    this.d.etsy.saveKeys(k, s)
+  }
+
+  etsyKeysSet(): boolean {
+    return !!this.d.etsy?.hasKeys()
   }
 
   /** Every storefront with a real shop connected. One failing never stops the others. */

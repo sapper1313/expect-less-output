@@ -383,6 +383,11 @@ export interface Api {
     markRead(id: string, ids: number[]): Promise<void>
     unreadTotal(): Promise<number>
     syncNow(id: string): Promise<void>
+    /** Owner only. Not available on the phone page. */
+    connectEtsy(): Promise<{ shopName: string }>
+    disconnectEtsy(): Promise<void>
+    saveEtsyKeys(keystring: string, sharedSecret: string): Promise<void>
+    etsyKeysSet(): Promise<boolean>
   }
   amazon: {
     /** This channel's tracking id and lines, and why lists cannot run for it yet (null when they can). */

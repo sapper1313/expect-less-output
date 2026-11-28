@@ -22,6 +22,7 @@ import { Upcoming } from './screens/Upcoming'
 import { About, SettingsScreen, type SettingsTab } from './screens/Simple'
 import logoWide from './assets/logo-wide.png'
 import { VenturesLayout } from './ventures/VenturesLayout'
+import { EtsyConnectCard, PhoneLinkCard } from './ventures/EtsyConnectCard'
 import { needsDrawer } from './ventures/nav'
 
 type Screen =
@@ -347,7 +348,16 @@ function Shell() {
         {screen === 'settings' && <SettingsScreen key={settingsTab} initialTab={settingsTab} />}
         {screen === 'financial' && <Financial />}
         {screen === 'ventures' && (
-          <VenturesLayout data={api.ventures} onUnreadChange={reloadVentures} />
+          <VenturesLayout
+            data={api.ventures}
+            onUnreadChange={reloadVentures}
+            extra={(id) => (
+              <>
+                {id === 'etsy' && <EtsyConnectCard />}
+                <PhoneLinkCard />
+              </>
+            )}
+          />
         )}
         {screen === 'aiSettings' && <AiSettings />}
         {screen === 'about' && <About />}

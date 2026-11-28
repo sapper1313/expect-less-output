@@ -606,6 +606,20 @@ export function buildApi(d: ApiDeps): Api {
         await d.ventures.syncNow(id)
         d.emit()
       },
+      connectEtsy: async () => {
+        const r = await d.ventures.connectEtsy()
+        d.emit()
+        return r
+      },
+      disconnectEtsy: async () => {
+        d.ventures.disconnectEtsy()
+        d.emit()
+      },
+      saveEtsyKeys: async (k, s) => {
+        d.ventures.saveEtsyKeys(k, s)
+        d.emit()
+      },
+      etsyKeysSet: async () => d.ventures.etsyKeysSet(),
     },
     amazon: {
       channel: async (brandId) => ({ ...d.amazon.channel(brandId), blocked: d.amazon.blockedReason(brandId), stream: d.amazon.isStream(brandId) }),

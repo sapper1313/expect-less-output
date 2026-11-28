@@ -41,6 +41,9 @@ import { VentureRegistry } from './ventures/registry'
 import { VenturesService } from './ventures/service'
 import { CacheProvider } from './ventures/etsy/provider'
 import { seedMockData } from './ventures/mock'
+import { ETSY_KEYSTRING_KEY, ETSY_SECRET_KEY, EtsyAuth, etsyCredentials } from './ventures/etsy/oauth'
+import { EtsyClient } from './ventures/etsy/client'
+import { EtsySyncer } from './ventures/etsy/sync'
 import type { ConnectionStatus } from '@shared/ventures'
 import { AgentRuntime } from './agent/runtime'
 import { DashboardService } from './dashboard/service'
@@ -1082,23 +1085,68 @@ async function boot(): Promise<void> {
   })
   const ventureStore = new VentureStore(db)
   const ventureRegistry = new VentureRegistry()
-  const etsyStatus = (): ConnectionStatus => ({
-    mode: 'mock',
-    shopName: null,
-    lastSyncAt: ventureStore.getState('etsy', 'last_sync_at'),
-    expiresAt: null,
+  const etsyKeys = etsyCredentials(secrets)
+  const etsyAuth = new EtsyAuth({
+    secrets,
+    now: () => Date.now(),
+    openUrl: (u) => void shell.openExternal(u),
+    credentials: etsyKeys,
+    onReauth: () =>
+      log.log('warn', 'Etsy needs you to sign in again. Open ELS Ventures and click Connect Etsy.'),
   })
+  // Sample data until a real shop is connected. After a disconnect the page says "not connected" instead.
+  const etsyStatus = (): ConnectionStatus => {
+    const last = ventureStore.getState('etsy', 'last_sync_at')
+    const a = etsyAuth.status()
+    if (a.mode !== 'not_connected') return { ...a, lastSyncAt: last }
+    const cleared = ventureStore.getState('etsy', 'demo_cleared') === '1'
+    return {
+      mode: cleared ? 'not_connected' : 'mock',
+      shopName: null,
+      lastSyncAt: last,
+      expiresAt: null,
+    }
+  }
   ventureRegistry.register(
-    new CacheProvider({ id: 'etsy', label: 'Etsy', store: ventureStore, now: () => Date.now(), status: etsyStatus }),
+    new CacheProvider({
+      id: 'etsy',
+      label: 'Etsy',
+      store: ventureStore,
+      now: () => Date.now(),
+      status: etsyStatus,
+    }),
   )
-  // Until Etsy approves the app there is no real shop, so the pages show sample data.
   if (etsyStatus().mode === 'mock' && ventureStore.listingRows('etsy').length === 0)
     seedMockData(ventureStore, 'etsy', Date.now())
+  const etsySyncer = new EtsySyncer({
+    client: new EtsyClient({
+      // Looked up on every call so keys saved after start-up work at once. Never logged.
+      apiKey: () => {
+        const c = etsyKeys()
+        if (!c) throw new Error('Etsy keys are not set up yet.')
+        return `${c.keystring}:${c.sharedSecret}`
+      },
+      token: () => etsyAuth.accessToken(),
+    }),
+    store: ventureStore,
+    shopId: () => etsyAuth.shopId(),
+    notify: (n, key) => void ventureStore.addNotification(n, key),
+    now: () => Date.now(),
+  })
   const ventures = new VenturesService({
     registry: ventureRegistry,
     store: ventureStore,
     now: () => Date.now(),
-    syncers: {},
+    syncers: { etsy: etsySyncer },
+    etsy: {
+      connect: () => etsyAuth.connect(),
+      disconnect: () => etsyAuth.disconnect(),
+      saveKeys: (k, sec) => {
+        secrets.set(ETSY_KEYSTRING_KEY, k)
+        secrets.set(ETSY_SECRET_KEY, sec)
+      },
+      hasKeys: () => !!etsyKeys(),
+    },
     log: (level, m) => log.log(level, m),
   })
   setInterval(() => void ventures.syncAll().catch(() => {}), 20 * 60_000)

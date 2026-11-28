@@ -254,6 +254,25 @@ export class VentureStore {
     ).n
   }
 
+  /** Removes everything cached for one storefront (used when sample data gives way to the real shop). */
+  clearStorefront(storefront: string): void {
+    this.db.transaction(() => {
+      for (const t of [
+        'venture_listings',
+        'venture_listing_images',
+        'venture_price_history',
+        'venture_orders',
+        'venture_order_items',
+        'venture_reviews',
+        'venture_ledger',
+        'venture_messages',
+        'venture_notifications',
+      ])
+        this.db.prepare(`DELETE FROM ${t} WHERE storefront = ?`).run(storefront)
+      this.db.prepare("DELETE FROM venture_state WHERE storefront = ? AND key != 'demo_cleared'").run(storefront)
+    })()
+  }
+
   // ---------- state ----------
 
   setState(storefront: string, key: string, value: string | null): void {
